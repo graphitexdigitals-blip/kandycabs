@@ -241,7 +241,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
                 <>
                   <View style={styles.otpHeaderRow}>
                     <Text style={styles.otpSentText}>
-                      Code sent to <Text style={{ fontWeight: '800', color: '#0f172a' }}>+91 {phone}</Text>
+                      Code sent to <Text style={{ fontWeight: '800', color: '#103A75' }}>+91 {phone}</Text>
                     </Text>
                     <TouchableOpacity onPress={() => setStep('PHONE')}>
                       <Text style={styles.changePhoneText}>Change</Text>
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
   },
   closeBtn: {
     padding: 6,
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   countryCodeText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#103A75',
   },
   phoneInput: {
     flex: 1,
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#103A75',
   },
   otpHeaderRow: {
     flexDirection: 'row',
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 22,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
     textAlign: 'center',
     letterSpacing: 10,
   },
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#103A75',
   },
   devCodeBadge: {
     backgroundColor: '#fef3c7',

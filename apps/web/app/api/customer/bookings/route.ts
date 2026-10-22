@@ -84,6 +84,9 @@ export async function POST(req: NextRequest) {
       passengerName,
       passengerPhone,
       passengerEmail,
+      alternateEmail,
+      companyName,
+      gstin,
       paymentMode,
       notes,
     } = body;
@@ -145,7 +148,20 @@ export async function POST(req: NextRequest) {
     const route = await calculateRouteDistance(pickupLat, pickupLng, dropLat, dropLng);
     const distanceKm = route.distanceKm;
 
-    // 3. Authoritative server fare calculation (ignores any client-submitted amounts)
+    // 3. Authoritative server fare calculation (with pet friendly convenience fee if requested)
+    const rawFlightNumber = body.flightNumber || 
+      (typeof notes === 'string' ? notes.match(/flight(?:\s*number|\s*no)?\s*[:#-]?\s*([A-Z0-9\s-]+)/i)?.[1] : undefined) ||
+      (typeof body.specialRequirements === 'string' ? body.specialRequirements.match(/flight(?:\s*number|\s*no)?\s*[:#-]?\s*([A-Z0-9\s-]+)/i)?.[1] : undefined);
+    const flightNumber = rawFlightNumber ? String(rawFlightNumber).trim().toUpperCase() : undefined;
+
+    const hasPet = Boolean(
+      body.hasPet ||
+      body.isPetFriendly ||
+      (typeof notes === 'string' && /pet\s*friendly/i.test(notes)) ||
+      (typeof body.specialRequirements === 'string' && /pet\s*friendly/i.test(body.specialRequirements))
+    );
+    const petFee = hasPet ? (Number(body.petFee) || 500) : 0;
+
     const pricing = calculateFare({
       category,
       fuelType,
@@ -155,6 +171,8 @@ export async function POST(req: NextRequest) {
       durationDays,
       packageHours,
       couponCode,
+      hasPet,
+      petFee,
     });
 
     const isPayOnDrop = paymentMode === 'PAY_ON_DROP' || paymentMode === 'CASH';
@@ -226,6 +244,10 @@ export async function POST(req: NextRequest) {
             luggage: luggageDetails,
             requestCarrier,
             hasCarrier: requestCarrier,
+            flightNumber,
+            hasPet,
+            isPetFriendly: hasPet,
+            petFee,
             specialRequirements: specialReqs,
             notes: specialReqs,
             advancePaid: pricing.advanceAmount,
@@ -233,6 +255,9 @@ export async function POST(req: NextRequest) {
             razorpayOrderId: orderRef,
             passengerName: passengerName ? String(passengerName).trim() : undefined,
             passengerPhone: passengerPhone ? String(passengerPhone).trim() : undefined,
+            alternateEmail: alternateEmail ? String(alternateEmail).trim() : (body.alternateEmail ? String(body.alternateEmail).trim() : undefined),
+            companyName: companyName ? String(companyName).trim() : (body.companyName ? String(body.companyName).trim() : undefined),
+            gstin: gstin ? String(gstin).trim().toUpperCase() : (body.gstin ? String(body.gstin).trim().toUpperCase() : undefined),
           },
         },
       });
@@ -244,7 +269,7 @@ export async function POST(req: NextRequest) {
           action: 'CREATE_BOOKING',
           entityType: 'Booking',
           entityId: booking.id,
-          reason: `Customer booked ${category} (${tripType}) for ${passengerCount} passengers (${luggageDetails}) with ₹${pricing.advanceAmount} advance paid.`,
+          reason: `Customer booked ${category} (${tripType}${flightNumber ? `, Flight ${flightNumber}` : ''}) for ${passengerCount} passengers (${luggageDetails}) with ₹${pricing.advanceAmount} advance paid.`,
         },
       });
 

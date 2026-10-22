@@ -255,8 +255,12 @@ export function calculateFare(input: PricingCalculationInput): PricingBreakdown 
     }
   }
 
+  // Pet Friendly surcharge (flat ₹500 standard convenience/sanitization fee)
+  const hasPet = Boolean(input.hasPet);
+  const petCharge = hasPet ? (input.petFee !== undefined ? input.petFee : 500) : 0;
+
   // Pre-tax subtotal
-  let subtotal = baseFare + extraKmCharge + driverAllowance + nightCharge;
+  let subtotal = baseFare + extraKmCharge + driverAllowance + nightCharge + petCharge;
 
   // Coupon discount logic
   let discount = 0;
@@ -298,5 +302,7 @@ export function calculateFare(input: PricingCalculationInput): PricingBreakdown 
     balanceAmount,
     isNightTime: isNight,
     ratePerKm,
+    hasPet,
+    petCharge,
   };
 }

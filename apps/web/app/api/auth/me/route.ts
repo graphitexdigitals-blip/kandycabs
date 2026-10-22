@@ -64,11 +64,13 @@ export async function GET(req: NextRequest) {
     }
 
     const cleanFullName = (user.fullName === 'Kandy Customer' ? '' : (user.fullName || ''));
+    const savedCustomerMeta = (user.customer?.savedAddresses as any) || {};
 
     const userProfile = {
       id: user.id,
       phone: user.phone,
       fullName: cleanFullName,
+      profilePhoto: savedCustomerMeta.profilePhoto || null,
       roles: user.roles as UserRole[],
       createdAt: user.createdAt,
       customer: user.customer

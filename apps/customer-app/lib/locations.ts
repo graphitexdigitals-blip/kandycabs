@@ -12,10 +12,10 @@ export const ALL_LOCATIONS: PlaceLocation[] = [
   // Airports & Major Terminals
   { label: 'Mangaluru Airport (IXE)', sublabel: 'Bajpe Terminal, Mangaluru', lat: 12.9613, lng: 74.8901, category: 'AIRPORTS', keywords: ['bajpe', 'airport', 'ixe', 'flight', 'mangalore'] },
   { label: 'Kempegowda Intl Airport (BLR)', sublabel: 'Devanahalli Airport, Bengaluru', lat: 13.1986, lng: 77.7066, category: 'AIRPORTS', keywords: ['bangalore', 'airport', 'blr', 'kempegowda', 'devanahalli'] },
-  { label: 'Mangaluru Central Railway Station', sublabel: 'MAQ, Hampankatta', lat: 12.8634, lng: 74.8436, category: 'AIRPORTS', keywords: ['train', 'station', 'central', 'maq', 'hampankatta'] },
-  { label: 'Mangaluru Junction Railway Station', sublabel: 'MAJN, Kankanady Bypass', lat: 12.8687, lng: 74.8624, category: 'AIRPORTS', keywords: ['train', 'station', 'junction', 'majn', 'kankanady', 'padil'] },
-  { label: 'Surathkal Railway Station', sublabel: 'SL, NH66 Surathkal', lat: 13.0035, lng: 74.7960, category: 'AIRPORTS', keywords: ['train', 'station', 'surathkal', 'sl'] },
-  { label: 'Udupi Railway Station', sublabel: 'UD, Indrali / Manipal Road', lat: 13.3480, lng: 74.7820, category: 'AIRPORTS', keywords: ['train', 'station', 'udupi', 'indrali', 'ud'] },
+  { label: 'Mangaluru Central Railway Station', sublabel: 'MAQ, Hampankatta', lat: 12.8634, lng: 74.8436, category: 'MANGALURU', keywords: ['train', 'station', 'railway', 'central', 'maq', 'hampankatta'] },
+  { label: 'Mangaluru Junction Railway Station', sublabel: 'MAJN, Kankanady Bypass', lat: 12.8687, lng: 74.8624, category: 'MANGALURU', keywords: ['train', 'station', 'railway', 'junction', 'majn', 'kankanady', 'padil'] },
+  { label: 'Surathkal Railway Station', sublabel: 'SL, NH66 Surathkal', lat: 13.0035, lng: 74.7960, category: 'MANGALURU', keywords: ['train', 'station', 'railway', 'surathkal', 'sl'] },
+  { label: 'Udupi Railway Station', sublabel: 'UD, Indrali / Manipal Road', lat: 13.3480, lng: 74.7820, category: 'OUTSTATION', keywords: ['train', 'station', 'railway', 'udupi', 'indrali', 'ud'] },
   { label: 'Bejai KSRTC Terminal, Mangaluru', sublabel: 'Main Interstate Bus Stand, Bejai', lat: 12.8838, lng: 74.8474, category: 'MANGALURU', keywords: ['bus stand', 'ksrtc', 'bejai', 'interstate'] },
   { label: 'State Bank Bus Terminus, Mangaluru', sublabel: 'City & Service Bus Terminal, Hampankatta', lat: 12.8620, lng: 74.8390, category: 'MANGALURU', keywords: ['state bank', 'service bus stand', 'city bus stand', 'hampankatta'] },
 

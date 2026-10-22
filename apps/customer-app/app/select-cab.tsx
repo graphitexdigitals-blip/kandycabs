@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthModal } from '../components/AuthModal';
+import BookingFlowHeader from '../components/BookingFlowHeader';
 import { safeNavigate } from '../lib/safeNav';
 import { trackAppEvent } from '../lib/analytics';
 
@@ -161,7 +162,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     ratePerKm: 11,
     minKm: 50,
     badge: 'ECONOMY CHOICE',
-    badgeColor: '#1e293b',
+    badgeColor: '#103A75',
     badgeBg: '#f1f5f9',
     image: require('../assets/images/fleet-hatchback.png'),
     purpose: 'Budget city & short outstation trips',
@@ -186,7 +187,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     ratePerKm: 13,
     minKm: 60,
     badge: 'MOST POPULAR',
-    badgeColor: '#1e293b',
+    badgeColor: '#103A75',
     badgeBg: '#f1f5f9',
     image: require('../assets/images/fleet-sedan.png'),
     purpose: 'Comfortable sedan for families & business travel',
@@ -210,7 +211,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     ratePerKm: 16,
     minKm: 80,
     badge: 'FAMILY & GROUP',
-    badgeColor: '#1e293b',
+    badgeColor: '#103A75',
     badgeBg: '#f1f5f9',
     image: require('../assets/images/fleet-suv.png'),
     purpose: 'Spacious 6-7 seater for ghats & family vacations',
@@ -234,7 +235,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     ratePerKm: 20,
     minKm: 100,
     badge: 'EXECUTIVE LUXURY',
-    badgeColor: '#1e293b',
+    badgeColor: '#103A75',
     badgeBg: '#f1f5f9',
     image: require('../assets/images/fleet-crysta.png'),
     purpose: 'VIP highway cruising with premium captain seats',
@@ -258,7 +259,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     ratePerKm: 26,
     minKm: 150,
     badge: 'LARGE GROUP',
-    badgeColor: '#1e293b',
+    badgeColor: '#103A75',
     badgeBg: '#f1f5f9',
     image: require('../assets/images/fleet-traveller.png'),
     purpose: 'Pilgrimage, marriage & corporate tour outings',
@@ -282,7 +283,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     ratePerKm: 32,
     minKm: 150,
     badge: 'LUXURY VAN',
-    badgeColor: '#1e293b',
+    badgeColor: '#103A75',
     badgeBg: '#f1f5f9',
     image: require('../assets/images/vehicle-urbania.jpg'),
     purpose: 'Executive group trips, corporate delegates & VIP tours',
@@ -317,6 +318,79 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
   return Math.max(15, Math.round(straight * 1.3));
 }
 
+const getCategoryDisplayName = (item: FleetItem) => {
+  if (item.id === 'HATCHBACK') return 'WagonR or Equivalent';
+  if (item.id === 'SEDAN') return 'Toyota Etios or Equivalent';
+  if (item.id === 'SUV') return 'Maruti Ertiga or Equivalent';
+  if (item.id === 'SUV_PREMIUM') return 'Toyota Innova Crysta';
+  if (item.id === 'TEMPO_TRAVELER') return 'Tempo Traveller';
+  if (item.id === 'URBANIA') return 'Force Urbania';
+  return item.name;
+};
+
+const getModelsDisplayName = (item: FleetItem) => {
+  return '';
+};
+
+const getDisplayBadge = (badge: string) => {
+  if (!badge) return '';
+  if (badge === 'MOST POPULAR') return 'Recommended';
+  if (badge === 'ECONOMY CHOICE') return 'Economy';
+  if (badge === 'FAMILY & GROUP') return 'Family';
+  if (badge === 'EXECUTIVE LUXURY') return 'Luxury';
+  if (badge === 'LARGE GROUP') return 'Group';
+  if (badge === 'PREMIUM VAN') return 'Flagship';
+  return badge;
+};
+
+const formatSummaryDate = (dateStr: string) => {
+  if (!dateStr) return 'Select Date';
+  if (
+    dateStr.includes('Jan') ||
+    dateStr.includes('Feb') ||
+    dateStr.includes('Mar') ||
+    dateStr.includes('Apr') ||
+    dateStr.includes('May') ||
+    dateStr.includes('Jun') ||
+    dateStr.includes('Jul') ||
+    dateStr.includes('Aug') ||
+    dateStr.includes('Sep') ||
+    dateStr.includes('Oct') ||
+    dateStr.includes('Nov') ||
+    dateStr.includes('Dec')
+  ) {
+    return dateStr;
+  }
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) {
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      return `${day} ${monthNames[month]} ${year} (${dayNames[d.getDay()]})`;
+    }
+  }
+  return dateStr;
+};
+
+const formatSummaryTime = (timeStr: string) => {
+  if (!timeStr) return '09:00 AM';
+  if (timeStr.includes('AM') || timeStr.includes('PM')) return timeStr;
+  const parts = timeStr.split(':');
+  if (parts.length >= 2) {
+    let h = parseInt(parts[0], 10);
+    const m = parts[1].padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    if (h === 0) h = 12;
+    return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
+  }
+  return timeStr;
+};
+
 export default function SelectCabScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -344,11 +418,35 @@ export default function SelectCabScreen() {
     }
   }, [viaStopsRaw]);
 
+  const tripTypeSubtitle = useMemo(() => {
+    if (tripType === 'CORPORATE') {
+      return params.corporateMode === 'DAILY'
+        ? `Corporate Daily Rides (${params.corporateTotalDays || 'Multiple'} days)`
+        : 'Corporate Travel • Book Once';
+    }
+    if (tripType === 'ROUND') return 'Round Trip Outstation';
+    if (tripType === 'LOCAL') return `Local Rental (${localHours} hrs)`;
+    if (tripType === 'AIRPORT') {
+      return viaStops.length > 0
+        ? `Airport Transfer (${viaStops.length} via stop${viaStops.length > 1 ? 's' : ''})`
+        : 'Airport Transfer';
+    }
+    if (viaStops.length > 0) return `Multi-Stop One-Way (${viaStops.length} via)`;
+    return 'Outstation One-Way';
+  }, [tripType, params.corporateMode, params.corporateTotalDays, localHours, viaStops.length]);
+
   const [authModalVisible, setAuthModalVisible] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [fleetList, setFleetList] = useState<FleetItem[]>(DEFAULT_FLEET_DATA);
   const [selectedUrbaniaSeaterId, setSelectedUrbaniaSeaterId] = useState<string>('MWB_13');
   const [showSeaterModal, setShowSeaterModal] = useState<boolean>(false);
+  const [sortOrder, setSortOrder] = useState<'default' | 'asc' | 'desc'>('default');
+
+  const toggleSort = () => {
+    if (sortOrder === 'default') setSortOrder('asc');
+    else if (sortOrder === 'asc') setSortOrder('desc');
+    else setSortOrder('default');
+  };
 
   const selectedUrbaniaSeater = useMemo(() => {
     return URBANIA_SEATER_OPTIONS.find((s) => s.id === selectedUrbaniaSeaterId) || URBANIA_SEATER_OPTIONS[2];
@@ -447,6 +545,19 @@ export default function SelectCabScreen() {
     return fleetList.find((f) => f.id === selectedVehicleId) || fleetList[0];
   }, [selectedVehicleId, fleetList]);
 
+  const sortedFleetList = useMemo(() => {
+    if (sortOrder === 'default') return fleetList;
+    return [...fleetList].sort((a, b) => {
+      const isUrbaniaA = a.id === 'URBANIA';
+      const isUrbaniaB = b.id === 'URBANIA';
+      const rateA = isUrbaniaA ? selectedUrbaniaSeater.baseRatePerKm : a.ratePerKm;
+      const rateB = isUrbaniaB ? selectedUrbaniaSeater.baseRatePerKm : b.ratePerKm;
+      const fareA = Math.round(Math.max(a.minKm, estimatedKm) * rateA);
+      const fareB = Math.round(Math.max(b.minKm, estimatedKm) * rateB);
+      return sortOrder === 'asc' ? fareA - fareB : fareB - fareA;
+    });
+  }, [fleetList, sortOrder, estimatedKm, selectedUrbaniaSeater]);
+
   const handleBookNow = (item: FleetItem) => {
     trackAppEvent('STARTED_BOOKING', {
       category: item.id,
@@ -461,11 +572,11 @@ export default function SelectCabScreen() {
     const effectiveThreshold = isUrbania ? (selectedUrbaniaSeater.extraKmThreshold || selectedUrbaniaSeater.minKm || 150) : item.minKm;
     const effectiveSeats = isUrbania ? selectedUrbaniaSeater.seats : item.passengers;
     const effectiveLuggage = isUrbania ? selectedUrbaniaSeater.luggageBags : item.luggage;
-    const displayName = isUrbania ? `${item.name} (${selectedUrbaniaSeater.shortLabel})` : item.name;
+    const displayName = isUrbania ? `${getCategoryDisplayName(item)} (${selectedUrbaniaSeater.shortLabel})` : getCategoryDisplayName(item);
 
     safeNavigate(() => {
       router.push({
-        pathname: '/additional-details',
+        pathname: '/booking',
         params: {
           pickup,
           pickupLat: String(pickupLat),
@@ -477,6 +588,8 @@ export default function SelectCabScreen() {
           date: pickupDate,
           time: pickupTime,
           tripType,
+          flightNumber: (params.flightNumber as string) || '',
+          airportDirection: (params.airportDirection as string) || '',
           localHours: String(localHours),
           category: item.id,
           selectedVehicleName: displayName,
@@ -491,6 +604,13 @@ export default function SelectCabScreen() {
           seaterVariant: isUrbania ? selectedUrbaniaSeater.id : '',
           seaterLabel: isUrbania ? selectedUrbaniaSeater.label : '',
           wheelbase: isUrbania ? selectedUrbaniaSeater.wheelbaseName : '',
+          corporateMode: (params.corporateMode as string) || '',
+          corporateStartDate: (params.corporateStartDate as string) || '',
+          corporateEndDate: (params.corporateEndDate as string) || '',
+          corporateTotalDays: (params.corporateTotalDays as string) || '',
+          corporateActiveDatesJson: (params.corporateActiveDatesJson as string) || '',
+          corporateExcludedDatesJson: (params.corporateExcludedDatesJson as string) || '',
+          corporatePickupTimesJson: (params.corporatePickupTimesJson as string) || '',
         },
       });
     });
@@ -500,91 +620,151 @@ export default function SelectCabScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={true} />
 
-      {/* 1. Header Bar */}
-      <View style={[styles.header, { paddingTop: topInset + 8 }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#0f172a" />
-        </TouchableOpacity>
+      {/* 1. Unified Booking Header & 3-Step Stepper */}
+      <BookingFlowHeader
+        currentStep={2}
+        title="Select a Cab"
+        subStepLabel={tripTypeSubtitle}
+        topInset={topInset}
+        onBack={() => router.back()}
+        onStep1Press={() => router.back()}
+      />
 
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Select a Cab</Text>
-          <Text style={styles.headerSubtitle}>
-            {tripType === 'ROUND'
-              ? 'Round Trip Outstation'
-              : tripType === 'LOCAL'
-              ? `Local Rental (${localHours} hrs)`
-              : tripType === 'AIRPORT'
-              ? 'Airport Transfer'
-              : viaStops.length > 0
-              ? `Multi-Stop One-Way (${viaStops.length} via)`
-              : 'Outstation One-Way'}
-          </Text>
-        </View>
-
-        <TouchableOpacity style={styles.editBtn} onPress={() => router.back()}>
-          <Text style={styles.editBtnText}>Edit</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 2. Route Summary Card */}
-      <View style={styles.routeSummaryCard}>
-        <View style={styles.routeRow}>
-          <View style={styles.routeIconColumn}>
-            <View style={[styles.routeDot, { backgroundColor: '#22c55e' }]} />
-            <View style={styles.routeLine} />
-            {viaStops.map((_, i) => (
-              <React.Fragment key={`vdot-${i}`}>
-                <View style={[styles.routeDot, { backgroundColor: '#f59e0b', width: 8, height: 8, borderRadius: 4 }]} />
-                <View style={styles.routeLine} />
-              </React.Fragment>
-            ))}
-            <View style={[styles.routeDot, { backgroundColor: '#ef4444' }]} />
-          </View>
-
-          <View style={styles.routeTextColumn}>
-            <Text style={styles.routePointText} numberOfLines={1}>
-              {pickup}
-            </Text>
-            {viaStops.map((stop: any, i: number) => (
-              <Text key={`vtxt-${i}`} style={[styles.routePointText, { color: '#b45309', fontSize: 13 }]} numberOfLines={1}>
-                Via: {stop.label}
-              </Text>
-            ))}
-            <Text style={styles.routePointText} numberOfLines={1}>
-              {drop}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.routeMetaRow}>
-          <View style={styles.metaChip}>
-            <Ionicons name="calendar-outline" size={13} color="#ea580c" />
-            <Text style={styles.metaChipText}>{pickupDate}</Text>
-          </View>
-          <View style={styles.metaChip}>
-            <Ionicons name="time-outline" size={13} color="#ea580c" />
-            <Text style={styles.metaChipText}>{pickupTime}</Text>
-          </View>
-          <View style={styles.metaChip}>
-            <Ionicons name="speedometer-outline" size={13} color="#059669" />
-            <Text style={[styles.metaChipText, { color: '#059669', fontWeight: '800' }]}>
-              ~{estimatedKm} km • {estimatedHours}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* 3. Available Cabs List */}
+      {/* 2. Available Cabs List with Scrollable Route & Search Summary Card */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.compactHeading}>Choose Your Travel Comfort</Text>
+        {/* Route & Search Summary Card */}
+        <View style={styles.routeSummaryCard}>
+          {/* Row 1: Pickup Location on Left, Date on Right */}
+          <View style={styles.routeRow}>
+            <View style={styles.routePointLeft}>
+              <View style={styles.routePinWrapper}>
+                <Ionicons name="location" size={15} color="#EE5C21" />
+              </View>
+              <Text style={styles.routePointText} numberOfLines={1}>{pickup}</Text>
+            </View>
+
+            <View style={styles.routeDateTimeItem}>
+              <Ionicons name="calendar-outline" size={14} color="#EE5C21" />
+              <Text style={styles.routeDateTimeText} numberOfLines={1}>
+                {formatSummaryDate(pickupDate)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Dotted Timeline Connector or Via Stops */}
+          {viaStops.length > 0 ? (
+            viaStops.map((stop: any, i: number) => (
+              <View key={`via-${i}`} style={styles.routeRow}>
+                <View style={styles.routePointLeft}>
+                  <View style={styles.routePinWrapper}>
+                    <View style={styles.routeViaDot} />
+                  </View>
+                  <Text style={[styles.routePointText, { color: '#b45309', fontSize: 11.5 }]} numberOfLines={1}>
+                    Via: {stop.label}
+                  </Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={styles.routeConnectorRow}>
+              <View style={styles.routePinWrapper}>
+                <View style={styles.routeConnectorDotsCol}>
+                  <View style={styles.routeConnectorDot} />
+                  <View style={styles.routeConnectorDot} />
+                  <View style={styles.routeConnectorDot} />
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Row 2: Destination Drop on Left, Time on Right */}
+          <View style={styles.routeRow}>
+            <View style={styles.routePointLeft}>
+              <View style={styles.routePinWrapper}>
+                <Ionicons name="location" size={15} color="#103A75" />
+              </View>
+              <Text style={styles.routePointText} numberOfLines={1}>{drop}</Text>
+            </View>
+
+            <View style={styles.routeDateTimeItem}>
+              <Ionicons name="time-outline" size={14} color="#EE5C21" />
+              <Text style={styles.routeDateTimeText} numberOfLines={1}>
+                {formatSummaryTime(pickupTime)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Row 3: Return Trip Drop (if Round Trip) */}
+          {tripType === 'ROUND' && (
+            <View style={[styles.routeRow, { marginTop: 4 }]}>
+              <View style={styles.routePointLeft}>
+                <View style={styles.routePinWrapper}>
+                  <Ionicons name="repeat" size={13} color="#2563eb" />
+                </View>
+                <Text style={[styles.routePointText, { color: '#2563eb', fontSize: 11.5 }]} numberOfLines={1}>
+                  Return: {(params.returnDrop as string) || pickup}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Bottom Row: Subtext on Left, Edit Search Button on Right */}
+          <View style={styles.routeBottomRow}>
+            <View style={styles.routeSubtextCol}>
+              <Text style={styles.tripTypeSubtext} numberOfLines={1}>
+                {tripType === 'CORPORATE'
+                  ? params.corporateMode === 'DAILY'
+                    ? `Corporate Daily (${params.corporateTotalDays || 'Multiple'} days)`
+                    : 'Corporate Travel'
+                  : tripType === 'ROUND'
+                  ? 'Round Trip'
+                  : tripType === 'LOCAL'
+                  ? `Local Rental (${localHours} hrs)`
+                  : tripType === 'AIRPORT'
+                  ? viaStops.length > 0
+                    ? `Airport Transfer (${viaStops.length} via)`
+                    : 'Airport Transfer'
+                  : 'One Way Drop'}
+                {'  |  '}~{estimatedKm} km{'  |  '}1 Passenger{'  |  '}No Luggage
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.editSearchBtn}
+              onPress={() => router.back()}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="pencil" size={11.5} color="#103A75" />
+              <Text style={styles.editSearchBtnText}>Edit Search</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Available Vehicles Section Header with Sort by Price (Reference) */}
+        <View style={styles.availableVehiclesHeaderRow}>
+          <Text style={styles.availableVehiclesTitle}>Available Vehicles</Text>
+          <TouchableOpacity
+            style={styles.sortBtn}
+            onPress={toggleSort}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="swap-vertical" size={13} color="#475569" />
+            <Text style={styles.sortBtnText}>
+              {sortOrder === 'asc' ? 'Price: Low to High' : sortOrder === 'desc' ? 'Price: High to Low' : 'Sort by Price'}
+            </Text>
+            <Ionicons name="chevron-down" size={11} color="#475569" />
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.fleetAccordionList}>
-          {fleetList.map((item) => {
+          {sortedFleetList.map((item, index) => {
             const isExpanded = selectedVehicleId === item.id;
+            const isRecommended = item.id === 'SEDAN' || item.badge === 'MOST POPULAR' || item.badge?.toUpperCase().includes('RECOMMENDED');
+            const isSelected = selectedVehicleId ? selectedVehicleId === item.id : isRecommended;
             const isUrbania = item.id === 'URBANIA';
             const effectiveRatePerKm = isUrbania ? selectedUrbaniaSeater.baseRatePerKm : item.ratePerKm;
             const effectiveExtraKmRate = isUrbania ? selectedUrbaniaSeater.extraKmRate : item.ratePerKm;
@@ -609,158 +789,185 @@ export default function SelectCabScreen() {
               );
             }
 
-            const specText = isUrbania
-              ? `${selectedUrbaniaSeater.shortLabel} | ${effectiveLuggage} Bags | A/C`
-              : item.id === 'TEMPO_TRAVELER'
-              ? '12-17 Seats | Bags as per seats | A/C'
-              : `${item.passengers} Seats | ${item.luggage} Bags | A/C`;
+            const seatsLabel = item.id === 'TEMPO_TRAVELER'
+              ? '12 - 17'
+              : `${effectiveSeats} + 1`;
+            const bagsLabel = `${effectiveLuggage}`;
 
-            if (isExpanded) {
-              return (
-                <View key={item.id} style={styles.fleetCard}>
-                  {/* Top Row: Badge & Fare */}
-                  <TouchableOpacity
-                    style={styles.fleetTopRow}
-                    onPress={() =>
-                      setSelectedVehicleId(
-                        selectedVehicleId === item.id ? null : item.id
-                      )
-                    }
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.choiceBadge}>
-                      <Ionicons name="shield-checkmark" size={12} color="#1e293b" />
-                      <Text style={styles.choiceBadgeText}>{item.badge}</Text>
-                    </View>
-
-                    <View style={styles.rateContainer}>
-                      <Text style={styles.totalFareText}>
-                        ₹{totalFare.toLocaleString('en-IN')}
-                      </Text>
-                      <View style={styles.rateTag}>
-                        <Text style={styles.rateTagText}>
-                          ₹{effectiveRatePerKm}/km BASE RATE
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* Car Image */}
-                  <View style={styles.carImageContainer}>
+            return (
+              <View
+                key={item.id}
+                style={[
+                  styles.refCabCard,
+                  isExpanded && styles.refCabCardActive,
+                ]}
+              >
+                {/* Main Card Content (Exact to Reference Screenshot) */}
+                <View style={styles.refCardMainRow}>
+                  {/* Left Column: Car Image */}
+                  <View style={styles.refCarImageWrap}>
                     <Image
                       source={item.image}
-                      style={styles.carImage}
+                      style={[styles.refCarImage, isUrbania && styles.refCarImageUrbania]}
                       resizeMode="contain"
                     />
                   </View>
 
-                  {/* Title & Category Box */}
-                  <View style={styles.vehicleTitleRow}>
-                    <View style={styles.vehicleIconBox}>
-                      <Ionicons name="car-outline" size={20} color="#ea580c" />
-                    </View>
-                    <View style={styles.vehicleTitleTextContainer}>
-                      <Text style={styles.vehicleName}>{item.name}</Text>
-                      <Text style={styles.vehicleModels}>{item.models}</Text>
-                    </View>
-                  </View>
-
-                  {/* URBANIA Seater & Wheelbase Clean Single-Layer Card */}
-                  {isUrbania && (
-                    <TouchableOpacity
-                      style={styles.singleSeaterPicker}
-                      onPress={() => setShowSeaterModal(true)}
-                      activeOpacity={0.85}
-                    >
-                      <View style={styles.seaterTextGroup}>
-                        <View style={styles.seaterTitleRow}>
-                          <Text style={styles.seaterPickerMainText}>
-                            {selectedUrbaniaSeater.label}
-                          </Text>
-                          <View style={styles.inlineWheelbaseBadge}>
-                            <Text style={styles.inlineWheelbaseBadgeText}>
-                              {selectedUrbaniaSeater.wheelbaseName.split('(')[1]?.replace(')', '') || '3615 mm'}
-                            </Text>
-                          </View>
-                        </View>
-                        <Text style={styles.seaterPickerSubText} numberOfLines={1}>
-                          {selectedUrbaniaSeater.wheelbaseName.split('(')[0].trim()} • ₹{selectedUrbaniaSeater.baseRatePerKm}/km • {selectedUrbaniaSeater.luggageBags} Bags
+                  {/* Middle Column: Details */}
+                  <View style={styles.refInfoCol}>
+                    {isRecommended ? (
+                      <View style={[styles.refBadgePill, { alignSelf: 'flex-start', marginBottom: 2 }]}>
+                        <Text style={styles.refBadgeText} numberOfLines={1}>
+                          Recommended
                         </Text>
                       </View>
+                    ) : null}
+                    <View style={styles.refTitleBadgeRow}>
+                      <Text style={styles.refVehicleName} numberOfLines={2}>
+                        {getCategoryDisplayName(item)}
+                      </Text>
+                    </View>
 
-                      <View style={styles.seaterPickerChangePill}>
-                        <Text style={styles.seaterPickerChangeText}>Change</Text>
-                        <Ionicons name="chevron-down" size={13} color="#ea580c" />
+                    {!!getModelsDisplayName(item) && (
+                      <Text style={styles.refModelsText} numberOfLines={1}>
+                        {getModelsDisplayName(item)}
+                      </Text>
+                    )}
+
+                    {/* Spec Icons Row: 👤 4 + 1   💼 2   ❄️ A/C */}
+                    <View style={styles.refSpecsRow}>
+                      <View style={styles.refSpecItem}>
+                        <Ionicons name="person" size={11} color="#475569" />
+                        <Text style={styles.refSpecText}>{seatsLabel}</Text>
                       </View>
+
+                      <View style={styles.refSpecItem}>
+                        <Ionicons name="briefcase" size={11} color="#475569" />
+                        <Text style={styles.refSpecText}>{bagsLabel}</Text>
+                      </View>
+
+                      <View style={styles.refSpecItem}>
+                        <Ionicons name="snow" size={11} color="#475569" />
+                        <Text style={styles.refSpecText}>A/C</Text>
+                      </View>
+                    </View>
+
+                    {/* View Details ⌵ / Hide Details ⌃ */}
+                    <TouchableOpacity
+                      style={styles.refViewDetailsBtn}
+                      onPress={() => setSelectedVehicleId(isExpanded ? null : item.id)}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Text style={styles.refViewDetailsText}>
+                        {isExpanded ? 'Hide Details' : 'View Details'}
+                      </Text>
+                      <Ionicons
+                        name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                        size={11}
+                        color="#2563eb"
+                      />
                     </TouchableOpacity>
-                  )}
-
-                  {/* Purpose Pill */}
-                  <View style={styles.purposePill}>
-                    <Text style={styles.purposePillText}>{item.purpose}</Text>
                   </View>
 
-                  {/* Feature Checklist */}
-                  <View style={styles.featureList}>
-                    {item.features.map((feat, idx) => (
-                      <View key={idx} style={styles.featureItem}>
-                        <Ionicons name="checkmark" size={16} color="#ea580c" />
-                        <Text style={styles.featureItemText}>{feat}</Text>
-                      </View>
-                    ))}
-                  </View>
+                  {/* Right Column: Fare, GST, Km Limit, and Select Button (Small & Compact) */}
+                  <View style={styles.refActionCol}>
+                    <Text style={styles.refPriceText} numberOfLines={1}>
+                      ₹ {totalFare.toLocaleString('en-IN')}
+                    </Text>
+                    <Text style={styles.refGstText} numberOfLines={1}>
+                      (Inclusive of 5% GST)
+                    </Text>
+                    <Text style={styles.refKmsLimitText} numberOfLines={1}>
+                      {Math.max(item.minKm, Math.round(estimatedKm))} Kms Limit
+                    </Text>
 
-                  {/* Fuel Types & Roof Carrier Row */}
-                  <View style={{ marginBottom: 14, gap: 8 }}>
-                    {/* Fuel Options */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748b' }}>Fuels:</Text>
-                      {item.fuelTypes.map((fuel) => (
-                        <View
-                          key={fuel}
-                          style={{
-                            backgroundColor: '#f1f5f9',
-                            paddingHorizontal: 8,
-                            paddingVertical: 3,
-                            borderRadius: 6,
-                            borderWidth: 1,
-                            borderColor: '#e2e8f0',
-                          }}
-                        >
-                          <Text style={{ fontSize: 10, fontWeight: '800', color: '#334155' }}>{fuel}</Text>
+                    <TouchableOpacity
+                      style={styles.refSelectBtn}
+                      onPress={() => handleBookNow(item)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.refSelectBtnText}>Select</Text>
+                      <Ionicons name="chevron-forward" size={11} color="#ffffff" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Expanded Details Drawer (When user taps View Details) */}
+                {isExpanded && (
+                  <View style={styles.refExpandedSection}>
+                    <View style={styles.refDivider} />
+
+                    {/* URBANIA Seater & Wheelbase Clean Single-Layer Card */}
+                    {isUrbania && (
+                      <TouchableOpacity
+                        style={styles.singleSeaterPicker}
+                        onPress={() => setShowSeaterModal(true)}
+                        activeOpacity={0.85}
+                      >
+                        <View style={styles.seaterTextGroup}>
+                          <View style={styles.seaterTitleRow}>
+                            <Text style={styles.seaterPickerMainText}>
+                              {selectedUrbaniaSeater.label}
+                            </Text>
+                            <View style={styles.inlineWheelbaseBadge}>
+                              <Text style={styles.inlineWheelbaseBadgeText}>
+                                {selectedUrbaniaSeater.wheelbaseName.split('(')[1]?.replace(')', '') || '3615 mm'}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={styles.seaterPickerSubText} numberOfLines={1}>
+                            {selectedUrbaniaSeater.wheelbaseName.split('(')[0].trim()} • ₹{selectedUrbaniaSeater.baseRatePerKm}/km • {selectedUrbaniaSeater.luggageBags} Bags
+                          </Text>
+                        </View>
+
+                        <View style={styles.seaterPickerChangePill}>
+                          <Text style={styles.seaterPickerChangeText}>Change</Text>
+                          <Ionicons name="chevron-down" size={13} color="#ea580c" />
+                        </View>
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Purpose Pill */}
+                    <View style={styles.purposePill}>
+                      <Text style={styles.purposePillText}>{item.purpose}</Text>
+                    </View>
+
+                    {/* Feature Checklist */}
+                    <View style={styles.featureList}>
+                      {item.features.map((feat, idx) => (
+                        <View key={idx} style={styles.featureItem}>
+                          <Ionicons name="checkmark" size={16} color="#ea580c" />
+                          <Text style={styles.featureItemText}>{feat}</Text>
                         </View>
                       ))}
                     </View>
 
-                    {/* Carrier Badge */}
-                    {item.hasCarrier ? (
-                      <View style={{ gap: 6 }}>
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 6,
-                            padding: 8,
-                            borderRadius: 10,
-                            backgroundColor: '#f0fdf4',
-                            borderWidth: 1,
-                            borderColor: '#bbf7d0',
-                          }}
-                        >
-                          <Ionicons name="checkbox" size={15} color="#16a34a" />
-                          <Text
+                    {/* Fuel Types & Roof Carrier Row */}
+                    <View style={{ marginBottom: 14, gap: 8 }}>
+                      {/* Fuel Options */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748b' }}>Fuels:</Text>
+                        {item.fuelTypes.map((fuel) => (
+                          <View
+                            key={fuel}
                             style={{
-                              fontSize: 11,
-                              fontWeight: '700',
-                              color: '#15803d',
-                              flex: 1,
+                              backgroundColor: '#f1f5f9',
+                              paddingHorizontal: 8,
+                              paddingVertical: 3,
+                              borderRadius: 6,
+                              borderWidth: 1,
+                              borderColor: '#e2e8f0',
                             }}
                           >
-                            {item.carrierCapacityText || 'Roof Carrier Available'}
-                          </Text>
-                        </View>
+                            <Text style={{ fontSize: 10, fontWeight: '800', color: '#334155' }}>{fuel}</Text>
+                          </View>
+                        ))}
+                      </View>
 
-                        {item.carrierExcludedCars ? (
+                      {/* Carrier Badge */}
+                      {item.hasCarrier ? (
+                        <View style={{ gap: 6 }}>
                           <View
                             style={{
                               flexDirection: 'row',
@@ -768,103 +975,167 @@ export default function SelectCabScreen() {
                               gap: 6,
                               padding: 8,
                               borderRadius: 10,
-                              backgroundColor: '#fffbeb',
+                              backgroundColor: '#f0fdf4',
                               borderWidth: 1,
-                              borderColor: '#fde68a',
+                              borderColor: '#bbf7d0',
                             }}
                           >
-                            <Ionicons name="alert-circle" size={15} color="#d97706" />
+                            <Ionicons name="checkbox" size={15} color="#16a34a" />
                             <Text
                               style={{
                                 fontSize: 11,
                                 fontWeight: '700',
-                                color: '#92400e',
+                                color: '#15803d',
                                 flex: 1,
                               }}
                             >
-                              Excluded: {item.carrierExcludedCars}
+                              {item.carrierCapacityText || 'Roof Carrier Available'}
                             </Text>
                           </View>
-                        ) : null}
-                      </View>
-                    ) : (
-                      <View
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 6,
-                          padding: 8,
-                          borderRadius: 10,
-                          backgroundColor: '#f8fafc',
-                          borderWidth: 1,
-                          borderColor: '#e2e8f0',
-                        }}
-                      >
-                        <Ionicons name="alert-circle-outline" size={15} color="#64748b" />
-                        <Text
+
+                          {item.carrierExcludedCars ? (
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: 8,
+                                borderRadius: 10,
+                                backgroundColor: '#fffbeb',
+                                borderWidth: 1,
+                                borderColor: '#fde68a',
+                              }}
+                            >
+                              <Ionicons name="alert-circle" size={15} color="#d97706" />
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: '700',
+                                  color: '#92400e',
+                                  flex: 1,
+                                }}
+                              >
+                                Excluded: {item.carrierExcludedCars}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      ) : (
+                        <View
                           style={{
-                            fontSize: 11,
-                            fontWeight: '700',
-                            color: '#64748b',
-                            flex: 1,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: 8,
+                            borderRadius: 10,
+                            backgroundColor: '#f8fafc',
+                            borderWidth: 1,
+                            borderColor: '#e2e8f0',
                           }}
                         >
-                          {item.carrierExcludedReason || 'No Roof Carrier (Trunk Boot Space Only)'}
+                          <Ionicons name="alert-circle-outline" size={15} color="#64748b" />
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              fontWeight: '700',
+                              color: '#64748b',
+                              flex: 1,
+                            }}
+                          >
+                            {item.carrierExcludedReason || 'No Roof Carrier (Trunk Boot Space Only)'}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {calculationBreakdown ? (
+                      <View style={{ backgroundColor: '#fff7ed', padding: 8, borderRadius: 8, marginBottom: 12 }}>
+                        <Text style={{ fontSize: 11, color: '#c2410c', fontWeight: '600' }}>
+                          Rate breakdown: {calculationBreakdown}
                         </Text>
                       </View>
-                    )}
+                    ) : null}
+
+                    {/* Book Button */}
+                    <TouchableOpacity
+                      style={styles.bookCarBtn}
+                      onPress={() => handleBookNow(item)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.bookCarBtnText}>
+                        Proceed with {isUrbania ? `Urbania (${selectedUrbaniaSeater.shortLabel})` : item.name} →
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-
-                  {/* Book Button */}
-                  <TouchableOpacity
-                    style={styles.bookCarBtn}
-                    onPress={() => handleBookNow(item)}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.bookCarBtnText}>
-                      Book {isUrbania ? `Urbania (${selectedUrbaniaSeater.shortLabel})` : item.name} →
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              );
-            }
-
-            return (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.compactCard}
-                onPress={() => setSelectedVehicleId(item.id)}
-                activeOpacity={0.8}
-              >
-                <Image
-                  source={item.image}
-                  style={styles.compactCarImage}
-                  resizeMode="contain"
-                />
-                <View style={styles.compactInfo}>
-                  <Text style={styles.compactName}>{item.name}</Text>
-                  <Text style={styles.compactSpec}>{specText}</Text>
-                </View>
-                <View style={styles.compactChevronBtn}>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={15}
-                    color="#94a3b8"
-                  />
-                </View>
-              </TouchableOpacity>
+                )}
+              </View>
             );
           })}
         </View>
 
-        {/* Guaranteed Pricing Banner */}
-        <View style={styles.guaranteeCard}>
-          <Ionicons name="lock-closed" size={20} color="#ea580c" />
-          <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={styles.guaranteeTitle}>Transparent Fixed Price Policy</Text>
-            <Text style={styles.guaranteeSubtitle}>
-              Zero surge pricing • Clean AC cabs • Fuel, driver allowance & GST included
-            </Text>
+        {/* Inclusions & Exclusions Card (from reference) */}
+        <View style={styles.policyCard}>
+          {/* Left Column: Inclusions */}
+          <View style={styles.policyColumn}>
+            <View style={styles.policyHeaderRow}>
+              <View style={styles.policyIconCircle}>
+                <Ionicons name="checkmark" size={12} color="#ffffff" />
+              </View>
+              <Text style={styles.policyHeaderTitle}>Inclusions</Text>
+            </View>
+
+            <View style={styles.policyItem}>
+              <Ionicons name="checkmark" size={13} color="#ea580c" style={styles.policyCheckIcon} />
+              <Text style={styles.policyItemText}>Fuel Charges</Text>
+            </View>
+
+            <View style={styles.policyItem}>
+              <Ionicons name="checkmark" size={13} color="#ea580c" style={styles.policyCheckIcon} />
+              <Text style={styles.policyItemText}>Chauffeur Allowance (6 AM – 8 PM)</Text>
+            </View>
+
+            <View style={styles.policyItem}>
+              <Ionicons name="checkmark" size={13} color="#ea580c" style={styles.policyCheckIcon} />
+              <Text style={styles.policyItemText}>{Math.max(50, Math.round(estimatedKm))} Kms Limit</Text>
+            </View>
+
+            <View style={[styles.policyItem, { marginBottom: 0 }]}>
+              <Ionicons name="checkmark" size={13} color="#ea580c" style={styles.policyCheckIcon} />
+              <Text style={styles.policyItemText}>5% GST</Text>
+            </View>
+          </View>
+
+          {/* Vertical Divider */}
+          <View style={styles.policyDivider} />
+
+          {/* Right Column: Exclusions */}
+          <View style={styles.policyColumn}>
+            <View style={styles.policyHeaderRow}>
+              <View style={styles.policyIconCircle}>
+                <Text style={styles.policyExclamationMark}>!</Text>
+              </View>
+              <Text style={styles.policyHeaderTitle}>Exclusions</Text>
+            </View>
+
+            <View style={styles.policyItem}>
+              <Ionicons name="checkmark" size={13} color="#ea580c" style={styles.policyCheckIcon} />
+              <Text style={styles.policyItemText}>Extra Km charges (as per tariff)</Text>
+            </View>
+
+            <View style={styles.policyItem}>
+              <Ionicons name="checkmark" size={13} color="#ea580c" style={styles.policyCheckIcon} />
+              <Text style={styles.policyItemText}>Toll Charges</Text>
+            </View>
+
+            <View style={styles.policyItem}>
+              <Ionicons name="checkmark" size={13} color="#ea580c" style={styles.policyCheckIcon} />
+              <Text style={styles.policyItemText}>Parking Charges</Text>
+            </View>
+
+            <View style={[styles.policyItem, { marginBottom: 0 }]}>
+              <Ionicons name="checkmark" size={13} color="#ea580c" style={styles.policyCheckIcon} />
+              <Text style={styles.policyItemText}>Chauffeur Night Allowance (after 8 PM)</Text>
+            </View>
           </View>
         </View>
 
@@ -1097,7 +1368,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
   },
   headerSubtitle: {
     fontSize: 11,
@@ -1118,149 +1389,375 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  stepItemActive: {
+    alignItems: 'center',
+    position: 'relative',
+    paddingBottom: 4,
+  },
+  stepTextActive: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#EE5C21',
+  },
+  stepIndicatorActive: {
+    position: 'absolute',
+    bottom: -10,
+    height: 2.5,
+    width: '100%',
+    backgroundColor: '#EE5C21',
+    borderRadius: 2,
+  },
+  stepItem: {
+    alignItems: 'center',
+  },
+  stepText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
   routeSummaryCard: {
     backgroundColor: '#ffffff',
-    marginHorizontal: 14,
-    marginTop: 12,
-    padding: 14,
-    borderRadius: 20,
+    marginTop: 4,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 8,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 8,
+    shadowRadius: 6,
     elevation: 2,
   },
   routeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  routeIconColumn: {
-    alignItems: 'center',
-    marginRight: 10,
-    paddingVertical: 2,
-  },
-  routeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  routeLine: {
-    width: 2,
-    height: 16,
-    backgroundColor: '#cbd5e1',
-    marginVertical: 2,
-  },
-  routeTextColumn: {
+  routePointLeft: {
     flex: 1,
-    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 8,
+  },
+  routeLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  routeConnectorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 1.5,
+  },
+  routePinWrapper: {
+    width: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  routeConnectorDotsCol: {
+    height: 10,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  routeConnectorDot: {
+    width: 2.5,
+    height: 2.5,
+    borderRadius: 1.25,
+    backgroundColor: '#94a3b8',
+  },
+  routeViaDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#f59e0b',
   },
   routePointText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
+    flexShrink: 1,
   },
-  routeMetaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-  },
-  metaChip: {
+  routeDateTimeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    gap: 4,
+    gap: 5,
+    width: 126,
+    justifyContent: 'flex-start',
+    flexShrink: 0,
   },
-  metaChipText: {
+  routeDateTimeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#475569',
+    color: '#334155',
+  },
+  routeBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#f1f5f9',
+    gap: 8,
+  },
+  routeSubtextCol: {
+    flex: 1,
+  },
+  tripTypeSubtext: {
+    fontSize: 10.5,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  editSearchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 7,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    flexShrink: 0,
+  },
+  editSearchBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#103A75',
+  },
+  distanceTimeBadgeRow: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  greenKmBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
+  },
+  greenKmBadgeText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#059669',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 14,
-    paddingTop: 14,
+    paddingHorizontal: 10,
+    paddingTop: 6,
   },
-  compactSection: {
-    marginBottom: 20,
-  },
-  compactHeading: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#0f172a',
-    marginBottom: 12,
-    paddingHorizontal: 2,
-  },
-  fleetAccordionList: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  compactCard: {
+  availableVehiclesHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  availableVehiclesTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#103A75',
+    letterSpacing: -0.3,
+  },
+  sortBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  sortBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  fleetAccordionList: {
+    gap: 10,
+    marginBottom: 20,
+  },
+  refCabCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
-    borderWidth: 1.5,
+    borderRadius: 13,
+    borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 6,
+    paddingLeft: 6,
+    paddingRight: 8,
+    marginBottom: 8,
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
-    elevation: 1,
+    elevation: 2,
   },
-  compactCardSelected: {
-    borderColor: '#ea580c',
-    backgroundColor: '#fffdfa',
+  refCabCardActive: {
+    borderColor: '#fb923c',
+    borderWidth: 1.3,
+    backgroundColor: '#ffffff',
+    shadowColor: '#ea580c',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  compactCarImage: {
-    width: 80,
-    height: 52,
-    marginRight: 12,
+  refCardMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  compactInfo: {
-    flex: 1,
-  },
-  compactName: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  compactNameSelected: {
-    color: '#ea580c',
-  },
-  compactSpec: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#64748b',
-    marginTop: 2,
-  },
-  compactChevronBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f8fafc',
+  refCarImageWrap: {
+    width: 120,
+    height: 74,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    marginRight: 6,
   },
-  compactChevronBtnSelected: {
+  refCarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  refCarImageUrbania: {
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  refInfoCol: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingRight: 4,
+  },
+  refTitleBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 1,
+  },
+  refVehicleName: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#103A75',
+    flexShrink: 1,
+  },
+  refBadgePill: {
     backgroundColor: '#fff7ed',
+    borderWidth: 1,
     borderColor: '#fed7aa',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 5,
+    flexShrink: 0,
+  },
+  refBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#ea580c',
+  },
+  refModelsText: {
+    fontSize: 10.5,
+    fontWeight: '500',
+    color: '#475569',
+    marginBottom: 3,
+  },
+  refSpecsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 3,
+  },
+  refSpecItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3.5,
+  },
+  refSpecText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  refViewDetailsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    alignSelf: 'flex-start',
+  },
+  refViewDetailsText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#2563eb',
+  },
+  refActionCol: {
+    width: 92,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  refPriceText: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#103A75',
+    marginBottom: 0,
+    textAlign: 'right',
+  },
+  refGstText: {
+    fontSize: 8,
+    color: '#64748b',
+    marginBottom: 1,
+    textAlign: 'right',
+  },
+  refKmsLimitText: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    color: '#334155',
+    marginBottom: 4,
+    textAlign: 'right',
+  },
+  refSelectBtn: {
+    backgroundColor: '#f95711',
+    borderRadius: 7,
+    paddingVertical: 5.5,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    width: '100%',
+  },
+  refSelectBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  refExpandedSection: {
+    marginTop: 10,
+  },
+  refDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginBottom: 12,
   },
   selectedCardSection: {
     marginBottom: 20,
@@ -1268,7 +1765,7 @@ const styles = StyleSheet.create({
   selectedCardHeading: {
     fontSize: 15,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
     marginBottom: 10,
     paddingHorizontal: 2,
   },
@@ -1303,7 +1800,7 @@ const styles = StyleSheet.create({
   choiceBadgeText: {
     fontSize: 10,
     fontWeight: '900',
-    color: '#1e293b',
+    color: '#103A75',
     letterSpacing: 0.6,
   },
   rateContainer: {
@@ -1312,7 +1809,7 @@ const styles = StyleSheet.create({
   totalFareText: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
   },
   rateTag: {
     backgroundColor: '#fff7ed',
@@ -1357,7 +1854,7 @@ const styles = StyleSheet.create({
   vehicleName: {
     fontSize: 17,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
   },
   vehicleModels: {
     fontSize: 12,
@@ -1392,7 +1889,7 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   bookCarBtn: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#EE5C21',
     borderRadius: 16,
     paddingVertical: 13,
     alignItems: 'center',
@@ -1403,25 +1900,65 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-  guaranteeCard: {
+  policyCard: {
     flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#fff7ed',
     borderWidth: 1,
     borderColor: '#fed7aa',
-    padding: 14,
-    borderRadius: 18,
-    marginBottom: 16,
+    borderRadius: 13,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    marginBottom: 12,
   },
-  guaranteeTitle: {
+  policyColumn: {
+    flex: 1,
+  },
+  policyDivider: {
+    width: 1,
+    backgroundColor: '#fed7aa',
+    marginHorizontal: 7,
+    alignSelf: 'stretch',
+  },
+  policyHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 6,
+  },
+  policyIconCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#103A75',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  policyExclamationMark: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '900',
+    marginTop: -1,
+  },
+  policyHeaderTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
   },
-  guaranteeSubtitle: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 2,
+  policyItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 4,
+    marginBottom: 4,
+  },
+  policyCheckIcon: {
+    marginTop: 1,
+  },
+  policyItemText: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#334155',
+    flex: 1,
+    lineHeight: 13.5,
   },
   singleSeaterPicker: {
     flexDirection: 'row',
@@ -1459,7 +1996,7 @@ const styles = StyleSheet.create({
   seaterPickerMainText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
   },
   inlineWheelbaseBadge: {
     backgroundColor: '#ffedd5',
@@ -1533,7 +2070,7 @@ const styles = StyleSheet.create({
   seaterModalTitle: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
   },
   seaterModalSubtitle: {
     fontSize: 11,
@@ -1619,7 +2156,7 @@ const styles = StyleSheet.create({
   seaterOptionLabel: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
   },
   seaterOptionLabelSelected: {
     color: '#ea580c',

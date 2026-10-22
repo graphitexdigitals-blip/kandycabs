@@ -9,7 +9,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { safeNavigate } from '../lib/safeNav';
@@ -18,7 +18,8 @@ export interface TripTypeOption {
   id: string;
   title: string;
   subtitle: string;
-  iconName: keyof typeof Ionicons.glyphMap;
+  iconName: string;
+  iconFamily?: 'Ionicons' | 'MaterialCommunityIcons';
   category: 'ONEWAY' | 'ROUND' | 'AIRPORT' | 'LOCAL' | 'CORPORATE' | 'TOUR';
 }
 
@@ -27,20 +28,23 @@ const TRIP_TYPES: TripTypeOption[] = [
     id: 'ONEWAY',
     title: 'One-Way Drop',
     subtitle: 'Inter-city & inter-state travel',
-    iconName: 'car-sport',
+    iconFamily: 'MaterialCommunityIcons',
+    iconName: 'arrow-right-bold',
     category: 'ONEWAY',
   },
   {
     id: 'ROUND',
     title: 'Round Trip',
     subtitle: 'Multi-day journeys',
-    iconName: 'car',
+    iconFamily: 'MaterialCommunityIcons',
+    iconName: 'swap-horizontal-bold',
     category: 'ROUND',
   },
   {
     id: 'AIRPORT',
     title: 'Airport Transfer',
     subtitle: 'Pickup & drop to airport',
+    iconFamily: 'Ionicons',
     iconName: 'airplane',
     category: 'AIRPORT',
   },
@@ -129,11 +133,19 @@ export default function SelectTripTypeScreen() {
               >
                 {/* Left Icon Container */}
                 <View style={[styles.iconContainer, isSelected && styles.iconContainerSelected]}>
-                  <Ionicons
-                    name={item.iconName}
-                    size={28}
-                    color={isSelected ? '#ea580c' : '#ea580c'}
-                  />
+                  {item.iconFamily === 'MaterialCommunityIcons' ? (
+                    <MaterialCommunityIcons
+                      name={item.iconName as any}
+                      size={28}
+                      color="#ea580c"
+                    />
+                  ) : (
+                    <Ionicons
+                      name={item.iconName as any}
+                      size={28}
+                      color="#ea580c"
+                    />
+                  )}
                 </View>
 
                 {/* Text Content */}
@@ -187,7 +199,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#103A75',
     textAlign: 'center',
   },
   scrollContent: {
@@ -255,11 +267,11 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#103A75',
     marginBottom: 4,
   },
   cardTitleSelected: {
-    color: '#0f172a',
+    color: '#103A75',
   },
   cardSubtitle: {
     fontSize: 13,

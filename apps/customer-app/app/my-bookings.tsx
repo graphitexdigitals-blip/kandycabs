@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -19,12 +19,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { customerApiClient, customerTokenStorage, formatDisplayPhone } from '../lib/api';
 import { customerRealtimeTracker } from '../lib/realtime-client';
+import { reviewManager } from '../lib/reviewManager';
 import { BookingStatus, TripType } from '@kandy-cabs/shared';
 import { TaxInvoiceModal } from '../components/TaxInvoiceModal';
 import { CustomerBottomDock } from '../components/CustomerBottomDock';
 import { AuthModal } from '../components/AuthModal';
 
-const STATUS_FILTERS = ['ALL', 'ACTIVE', 'COMPLETED', 'CANCELLED'] as const;
+const STATUS_FILTERS = [
+  { id: 'ALL', label: 'All Rides', icon: 'car' },
+  { id: 'ACTIVE', label: 'Active', icon: 'time-outline' },
+  { id: 'COMPLETED', label: 'Completed', icon: 'checkmark-circle-outline' },
+  { id: 'CANCELLED', label: 'Cancelled', icon: 'close-circle-outline' },
+] as const;
 
 export default function MyBookingsScreen() {
   const router = useRouter();
@@ -44,7 +50,7 @@ export default function MyBookingsScreen() {
   >({});
 
   // Load User & Bookings
-  const loadData = useCallback(async (isSilent = false) => {
+  const loadData = useCallback(async (isSilent = false, filterOverride?: 'ALL' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED') => {
     const token = customerTokenStorage.getToken();
     if (!token) {
       setUser(null);
@@ -70,7 +76,8 @@ export default function MyBookingsScreen() {
       }
 
       // 2. Bookings
-      const res = await customerApiClient.fetch(`/api/customer/bookings/list?category=${activeFilter}`);
+      const currentCategory = filterOverride || activeFilter;
+      const res = await customerApiClient.fetch(`/api/customer/bookings/list?category=${currentCategory}`);
       if (res && res.bookings) {
         setBookings(res.bookings);
 
@@ -106,6 +113,17 @@ export default function MyBookingsScreen() {
         if (activeRide) {
           customerRealtimeTracker.trackBooking(activeRide.id);
         }
+
+        // Auto-prompt rating review modal if there is an unrated completed trip
+        const unreviewedCompleted = res.bookings.find(
+          (b: any) =>
+            b.status === BookingStatus.TRIP_COMPLETED &&
+            !b.customerRating &&
+            !reviewManager.isDismissed(b.id)
+        );
+        if (unreviewedCompleted) {
+          reviewManager.showReview(unreviewedCompleted);
+        }
       } else {
         setBookings([]);
       }
@@ -137,8 +155,16 @@ export default function MyBookingsScreen() {
     });
 
     // Listen for live booking status transitions
-    const unsubStatus = customerRealtimeTracker.on('BOOKING_STATUS', () => {
+    const unsubStatus = customerRealtimeTracker.on('BOOKING_STATUS', (payload: any) => {
       loadData(true);
+      const bId = payload?.id || payload?.bookingId;
+      if (
+        payload?.status === BookingStatus.TRIP_COMPLETED &&
+        bId &&
+        !reviewManager.isDismissed(bId)
+      ) {
+        reviewManager.showReview(payload);
+      }
     });
 
     // Listen for proximity stage 1: Driver Near Pickup (~100m)
@@ -178,6 +204,29 @@ export default function MyBookingsScreen() {
       }
     });
 
+    // Subscribe to rating submissions from global review modal
+    const unsubSubmission = reviewManager.onSubmission((ratingData) => {
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === ratingData.bookingId
+            ? {
+                ...b,
+                customerRating: {
+                  ...ratingData,
+                  rating: ratingData.driverRating || ratingData.rating,
+                  driverRating: ratingData.driverRating || ratingData.rating,
+                  driverFeedbackTags: ratingData.driverFeedbackTags || ratingData.feedbackTags || [],
+                  kandyRating: ratingData.kandyRating || 5,
+                  kandyFeedbackTags: ratingData.kandyFeedbackTags || [],
+                  comment: ratingData.comment,
+                  ratedAt: new Date().toISOString(),
+                },
+              }
+            : b
+        )
+      );
+    });
+
     // Gentle 60s background sync
     const interval = setInterval(() => {
       if (customerTokenStorage.getToken()) {
@@ -190,6 +239,7 @@ export default function MyBookingsScreen() {
       unsubStatus();
       unsubNear();
       unsubArrived();
+      unsubSubmission();
       clearInterval(interval);
       customerRealtimeTracker.stop();
     };
@@ -256,7 +306,7 @@ export default function MyBookingsScreen() {
       {/* Top Header */}
       <View style={[styles.header, { paddingTop: topInset + 8 }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#0f172a" />
+          <Ionicons name="chevron-back" size={20} color="#103A75" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>My Bookings</Text>
@@ -291,7 +341,10 @@ export default function MyBookingsScreen() {
                 <Text style={styles.verifiedBadgeText}>✓ Verified</Text>
               </View>
             </View>
-            <Text style={styles.profilePhone}>📞 {formatDisplayPhone(user.phone)}</Text>
+            <View style={styles.profilePhoneRow}>
+              <Ionicons name="call" size={12} color="#0f172a" style={{ marginRight: 4 }} />
+              <Text style={styles.profilePhone}>{formatDisplayPhone(user.phone)}</Text>
+            </View>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
         </TouchableOpacity>
@@ -320,27 +373,38 @@ export default function MyBookingsScreen() {
         <>
           {/* Filter Tabs */}
           <View style={styles.filterTabsContainer}>
-            {STATUS_FILTERS.map((cat, idx) => (
-              <React.Fragment key={cat}>
-                {idx > 0 && <View style={styles.filterDivider} />}
+            {STATUS_FILTERS.map((item) => {
+              const isActive = activeFilter === item.id;
+              return (
                 <TouchableOpacity
+                  key={item.id}
                   style={[
                     styles.filterTab,
-                    activeFilter === cat && styles.filterTabActive,
+                    isActive && styles.filterTabActive,
                   ]}
-                  onPress={() => setActiveFilter(cat)}
+                  onPress={() => {
+                    setActiveFilter(item.id);
+                    loadData(false, item.id);
+                  }}
+                  activeOpacity={0.7}
                 >
+                  <Ionicons
+                    name={item.icon as any}
+                    size={13}
+                    color={isActive ? '#ffffff' : '#64748b'}
+                    style={{ marginRight: 4 }}
+                  />
                   <Text
                     style={[
                       styles.filterTabText,
-                      activeFilter === cat && styles.filterTabTextActive,
+                      isActive && styles.filterTabTextActive,
                     ]}
                   >
-                    {cat === 'ALL' ? 'All Rides' : cat}
+                    {item.label}
                   </Text>
                 </TouchableOpacity>
-              </React.Fragment>
-            ))}
+              );
+            })}
           </View>
 
           {/* Bookings List */}
@@ -409,17 +473,20 @@ export default function MyBookingsScreen() {
                         </Text>
                       </View>
                     </View>
-                    <Text style={styles.scheduledText} numberOfLines={1}>
-                      Scheduled: <Text style={styles.scheduledBold}>
-                        {new Date(booking.scheduledAt).toLocaleString([], {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                    <View style={styles.scheduledRow}>
+                      <Ionicons name="calendar-outline" size={13} color="#64748b" style={{ marginRight: 4 }} />
+                      <Text style={styles.scheduledText} numberOfLines={1}>
+                        Scheduled: <Text style={styles.scheduledBold}>
+                          {new Date(booking.scheduledAt).toLocaleString([], {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </Text>
                       </Text>
-                    </Text>
+                    </View>
                   </View>
 
                   <View style={styles.fareHeaderBlock}>
@@ -432,56 +499,60 @@ export default function MyBookingsScreen() {
                   </View>
                 </View>
 
-                {/* 2. Trip Route Details */}
-                <View style={styles.routeBox}>
-                  <View style={styles.routeHeaderRow}>
-                    <Text style={styles.routeBoxTitle}>
-                      TRIP ROUTE ({booking.tripType})
-                    </Text>
-                    {booking.distanceKm ? (
-                      <Text style={styles.routeDistanceText}>~{booking.distanceKm} km</Text>
-                    ) : null}
-                  </View>
-
-                  <View style={styles.routePointRow}>
-                    <Text style={styles.routeIcon}>📍</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.pointLabel}>
-                        {booking.status === BookingStatus.TRIP_STARTED || booking.status === BookingStatus.TRIP_COMPLETED
-                          ? 'Pickup Location (OTP Verified):'
-                          : 'Pickup Location:'}
-                      </Text>
-                      <Text style={styles.pointText}>
-                        {booking.status === BookingStatus.TRIP_STARTED || booking.status === BookingStatus.TRIP_COMPLETED
-                          ? (booking.actualPickupAddress || booking.pickupAddress)
-                          : booking.pickupAddress}
-                      </Text>
-                      {booking.actualPickupAddress && booking.actualPickupAddress !== booking.pickupAddress && (booking.status === BookingStatus.TRIP_STARTED || booking.status === BookingStatus.TRIP_COMPLETED) ? (
-                        <Text style={{ fontSize: 9.5, color: '#64748b', marginTop: 1 }}>
-                          Booked: {booking.pickupAddress}
-                        </Text>
-                      ) : null}
+                {/* 2. Trip Route Details (Clean Timeline Node Track) */}
+                <View style={styles.routeContainer}>
+                  <View style={styles.routeContentRow}>
+                    {/* Left: Timeline Tracker */}
+                    <View style={styles.timelineTrack}>
+                      <View style={styles.greenNodeDot} />
+                      <View style={styles.timelineConnector} />
+                      <View style={styles.redNodeDot} />
                     </View>
-                  </View>
 
-                  <View style={styles.routePointRow}>
-                    <Text style={styles.routeIcon}>🏁</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.pointLabel}>
-                        {booking.status === BookingStatus.TRIP_COMPLETED
-                          ? 'Drop Destination (Final Reached):'
-                          : 'Drop Destination:'}
-                      </Text>
-                      <Text style={styles.pointText}>
-                        {booking.status === BookingStatus.TRIP_COMPLETED
-                          ? (booking.actualDropAddress || booking.dropAddress)
-                          : booking.dropAddress}
-                      </Text>
-                      {booking.actualDropAddress && booking.actualDropAddress !== booking.dropAddress && booking.status === BookingStatus.TRIP_COMPLETED ? (
-                        <Text style={{ fontSize: 9.5, color: '#64748b', marginTop: 1 }}>
-                          Booked: {booking.dropAddress}
+                    {/* Middle & Right: Pickup Row with KM Badge, and Drop Destination */}
+                    <View style={styles.routePointsCol}>
+                      {/* Pickup Row with KM Badge on Right */}
+                      <View style={styles.pickupRow}>
+                        <View style={styles.pickupBlock}>
+                          <Text style={styles.routeNodeLabel}>Pickup Location</Text>
+                          <Text style={styles.routeAddressText} numberOfLines={1}>
+                            {booking.status === BookingStatus.TRIP_STARTED || booking.status === BookingStatus.TRIP_COMPLETED
+                              ? (booking.actualPickupAddress || booking.pickupAddress)
+                              : booking.pickupAddress}
+                          </Text>
+                        </View>
+
+                        {/* Right: Distance & Trip Type Pill */}
+                        <View style={styles.distanceBadgePill}>
+                          <View style={styles.distanceTopRow}>
+                            <Ionicons name="speedometer-outline" size={11} color="#2563eb" style={{ marginRight: 3 }} />
+                            <Text style={styles.distanceBadgeText}>
+                              {booking.distanceKm ? `~${booking.distanceKm} km` : '~50 km'}
+                            </Text>
+                          </View>
+                          <Text style={styles.tripTypeSubText}>
+                            {booking.tripType === TripType.ONEWAY
+                              ? 'One Way'
+                              : booking.tripType === TripType.ROUND
+                              ? 'Round Trip'
+                              : booking.tripType === TripType.AIRPORT
+                              ? 'Airport'
+                              : booking.tripType === TripType.LOCAL
+                              ? 'Hourly Local'
+                              : 'Standard'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Drop */}
+                      <View style={styles.dropBlock}>
+                        <Text style={styles.routeNodeLabel}>Drop Destination</Text>
+                        <Text style={styles.routeAddressText} numberOfLines={1}>
+                          {booking.status === BookingStatus.TRIP_COMPLETED
+                            ? (booking.actualDropAddress || booking.dropAddress)
+                            : booking.dropAddress}
                         </Text>
-                      ) : null}
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -521,8 +592,11 @@ export default function MyBookingsScreen() {
                   booking.status !== BookingStatus.TRIP_COMPLETED &&
                   booking.status !== BookingStatus.CANCELLED && (
                     <View style={styles.otpBox}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.otpLabel}>🔑 PICKUP OTP</Text>
+                      <View style={styles.otpIconCircle}>
+                        <Ionicons name="pricetag" size={13} color="#ea580c" />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 8 }}>
+                        <Text style={styles.otpLabel}>Pickup OTP</Text>
                         <Text style={styles.otpSub}>
                           Share this 4-digit code with your driver at pickup only to start the ride.
                         </Text>
@@ -536,52 +610,94 @@ export default function MyBookingsScreen() {
 
                 {/* 4. Driver & Vehicle Card */}
                 <View style={styles.driverBox}>
-                  <Text style={styles.driverBoxTitle}>🚖 DRIVER & VEHICLE</Text>
                   {driver ? (
                     <View style={styles.driverInfoRow}>
-                      <View style={styles.driverAvatar}>
-                        <Text style={styles.driverAvatarText}>
-                          {driver.user?.fullName ? driver.user.fullName[0].toUpperCase() : 'D'}
-                        </Text>
+                      <View style={styles.driverCarCircle}>
+                        <Ionicons name="car" size={16} color="#0284c7" />
                       </View>
                       <View style={{ flex: 1, marginLeft: 10 }}>
+                        <View style={styles.driverHeaderRow}>
+                          <Text style={styles.driverBoxSubtitle}>Driver & Vehicle</Text>
+                          {/* Driver Overall Rating Badge */}
+                          <View style={styles.driverRatingPill}>
+                            <Ionicons name="star" size={10} color="#f59e0b" />
+                            <Text style={styles.driverRatingPillText}>
+                              {booking.driverRating ? Number(booking.driverRating).toFixed(1) : '4.9'}
+                            </Text>
+                          </View>
+                        </View>
                         <Text style={styles.driverName}>
                           {driver.user?.fullName || 'Assigned Driver'}
                         </Text>
                         <Text style={styles.driverVehicle}>
-                          {vehicle?.category || booking.category || 'Prime Cab'} • {vehicle?.plateNumber || 'Verified Vehicle'}
+                          {vehicle?.category || booking.category || 'Sedan'} • {vehicle?.plateNumber || 'Verified Vehicle'}
                         </Text>
                       </View>
-                      {driver.user?.phone && (
+                      {driver.user?.phone &&
+                        booking.status !== BookingStatus.TRIP_COMPLETED &&
+                        booking.status !== BookingStatus.CANCELLED && (
                         <TouchableOpacity
                           style={styles.driverCallBtn}
                           onPress={() => Linking.openURL(`tel:${driver.user.phone}`)}
                         >
-                          <Ionicons name="call" size={14} color="#ffffff" />
+                          <Ionicons name="call" size={12} color="#ffffff" style={{ marginRight: 4 }} />
                           <Text style={styles.driverCallBtnText}>Call</Text>
                         </TouchableOpacity>
                       )}
                     </View>
                   ) : (
                     <View style={styles.unassignedRow}>
-                      <Text style={styles.unassignedText}>
-                        Dispatching to closest driver... Waiting for driver assignment
-                      </Text>
+                      <View style={styles.driverUserCircle}>
+                        <Ionicons name="person" size={15} color="#64748b" />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={styles.unassignedTitle}>Driver & Vehicle</Text>
+                        <Text style={styles.unassignedText}>
+                          Dispatching to closest driver... Waiting for driver assignment
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={15} color="#94a3b8" />
                     </View>
                   )}
                 </View>
 
                 {/* 5. Payment & Invoice Breakdown */}
-                <View style={styles.paymentBox}>
-                  <View style={styles.paymentRow}>
-                    <Text style={styles.paymentLabel}>
-                      Balance Due on Trip: <Text style={styles.paymentBold}>₹{balanceDue.toFixed(2)}</Text>{' '}
-                      <Text style={[styles.paymentStatusTag, isBalancePending ? styles.statusPending : styles.statusPaid]}>
-                        ({isBalancePending ? 'PENDING' : 'PAID'})
-                      </Text>
+                <View style={styles.paymentRow}>
+                  <Text style={styles.paymentLabel}>
+                    Balance Due on Trip: <Text style={styles.paymentBold}>₹{balanceDue.toFixed(2)}</Text>
+                  </Text>
+                  <View style={[styles.statusBadgePill, isBalancePending ? styles.badgePending : styles.badgePaid]}>
+                    <Text style={[styles.statusBadgePillText, isBalancePending ? styles.badgePendingText : styles.badgePaidText]}>
+                      {isBalancePending ? 'PENDING' : 'PAID'}
                     </Text>
                   </View>
                 </View>
+
+                {/* Customer Submitted Rating Badge (if completed and rated) */}
+                {booking.customerRating && (
+                  <View style={styles.tripRatedSummaryRow}>
+                    <View style={styles.tripRatedStars}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Ionicons
+                          key={star}
+                          name={star <= Number(booking.customerRating.driverRating || booking.customerRating.rating) ? 'star' : 'star-outline'}
+                          size={12}
+                          color="#f59e0b"
+                        />
+                      ))}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.tripRatedText} numberOfLines={1}>
+                        Driver: {booking.customerRating.driverRating || booking.customerRating.rating}★ • KandyCabs: {booking.customerRating.kandyRating || 5}★
+                      </Text>
+                      {booking.customerRating.comment ? (
+                        <Text style={styles.tripRatedCommentText} numberOfLines={1}>
+                          "{booking.customerRating.comment}"
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                )}
 
                 {/* 6. Action Buttons */}
                 <View style={styles.cardActionsRow}>
@@ -589,9 +705,38 @@ export default function MyBookingsScreen() {
                     style={styles.invoiceBtn}
                     onPress={() => setSelectedInvoiceId(booking.id)}
                   >
-                    <Ionicons name="document-text-outline" size={15} color="#475569" />
+                    <Ionicons name="document-text-outline" size={14} color="#334155" />
                     <Text style={styles.invoiceBtnText}>View Tax Invoice</Text>
                   </TouchableOpacity>
+
+                  {/* Driver & Trip Rating Button for Completed Trips */}
+                  {booking.status === BookingStatus.TRIP_COMPLETED && (
+                    <TouchableOpacity
+                      style={[
+                        styles.rateDriverBtn,
+                        booking.customerRating && styles.rateDriverBtnRated,
+                      ]}
+                      onPress={() => reviewManager.forceShowReview(booking)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name="star"
+                        size={13}
+                        color={booking.customerRating ? '#b45309' : '#ea580c'}
+                        style={{ marginRight: 4 }}
+                      />
+                      <Text
+                        style={[
+                          styles.rateDriverBtnText,
+                          booking.customerRating && styles.rateDriverBtnRatedText,
+                        ]}
+                      >
+                        {booking.customerRating
+                          ? `Rated ${booking.customerRating.driverRating || booking.customerRating.rating}★ (Review)`
+                          : 'Rate Trip & Driver'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
 
                   {booking.status !== BookingStatus.TRIP_COMPLETED &&
                     booking.status !== BookingStatus.CANCELLED &&
@@ -601,6 +746,7 @@ export default function MyBookingsScreen() {
                         onPress={() => handleCancelBooking(booking.id, booking.humanReadableRef)}
                         disabled={cancellingId === booking.id}
                       >
+                        <Ionicons name="close-circle" size={14} color="#dc2626" />
                         <Text style={styles.cancelBtnText}>
                           {cancellingId === booking.id ? 'Cancelling...' : 'Cancel Ride'}
                         </Text>
@@ -635,6 +781,8 @@ export default function MyBookingsScreen() {
           onClose={() => setSelectedInvoiceId(null)}
         />
       )}
+
+
 
       {/* Auth Modal */}
       <AuthModal
@@ -677,7 +825,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
     letterSpacing: -0.3,
   },
   headerSub: {
@@ -734,7 +882,7 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
   },
   verifiedBadge: {
     marginLeft: 8,
@@ -748,10 +896,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
+  profilePhoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 3,
+  },
   profilePhone: {
     fontSize: 12,
     color: '#64748b',
-    marginTop: 2,
   },
   filterTabsContainer: {
     flexDirection: 'row',
@@ -771,13 +923,14 @@ const styles = StyleSheet.create({
   },
   filterTab: {
     flex: 1,
+    flexDirection: 'row',
     paddingVertical: 7,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,
   },
   filterTabActive: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#103A75',
   },
   filterTabText: {
     fontSize: 11,
@@ -822,7 +975,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
   },
   emptySub: {
     fontSize: 12,
@@ -845,11 +998,11 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    padding: 12,
-    marginBottom: 14,
+    padding: 11,
+    marginBottom: 11,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -862,7 +1015,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
-    paddingBottom: 10,
+    paddingBottom: 7,
     gap: 6,
   },
   cardHeaderLeft: {
@@ -878,7 +1031,7 @@ const styles = StyleSheet.create({
   refText: {
     fontSize: 12.5,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   statusPill: {
@@ -891,10 +1044,14 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     fontWeight: '800',
   },
+  scheduledRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
   scheduledText: {
     fontSize: 10.5,
     color: '#64748b',
-    marginTop: 3,
   },
   scheduledBold: {
     color: '#334155',
@@ -909,7 +1066,7 @@ const styles = StyleSheet.create({
   fareTotalAmount: {
     fontSize: 14.5,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
     textAlign: 'right',
   },
   advancePaidTag: {
@@ -919,86 +1076,140 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: 'right',
   },
-  routeBox: {
+  routeContainer: {
     backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    padding: 10,
-    marginTop: 10,
+    borderRadius: 10,
+    padding: 7,
+    marginTop: 7,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  routeHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  routeBoxTitle: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#64748b',
-    letterSpacing: 0.5,
-  },
-  routeDistanceText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  routePointRow: {
+  routeContentRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginTop: 6,
   },
-  routeIcon: {
-    fontSize: 14,
-    marginRight: 8,
-    marginTop: 1,
+  timelineTrack: {
+    width: 12,
+    alignItems: 'center',
+    marginRight: 6,
+    paddingTop: 3,
   },
-  pointLabel: {
-    fontSize: 10,
+  greenNodeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#16a34a',
+  },
+  timelineConnector: {
+    width: 2,
+    height: 22,
+    backgroundColor: '#cbd5e1',
+    marginVertical: 2,
+  },
+  redNodeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#dc2626',
+  },
+  routePointsCol: {
+    flex: 1,
+  },
+  pickupRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  pickupBlock: {
+    flex: 1,
+    marginRight: 6,
+  },
+  dropBlock: {
+    marginTop: 4,
+  },
+  routeNodeLabel: {
+    fontSize: 9,
     color: '#64748b',
-    fontWeight: '600',
-  },
-  pointText: {
-    fontSize: 12,
     fontWeight: '700',
-    color: '#1e293b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  routeAddressText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#103A75',
     marginTop: 1,
+  },
+  distanceBadgePill: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 7,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    alignSelf: 'flex-start',
+  },
+  distanceTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  distanceBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#1d4ed8',
+  },
+  tripTypeSubText: {
+    fontSize: 8.5,
+    color: '#3b82f6',
+    fontWeight: '700',
+    marginTop: 0.5,
   },
   otpBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fffbeb',
+    backgroundColor: '#fffaf5',
     borderWidth: 1,
-    borderColor: '#fde68a',
+    borderColor: '#fed7aa',
+    borderRadius: 10,
+    padding: 7,
+    marginTop: 7,
+  },
+  otpIconCircle: {
+    width: 24,
+    height: 24,
     borderRadius: 12,
-    padding: 9,
-    marginTop: 9,
+    backgroundColor: '#fff7ed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ffedd5',
   },
   otpLabel: {
     fontSize: 10.5,
     fontWeight: '900',
-    color: '#92400e',
+    color: '#9a3412',
   },
   otpSub: {
-    fontSize: 9.5,
-    color: '#b45309',
-    marginTop: 1,
-    lineHeight: 13,
+    fontSize: 9,
+    color: '#c2410c',
+    marginTop: 0.5,
+    lineHeight: 12,
   },
   otpPill: {
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#f59e0b',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginLeft: 8,
+    borderColor: '#ea580c',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 7,
+    marginLeft: 6,
   },
   otpPillText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '900',
-    color: '#92400e',
+    color: '#ea580c',
     letterSpacing: 2,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
@@ -1095,40 +1306,69 @@ const styles = StyleSheet.create({
   },
   driverBox: {
     backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    padding: 9,
-    marginTop: 9,
+    borderRadius: 10,
+    padding: 8,
+    marginTop: 7,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-  },
-  driverBoxTitle: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: '#64748b',
-    letterSpacing: 0.5,
-    marginBottom: 6,
   },
   driverInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  driverAvatar: {
+  driverCarCircle: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#ea580c',
+    backgroundColor: '#e0f2fe',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
   },
-  driverAvatarText: {
-    color: '#ffffff',
-    fontSize: 13,
+  driverUserCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  driverHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: 4,
+  },
+  driverRatingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    paddingHorizontal: 5.5,
+    paddingVertical: 1.5,
+    borderRadius: 5,
+  },
+  driverRatingPillText: {
+    fontSize: 10,
     fontWeight: '800',
+    color: '#b45309',
+  },
+  driverBoxSubtitle: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   driverName: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
   },
   driverVehicle: {
     fontSize: 10.5,
@@ -1142,7 +1382,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 7,
-    gap: 3,
   },
   driverCallBtnText: {
     color: '#ffffff',
@@ -1150,23 +1389,29 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   unassignedRow: {
-    paddingVertical: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  unassignedTitle: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   unassignedText: {
-    fontSize: 10.5,
+    fontSize: 11,
     color: '#64748b',
-    fontStyle: 'italic',
-  },
-  paymentBox: {
-    marginTop: 9,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    marginTop: 1,
   },
   paymentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 7,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
   },
   paymentLabel: {
     fontSize: 11.5,
@@ -1174,23 +1419,38 @@ const styles = StyleSheet.create({
   },
   paymentBold: {
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
   },
-  paymentStatusTag: {
-    fontSize: 10.5,
+  statusBadgePill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  badgePending: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+  },
+  badgePaid: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#86efac',
+  },
+  statusBadgePillText: {
+    fontSize: 9.5,
     fontWeight: '800',
+    letterSpacing: 0.5,
   },
-  statusPending: {
-    color: '#ea580c',
+  badgePendingText: {
+    color: '#dc2626',
   },
-  statusPaid: {
-    color: '#16a34a',
+  badgePaidText: {
+    color: '#166534',
   },
   cardActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 9,
+    marginTop: 7,
     paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
@@ -1204,12 +1464,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    paddingVertical: 8,
-    borderRadius: 10,
-    gap: 4,
+    paddingVertical: 7,
+    borderRadius: 8,
+    gap: 5,
   },
   invoiceBtnText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '800',
     color: '#334155',
   },
@@ -1220,14 +1480,68 @@ const styles = StyleSheet.create({
     backgroundColor: '#fef2f2',
     borderWidth: 1,
     borderColor: '#fecaca',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    gap: 4,
   },
   cancelBtnText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '800',
     color: '#dc2626',
+  },
+  rateDriverBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    paddingVertical: 7,
+    borderRadius: 8,
+    gap: 4,
+  },
+  rateDriverBtnText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#ea580c',
+  },
+  rateDriverBtnRated: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+  },
+  rateDriverBtnRatedText: {
+    color: '#b45309',
+  },
+  tripRatedSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fffbeb',
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    paddingHorizontal: 8,
+    paddingVertical: 4.5,
+    marginTop: 6,
+  },
+  tripRatedStars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 1.5,
+  },
+  tripRatedText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#92400e',
+    flex: 1,
+  },
+  tripRatedCommentText: {
+    fontSize: 9.5,
+    fontStyle: 'italic',
+    color: '#78350f',
+    marginTop: 1,
   },
   guestContainer: {
     alignItems: 'center',
@@ -1256,7 +1570,7 @@ const styles = StyleSheet.create({
   guestTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
     marginBottom: 8,
   },
   guestSubtitle: {

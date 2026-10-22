@@ -50,6 +50,8 @@ export interface PricingCalculationInput {
   packageHours?: number;
   couponCode?: string;
   overrides?: DynamicRateOverrides;
+  hasPet?: boolean;
+  petFee?: number;
 }
 
 export interface PricingBreakdown {
@@ -71,6 +73,8 @@ export interface PricingBreakdown {
   balanceAmount: number; // 75%
   isNightTime: boolean;
   ratePerKm: number;
+  hasPet?: boolean;
+  petCharge?: number;
 }
 
 export interface QuoteRequest {

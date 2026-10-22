@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { fullName, email } = body;
+    const { fullName, email, profilePhoto } = body;
 
     const updateData: any = {};
     if (typeof fullName === 'string' && fullName.trim().length > 0) {
@@ -53,18 +53,36 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    if (email && typeof email === 'string' && updatedUser.customer) {
-      await prisma.customer.update({
-        where: { id: updatedUser.customer.id },
-        data: { email: email.trim() },
-      });
+    if (updatedUser.customer) {
+      const customerUpdateData: any = {};
+      if (email && typeof email === 'string') {
+        customerUpdateData.email = email.trim();
+      }
+      if (profilePhoto !== undefined) {
+        const existingSaved = (updatedUser.customer.savedAddresses as any) || {};
+        customerUpdateData.savedAddresses = {
+          ...(typeof existingSaved === 'object' && existingSaved !== null ? existingSaved : {}),
+          profilePhoto: profilePhoto || null,
+        };
+      }
+      if (Object.keys(customerUpdateData).length > 0) {
+        await prisma.customer.update({
+          where: { id: updatedUser.customer.id },
+          data: customerUpdateData,
+        });
+      }
     }
+
+    const savedProfilePhoto = profilePhoto !== undefined
+      ? profilePhoto
+      : (((updatedUser.customer?.savedAddresses as any)?.profilePhoto) || null);
 
     const userProfile = {
       id: updatedUser.id,
       phone: updatedUser.phone,
       fullName: updatedUser.fullName,
       email: email?.trim() || updatedUser.customer?.email || null,
+      profilePhoto: savedProfilePhoto,
       roles: updatedUser.roles,
       createdAt: updatedUser.createdAt,
     };

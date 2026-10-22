@@ -58,9 +58,13 @@ export function HamburgerDrawer({
                   }}
                 >
                   <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>
-                      {user.fullName ? user.fullName[0].toUpperCase() : 'U'}
-                    </Text>
+                    {user.profilePhoto ? (
+                      <Image source={{ uri: user.profilePhoto }} style={styles.avatarImage} />
+                    ) : (
+                      <Text style={styles.avatarText}>
+                        {user.fullName ? user.fullName[0].toUpperCase() : 'U'}
+                      </Text>
+                    )}
                   </View>
                   <View>
                     <Text style={styles.userName}>{user.fullName || 'Customer'}</Text>
@@ -263,6 +267,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
   },
   avatarText: {
     color: '#ffffff',
@@ -272,7 +282,7 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
   },
   userPhone: {
     fontSize: 11,
@@ -383,7 +393,7 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#103A75',
   },
   divider: {
     height: 1,
@@ -431,7 +441,7 @@ const styles = StyleSheet.create({
   supportPhone: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
     marginTop: 1,
   },
   signInBtn: {

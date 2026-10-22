@@ -645,7 +645,7 @@ export default function BookingFunnelPage() {
               <div className="flex items-center gap-2">
                 {user?.roles?.includes(UserRole.ADMIN) && (
                   <a
-                    href="http://localhost:3001"
+                    href={process.env.NEXT_PUBLIC_ADMIN_URL || '/admin'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hidden lg:inline-flex items-center px-3 py-1.5 sm:py-2 bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 rounded-lg sm:rounded-xl text-xs font-bold transition shadow-xs"

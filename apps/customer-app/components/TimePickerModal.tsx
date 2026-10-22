@@ -135,7 +135,7 @@ export function TimePickerModal({
           ) : (
             <FlatList
               data={availableSlots}
-              numColumns={4}
+              numColumns={3}
               keyExtractor={(item) => item}
               contentContainerStyle={styles.list}
               showsVerticalScrollIndicator={false}
@@ -145,6 +145,7 @@ export function TimePickerModal({
                 const hourNum = parseInt(hourStr, 10);
                 const ampm = hourNum >= 12 ? 'PM' : 'AM';
                 const displayHour = hourNum % 12 === 0 ? 12 : hourNum % 12;
+                const formattedTime12 = `${displayHour}:${minStr} ${ampm}`;
 
                 return (
                   <TouchableOpacity
@@ -155,9 +156,8 @@ export function TimePickerModal({
                     }}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.timeText, isSelected && styles.textActive]}>{item}</Text>
-                    <Text style={[styles.ampmText, isSelected && styles.textActive]}>
-                      {displayHour}:{minStr} {ampm}
+                    <Text style={[styles.timeText, isSelected && styles.textActive]}>
+                      {formattedTime12}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
   },
   subtitle: {
     fontSize: 11,
@@ -213,32 +213,32 @@ const styles = StyleSheet.create({
   },
   timeCard: {
     flex: 1,
-    margin: 4,
+    margin: 5,
     backgroundColor: '#f8fafc',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   timeCardActive: {
     backgroundColor: '#ea580c',
     borderColor: '#ea580c',
+    shadowColor: '#ea580c',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
   },
   timeText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  ampmText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#94a3b8',
-    marginTop: 2,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#103A75',
   },
   textActive: {
     color: '#ffffff',
+    fontWeight: '800',
   },
   emptyContainer: {
     padding: 30,
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
     marginTop: 10,
   },
   emptySubtitle: {

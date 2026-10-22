@@ -56,5 +56,7 @@ build_log*.txt
 .banners_store.json
 apps/*/.banners_store.json
 emulator_screen.png
+emulator_screen_*.png
+screen_*.png
 *.log
 apps/web/public/uploads/

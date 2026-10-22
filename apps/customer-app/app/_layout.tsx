@@ -3,6 +3,7 @@ import '@kandy-cabs/shared';
 import React from 'react';
 import { LogBox, StatusBar } from 'react-native';
 import { Stack } from 'expo-router';
+import { GlobalTripReviewWatcher } from '../components/GlobalTripReviewWatcher';
 
 // Suppress development yellow box overlays
 LogBox.ignoreAllLogs(true);
@@ -27,9 +28,11 @@ export default function RootLayout() {
         <Stack.Screen name="booking/index" />
         <Stack.Screen name="my-bookings" />
         <Stack.Screen name="profile" />
+        <Stack.Screen name="support" />
         <Stack.Screen name="dashboard" />
         <Stack.Screen name="+not-found" />
       </Stack>
+      <GlobalTripReviewWatcher />
     </>
   );
 }

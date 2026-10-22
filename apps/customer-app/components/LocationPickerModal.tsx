@@ -27,7 +27,167 @@ interface LocationPickerModalProps {
   isPickup?: boolean;
 }
 
-type TabCategory = 'ALL' | 'MANGALURU' | 'AIRPORTS' | 'OUTSTATION';
+type TabCategory = 'ALL' | 'AIRPORTS' | 'RAILWAY' | 'MANGALURU' | 'OUTSTATION';
+
+interface LocationMeta {
+  iconName: keyof typeof Ionicons.glyphMap;
+  badgeLabel: string;
+  badgeBg: string;
+  badgeColor: string;
+  iconBg: string;
+  iconColor: string;
+}
+
+function getLocationMeta(loc: PlaceLocation): LocationMeta {
+  const text = `${loc.label} ${loc.sublabel || ''} ${loc.keywords?.join(' ') || ''}`.toLowerCase();
+
+  // 1. Train / Railway Stations - STRICT: Never show airport icon for railway!
+  if (
+    text.includes('railway') ||
+    text.includes('train') ||
+    text.includes('railway station') ||
+    (text.includes('station') && !text.includes('police') && !text.includes('fire'))
+  ) {
+    return {
+      iconName: 'train',
+      badgeLabel: 'TRAIN',
+      badgeBg: '#eef2ff',
+      badgeColor: '#4338ca',
+      iconBg: '#e0e7ff',
+      iconColor: '#4f46e5',
+    };
+  }
+
+  // 2. Bus Terminals / Stands
+  if (
+    text.includes('bus stand') ||
+    text.includes('ksrtc') ||
+    text.includes('terminus') ||
+    text.includes('bus terminal')
+  ) {
+    return {
+      iconName: 'bus',
+      badgeLabel: 'BUS',
+      badgeBg: '#f0fdfa',
+      badgeColor: '#0f766e',
+      iconBg: '#ccfbf1',
+      iconColor: '#0d9488',
+    };
+  }
+
+  // 3. Genuine Airports Only
+  if (
+    (loc.category === 'AIRPORTS' || text.includes('airport') || text.includes('aerodrome') || text.includes('ixe') || text.includes('blr') || text.includes('flight')) &&
+    !text.includes('railway') &&
+    !text.includes('train')
+  ) {
+    return {
+      iconName: 'airplane',
+      badgeLabel: 'AIRPORT',
+      badgeBg: '#f0f9ff',
+      badgeColor: '#0369a1',
+      iconBg: '#e0f2fe',
+      iconColor: '#0284c7',
+    };
+  }
+
+  // 4. Temples / Shrines / Cultural
+  if (
+    text.includes('temple') ||
+    text.includes('shrine') ||
+    text.includes('church') ||
+    text.includes('cathedral') ||
+    text.includes('darga') ||
+    text.includes('mandir') ||
+    text.includes('chapel')
+  ) {
+    return {
+      iconName: 'sparkles',
+      badgeLabel: 'TEMPLE',
+      badgeBg: '#fffbeb',
+      badgeColor: '#b45309',
+      iconBg: '#fef3c7',
+      iconColor: '#d97706',
+    };
+  }
+
+  // 5. Hospitals / Medical
+  if (
+    text.includes('hospital') ||
+    text.includes('medical') ||
+    text.includes('clinic') ||
+    text.includes('health') ||
+    text.includes('kshema')
+  ) {
+    return {
+      iconName: 'medkit',
+      badgeLabel: 'MEDICAL',
+      badgeBg: '#fff1f2',
+      badgeColor: '#be123c',
+      iconBg: '#ffe4e6',
+      iconColor: '#e11d48',
+    };
+  }
+
+  // 6. Colleges / Universities / IT Parks
+  if (
+    text.includes('college') ||
+    text.includes('university') ||
+    text.includes('campus') ||
+    text.includes('institute') ||
+    text.includes('sjec') ||
+    text.includes('nitk') ||
+    text.includes('infosys')
+  ) {
+    return {
+      iconName: 'school',
+      badgeLabel: 'CAMPUS',
+      badgeBg: '#f5f3ff',
+      badgeColor: '#6d28d9',
+      iconBg: '#ede9fe',
+      iconColor: '#7c3aed',
+    };
+  }
+
+  // 7. Malls & Shopping
+  if (
+    text.includes('mall') ||
+    text.includes('shopping') ||
+    text.includes('centre') ||
+    text.includes('market')
+  ) {
+    return {
+      iconName: 'cart',
+      badgeLabel: 'MALL',
+      badgeBg: '#ecfdf5',
+      badgeColor: '#047857',
+      iconBg: '#d1fae5',
+      iconColor: '#059669',
+    };
+  }
+
+  // 8. Outstation Destinations
+  if (loc.category === 'OUTSTATION') {
+    return {
+      iconName: 'car',
+      badgeLabel: 'OUTSTATION',
+      badgeBg: '#fff7ed',
+      badgeColor: '#c2410c',
+      iconBg: '#fed7aa',
+      iconColor: '#ea580c',
+    };
+  }
+
+  // Default: City / Local Area
+  return {
+    iconName: 'location',
+    badgeLabel: 'LOCAL',
+    badgeBg: '#f8fafc',
+    badgeColor: '#475569',
+    iconBg: '#f1f5f9',
+    iconColor: '#64748b',
+  };
+}
 
 export function LocationPickerModal({
   visible,
@@ -44,9 +204,19 @@ export function LocationPickerModal({
   const filteredLocations = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return ALL_LOCATIONS.filter((loc) => {
+      const text = `${loc.label} ${loc.sublabel || ''} ${loc.keywords?.join(' ') || ''}`.toLowerCase();
+      const isRailway =
+        text.includes('railway') ||
+        text.includes('train') ||
+        text.includes('railway station') ||
+        (text.includes('station') && !text.includes('police'));
+
       // Category filter
       if (activeCategory === 'AIRPORTS') {
-        if (loc.category !== 'AIRPORTS') return false;
+        if (isRailway) return false;
+        if (loc.category !== 'AIRPORTS' && !text.includes('airport')) return false;
+      } else if (activeCategory === 'RAILWAY') {
+        if (!isRailway) return false;
       } else if (activeCategory === 'MANGALURU') {
         if (loc.category !== 'MANGALURU') return false;
       } else if (activeCategory === 'OUTSTATION') {
@@ -253,27 +423,30 @@ export function LocationPickerModal({
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#1e293b" />
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.7}>
+              <Ionicons name="close" size={20} color="#103A75" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>{title}</Text>
-            <View style={{ width: 40 }} />
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle}>{title}</Text>
+              <Text style={styles.headerSubtitle}>Tap landmark or type to search</Text>
+            </View>
+            <View style={{ width: 36 }} />
           </View>
 
           {/* Search Bar */}
           <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#94a3b8" style={styles.searchIcon} />
+            <Ionicons name="search" size={19} color="#64748b" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search airport, railway station, locality..."
               placeholderTextColor="#94a3b8"
               value={searchQuery}
               onChangeText={setSearchQuery}
-              autoFocus
+              autoFocus={false}
               clearButtonMode="while-editing"
             />
             {searchQuery.length > 0 && Platform.OS !== 'ios' && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close-circle" size={18} color="#94a3b8" />
               </TouchableOpacity>
             )}
@@ -285,45 +458,69 @@ export function LocationPickerModal({
               style={styles.gpsButton}
               onPress={handleUseCurrentLocation}
               disabled={gpsLoading}
+              activeOpacity={0.8}
             >
-              {gpsLoading ? (
-                <ActivityIndicator size="small" color="#ea580c" />
-              ) : (
-                <Ionicons name="navigate" size={18} color="#ea580c" />
-              )}
-              <Text style={styles.gpsButtonText}>Use My Current Live Location</Text>
+              <View style={styles.gpsIconCircle}>
+                {gpsLoading ? (
+                  <ActivityIndicator size="small" color="#ea580c" />
+                ) : (
+                  <Ionicons name="navigate" size={16} color="#ea580c" />
+                )}
+              </View>
+              <View style={styles.gpsTextCol}>
+                <Text style={styles.gpsButtonTitle}>Use My Current Live Location</Text>
+                <Text style={styles.gpsButtonSubtitle}>Auto-detect accurate GPS position</Text>
+              </View>
               <View style={styles.gpsBadge}>
+                <View style={styles.gpsLiveDot} />
                 <Text style={styles.gpsBadgeText}>GPS</Text>
               </View>
             </TouchableOpacity>
           )}
 
           {/* Category Tabs */}
-          <View style={styles.categoryTabs}>
-            {[
-              { id: 'ALL' as TabCategory, label: 'All' },
-              { id: 'MANGALURU' as TabCategory, label: 'Mangaluru' },
-              { id: 'AIRPORTS' as TabCategory, label: '✈️ Airports' },
-              { id: 'OUTSTATION' as TabCategory, label: '🛣️ Outstation' },
-            ].map((tab) => (
-              <TouchableOpacity
-                key={tab.id}
-                style={[
-                  styles.categoryTab,
-                  activeCategory === tab.id && styles.categoryTabActive,
-                ]}
-                onPress={() => setActiveCategory(tab.id)}
-              >
-                <Text
-                  style={[
-                    styles.categoryTabText,
-                    activeCategory === tab.id && styles.categoryTabTextActive,
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.categoryTabsWrapper}>
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryTabs}
+              data={[
+                { id: 'ALL' as TabCategory, label: 'All', icon: 'grid-outline' as const },
+                { id: 'AIRPORTS' as TabCategory, label: 'Airports', icon: 'airplane-outline' as const },
+                { id: 'RAILWAY' as TabCategory, label: 'Railway', icon: 'train-outline' as const },
+                { id: 'MANGALURU' as TabCategory, label: 'Mangaluru', icon: 'business-outline' as const },
+                { id: 'OUTSTATION' as TabCategory, label: 'Outstation', icon: 'car-outline' as const },
+              ]}
+              keyExtractor={(tab) => tab.id}
+              renderItem={({ item: tab }) => {
+                const isActive = activeCategory === tab.id;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.categoryTab,
+                      isActive && styles.categoryTabActive,
+                    ]}
+                    onPress={() => setActiveCategory(tab.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={tab.icon}
+                      size={13}
+                      color={isActive ? '#ffffff' : '#64748b'}
+                      style={{ marginRight: 5 }}
+                    />
+                    <Text
+                      style={[
+                        styles.categoryTabText,
+                        isActive && styles.categoryTabTextActive,
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }}
+            />
           </View>
 
           {/* Locations List */}
@@ -334,45 +531,48 @@ export function LocationPickerModal({
             keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => {
               const isSelected = currentValue === item.label;
-              const isAirport = item.category === 'AIRPORTS';
-              const isOutstation = item.category === 'OUTSTATION';
+              const meta = getLocationMeta(item);
 
               return (
                 <TouchableOpacity
                   style={[styles.locationItem, isSelected && styles.locationItemSelected]}
+                  activeOpacity={0.7}
                   onPress={() => {
                     onSelect(item);
                     onClose();
                   }}
                 >
-                  <View
-                    style={[
-                      styles.iconContainer,
-                      isAirport
-                        ? styles.iconAirport
-                        : isOutstation
-                        ? styles.iconOutstation
-                        : styles.iconLocal,
-                    ]}
-                  >
+                  <View style={[styles.iconContainer, { backgroundColor: meta.iconBg }]}>
                     <Ionicons
-                      name={isAirport ? 'airplane' : isOutstation ? 'car' : 'location'}
+                      name={meta.iconName}
                       size={18}
-                      color={isAirport ? '#0284c7' : isOutstation ? '#d97706' : '#16a34a'}
+                      color={meta.iconColor}
                     />
                   </View>
                   <View style={styles.locationTextContainer}>
-                    <Text style={styles.locationLabel} numberOfLines={1}>
-                      {item.label}
-                    </Text>
+                    <View style={styles.labelRow}>
+                      <Text
+                        style={[styles.locationLabel, isSelected && styles.locationLabelSelected]}
+                        numberOfLines={1}
+                      >
+                        {item.label}
+                      </Text>
+                      <View style={[styles.typeBadge, { backgroundColor: meta.badgeBg }]}>
+                        <Text style={[styles.typeBadgeText, { color: meta.badgeColor }]}>
+                          {meta.badgeLabel}
+                        </Text>
+                      </View>
+                    </View>
                     {item.sublabel ? (
                       <Text style={styles.locationSublabel} numberOfLines={1}>
                         {item.sublabel}
                       </Text>
                     ) : null}
                   </View>
-                  {isSelected && (
+                  {isSelected ? (
                     <Ionicons name="checkmark-circle" size={20} color="#ea580c" />
+                  ) : (
+                    <Ionicons name="chevron-forward" size={15} color="#cbd5e1" />
                   )}
                 </TouchableOpacity>
               );
@@ -394,39 +594,56 @@ export function LocationPickerModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
     backgroundColor: '#ffffff',
   },
   closeButton: {
-    padding: 8,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitleContainer: {
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
+  },
+  headerSubtitle: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 1,
+    fontWeight: '500',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
     marginHorizontal: 16,
-    marginTop: 12,
-    paddingHorizontal: 12,
+    marginTop: 10,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 2,
   },
   searchIcon: {
     marginRight: 8,
@@ -434,7 +651,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#0f172a',
+    color: '#103A75',
     fontWeight: '500',
   },
   gpsButton: {
@@ -444,102 +661,154 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#fed7aa',
     marginHorizontal: 16,
-    marginTop: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    marginTop: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     borderRadius: 12,
   },
-  gpsButtonText: {
+  gpsIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#ffedd5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  gpsTextCol: {
     flex: 1,
+  },
+  gpsButtonTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: '#c2410c',
-    marginLeft: 8,
+  },
+  gpsButtonSubtitle: {
+    fontSize: 11,
+    color: '#9a3412',
+    marginTop: 1,
+    fontWeight: '500',
   },
   gpsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#ea580c',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: 6,
+  },
+  gpsLiveDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#4ade80',
+    marginRight: 4,
   },
   gpsBadgeText: {
     color: '#ffffff',
     fontSize: 10,
     fontWeight: '800',
   },
+  categoryTabsWrapper: {
+    marginTop: 10,
+    marginBottom: 6,
+  },
   categoryTabs: {
-    flexDirection: 'row',
     paddingHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 8,
-    gap: 6,
+    gap: 8,
   },
   categoryTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: '#f1f5f9',
+    borderRadius: 18,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   categoryTabActive: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#EE5C21',
+    borderColor: '#EE5C21',
   },
   categoryTabText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#64748b',
   },
   categoryTabTextActive: {
     color: '#ffffff',
+    fontWeight: '700',
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingBottom: 28,
   },
   locationItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderRadius: 14,
     marginTop: 8,
     borderWidth: 1,
     borderColor: '#f1f5f9',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
   locationItemSelected: {
     borderColor: '#ea580c',
-    backgroundColor: '#fff7ed',
+    backgroundColor: '#fffaf5',
+    borderWidth: 1.5,
   },
   iconContainer: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  iconAirport: {
-    backgroundColor: '#e0f2fe',
-  },
-  iconOutstation: {
-    backgroundColor: '#fef3c7',
-  },
-  iconLocal: {
-    backgroundColor: '#dcfce7',
-  },
   locationTextContainer: {
     flex: 1,
     marginRight: 8,
   },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   locationLabel: {
+    flex: 1,
     fontSize: 14,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#103A75',
+    marginRight: 6,
+  },
+  locationLabelSelected: {
+    color: '#ea580c',
   },
   locationSublabel: {
     fontSize: 12,
     fontWeight: '500',
     color: '#64748b',
     marginTop: 2,
+  },
+  typeBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  typeBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   emptyContainer: {
     alignItems: 'center',

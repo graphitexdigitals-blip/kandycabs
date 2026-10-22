@@ -682,7 +682,7 @@ export default function HomePage() {
               <div className="flex items-center gap-2">
                 {user?.roles?.includes(UserRole.ADMIN) && (
                   <a
-                    href="http://localhost:3001"
+                    href={process.env.NEXT_PUBLIC_ADMIN_URL || '/admin'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hidden lg:inline-flex items-center px-3 py-1.5 sm:py-2 bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 rounded-lg sm:rounded-xl text-xs font-bold transition shadow-xs"
@@ -824,7 +824,7 @@ export default function HomePage() {
               <div className="pt-1.5 border-t border-slate-200 flex flex-col gap-1.5">
                 {mounted && user?.roles?.includes(UserRole.ADMIN) && (
                   <a
-                    href="http://localhost:3001"
+                    href={process.env.NEXT_PUBLIC_ADMIN_URL || '/admin'}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => setMobileMenuOpen(false)}
@@ -2025,7 +2025,7 @@ export default function HomePage() {
                 <li><Link href="/customer/dashboard" className="hover:text-orange-400 transition">Customer Dashboard</Link></li>
                 <li><a href="#fleet" className="hover:text-orange-400 transition">Vehicle Fleet & Per-Km Rates</a></li>
                 <li><a href="#why-kandy" className="hover:text-orange-400 transition">Why Choose Kandy Cabs</a></li>
-                <li><a href="http://localhost:3001" target="_blank" rel="noopener noreferrer" className="hover:text-orange-400 transition text-orange-400 font-semibold">Admin Dispatch Portal ↗</a></li>
+                <li><a href={process.env.NEXT_PUBLIC_ADMIN_URL || '/admin'} target="_blank" rel="noopener noreferrer" className="hover:text-orange-400 transition text-orange-400 font-semibold">Admin Dispatch Portal ↗</a></li>
               </ul>
             </div>
 

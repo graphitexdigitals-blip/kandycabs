@@ -135,6 +135,9 @@ export const customerTokenStorage = new MobileTokenStorage();
 import Constants from 'expo-constants';
 
 export function getDynamicBaseUrl(): string {
+  if (__DEV__) {
+    return Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+  }
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
   }

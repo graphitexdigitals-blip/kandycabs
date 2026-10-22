@@ -113,6 +113,7 @@ export function BookingDetailDrawer({
   const booking = data?.booking;
   const auditLogs = data?.auditLogs || [];
   const assignedDriver = booking?.assignedDriver;
+  const bookingMeta = getBookingMetadata(booking);
 
   const handleTogglePhoneRelease = async () => {
     if (!booking) return;
@@ -389,6 +390,18 @@ export function BookingDetailDrawer({
                           <span>Roof Carrier Requested</span>
                         </span>
                       )}
+                      {meta.hasPet && (
+                        <span className="text-[10px] bg-amber-100 text-amber-900 font-extrabold px-2 py-0.5 rounded-md border border-amber-300 flex items-center gap-1">
+                          <span>🐾</span>
+                          <span>Pet Friendly (+₹{meta.petFee || 500})</span>
+                        </span>
+                      )}
+                      {meta.flightNumber && (
+                        <span className="text-[10px] bg-sky-100 text-sky-900 font-extrabold px-2 py-0.5 rounded-md border border-sky-300 flex items-center gap-1">
+                          <span>✈️</span>
+                          <span>Flight: {meta.flightNumber}</span>
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -413,6 +426,32 @@ export function BookingDetailDrawer({
                         <span className="font-extrabold block text-emerald-900">Roof Luggage Carrier Requested:</span>
                         <span className="text-[11px] text-emerald-800">
                           Customer selected rooftop luggage carrier on cab for extra luggage capacity (Up to 45-60 kg rooftop space). Ensure assigned cab has a roof carrier.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pet Friendly Alert */}
+                  {meta.hasPet && (
+                    <div className="p-2.5 bg-amber-50/90 border border-amber-300 rounded-lg text-xs text-amber-950 flex items-start gap-2 shadow-2xs">
+                      <span className="text-base">🐾</span>
+                      <div>
+                        <span className="font-extrabold block text-amber-900">Pet-Friendly Trip:</span>
+                        <span className="text-[11px] text-amber-800">
+                          Customer is travelling with a pet (+₹{meta.petFee || 500} pet sanitization & convenience fee applied). Please ensure the assigned vehicle is pet-friendly and inform driver.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Airport Flight Alert */}
+                  {meta.flightNumber && (
+                    <div className="p-2.5 bg-sky-50/90 border border-sky-300 rounded-lg text-xs text-sky-950 flex items-start gap-2 shadow-2xs">
+                      <span className="text-base">✈️</span>
+                      <div>
+                        <span className="font-extrabold block text-sky-900">Airport Transfer Flight Details:</span>
+                        <span className="text-[11px] text-sky-800">
+                          Flight Number: <strong className="font-black text-sky-950">{meta.flightNumber}</strong>. Track this flight arrival/departure time to ensure timely pickup and avoid waiting charges.
                         </span>
                       </div>
                     </div>
@@ -479,9 +518,9 @@ export function BookingDetailDrawer({
                     </div>
                   </div>
 
-                  {/* Customer Additional Notes / Luggage / Passengers / Carrier */}
-                  {(meta.passengers || meta.luggage || meta.hasCarrier || meta.notes || meta.specialRequirements) && (
-                    <div className="pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  {/* Customer Additional Notes / Luggage / Passengers / Carrier / Pet / Flight / GST / Alt Email */}
+                  {(meta.passengers || meta.luggage || meta.hasCarrier || meta.hasPet || meta.flightNumber || meta.gstin || meta.alternateEmail || meta.notes || meta.specialRequirements) && (
+                    <div className="pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
                       {meta.passengers ? (
                         <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
                           <span className="text-[10px] text-slate-500 block font-semibold">👥 Passengers</span>
@@ -500,8 +539,35 @@ export function BookingDetailDrawer({
                           <span className="font-black text-emerald-950">✓ Requested (Rooftop)</span>
                         </div>
                       ) : null}
+                      {meta.hasPet ? (
+                        <div className="bg-amber-50/90 p-2.5 rounded-lg border border-amber-300">
+                          <span className="text-[10px] text-amber-800 block font-bold">🐾 Pet Friendly</span>
+                          <span className="font-black text-amber-950">✓ Yes (+₹{meta.petFee || 500})</span>
+                        </div>
+                      ) : null}
+                      {meta.flightNumber ? (
+                        <div className="bg-sky-50/90 p-2.5 rounded-lg border border-sky-300">
+                          <span className="text-[10px] text-sky-800 block font-bold">✈️ Flight Number</span>
+                          <span className="font-black text-sky-950">{meta.flightNumber}</span>
+                        </div>
+                      ) : null}
+                      {meta.gstin ? (
+                        <div className="bg-indigo-50/90 p-2.5 rounded-lg border border-indigo-300">
+                          <span className="text-[10px] text-indigo-800 block font-bold">🏢 GSTIN</span>
+                          <span className="font-mono font-black text-indigo-950 text-xs">{meta.gstin}</span>
+                          {meta.companyName ? (
+                            <span className="text-[10px] text-indigo-700 block truncate mt-0.5">{meta.companyName}</span>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {meta.alternateEmail ? (
+                        <div className="bg-sky-50/90 p-2.5 rounded-lg border border-sky-300">
+                          <span className="text-[10px] text-sky-800 block font-bold">✉️ Alternate Email</span>
+                          <span className="font-bold text-sky-950 truncate block text-[11px]">{meta.alternateEmail}</span>
+                        </div>
+                      ) : null}
                       {(meta.notes || meta.specialRequirements) ? (
-                        <div className="sm:col-span-3 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                        <div className="sm:col-span-4 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
                           <span className="text-[10px] text-slate-500 block font-semibold">📝 Special Instructions / Notes</span>
                           <span className="font-medium text-slate-800">{meta.notes || meta.specialRequirements}</span>
                         </div>
@@ -518,18 +584,112 @@ export function BookingDetailDrawer({
                 <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">Customer Info</h4>
                 <p className="text-sm font-bold text-slate-900">{booking.customer?.user?.fullName}</p>
                 <p className="text-xs text-slate-600 font-mono mt-0.5">{booking.customer?.user?.phone}</p>
+                {booking.customer?.email && (
+                  <p className="text-xs text-slate-500 mt-0.5">{booking.customer.email}</p>
+                )}
+                {bookingMeta.alternateEmail && (
+                  <p className="text-xs text-sky-700 font-medium mt-1">
+                    Alt Email: <span className="font-bold">{bookingMeta.alternateEmail}</span>
+                  </p>
+                )}
+                {bookingMeta.gstin && (
+                  <div className="mt-2 p-2 rounded-lg bg-indigo-50/80 border border-indigo-200">
+                    <span className="text-[10px] uppercase font-bold text-indigo-800 block">GSTIN Details</span>
+                    <p className="text-xs font-mono font-bold text-indigo-950">{bookingMeta.gstin}</p>
+                    {bookingMeta.companyName ? (
+                      <p className="text-[11px] text-indigo-800 font-medium">{bookingMeta.companyName}</p>
+                    ) : null}
+                  </div>
+                )}
                 <p className="text-xs text-slate-500 mt-2">
                   Pickup OTP: <span className="font-mono font-bold text-amber-600">{booking.pickupOtp || 'N/A'}</span>
                 </p>
               </div>
 
               <div className="p-4 rounded-xl border border-slate-200 bg-white">
-                <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">Assigned Driver</h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-bold uppercase text-slate-500">Assigned Driver</h4>
+                  {assignedDriver && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      ⭐ 4.9 Rating
+                    </span>
+                  )}
+                </div>
                 {assignedDriver ? (
                   <>
                     <p className="text-sm font-bold text-slate-900">{assignedDriver.user.fullName}</p>
                     <p className="text-xs text-slate-600 font-mono mt-0.5">{assignedDriver.user.phone}</p>
                     <p className="text-xs text-slate-500 mt-1">License: {assignedDriver.licenseNumber}</p>
+
+                    {/* Customer Rating & Review for Trip if Rated */}
+                    {(() => {
+                      const ratingEvt = booking.tripEvents?.find(
+                        (e: any) => e.type === 'TRIP_REVIEWED' || e.type === 'DRIVER_RATED'
+                      );
+                      const tripRating = ratingEvt?.payloadJson
+                        ? (typeof ratingEvt.payloadJson === 'string'
+                            ? JSON.parse(ratingEvt.payloadJson)
+                            : ratingEvt.payloadJson)
+                        : null;
+                      if (!tripRating) return null;
+                      const dRating = tripRating.driverRating || tripRating.rating || 5;
+                      const kRating = tripRating.kandyRating || 5;
+                      const dTags = tripRating.driverFeedbackTags || tripRating.feedbackTags || [];
+                      const kTags = tripRating.kandyFeedbackTags || [];
+
+                      return (
+                        <div className="mt-2.5 pt-2 border-t border-slate-100 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-slate-800">
+                              Customer Trip Review
+                            </span>
+                            {tripRating.ratedAt && (
+                              <span className="text-[10px] text-slate-400">
+                                {new Date(tripRating.ratedAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Dual Ratings: Driver & KandyCabs */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                              ⭐ Driver: {dRating}/5
+                            </span>
+                            <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                              🚕 KandyCabs: {kRating}/5
+                            </span>
+                          </div>
+
+                          {/* Tags */}
+                          {(dTags.length > 0 || kTags.length > 0) && (
+                            <div className="flex flex-wrap gap-1">
+                              {dTags.map((t: string) => (
+                                <span
+                                  key={t}
+                                  className="text-[10px] bg-amber-50 text-amber-800 font-medium px-1.5 py-0.5 rounded border border-amber-200"
+                                >
+                                  {t}
+                                </span>
+                              ))}
+                              {kTags.map((t: string) => (
+                                <span
+                                  key={t}
+                                  className="text-[10px] bg-emerald-50 text-emerald-800 font-medium px-1.5 py-0.5 rounded border border-emerald-200"
+                                >
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {tripRating.comment ? (
+                            <p className="text-[11px] text-slate-700 italic bg-slate-50 p-1.5 rounded border border-slate-200">
+                              "{tripRating.comment}"
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    })()}
                   </>
                 ) : (
                   <p className="text-xs text-slate-400 italic">Not yet assigned</p>
@@ -672,41 +832,52 @@ export function BookingDetailDrawer({
             </div>
 
             {/* Financial Overview */}
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2 text-xs">
-              <h4 className="font-bold text-slate-700 uppercase tracking-wider mb-2">Fare & Invoice Breakdown</h4>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Base Estimated Total:</span>
-                <span className="font-bold text-slate-900">₹{Number(booking.estimatedFare).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-emerald-700">
-                <span>Advance Paid (25%):</span>
-                <span className="font-bold">₹{Number(booking.advanceAmount).toFixed(2)} ({booking.advancePaymentStatus})</span>
-              </div>
-              <div className="flex justify-between text-slate-700">
-                <span>Base Balance (75%):</span>
-                <span className="font-bold">₹{Number(booking.balanceAmount).toFixed(2)} ({booking.balancePaymentStatus})</span>
-              </div>
-              {(Number(booking.tollAmount || 0) > 0 || Number(booking.parkingAmount || 0) > 0) && (
-                <div className="pt-1.5 border-t border-slate-200 space-y-1">
-                  {Number(booking.tollAmount || 0) > 0 && (
-                    <div className="flex justify-between text-amber-700">
-                      <span>🛣️ Toll Gate Charges (Driver Added):</span>
-                      <span className="font-bold">+₹{Number(booking.tollAmount).toFixed(2)}</span>
-                    </div>
-                  )}
-                  {Number(booking.parkingAmount || 0) > 0 && (
-                    <div className="flex justify-between text-blue-700">
-                      <span>🅿️ Parking Charges (Driver Added):</span>
-                      <span className="font-bold">+₹{Number(booking.parkingAmount).toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-indigo-900 font-bold pt-1 border-t border-slate-200">
-                    <span>Final Invoice Balance to Bill:</span>
-                    <span>₹{(Number(booking.balanceAmount) + Number(booking.tollAmount || 0) + Number(booking.parkingAmount || 0)).toFixed(2)}</span>
+            {(() => {
+              const fMeta = getBookingMetadata(booking);
+              return (
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2 text-xs">
+                  <h4 className="font-bold text-slate-700 uppercase tracking-wider mb-2">Fare & Invoice Breakdown</h4>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Base Estimated Total:</span>
+                    <span className="font-bold text-slate-900">₹{Number(booking.estimatedFare).toFixed(2)}</span>
                   </div>
+                  {fMeta.hasPet && (
+                    <div className="flex justify-between text-amber-800">
+                      <span>🐾 Pet Convenience Fee:</span>
+                      <span className="font-bold">+₹{(fMeta.petFee || 500).toFixed(2)} (Included in Total)</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-emerald-700">
+                    <span>Advance Paid (25%):</span>
+                    <span className="font-bold">₹{Number(booking.advanceAmount).toFixed(2)} ({booking.advancePaymentStatus})</span>
+                  </div>
+                  <div className="flex justify-between text-slate-700">
+                    <span>Base Balance (75%):</span>
+                    <span className="font-bold">₹{Number(booking.balanceAmount).toFixed(2)} ({booking.balancePaymentStatus})</span>
+                  </div>
+                  {(Number(booking.tollAmount || 0) > 0 || Number(booking.parkingAmount || 0) > 0) && (
+                    <div className="pt-1.5 border-t border-slate-200 space-y-1">
+                      {Number(booking.tollAmount || 0) > 0 && (
+                        <div className="flex justify-between text-amber-700">
+                          <span>🛣️ Toll Gate Charges (Driver Added):</span>
+                          <span className="font-bold">+₹{Number(booking.tollAmount).toFixed(2)}</span>
+                        </div>
+                      )}
+                      {Number(booking.parkingAmount || 0) > 0 && (
+                        <div className="flex justify-between text-blue-700">
+                          <span>🅿️ Parking Charges (Driver Added):</span>
+                          <span className="font-bold">+₹{Number(booking.parkingAmount).toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-indigo-900 font-bold pt-1 border-t border-slate-200">
+                        <span>Final Invoice Balance to Bill:</span>
+                        <span>₹{(Number(booking.balanceAmount) + Number(booking.tollAmount || 0) + Number(booking.parkingAmount || 0)).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* Driver Payment & Allowance Management */}
             <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/40 space-y-3 text-xs">

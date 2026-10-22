@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Linking, Alert } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Linking, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { safeNavigate } from '../lib/safeNav';
@@ -18,22 +18,10 @@ export const CustomerBottomDock = memo(function CustomerBottomDock({
   const router = useRouter();
 
   const handleSupport = () => {
-    Alert.alert(
-      'Kandy Cabs Support',
-      'Need help with your booking or have questions?',
-      [
-        {
-          text: 'Call Us (+91 99004 47660)',
-          onPress: () => Linking.openURL('tel:+919900447660'),
-        },
-        {
-          text: 'WhatsApp Support',
-          onPress: () =>
-            Linking.openURL('https://wa.me/919900447660?text=Hello%20Kandy%20Cabs%2C%20I%20need%20assistance.'),
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    safeNavigate(() => {
+      if (activeTab === 'SUPPORT') return;
+      router.push('/support');
+    });
   };
 
   const handleBookings = () => {
@@ -75,7 +63,7 @@ export const CustomerBottomDock = memo(function CustomerBottomDock({
           <Ionicons
             name={activeTab === 'HOME' ? 'home' : 'home-outline'}
             size={22}
-            color={activeTab === 'HOME' ? '#ea580c' : '#64748b'}
+            color={activeTab === 'HOME' ? '#ea580c' : '#103A75'}
           />
           <Text style={[styles.dockTabLabel, activeTab === 'HOME' && styles.dockTabLabelActive]}>
             Home
@@ -92,7 +80,7 @@ export const CustomerBottomDock = memo(function CustomerBottomDock({
           <Ionicons
             name={activeTab === 'BOOKINGS' ? 'calendar' : 'calendar-outline'}
             size={22}
-            color={activeTab === 'BOOKINGS' ? '#ea580c' : '#64748b'}
+            color={activeTab === 'BOOKINGS' ? '#ea580c' : '#103A75'}
           />
           <Text style={[styles.dockTabLabel, activeTab === 'BOOKINGS' && styles.dockTabLabelActive]}>
             My Bookings
@@ -107,9 +95,9 @@ export const CustomerBottomDock = memo(function CustomerBottomDock({
         >
           {activeTab === 'SUPPORT' && <View style={styles.activeTopIndicator} />}
           <Ionicons
-            name="headset-outline"
+            name={activeTab === 'SUPPORT' ? 'headset' : 'headset-outline'}
             size={22}
-            color={activeTab === 'SUPPORT' ? '#ea580c' : '#64748b'}
+            color={activeTab === 'SUPPORT' ? '#ea580c' : '#103A75'}
           />
           <Text style={[styles.dockTabLabel, activeTab === 'SUPPORT' && styles.dockTabLabelActive]}>
             Support
@@ -126,7 +114,7 @@ export const CustomerBottomDock = memo(function CustomerBottomDock({
           <Ionicons
             name={activeTab === 'PROFILE' ? 'person' : 'person-outline'}
             size={22}
-            color={activeTab === 'PROFILE' ? '#ea580c' : '#64748b'}
+            color={activeTab === 'PROFILE' ? '#ea580c' : '#103A75'}
           />
           <Text style={[styles.dockTabLabel, activeTab === 'PROFILE' && styles.dockTabLabelActive]}>
             Profile
@@ -145,15 +133,27 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    paddingBottom: 16,
-    paddingTop: 8,
+    borderTopColor: '#e2e8f0',
+    paddingBottom: 10,
+    paddingTop: 5,
     paddingHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+      },
+      android: {
+        elevation: 2.5,
+      },
+      default: {
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+      },
+    }),
   },
   dock: {
     flexDirection: 'row',
@@ -164,22 +164,22 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
+    paddingVertical: 2,
     position: 'relative',
   },
   activeTopIndicator: {
     position: 'absolute',
-    top: -8,
-    width: 28,
-    height: 3,
+    top: -5,
+    width: 26,
+    height: 2.5,
     backgroundColor: '#ea580c',
     borderRadius: 2,
   },
   dockTabLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#64748b',
-    marginTop: 4,
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#103A75',
+    marginTop: 1.5,
   },
   dockTabLabelActive: {
     color: '#ea580c',

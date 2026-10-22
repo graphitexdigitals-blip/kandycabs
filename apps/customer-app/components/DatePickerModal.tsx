@@ -15,6 +15,7 @@ interface DatePickerModalProps {
   onClose: () => void;
   onSelect: (dateString: string, displayDate: string) => void;
   currentDate?: string;
+  title?: string;
 }
 
 export function DatePickerModal({
@@ -22,6 +23,7 @@ export function DatePickerModal({
   onClose,
   onSelect,
   currentDate,
+  title = 'Select Pickup Date',
 }: DatePickerModalProps) {
   // Generate next 30 days
   const dates = React.useMemo(() => {
@@ -47,7 +49,7 @@ export function DatePickerModal({
       <View style={styles.overlay}>
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.header}>
-            <Text style={styles.title}>Select Pickup Date</Text>
+            <Text style={styles.title}>{title}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Ionicons name="close" size={22} color="#1e293b" />
             </TouchableOpacity>
@@ -106,7 +108,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
   },
   closeBtn: {
     padding: 6,
@@ -139,7 +141,7 @@ const styles = StyleSheet.create({
   dayNum: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
     marginVertical: 2,
   },
   monthName: {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,22 +9,66 @@ import {
   Platform,
   ScrollView,
   TextInput,
-  Modal,
+  Switch,
   Image,
-  Dimensions,
   KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import BookingFlowHeader from '../components/BookingFlowHeader';
 
-const { width } = Dimensions.get('window');
+interface LuggageOption {
+  id: string;
+  label: string;
+  shortLabel: string;
+  description: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}
 
-const LUGGAGE_OPTIONS = [
-  { id: 'NORMAL', label: 'Normal Luggage', description: 'Standard suitcases and travel bags' },
-  { id: 'HAND_BAGS', label: 'Hand Bags / Backpacks Only', description: 'Small laptop bags or backpacks' },
-  { id: 'EXTRA_HEAVY', label: 'Heavy / Extra Luggage', description: 'Multiple large suitcases or bulky items' },
-  { id: 'NO_LUGGAGE', label: 'No Luggage', description: 'Travelers with no cargo or bags' },
+const LUGGAGE_OPTIONS: LuggageOption[] = [
+  {
+    id: 'NORMAL',
+    label: 'Normal Luggage',
+    shortLabel: 'Normal Luggage',
+    description: '2 Standard suitcases',
+    icon: 'bag-handle-outline',
+  },
+  {
+    id: 'HAND_BAGS',
+    label: 'Hand Bags Only',
+    shortLabel: 'Hand Bags Only',
+    description: 'Backpacks & small bags',
+    icon: 'briefcase-outline',
+  },
+  {
+    id: 'EXTRA_HEAVY',
+    label: 'Heavy / Extra Luggage',
+    shortLabel: 'Heavy Luggage',
+    description: '3+ Large suitcases / cargo',
+    icon: 'cube-outline',
+  },
+  {
+    id: 'NO_LUGGAGE',
+    label: 'No Luggage',
+    shortLabel: 'No Luggage',
+    description: 'Cabin bags only',
+    icon: 'walk-outline',
+  },
+];
+
+interface QuickTagItem {
+  id: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}
+
+const QUICK_TAGS: QuickTagItem[] = [
+  { id: 'baby', label: 'Baby on Board', icon: 'heart-outline' },
+  { id: 'boot', label: 'Extra Boot Space', icon: 'cube-outline' },
+  { id: 'silent', label: 'Silent Ride', icon: 'volume-mute-outline' },
+  { id: 'elderly', label: 'Elderly Passenger', icon: 'accessibility-outline' },
+  { id: 'pet', label: 'Pet Friendly', icon: 'paw-outline' },
 ];
 
 export default function AdditionalDetailsScreen() {
@@ -59,7 +103,6 @@ export default function AdditionalDetailsScreen() {
 
   // 2. Luggage Details state
   const [selectedLuggage, setSelectedLuggage] = useState<string>('Normal Luggage');
-  const [showLuggageModal, setShowLuggageModal] = useState<boolean>(false);
 
   // 3. Roof Carrier state
   const [requestCarrier, setRequestCarrier] = useState<boolean>(false);
@@ -79,6 +122,20 @@ export default function AdditionalDetailsScreen() {
     }
   };
 
+  const toggleQuickTag = (tagLabel: string) => {
+    const isPresent = specialRequirements.includes(tagLabel);
+    if (isPresent) {
+      const regex = new RegExp(`(^|,\\s*)${tagLabel}`, 'g');
+      const updated = specialRequirements.replace(regex, '').replace(/^,\s*/, '').trim();
+      setSpecialRequirements(updated);
+    } else {
+      const updated = specialRequirements.trim()
+        ? `${specialRequirements.trim()}, ${tagLabel}`
+        : tagLabel;
+      setSpecialRequirements(updated);
+    }
+  };
+
   const handleProceed = () => {
     router.push({
       pathname: '/booking',
@@ -87,25 +144,86 @@ export default function AdditionalDetailsScreen() {
         passengers: String(passengerCount),
         luggage: selectedLuggage,
         requestCarrier: requestCarrier ? 'true' : 'false',
+        hasPet: specialRequirements.includes('Pet Friendly') ? 'true' : 'false',
         specialRequirements: specialRequirements.trim(),
       },
     });
   };
+
+  const getVehicleImage = (cat: string) => {
+    switch (cat?.toUpperCase()) {
+      case 'HATCHBACK':
+        return require('../assets/images/fleet-hatchback.png');
+      case 'SEDAN':
+        return require('../assets/images/fleet-sedan.png');
+      case 'SUV':
+        return require('../assets/images/fleet-suv.png');
+      case 'CRYSTA':
+        return require('../assets/images/fleet-crysta.png');
+      case 'TRAVELLER':
+      case 'URBANIA':
+        return require('../assets/images/fleet-traveller.png');
+      default:
+        return require('../assets/images/fleet-hatchback.png');
+    }
+  };
+
+  const getCategoryBadge = (cat: string) => {
+    switch (cat?.toUpperCase()) {
+      case 'HATCHBACK':
+        return 'ECONOMY CHOICE';
+      case 'SEDAN':
+        return 'MOST POPULAR';
+      case 'SUV':
+        return 'FAMILY SPACIOUS';
+      case 'CRYSTA':
+        return 'VIP LUXURY';
+      case 'TRAVELLER':
+      case 'URBANIA':
+        return 'GROUP TRAVEL';
+      default:
+        return 'ASSURED CAB';
+    }
+  };
+
+  const getTripTypeLabel = (type: string) => {
+    switch (type?.toUpperCase()) {
+      case 'ROUND_TRIP':
+        return 'Round Trip';
+      case 'LOCAL':
+        return `Rental (${localHours}h)`;
+      case 'AIRPORT':
+        return 'Airport';
+      case 'ONEWAY':
+      default:
+        return 'One-Way';
+    }
+  };
+
+  const pickupCity = pickup.split(',')[0].trim();
+  const dropCity = drop.split(',')[0].trim();
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: topInset }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
       {/* Header Bar */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={24} color="#0f172a" />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>Additional Details</Text>
-
-        <View style={{ width: 40 }} />
-      </View>
+      <BookingFlowHeader
+        currentStep={2}
+        title="Vehicle Options"
+        subStepLabel="Luggage & Passengers"
+        topInset={0}
+        onBack={() => router.back()}
+        onStep1Press={() => {
+          router.navigate({
+            pathname: '/trip-details',
+            params: {
+              ...params,
+              tripType,
+            },
+          });
+        }}
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -115,160 +233,278 @@ export default function AdditionalDetailsScreen() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          {/* Trip Summary Mini Banner */}
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryTopRow}>
-              <View style={styles.cabBadge}>
-                <Ionicons name="car-sport" size={14} color="#ea580c" />
-                <Text style={styles.cabBadgeText}>{selectedVehicleName}</Text>
-              </View>
-              <Text style={styles.seatLimitText}>Max {maxSeats} seats</Text>
-            </View>
-            <View style={styles.routeSummaryRow}>
-              <Text style={styles.routeText} numberOfLines={1}>
-                {pickup} ➔ {drop}
-              </Text>
-            </View>
-          </View>
-
-          {/* 1. Number of Passengers */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Number of Passengers</Text>
-            <View style={styles.counterBox}>
-              <TouchableOpacity
-                style={[styles.counterBtn, passengerCount <= 1 && styles.counterBtnDisabled]}
-                onPress={handleDecrement}
-                disabled={passengerCount <= 1}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="remove"
-                  size={20}
-                  color={passengerCount <= 1 ? '#cbd5e1' : '#0f172a'}
+          {/* 1. Selected Vehicle Hero Card */}
+          <View style={styles.vehicleHeroCard}>
+            <View style={styles.vehicleHeroTopRow}>
+              <View style={styles.vehicleImageWrap}>
+                <Image
+                  source={getVehicleImage(category)}
+                  style={styles.vehicleHeroImage}
+                  resizeMode="contain"
                 />
-              </TouchableOpacity>
-
-              <View style={styles.counterValueBox}>
-                <Text style={styles.counterValueText}>{passengerCount}</Text>
               </View>
 
-              <TouchableOpacity
-                style={[styles.counterBtn, passengerCount >= maxSeats && styles.counterBtnDisabled]}
-                onPress={handleIncrement}
-                disabled={passengerCount >= maxSeats}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="add"
-                  size={20}
-                  color={passengerCount >= maxSeats ? '#cbd5e1' : '#0f172a'}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* 2. Luggage Details */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Luggage Details</Text>
-            <TouchableOpacity
-              style={styles.dropdownSelector}
-              onPress={() => setShowLuggageModal(true)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.dropdownText}>{selectedLuggage}</Text>
-              <Ionicons name="chevron-down" size={18} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-
-          {/* 3. Roof Carrier / Luggage Carriage Option */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Roof Luggage Carrier</Text>
-            {hasCarrier ? (
-              <View style={{ gap: 8 }}>
-                <TouchableOpacity
-                  style={[
-                    styles.dropdownSelector,
-                    requestCarrier && { borderColor: '#16a34a', backgroundColor: '#f0fdf4' },
-                  ]}
-                  onPress={() => setRequestCarrier(!requestCarrier)}
-                  activeOpacity={0.8}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[
-                        styles.dropdownText,
-                        requestCarrier && { color: '#15803d', fontWeight: '800' },
-                      ]}
-                    >
-                      {requestCarrier ? '✓ Roof Carrier Requested' : 'Add Roof Carrier (Optional)'}
-                    </Text>
-                    <Text style={{ fontSize: 11, color: requestCarrier ? '#166534' : '#64748b', marginTop: 2 }}>
-                      {carrierText || 'Up to 50 kg / 2 extra suitcases on rooftop'}
+              <View style={styles.vehicleHeroInfo}>
+                <View style={styles.categoryBadge}>
+                  <Text style={styles.categoryBadgeText}>{getCategoryBadge(category)}</Text>
+                </View>
+                <Text style={styles.vehicleHeroName} numberOfLines={1}>
+                  {selectedVehicleName}
+                </Text>
+                <View style={styles.specsPillRow}>
+                  <View style={styles.microSpec}>
+                    <Ionicons name="people" size={11} color="#64748b" />
+                    <Text style={styles.microSpecText}>{maxSeats} Seats</Text>
+                  </View>
+                  <View style={styles.microSpec}>
+                    <Ionicons name="briefcase" size={11} color="#64748b" />
+                    <Text style={styles.microSpecText}>
+                      {maxSeats >= 6 ? '4+ Bags' : '2-3 Bags'}
                     </Text>
                   </View>
+                  <View style={styles.microSpec}>
+                    <Ionicons name="snow" size={11} color="#64748b" />
+                    <Text style={styles.microSpecText}>AC</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* Clean Route Strip */}
+            <View style={styles.routePillStrip}>
+              <Ionicons name="navigate-circle" size={15} color="#ea580c" />
+              <Text style={styles.routePillText} numberOfLines={1}>
+                {pickupCity} ➔ {dropCity}
+              </Text>
+              <View style={styles.tripTypeBadge}>
+                <Text style={styles.tripTypeBadgeText}>{getTripTypeLabel(tripType)}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* 2. Passengers & Luggage Card */}
+          <View style={styles.cardSection}>
+            {/* Passengers Row */}
+            <View style={styles.passengerRow}>
+              <View style={styles.passengerTextGroup}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="people-outline" size={18} color="#0f172a" />
+                  <Text style={styles.cardSectionTitle}>Passengers</Text>
+                </View>
+                <Text style={styles.cardSectionSubtitle}>
+                  {passengerCount} of max {maxSeats} seats selected
+                </Text>
+              </View>
+
+              <View style={styles.stepperContainer}>
+                <TouchableOpacity
+                  style={[styles.stepperBtn, passengerCount <= 1 && styles.stepperBtnDisabled]}
+                  onPress={handleDecrement}
+                  disabled={passengerCount <= 1}
+                  activeOpacity={0.6}
+                >
                   <Ionicons
-                    name={requestCarrier ? 'checkbox' : 'square-outline'}
-                    size={22}
-                    color={requestCarrier ? '#16a34a' : '#94a3b8'}
+                    name="remove"
+                    size={16}
+                    color={passengerCount <= 1 ? '#cbd5e1' : '#0f172a'}
                   />
                 </TouchableOpacity>
 
-                {carrierExcludedCars ? (
+                <View style={styles.stepperValueContainer}>
+                  <Text style={styles.stepperValueText}>{passengerCount}</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.stepperBtn,
+                    passengerCount >= maxSeats && styles.stepperBtnDisabled,
+                  ]}
+                  onPress={handleIncrement}
+                  disabled={passengerCount >= maxSeats}
+                  activeOpacity={0.6}
+                >
+                  <Ionicons
+                    name="add"
+                    size={16}
+                    color={passengerCount >= maxSeats ? '#cbd5e1' : '#0f172a'}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.cardDivider} />
+
+            {/* Luggage 2x2 Grid */}
+            <View style={styles.luggageSection}>
+              <View style={styles.sectionHeaderRow}>
+                <Ionicons name="bag-handle-outline" size={17} color="#0f172a" />
+                <Text style={styles.cardSectionTitle}>Luggage Load</Text>
+              </View>
+
+              <View style={styles.luggageGrid}>
+                {LUGGAGE_OPTIONS.map((item) => {
+                  const isSelected = selectedLuggage === item.label;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[styles.luggageGridItem, isSelected && styles.luggageGridItemSelected]}
+                      onPress={() => setSelectedLuggage(item.label)}
+                      activeOpacity={0.7}
+                    >
+                      <View
+                        style={[
+                          styles.luggageIconCircle,
+                          isSelected && styles.luggageIconCircleSelected,
+                        ]}
+                      >
+                        <Ionicons
+                          name={item.icon}
+                          size={16}
+                          color={isSelected ? '#ea580c' : '#64748b'}
+                        />
+                      </View>
+                      <View style={styles.luggageItemTexts}>
+                        <Text
+                          style={[
+                            styles.luggageItemTitle,
+                            isSelected && styles.luggageItemTitleSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.shortLabel}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.luggageItemDesc,
+                            isSelected && styles.luggageItemDescSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.description}
+                        </Text>
+                      </View>
+                      {isSelected ? (
+                        <View style={styles.checkedBadge}>
+                          <Ionicons name="checkmark-circle" size={15} color="#ea580c" />
+                        </View>
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Roof Carrier Option */}
+            {hasCarrier ? (
+              <>
+                <View style={styles.cardDivider} />
+                <TouchableOpacity
+                  style={[styles.carrierCard, requestCarrier && styles.carrierCardActive]}
+                  onPress={() => setRequestCarrier((prev) => !prev)}
+                  activeOpacity={0.7}
+                >
                   <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: 10,
-                      borderRadius: 10,
-                      backgroundColor: '#fffbeb',
-                      borderWidth: 1,
-                      borderColor: '#fde68a',
-                    }}
+                    style={[
+                      styles.carrierIconBox,
+                      requestCarrier && styles.carrierIconBoxActive,
+                    ]}
                   >
-                    <Ionicons name="information-circle" size={16} color="#d97706" />
-                    <Text style={{ fontSize: 11, color: '#92400e', fontWeight: '600', flex: 1 }}>
-                      Note: {carrierExcludedCars}
+                    <Ionicons
+                      name="layers-outline"
+                      size={18}
+                      color={requestCarrier ? '#ea580c' : '#64748b'}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text
+                        style={[
+                          styles.carrierTitle,
+                          requestCarrier && styles.carrierTitleActive,
+                        ]}
+                      >
+                        Roof Luggage Carrier
+                      </Text>
+                      {requestCarrier ? (
+                        <View style={styles.carrierAddedBadge}>
+                          <Text style={styles.carrierAddedBadgeText}>Added ✓</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text style={styles.carrierDesc}>
+                      {carrierText || 'Up to 45 kg rooftop luggage space'}
                     </Text>
                   </View>
-                ) : null}
+
+                  <View pointerEvents="none">
+                    <Switch
+                      value={requestCarrier}
+                      trackColor={{ false: '#cbd5e1', true: '#ea580c' }}
+                      thumbColor="#ffffff"
+                      ios_backgroundColor="#cbd5e1"
+                    />
+                  </View>
+                </TouchableOpacity>
+              </>
+            ) : null}
+
+            {carrierExcludedCars ? (
+              <View style={styles.carrierNoteBox}>
+                <Ionicons name="information-circle-outline" size={14} color="#b45309" />
+                <Text style={styles.carrierNoteText}>{carrierExcludedCars}</Text>
               </View>
-            ) : (
-              <View
-                style={{
-                  backgroundColor: '#f8fafc',
-                  borderWidth: 1,
-                  borderColor: '#e2e8f0',
-                  borderRadius: 14,
-                  padding: 14,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 10,
-                }}
-              >
-                <Ionicons name="alert-circle-outline" size={20} color="#64748b" />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#334155' }}>
-                    Carrier Excluded / Not Available
-                  </Text>
-                  <Text style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>
-                    {carrierText || 'No roof carrier available on this vehicle. Boot luggage space only.'}
-                  </Text>
-                </View>
-              </View>
-            )}
+            ) : null}
           </View>
 
-          {/* 4. Special Requirements (Optional) */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Special Requirements (Optional)</Text>
+          {/* 3. Ride Preferences & Special Notes Card */}
+          <View style={styles.cardSection}>
+            <View style={styles.preferencesHeader}>
+              <Ionicons name="options-outline" size={17} color="#0f172a" />
+              <Text style={styles.cardSectionTitle}>Ride Preferences</Text>
+              <Text style={styles.optionalHint}>(Optional)</Text>
+            </View>
+
+            {/* Quick Suggestion Pills */}
+            <View style={styles.quickTagsContainer}>
+              {QUICK_TAGS.map((tagItem) => {
+                const isSelected = specialRequirements.includes(tagItem.label);
+                return (
+                  <TouchableOpacity
+                    key={tagItem.id}
+                    style={[
+                      styles.quickTagPill,
+                      isSelected && styles.quickTagPillSelected,
+                    ]}
+                    onPress={() => toggleQuickTag(tagItem.label)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={tagItem.icon}
+                      size={13}
+                      color={isSelected ? '#ea580c' : '#64748b'}
+                    />
+                    <Text
+                      style={[
+                        styles.quickTagText,
+                        isSelected && styles.quickTagTextSelected,
+                      ]}
+                    >
+                      {tagItem.id === 'pet' ? 'Pet Friendly (+₹500)' : tagItem.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Refined Text Input */}
             <TextInput
-              style={styles.textAreaInput}
-              placeholder="Any special requests (e.g. child seat, extra stops, etc.)"
+              style={styles.notesInput}
+              placeholder="Any special notes (e.g. child seat, extra stops, elderly assistance)..."
               placeholderTextColor="#94a3b8"
               multiline
-              numberOfLines={4}
+              numberOfLines={2}
               value={specialRequirements}
               onChangeText={setSpecialRequirements}
               textAlignVertical="top"
@@ -280,67 +516,16 @@ export default function AdditionalDetailsScreen() {
       </KeyboardAvoidingView>
 
       {/* Bottom Sticky Action Button */}
-      <View style={styles.bottomDock}>
+      <View style={[styles.bottomDock, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <TouchableOpacity
           style={styles.proceedButton}
           onPress={handleProceed}
           activeOpacity={0.85}
         >
           <Text style={styles.proceedButtonText}>Continue to Passenger Info</Text>
-          <Ionicons name="arrow-forward" size={18} color="#ffffff" style={{ marginLeft: 6 }} />
+          <Ionicons name="arrow-forward" size={17} color="#ffffff" style={{ marginLeft: 6 }} />
         </TouchableOpacity>
       </View>
-
-      {/* Luggage Selection Modal */}
-      <Modal
-        visible={showLuggageModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowLuggageModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowLuggageModal(false)}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Luggage Type</Text>
-              <TouchableOpacity onPress={() => setShowLuggageModal(false)}>
-                <Ionicons name="close-circle" size={24} color="#94a3b8" />
-              </TouchableOpacity>
-            </View>
-
-            {LUGGAGE_OPTIONS.map((item) => {
-              const isSelected = selectedLuggage === item.label;
-              return (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[styles.luggageOptionItem, isSelected && styles.luggageOptionItemSelected]}
-                  onPress={() => {
-                    setSelectedLuggage(item.label);
-                    setShowLuggageModal(false);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[
-                        styles.luggageOptionLabel,
-                        isSelected && styles.luggageOptionLabelSelected,
-                      ]}
-                    >
-                      {item.label}
-                    </Text>
-                    <Text style={styles.luggageOptionDesc}>{item.description}</Text>
-                  </View>
-                  {isSelected && <Ionicons name="checkmark-circle" size={20} color="#ea580c" />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -348,231 +533,416 @@ export default function AdditionalDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-    backgroundColor: '#ffffff',
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     backgroundColor: '#f8fafc',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0f172a',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 20,
+    gap: 12,
   },
-  summaryCard: {
-    backgroundColor: '#fff7ed',
+
+  // 1. Vehicle Hero Card
+  vehicleHeroCard: {
+    backgroundColor: '#ffffff',
     borderRadius: 14,
-    padding: 14,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#fed7aa',
-    marginBottom: 24,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
   },
-  summaryTopRow: {
+  vehicleHeroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  vehicleImageWrap: {
+    width: 90,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 4,
+  },
+  vehicleHeroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  vehicleHeroInfo: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 3,
+  },
+  categoryBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  categoryBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#475569',
+    letterSpacing: 0.4,
+  },
+  vehicleHeroName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#103A75',
+  },
+  specsPillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  microSpec: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  microSpecText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  routePillStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  cabBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: '#f8fafc',
     borderRadius: 8,
-    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 10,
   },
-  cabBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
+  routePillText: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#103A75',
+    marginLeft: 5,
+    marginRight: 6,
+  },
+  tripTypeBadge: {
+    backgroundColor: '#fff7ed',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#ffedd5',
+  },
+  tripTypeBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
     color: '#ea580c',
   },
-  seatLimitText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9a3412',
+
+  // Generic Card Section
+  cardSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
   },
-  routeSummaryRow: {
+  cardSectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#103A75',
+  },
+  cardSectionSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748b',
     marginTop: 2,
   },
-  routeText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0f172a',
+  cardDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 12,
   },
-  sectionContainer: {
-    marginBottom: 24,
+
+  // Passengers Row
+  passengerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: 10,
+  passengerTextGroup: {
+    flex: 1,
   },
-  counterBox: {
+  stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f1f5f9',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    height: 54,
-    padding: 4,
+    borderRadius: 8,
+    padding: 3,
+    gap: 2,
   },
-  counterBtn: {
-    width: 48,
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  counterBtnDisabled: {
-    opacity: 0.4,
-  },
-  counterValueBox: {
-    flex: 1,
-    height: '100%',
+  stepperBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
     backgroundColor: '#ffffff',
-    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowRadius: 1,
     elevation: 1,
   },
-  counterValueText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0f172a',
+  stepperBtnDisabled: {
+    opacity: 0.4,
+    backgroundColor: '#f8fafc',
   },
-  dropdownSelector: {
+  stepperValueContainer: {
+    minWidth: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperValueText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#103A75',
+  },
+
+  // Luggage Section
+  luggageSection: {},
+  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    gap: 6,
+    marginBottom: 10,
   },
-  dropdownText: {
-    fontSize: 15,
+  luggageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  luggageGridItem: {
+    width: '48.5%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 8,
+    gap: 7,
+    position: 'relative',
+  },
+  luggageGridItemSelected: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#ea580c',
+  },
+  luggageIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  luggageIconCircleSelected: {
+    backgroundColor: '#ffedd5',
+    borderColor: '#fed7aa',
+  },
+  luggageItemTexts: {
+    flex: 1,
+  },
+  luggageItemTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#103A75',
+  },
+  luggageItemTitleSelected: {
+    color: '#ea580c',
+    fontWeight: '800',
+  },
+  luggageItemDesc: {
+    fontSize: 9,
+    fontWeight: '500',
+    color: '#64748b',
+    marginTop: 1,
+  },
+  luggageItemDescSelected: {
+    color: '#9a3412',
+  },
+  checkedBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+  },
+
+  // Roof Carrier
+  carrierCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  carrierCardActive: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#fed7aa',
+  },
+  carrierIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  carrierIconBoxActive: {
+    backgroundColor: '#ffedd5',
+    borderColor: '#fed7aa',
+  },
+  carrierTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#103A75',
+  },
+  carrierTitleActive: {
+    color: '#ea580c',
+  },
+  carrierAddedBadge: {
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 3,
+  },
+  carrierAddedBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#15803d',
+  },
+  carrierDesc: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  carrierNoteBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#fffbeb',
+    marginTop: 8,
+  },
+  carrierNoteText: {
+    fontSize: 10,
+    color: '#92400e',
     fontWeight: '600',
-    color: '#0f172a',
+    flex: 1,
   },
-  textAreaInput: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    borderWidth: 1.5,
+
+  // Preferences & Notes
+  preferencesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  optionalHint: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  quickTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 10,
+  },
+  quickTagPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4.5,
+    paddingHorizontal: 9,
+    paddingVertical: 5.5,
+    borderRadius: 6,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    minHeight: 110,
-    fontSize: 14,
-    color: '#0f172a',
+  },
+  quickTagPillSelected: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#ea580c',
+  },
+  quickTagText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  quickTagTextSelected: {
+    color: '#ea580c',
+    fontWeight: '700',
+  },
+  notesInput: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minHeight: 52,
+    fontSize: 12,
+    color: '#103A75',
     fontWeight: '500',
   },
+
+  // Bottom Sticky Action Button
   bottomDock: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
   },
   proceedButton: {
     backgroundColor: '#ea580c',
-    borderRadius: 14,
-    paddingVertical: 15,
+    borderRadius: 12,
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#ea580c',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 6,
+    elevation: 3,
   },
   proceedButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: '#ffffff',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    maxHeight: '60%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  luggageOptionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-    marginBottom: 8,
-    backgroundColor: '#ffffff',
-  },
-  luggageOptionItemSelected: {
-    borderColor: '#ea580c',
-    backgroundColor: '#fff7ed',
-  },
-  luggageOptionLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1e293b',
-  },
-  luggageOptionLabelSelected: {
-    color: '#ea580c',
-  },
-  luggageOptionDesc: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 2,
   },
 });

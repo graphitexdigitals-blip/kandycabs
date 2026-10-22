@@ -28,7 +28,7 @@ export const FleetCardItem = memo(function FleetCardItem({
     <View style={styles.card}>
       <View style={styles.topRow}>
         <View style={styles.choiceBadge}>
-          <Ionicons name="shield-checkmark" size={12} color="#1e293b" />
+          <Ionicons name="shield-checkmark" size={12} color="#103A75" />
           <Text style={styles.choiceBadgeText}>
             {item.badge}
           </Text>
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   choiceBadgeText: {
     fontSize: 10,
     fontWeight: '900',
-    color: '#1e293b',
+    color: '#103A75',
     letterSpacing: 0.6,
   },
   rateContainer: {
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
   rateNumber: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
   },
   rateTag: {
     backgroundColor: '#fff7ed',
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   vehicleName: {
     fontSize: 17,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
   },
   vehicleModels: {
     fontSize: 12,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   bookCarBtn: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#103A75',
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: 'center',

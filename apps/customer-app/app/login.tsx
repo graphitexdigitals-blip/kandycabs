@@ -12,19 +12,23 @@ import {
   Image,
   ScrollView,
   StatusBar,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { customerApiClient, customerTokenStorage } from '../lib/api';
-
-const { width, height } = Dimensions.get('window');
-const HERO_HEIGHT = Math.min(Math.round(width * (580 / 780)), 300);
+import { LOGIN_HERO_IMAGE } from '../constants/loginHeroImage';
 
 export default function CustomerLoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const containerWidth = Math.min(width, 480);
+  const isCompact = height < 720;
+  const heroHeight = Math.round(
+    isCompact ? height * 0.34 : Math.min(containerWidth * (682 / 1024) + 20, height * 0.38)
+  );
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
 
   const [phone, setPhone] = useState('');
@@ -147,39 +151,7 @@ export default function CustomerLoginScreen() {
     }
   };
 
-  const handleQuickDemoLogin = async (demoPhone: string) => {
-    setPhone(demoPhone);
-    setLoading(true);
-    try {
-      const otpRes = await customerApiClient.fetch('/api/auth/send-otp', {
-        method: 'POST',
-        body: JSON.stringify({ phone: demoPhone, role: 'CUSTOMER' }),
-      });
-      const code = otpRes.debugOtp || otpRes.devOtp || '1234';
-      const verifyRes = await customerApiClient.fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        body: JSON.stringify({ phone: demoPhone, otp: code }),
-      });
 
-      if (verifyRes.success && verifyRes.token) {
-        customerTokenStorage.setToken(verifyRes.token);
-        if (verifyRes.user) {
-          customerTokenStorage.setUser(verifyRes.user);
-        }
-        router.replace('/');
-      } else {
-        setDevOtpHint(code);
-        setOtp(code);
-        setStep('OTP');
-      }
-    } catch {
-      setPhone(demoPhone);
-      setStep('OTP');
-      setOtp('1234');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (checkingAuth) {
     return (
@@ -204,50 +176,69 @@ export default function CustomerLoginScreen() {
       >
         <ScrollView
           style={styles.flex}
-          contentContainerStyle={[styles.scrollContent, { paddingTop: Math.max(topInset - 10, 4) }]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { height: '100%', paddingTop: Math.max(topInset - 14, 0) },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          scrollEnabled={false}
           bounces={false}
         >
           {/* Top Hero Banner - Exact Matching Scenery, Typography & Innova Car */}
-          <View style={styles.heroContainer}>
+          <View style={[styles.heroContainer, { width: containerWidth, height: heroHeight }]}>
             <Image
-              source={require('../assets/images/customer-login-hero.png')}
-              style={styles.heroImage}
-              resizeMode="contain"
+              source={LOGIN_HERO_IMAGE}
+              style={{ width: containerWidth, height: heroHeight }}
+              resizeMode="cover"
             />
           </View>
 
-          {/* Elevated Rounded White Card */}
-          <View style={[styles.card, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
+          {/* Elevated Rounded White Sheet Overlapping Hero */}
+          <View
+            style={[
+              styles.card,
+              {
+                width: containerWidth,
+                paddingBottom: Math.max(insets.bottom + 14, isCompact ? 12 : 20),
+              },
+            ]}
+          >
             <View style={styles.cardMain}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>
-                  {step === 'PHONE'
-                    ? 'Customer Login'
-                    : step === 'OTP'
-                    ? 'Verify Code'
-                    : 'Complete Profile'}
-                </Text>
-                <Text style={styles.cardSubtitle}>
-                  {step === 'PHONE'
-                    ? 'Login to book your cab, manage bookings and get the best travel experience.'
-                    : step === 'OTP'
-                    ? `Enter the 4-digit code sent to +91 ${phone}`
-                    : 'Please enter your full name to complete your registration.'}
-                </Text>
-              </View>
+
+              {/* Customer Login Section */}
+              <View style={[styles.loginSectionBox, { paddingTop: isCompact ? 8 : 18 }]}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardTitleRow}>
+                    <View style={styles.accentBar} />
+                    <Text style={styles.cardTitle}>
+                      {step === 'PHONE'
+                        ? 'Customer Login'
+                        : step === 'OTP'
+                        ? 'Verify Code'
+                        : 'Complete Profile'}
+                    </Text>
+                  </View>
+                  <Text style={styles.cardSubtitle}>
+                    {step === 'PHONE'
+                      ? 'Login to book your cab, manage bookings and get the best travel experience.'
+                      : step === 'OTP'
+                      ? `Enter the 4-digit code sent to +91 ${phone}`
+                      : 'Please enter your full name to complete your registration.'}
+                  </Text>
+                </View>
 
             {/* STEP 1: Phone Number Input */}
             {step === 'PHONE' && (
               <View style={styles.form}>
                 <View style={styles.phoneInputRow}>
-                  <Ionicons name="call" size={18} color="#ea580c" style={{ marginRight: 8 }} />
+                  <Ionicons name="call" size={17} color="#ea580c" />
                   <Text style={styles.prefixText}>+91</Text>
+                  <Ionicons name="chevron-down" size={14} color="#103A75" style={{ marginLeft: 4 }} />
                   <View style={styles.prefixDivider} />
                   <TextInput
                     style={styles.phoneInput}
-                    placeholder="98765 43210"
+                    placeholder="9481086058"
                     placeholderTextColor="#94a3b8"
                     keyboardType="phone-pad"
                     maxLength={10}
@@ -257,7 +248,7 @@ export default function CustomerLoginScreen() {
                   />
                 </View>
 
-                {/* Primary Orange Login Button */}
+                {/* Primary Orange Login Button with Arrow */}
                 <TouchableOpacity
                   style={[styles.primaryButton, loading && styles.buttonDisabled]}
                   onPress={handleSendOtp}
@@ -267,45 +258,12 @@ export default function CustomerLoginScreen() {
                   {loading ? (
                     <ActivityIndicator color="#ffffff" />
                   ) : (
-                    <Text style={styles.primaryButtonText}>Login with OTP</Text>
+                    <View style={styles.buttonContentRow}>
+                      <Text style={styles.primaryButtonText}>Login with OTP</Text>
+                      <Ionicons name="arrow-forward" size={19} color="#ffffff" style={styles.buttonArrow} />
+                    </View>
                   )}
                 </TouchableOpacity>
-
-                {/* OR Divider */}
-                <View style={styles.demoDivider}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>QUICK DEMO LOGINS</Text>
-                  <View style={styles.dividerLine} />
-                </View>
-
-                {/* 1-Tap Quick Demo Logins */}
-                <View style={styles.demoButtonsRow}>
-                  <TouchableOpacity
-                    style={styles.demoPill}
-                    onPress={() => handleQuickDemoLogin('9876543210')}
-                    disabled={loading}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="person-circle" size={24} color="#ea580c" />
-                    <View style={{ marginLeft: 8 }}>
-                      <Text style={styles.demoName}>Rajesh Kumar</Text>
-                      <Text style={styles.demoPhone}>+91 98765 43210</Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.demoPill}
-                    onPress={() => handleQuickDemoLogin('9123456789')}
-                    disabled={loading}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="person-circle" size={24} color="#0284c7" />
-                    <View style={{ marginLeft: 8 }}>
-                      <Text style={styles.demoName}>Priya Sharma</Text>
-                      <Text style={styles.demoPhone}>+91 91234 56789</Text>
-                    </View>
-                  </TouchableOpacity>
-                </View>
               </View>
             )}
 
@@ -349,7 +307,10 @@ export default function CustomerLoginScreen() {
                   {loading ? (
                     <ActivityIndicator color="#ffffff" />
                   ) : (
-                    <Text style={styles.primaryButtonText}>Verify & Proceed</Text>
+                    <View style={styles.buttonContentRow}>
+                      <Text style={styles.primaryButtonText}>Verify & Proceed</Text>
+                      <Ionicons name="arrow-forward" size={19} color="#ffffff" style={styles.buttonArrow} />
+                    </View>
                   )}
                 </TouchableOpacity>
 
@@ -393,28 +354,56 @@ export default function CustomerLoginScreen() {
                   {loading ? (
                     <ActivityIndicator color="#ffffff" />
                   ) : (
-                    <Text style={styles.primaryButtonText}>Continue to Home</Text>
+                    <View style={styles.buttonContentRow}>
+                      <Text style={styles.primaryButtonText}>Continue to Home</Text>
+                      <Ionicons name="arrow-forward" size={19} color="#ffffff" style={styles.buttonArrow} />
+                    </View>
                   )}
                 </TouchableOpacity>
               </View>
             )}
+              </View>
             </View>
 
-            {/* Trust Footer Badges */}
-            <View style={styles.trustFooter}>
-              <View style={styles.trustItem}>
-                <Ionicons name="shield-checkmark" size={14} color="#16a34a" />
-                <Text style={styles.trustText}>Verified Chauffeurs</Text>
+            {/* Trust & Brand Assurance Section with Shield Badge & 3 Pillars */}
+            <View style={styles.trustSection}>
+              {/* Shield Badge Divider */}
+              <View style={styles.shieldDividerRow}>
+                <View style={styles.shieldDividerLine} />
+                <View style={styles.shieldBadge}>
+                  <Ionicons name="shield-checkmark-outline" size={20} color="#ea580c" />
+                </View>
+                <View style={styles.shieldDividerLine} />
               </View>
-              <Text style={styles.trustDot}>•</Text>
-              <View style={styles.trustItem}>
-                <Ionicons name="time" size={14} color="#ea580c" />
-                <Text style={styles.trustText}>24/7 Helpline</Text>
-              </View>
-              <Text style={styles.trustDot}>•</Text>
-              <View style={styles.trustItem}>
-                <Ionicons name="checkmark-circle" size={14} color="#0284c7" />
-                <Text style={styles.trustText}>Zero Surge</Text>
+
+              <Text style={styles.trustHeadline}>Every journey starts with trust.</Text>
+
+              {/* 3 Pillars with Vertical Dividers */}
+              <View style={styles.pillarsRow}>
+                <View style={styles.pillarItem}>
+                  <View style={styles.pillarIconCircle}>
+                    <Ionicons name="shield-checkmark-outline" size={19} color="#103A75" />
+                  </View>
+                  <Text style={styles.pillarText}>Safe rides</Text>
+                </View>
+
+                <View style={styles.pillarDivider} />
+
+                <View style={styles.pillarItem}>
+                  <View style={styles.pillarIconCircle}>
+                    <MaterialCommunityIcons name="handshake-outline" size={22} color="#103A75" />
+                  </View>
+                  <Text style={styles.pillarText}>Reliable service</Text>
+                </View>
+
+                <View style={styles.pillarDivider} />
+
+                <View style={styles.pillarItem}>
+                  <View style={styles.pillarIconCircle}>
+                    <Ionicons name="time-outline" size={20} color="#103A75" />
+                  </View>
+                  <Text style={styles.pillarText}>Easy bookings</Text>
+                </View>
               </View>
             </View>
           </View>
@@ -430,7 +419,7 @@ const styles = StyleSheet.create({
   },
   screen: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
   },
   splashContainer: {
     flex: 1,
@@ -444,55 +433,66 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
   },
   heroContainer: {
-    width: width,
-    height: HERO_HEIGHT,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  heroImage: {
-    width: width,
-    height: HERO_HEIGHT,
-  },
+
   card: {
     flex: 1,
-    minHeight: Math.max(height - HERO_HEIGHT + 24, 420),
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingHorizontal: 24,
-    paddingTop: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 18,
+    paddingTop: 18,
     shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 18,
-    elevation: 12,
-    marginTop: -22,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 8,
+    marginTop: -20,
     justifyContent: 'space-between',
   },
   cardMain: {
     width: '100%',
   },
+  loginSectionBox: {
+    width: '100%',
+    paddingHorizontal: 2,
+  },
   cardHeader: {
-    marginBottom: 20,
+    marginBottom: 22,
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  accentBar: {
+    width: 4,
+    height: 24,
+    borderRadius: 2,
+    backgroundColor: '#ea580c',
+    marginRight: 10,
   },
   cardTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
     letterSpacing: -0.3,
   },
   cardSubtitle: {
     fontSize: 13,
     color: '#64748b',
     marginTop: 6,
-    lineHeight: 19,
+    lineHeight: 18,
   },
   form: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   inputLabel: {
     fontSize: 11,
@@ -509,104 +509,75 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     borderRadius: 14,
     paddingHorizontal: 14,
-    height: 54,
-    marginBottom: 16,
+    height: 52,
+    marginBottom: 18,
   },
   prefixText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
+    marginLeft: 8,
   },
   prefixDivider: {
     width: 1,
-    height: 22,
+    height: 20,
     backgroundColor: '#cbd5e1',
     marginHorizontal: 12,
   },
   phoneInput: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0f172a',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#103A75',
     letterSpacing: 0.5,
   },
   primaryButton: {
     backgroundColor: '#ea580c',
     height: 52,
-    borderRadius: 14,
+    borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#ea580c',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.28,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
     elevation: 4,
+  },
+  buttonContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  buttonArrow: {
+    position: 'absolute',
+    right: 18,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 15.5,
+    fontWeight: '700',
     color: '#ffffff',
     letterSpacing: 0.2,
   },
-  demoDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 18,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e2e8f0',
-  },
-  dividerText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#94a3b8',
-    marginHorizontal: 12,
-    letterSpacing: 0.8,
-  },
-  demoButtonsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  demoPill: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderWidth: 1.2,
-    borderColor: '#e2e8f0',
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  demoName: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  demoPhone: {
-    fontSize: 10,
-    color: '#64748b',
-    marginTop: 1,
-  },
+
   otpInputWrapper: {
     backgroundColor: '#f8fafc',
     borderWidth: 1.5,
     borderColor: '#ea580c',
     borderRadius: 14,
-    height: 56,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   otpInput: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
     letterSpacing: 18,
     textAlign: 'center',
     width: '100%',
@@ -619,9 +590,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#fed7aa',
     borderRadius: 10,
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   devHintText: {
     fontSize: 12,
@@ -632,36 +603,78 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
-    paddingVertical: 6,
+    marginTop: 12,
+    paddingVertical: 4,
   },
   backLinkText: {
     fontSize: 13,
     fontWeight: '600',
     color: '#64748b',
   },
-  trustFooter: {
-    flexDirection: 'row',
+  trustSection: {
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 22,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    paddingTop: 12,
+    paddingBottom: 14,
   },
-  trustItem: {
+  shieldDividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    width: '100%',
+    marginBottom: 6,
   },
-  trustText: {
-    fontSize: 11,
+  shieldDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e2e8f0',
+  },
+  shieldBadge: {
+    paddingHorizontal: 10,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trustHeadline: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#103A75',
+    letterSpacing: -0.2,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  pillarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    width: '100%',
+    paddingVertical: 2,
+  },
+  pillarItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillarIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  pillarText: {
+    fontSize: 11.5,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#334155',
+    textAlign: 'center',
   },
-  trustDot: {
-    marginHorizontal: 8,
-    color: '#cbd5e1',
-    fontSize: 12,
+  pillarDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: '#e2e8f0',
   },
 });

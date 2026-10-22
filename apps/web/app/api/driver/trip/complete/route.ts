@@ -161,8 +161,23 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    // Realtime SSE: Notify customer and driver
-    RealtimeEvents.emitToBooking(bookingId, 'BOOKING_STATUS', {
+    // Fetch complete enriched booking (with driver and vehicle details) for real-time customer event
+    const fullBooking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        assignedDriver: {
+          include: {
+            user: { select: { fullName: true, phone: true } },
+            vehicles: true,
+          },
+        },
+        vehicle: true,
+      },
+    });
+
+    const completionPayload = {
+      ...(fullBooking || updated),
+      id: bookingId,
       bookingId,
       status: BookingStatus.TRIP_COMPLETED,
       actualDistanceKm,
@@ -171,7 +186,11 @@ export async function POST(req: NextRequest) {
       actualDropLat: updated.actualDropLat,
       actualDropLng: updated.actualDropLng,
       actualCompletedAt: updated.actualCompletedAt,
-    });
+    };
+
+    // Realtime SSE: Notify customer and driver
+    RealtimeEvents.emitToBooking(bookingId, 'BOOKING_STATUS', completionPayload);
+    RealtimeEvents.emitToBooking(bookingId, 'TRIP_COMPLETED', completionPayload);
 
     RealtimeEvents.emitToDriver(session.driverId, 'TRIP_STATUS', {
       bookingId,

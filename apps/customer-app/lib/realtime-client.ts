@@ -4,6 +4,7 @@ import { getSupabaseClient } from '@kandy-cabs/shared';
 export type CustomerEventType =
   | 'DRIVER_LOCATION'
   | 'BOOKING_STATUS'
+  | 'TRIP_COMPLETED'
   | 'PAYMENT_RECEIVED'
   | 'DRIVER_NEAR_PICKUP'
   | 'DRIVER_ARRIVED'

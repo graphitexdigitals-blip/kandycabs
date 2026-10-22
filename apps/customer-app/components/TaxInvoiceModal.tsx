@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   companyTitle: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
     marginTop: 1,
   },
   gstText: {
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   metaVal: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
     marginTop: 1,
   },
   sectionCard: {
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   },
   bold: {
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#103A75',
   },
   routeMetaRow: {
     flexDirection: 'row',
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   rowVal: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#103A75',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   totalRow: {
@@ -372,12 +372,12 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
   },
   totalVal: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#103A75',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   paymentStatusCard: {
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   dueLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#103A75',
   },
   dueVal: {
     fontSize: 11,
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   doneBtn: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#103A75',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',

@@ -288,7 +288,7 @@ export default function CustomerDashboardPage() {
               <div className="flex items-center gap-2">
                 {user?.roles?.includes(UserRole.ADMIN) && (
                   <a
-                    href="http://localhost:3001"
+                    href={process.env.NEXT_PUBLIC_ADMIN_URL || '/admin'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hidden lg:inline-flex items-center px-3 py-1.5 sm:py-2 bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 rounded-lg sm:rounded-xl text-xs font-bold transition shadow-xs"
@@ -384,7 +384,7 @@ export default function CustomerDashboardPage() {
               <div className="pt-1.5 border-t border-slate-200 flex flex-col gap-1.5">
                 {user?.roles?.includes(UserRole.ADMIN) && (
                   <a
-                    href="http://localhost:3001"
+                    href={process.env.NEXT_PUBLIC_ADMIN_URL || '/admin'}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => setMobileMenuOpen(false)}
@@ -683,13 +683,17 @@ export default function CustomerDashboardPage() {
                           </div>
 
                           <div className="mt-1.5 pt-1.5 border-t border-indigo-100">
-                            {driver && booking.customerPhoneReleased ? (
+                            {driver && booking.customerPhoneReleased && booking.status !== 'TRIP_COMPLETED' && booking.status !== 'CANCELLED' ? (
                               <a
                                 href={`tel:${driver.user.phone}`}
                                 className="inline-flex items-center justify-center w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition shadow-xs"
                               >
                                 📞 Call Driver ({driver.user.phone})
                               </a>
+                            ) : driver && (booking.status === 'TRIP_COMPLETED' || booking.status === 'CANCELLED') ? (
+                              <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                                ✓ Trip ended • Driver contact closed
+                              </span>
                             ) : driver ? (
                               <span className="text-[10px] text-slate-500 flex items-center gap-1">
                                 🔒 Driver phone hidden until released by dispatch

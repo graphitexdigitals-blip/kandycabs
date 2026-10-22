@@ -9,6 +9,12 @@ export interface BookingDetailsMetadata {
   passengers?: number;
   luggage?: string;
   hasCarrier: boolean;
+  hasPet: boolean;
+  petFee: number;
+  flightNumber?: string;
+  alternateEmail?: string;
+  companyName?: string;
+  gstin?: string;
   source?: string;
 }
 
@@ -75,7 +81,7 @@ export function parseIntermediateStops(booking: any): string[] {
 }
 
 /**
- * Extracts all booking metadata (passengers, luggage, carrier, notes, requirements) from tripEvents
+ * Extracts all booking metadata (passengers, luggage, carrier, pet friendly, notes, requirements) from tripEvents
  */
 export function getBookingMetadata(booking: any): BookingDetailsMetadata {
   const intermediateStops = parseIntermediateStops(booking);
@@ -84,11 +90,21 @@ export function getBookingMetadata(booking: any): BookingDetailsMetadata {
   let passengers = booking?.passengers;
   let luggage = booking?.luggage;
   let source = booking?.source;
+  let flightNumber = booking?.flightNumber ? String(booking.flightNumber).trim().toUpperCase() : undefined;
+  let alternateEmail = booking?.alternateEmail ? String(booking.alternateEmail).trim() : undefined;
+  let companyName = booking?.companyName ? String(booking.companyName).trim() : undefined;
+  let gstin = booking?.gstin ? String(booking.gstin).trim().toUpperCase() : undefined;
   let hasCarrier = Boolean(
     booking?.requestCarrier ||
     booking?.hasCarrier ||
     booking?.roofCarrier
   );
+  let hasPet = Boolean(
+    booking?.hasPet ||
+    booking?.petFriendly ||
+    booking?.isPetFriendly
+  );
+  let petFee = booking?.petFee ? Number(booking.petFee) : 0;
 
   if (Array.isArray(booking?.tripEvents)) {
     for (const evt of booking.tripEvents) {
@@ -97,19 +113,63 @@ export function getBookingMetadata(booking: any): BookingDetailsMetadata {
         if (!hasCarrier && (p.requestCarrier === true || p.hasCarrier === true || p.roofCarrier === true)) {
           hasCarrier = true;
         }
+        if (!hasPet && (p.hasPet === true || p.petFriendly === true || p.isPetFriendly === true)) {
+          hasPet = true;
+          if (p.petFee) petFee = Number(p.petFee);
+        }
         if (!specialRequirements && p.specialRequirements) specialRequirements = p.specialRequirements;
         if (!notes && p.notes) notes = p.notes;
         if (!passengers && p.passengers) passengers = p.passengers;
         if (!luggage && p.luggage) luggage = p.luggage;
         if (!source && p.source) source = p.source;
+        if (!flightNumber && p.flightNumber) flightNumber = String(p.flightNumber).trim().toUpperCase();
+        if (!alternateEmail && p.alternateEmail) alternateEmail = String(p.alternateEmail).trim();
+        if (!companyName && p.companyName) companyName = String(p.companyName).trim();
+        if (!gstin && p.gstin) gstin = String(p.gstin).trim().toUpperCase();
       }
     }
   }
 
-  // Also check if text notes/requirements mention Roof Carrier
+  // Also check if text notes/requirements mention Roof Carrier, Pet Friendly, Flight Number, GST, or Alt Email
   const combinedText = `${specialRequirements || ''} ${notes || ''} ${luggage || ''} ${booking?.specialRequirements || ''} ${booking?.notes || ''}`;
   if (!hasCarrier && /roof\s*carrier|luggage\s*carrier|carrier\s*requested|roof\s*luggage/i.test(combinedText)) {
     hasCarrier = true;
+  }
+  if (!hasPet && /pet\s*friendly|pet\s*on\s*board|travelling\s*with\s*pet|pet\s*charge/i.test(combinedText)) {
+    hasPet = true;
+    if (!petFee) petFee = 500;
+  }
+  if (hasPet && !petFee) {
+    petFee = 500;
+  }
+  if (!flightNumber) {
+    const flightMatch = combinedText.match(/flight(?:\s*number|\s*no)?\s*[:#-]?\s*([A-Z0-9\s-]+)/i);
+    if (flightMatch && flightMatch[1]) {
+      const extracted = flightMatch[1].trim().split(/\s*[,|;\n]/)[0].trim().toUpperCase();
+      if (extracted && extracted.length >= 2 && extracted.length <= 15) {
+        flightNumber = extracted;
+      }
+    }
+  }
+  if (!gstin) {
+    const gstMatch = combinedText.match(/GST(?:IN)?\s*[:#-]?\s*([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1})/i) ||
+                     combinedText.match(/GST(?:IN)?\s*[:#-]?\s*([A-Z0-9]{15})/i);
+    if (gstMatch && gstMatch[1]) {
+      gstin = gstMatch[1].trim().toUpperCase();
+    }
+  }
+  if (!companyName && gstin) {
+    const compMatch = combinedText.match(/GSTIN:\s*[A-Z0-9]{15}\s*\(([^)]+)\)/i) ||
+                      combinedText.match(/GST Details:\s*[A-Z0-9]{15}\s*-\s*([^|;\n]+)/i);
+    if (compMatch && compMatch[1]) {
+      companyName = compMatch[1].trim();
+    }
+  }
+  if (!alternateEmail) {
+    const emailMatch = combinedText.match(/Alt(?:\s*Contact)?\s*Email\s*[:#-]?\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+    if (emailMatch && emailMatch[1]) {
+      alternateEmail = emailMatch[1].trim();
+    }
   }
 
   return {
@@ -119,6 +179,12 @@ export function getBookingMetadata(booking: any): BookingDetailsMetadata {
     passengers,
     luggage,
     hasCarrier,
+    hasPet,
+    petFee,
+    flightNumber,
+    alternateEmail,
+    companyName,
+    gstin,
     source,
   };
 }

@@ -22,6 +22,8 @@ import * as Location from 'expo-location';
 import { customerApiClient, customerTokenStorage } from '../lib/api';
 import { locationSharer } from '../lib/location-sharer';
 import { customerRealtimeTracker } from '../lib/realtime-client';
+import { reviewManager } from '../lib/reviewManager';
+import { DriverRatingModal } from '../components/DriverRatingModal';
 import {
   BookingStatus,
   TripType,
@@ -43,10 +45,10 @@ export const ALL_LOCATIONS: PlaceLocation[] = [
   // Airports & Major Terminals
   { label: 'Mangaluru Airport (IXE)', sublabel: 'Bajpe Terminal, Mangaluru', lat: 12.9613, lng: 74.8901, category: 'AIRPORTS', keywords: ['bajpe', 'airport', 'ixe', 'flight', 'mangalore'] },
   { label: 'Kempegowda Intl Airport (BLR)', sublabel: 'Devanahalli Airport, Bengaluru', lat: 13.1986, lng: 77.7066, category: 'AIRPORTS', keywords: ['bangalore', 'airport', 'blr', 'kempegowda', 'devanahalli'] },
-  { label: 'Mangaluru Central Railway Station', sublabel: 'MAQ, Hampankatta', lat: 12.8634, lng: 74.8436, category: 'AIRPORTS', keywords: ['train', 'station', 'central', 'maq', 'hampankatta'] },
-  { label: 'Mangaluru Junction Railway Station', sublabel: 'MAJN, Kankanady Bypass', lat: 12.8687, lng: 74.8624, category: 'AIRPORTS', keywords: ['train', 'station', 'junction', 'majn', 'kankanady', 'padil'] },
-  { label: 'Surathkal Railway Station', sublabel: 'SL, NH66 Surathkal', lat: 13.0035, lng: 74.7960, category: 'AIRPORTS', keywords: ['train', 'station', 'surathkal', 'sl'] },
-  { label: 'Udupi Railway Station', sublabel: 'UD, Indrali / Manipal Road', lat: 13.3480, lng: 74.7820, category: 'AIRPORTS', keywords: ['train', 'station', 'udupi', 'indrali', 'ud'] },
+  { label: 'Mangaluru Central Railway Station', sublabel: 'MAQ, Hampankatta', lat: 12.8634, lng: 74.8436, category: 'MANGALURU', keywords: ['train', 'station', 'railway', 'central', 'maq', 'hampankatta'] },
+  { label: 'Mangaluru Junction Railway Station', sublabel: 'MAJN, Kankanady Bypass', lat: 12.8687, lng: 74.8624, category: 'MANGALURU', keywords: ['train', 'station', 'railway', 'junction', 'majn', 'kankanady', 'padil'] },
+  { label: 'Surathkal Railway Station', sublabel: 'SL, NH66 Surathkal', lat: 13.0035, lng: 74.7960, category: 'MANGALURU', keywords: ['train', 'station', 'railway', 'surathkal', 'sl'] },
+  { label: 'Udupi Railway Station', sublabel: 'UD, Indrali / Manipal Road', lat: 13.3480, lng: 74.7820, category: 'OUTSTATION', keywords: ['train', 'station', 'railway', 'udupi', 'indrali', 'ud'] },
   { label: 'Bejai KSRTC Terminal, Mangaluru', sublabel: 'Main Interstate Bus Stand, Bejai', lat: 12.8838, lng: 74.8474, category: 'MANGALURU', keywords: ['bus stand', 'ksrtc', 'bejai', 'interstate'] },
   { label: 'State Bank Bus Terminus, Mangaluru', sublabel: 'City & Service Bus Terminal, Hampankatta', lat: 12.8620, lng: 74.8390, category: 'MANGALURU', keywords: ['state bank', 'service bus stand', 'city bus stand', 'hampankatta'] },
 
@@ -382,6 +384,10 @@ export default function CustomerDashboardScreen() {
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
+  // Trip & Driver Rating Review State
+  const [ratingBooking, setRatingBooking] = useState<any | null>(null);
+  const dismissedReviewsRef = useRef<Set<string>>(new Set());
+
   // User details
   const [userProfile, setUserProfile] = useState<any | null>(null);
 
@@ -609,6 +615,17 @@ export default function CustomerDashboardScreen() {
           customerRealtimeTracker.stop();
           locationSharer.stopSharing();
         }
+
+        // Auto-prompt trip review modal if there is an unrated completed trip
+        const unreviewedCompleted = list.find(
+          (b: any) =>
+            b.status === BookingStatus.TRIP_COMPLETED &&
+            !b.customerRating &&
+            !reviewManager.isDismissed(b.id)
+        );
+        if (unreviewedCompleted) {
+          reviewManager.showReview(unreviewedCompleted);
+        }
       }
     } catch (err: any) {
       if (err.status === 401) {
@@ -626,8 +643,16 @@ export default function CustomerDashboardScreen() {
     fetchBookings();
 
     // Listen for live Supabase Realtime booking status updates
-    const unsubStatus = customerRealtimeTracker.on('BOOKING_STATUS', () => {
+    const unsubStatus = customerRealtimeTracker.on('BOOKING_STATUS', (bookingData: any) => {
       fetchBookings(true);
+      const bId = bookingData?.id || bookingData?.bookingId;
+      if (
+        bookingData?.status === BookingStatus.TRIP_COMPLETED &&
+        bId &&
+        !reviewManager.isDismissed(bId)
+      ) {
+        reviewManager.showReview(bookingData);
+      }
     });
 
     // 20-second background polling fallback
@@ -635,8 +660,31 @@ export default function CustomerDashboardScreen() {
       fetchBookings(true);
     }, 20000);
 
+    const unsubSub = reviewManager.onSubmission((ratingData) => {
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === ratingData.bookingId
+            ? {
+                ...b,
+                customerRating: {
+                  ...ratingData,
+                  rating: ratingData.driverRating || ratingData.rating,
+                  driverRating: ratingData.driverRating || ratingData.rating,
+                  driverFeedbackTags: ratingData.driverFeedbackTags || ratingData.feedbackTags || [],
+                  kandyRating: ratingData.kandyRating || 5,
+                  kandyFeedbackTags: ratingData.kandyFeedbackTags || [],
+                  comment: ratingData.comment,
+                  ratedAt: new Date().toISOString(),
+                },
+              }
+            : b
+        )
+      );
+    });
+
     return () => {
       unsubStatus();
+      unsubSub();
       clearInterval(interval);
       customerRealtimeTracker.stop();
       locationSharer.stopSharing();
@@ -1672,7 +1720,9 @@ export default function CustomerDashboardScreen() {
                             {booking.driver.vehicleModel || 'Prime Cab'} • {booking.driver.vehicleNumber || 'KA-01-XX-0000'}
                           </Text>
                         </View>
-                        {booking.driver.user?.phone && (
+                        {booking.driver.user?.phone &&
+                          booking.status !== 'TRIP_COMPLETED' &&
+                          booking.status !== 'CANCELLED' && (
                           <TouchableOpacity
                             style={styles.callBtn}
                             onPress={() => Linking.openURL(`tel:${booking.driver.user.phone}`)}
@@ -1686,12 +1736,34 @@ export default function CustomerDashboardScreen() {
                     {/* Actions */}
                     <View style={styles.cardActions}>
                       {booking.status === 'TRIP_COMPLETED' && (
-                        <TouchableOpacity
-                          style={styles.invoiceBtn}
-                          onPress={() => handleViewInvoice(booking)}
-                        >
-                          <Text style={styles.invoiceBtnText}>📄 Tax Invoice</Text>
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                          <TouchableOpacity
+                            style={styles.invoiceBtn}
+                            onPress={() => handleViewInvoice(booking)}
+                          >
+                            <Text style={styles.invoiceBtnText}>📄 Tax Invoice</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[
+                              styles.rateDriverBtn,
+                              booking.customerRating && styles.rateDriverBtnRated,
+                            ]}
+                            onPress={() => reviewManager.forceShowReview(booking)}
+                            activeOpacity={0.8}
+                          >
+                            <Text
+                              style={[
+                                styles.rateDriverBtnText,
+                                booking.customerRating && styles.rateDriverBtnRatedText,
+                              ]}
+                            >
+                              {booking.customerRating
+                                ? `⭐ Rated ${booking.customerRating.driverRating || booking.customerRating.rating}★`
+                                : '⭐ Rate Trip & Driver'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
                       )}
 
                       {booking.status !== 'TRIP_COMPLETED' &&
@@ -1938,7 +2010,17 @@ export default function CustomerDashboardScreen() {
                   >
                     <View style={styles.pickerItemIconBox}>
                       <Text style={styles.pickerItemIcon}>
-                        {isOsmLive ? '🌐' : loc.category === 'AIRPORTS' ? '✈️' : loc.category === 'MANGALURU' ? '🏖️' : '🛣️'}
+                        {isOsmLive
+                          ? '🌐'
+                          : (loc.keywords?.includes('train') || loc.keywords?.includes('railway') || loc.label.toLowerCase().includes('railway'))
+                          ? '🚆'
+                          : (loc.keywords?.includes('bus stand') || loc.keywords?.includes('ksrtc') || loc.keywords?.includes('terminus'))
+                          ? '🚌'
+                          : loc.category === 'AIRPORTS'
+                          ? '✈️'
+                          : loc.category === 'MANGALURU'
+                          ? '🏖️'
+                          : '🛣️'}
                       </Text>
                     </View>
                     <View style={{ flex: 1 }}>
@@ -2188,6 +2270,8 @@ export default function CustomerDashboardScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+
     </SafeAreaView>
   );
 }
@@ -3279,6 +3363,26 @@ const styles = StyleSheet.create({
     color: '#f8fafc',
     fontSize: 12,
     fontWeight: '700',
+  },
+  rateDriverBtn: {
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  rateDriverBtnText: {
+    color: '#ea580c',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  rateDriverBtnRated: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+  },
+  rateDriverBtnRatedText: {
+    color: '#b45309',
   },
   cancelBtn: {
     backgroundColor: '#450a0a',

@@ -430,6 +430,16 @@ export default function AdminBookingsPage() {
                         <span className="text-[11px] text-slate-500 font-mono">
                           {b.customerPhoneReleased ? b.customer?.user?.phone : '🔒 Phone Hidden'}
                         </span>
+                        {getBookingMetadata(b).alternateEmail && (
+                          <span className="text-[10px] text-sky-700 block truncate font-medium">
+                            ✉️ {getBookingMetadata(b).alternateEmail}
+                          </span>
+                        )}
+                        {getBookingMetadata(b).gstin && (
+                          <span className="text-[10px] text-indigo-700 block font-mono font-semibold">
+                            🏢 GST: {getBookingMetadata(b).gstin}
+                          </span>
+                        )}
                       </td>
 
                       <td className="px-5 py-4 max-w-sm">
@@ -517,6 +527,24 @@ export default function AdminBookingsPage() {
                               <span>Roof Carrier</span>
                             </span>
                           )}
+                          {getBookingMetadata(b).hasPet && (
+                            <span className="text-[10px] text-amber-900 font-extrabold px-1.5 py-0.5 rounded bg-amber-50 border border-amber-300 flex items-center gap-1">
+                              <span>🐾</span>
+                              <span>Pet Friendly (+₹{getBookingMetadata(b).petFee || 500})</span>
+                            </span>
+                          )}
+                          {getBookingMetadata(b).flightNumber && (
+                            <span className="text-[10px] text-sky-900 font-extrabold px-1.5 py-0.5 rounded bg-sky-50 border border-sky-300 flex items-center gap-1">
+                              <span>✈️</span>
+                              <span>{getBookingMetadata(b).flightNumber}</span>
+                            </span>
+                          )}
+                          {getBookingMetadata(b).gstin && (
+                            <span className="text-[10px] text-indigo-900 font-extrabold px-1.5 py-0.5 rounded bg-indigo-50 border border-indigo-300 flex items-center gap-1">
+                              <span>🏢</span>
+                              <span>GST: {getBookingMetadata(b).gstin}</span>
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -567,9 +595,15 @@ export default function AdminBookingsPage() {
                         <span className="font-bold text-slate-900 block">
                           ₹{Number(b.estimatedFare).toFixed(2)}
                         </span>
-                        <span className="text-[10px] text-emerald-600 font-semibold">
+                        <span className="text-[10px] text-emerald-600 font-semibold block">
                           Adv: ₹{Number(b.advanceAmount).toFixed(2)} (PAID)
                         </span>
+                        {getBookingMetadata(b).hasPet && (
+                          <span className="text-[10px] text-amber-700 font-bold flex items-center gap-0.5 mt-0.5">
+                            <span>🐾</span>
+                            <span>Incl. ₹{getBookingMetadata(b).petFee || 500} Pet Fee</span>
+                          </span>
+                        )}
                       </td>
 
                       <td className="px-5 py-4 whitespace-nowrap text-right space-x-1.5">
