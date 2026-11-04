@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   },
   logoImage: {
     width: 260,
-    height: 90,
+    height: 135,
     marginBottom: 12,
   },
   badge: {
