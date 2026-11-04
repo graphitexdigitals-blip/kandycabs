@@ -53,6 +53,7 @@ const MAX_BATCHED_POINTS = 20;
 class LocationTrackerService {
   private isTracking: boolean = false;
   private currentTier: 'IDLE' | 'ACTIVE_TRIP' = 'IDLE';
+  private currentBgMode: 'IDLE' | 'ACTIVE_TRIP' | null = null;
   private activeBookingId: string | null = null;
   private intervalTimer: any = null;
   private watchSubscription: Location.LocationSubscription | null = null;
@@ -212,10 +213,8 @@ class LocationTrackerService {
   }
 
   public async startIdleTracking() {
-    // If background active trip task is running, stop it first
-    await this.stopBackgroundLocationUpdates();
-
     if (this.isTracking && this.currentTier === 'IDLE') {
+      await this.ensureBackgroundLocationStarted(null);
       return;
     }
     this.currentTier = 'IDLE';
@@ -226,11 +225,12 @@ class LocationTrackerService {
       25,    // 25m distance threshold
       30000  // 30s heartbeat
     );
+    // Start Android persistent foreground notification showing Online / On-Duty status
+    await this.ensureBackgroundLocationStarted(null);
   }
 
   public async startActiveTripTracking(bookingId: string) {
     if (this.isTracking && this.currentTier === 'ACTIVE_TRIP' && this.activeBookingId === bookingId) {
-      // Ensure background updates are also active if supported
       await this.ensureBackgroundLocationStarted(bookingId);
       return;
     }
@@ -246,42 +246,58 @@ class LocationTrackerService {
       10000  // 10s heartbeat
     );
 
-    // 2. Start Android background location task with persistent foreground service notification
+    // 2. Start Android background location task with active trip notification
     await this.ensureBackgroundLocationStarted(bookingId);
   }
 
-  private async ensureBackgroundLocationStarted(bookingId: string) {
+  private async ensureBackgroundLocationStarted(bookingId?: string | null) {
     try {
       if (!TaskManager || typeof TaskManager.isTaskDefined !== 'function') {
         // Safe fallback: TaskManager native module not present; foreground watcher is active
         return;
       }
       if (Platform.OS === 'android') {
-        const bgGranted = await this.requestBackgroundPermissions();
-        if (!bgGranted) {
-          return;
-        }
+        try {
+          await this.requestBackgroundPermissions();
+        } catch (_) {}
+
+        const isTrip = Boolean(bookingId);
+        const targetMode = isTrip ? 'ACTIVE_TRIP' : 'IDLE';
 
         const isRunning = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-        if (isRunning) {
+        if (isRunning && this.currentBgMode === targetMode) {
+          // Already running in the desired mode
           return;
         }
 
+        if (isRunning) {
+          // Restart to update notification content and parameters dynamically
+          await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+        }
+
+        const notificationTitle = isTrip ? 'Kandy Cabs Driver — Active Ride' : 'Kandy Cabs Driver Partner';
+        const notificationBody = isTrip
+          ? '🚖 Trip in progress — Live GPS tracking enabled'
+          : '🟢 You are Online & On-Duty — Ready for ride assignments';
+        const notificationColor = isTrip ? '#ea580c' : '#008860';
+
         await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-          accuracy: Location.Accuracy.Balanced,
-          timeInterval: 10000,       // 10 seconds interval
-          distanceInterval: 15,      // 15m movement filter (reduces battery drain & duplicate writes)
-          deferredUpdatesInterval: 10000,
-          deferredUpdatesDistance: 15,
+          accuracy: isTrip ? Location.Accuracy.High : Location.Accuracy.Balanced,
+          timeInterval: isTrip ? 10000 : 30000,       // 30s when idle, 10s on active trip
+          distanceInterval: isTrip ? 15 : 30,          // 30m when idle, 15m on active trip
+          deferredUpdatesInterval: isTrip ? 10000 : 30000,
+          deferredUpdatesDistance: isTrip ? 15 : 30,
           foregroundService: {
-            notificationTitle: 'Kandy Cabs Driver',
-            notificationBody: 'Active trip in progress — Live GPS tracking enabled',
-            notificationColor: '#ea580c',
+            notificationTitle,
+            notificationBody,
+            notificationColor,
             killServiceOnDestroy: false,
           },
           showsBackgroundLocationIndicator: true,
           pausesUpdatesAutomatically: false,
         });
+        this.currentBgMode = targetMode;
+        console.log(`[BackgroundService] Foreground notification started: ${notificationTitle} (${notificationBody})`);
       }
     } catch (err: any) {
       console.warn('[BackgroundGPS] Failed to start background location updates:', err?.message || err);
@@ -290,12 +306,14 @@ class LocationTrackerService {
 
   private async stopBackgroundLocationUpdates() {
     try {
+      this.currentBgMode = null;
       if (!TaskManager || typeof TaskManager.isTaskDefined !== 'function') {
         return;
       }
       const isRunning = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
       if (isRunning) {
         await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+        console.log('[BackgroundService] Foreground notification stopped (Off-Duty)');
       }
     } catch (err: any) {
       // Ignore if task was not running
