@@ -18,29 +18,55 @@ import {
   Animated,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { driverApiClient } from '../lib/api';
 import { locationTracker, LocationState } from '../lib/location-tracker';
 import { driverRealtimeClient } from '../lib/realtime-client';
 import { BookingStatus } from '@kandy-cabs/shared';
+import { useTranslation } from 'react-i18next';
+import { SUPPORTED_LANGUAGES, changeAppLanguage } from '../lib/i18n';
 import { SlideToAccept } from '../components/SlideToAccept';
+import { LanguageSelectionModal } from '../components/LanguageSelectionModal';
 import { getTripInProcessSync, getTripInProcess, setTripInProcess, subscribeTripState } from '../lib/tripState';
 
 export default function DriverDashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const { t, i18n } = useTranslation();
   const [driver, setDriver] = useState<any>(null);
   const [onlineStatus, setOnlineStatus] = useState(false);
   const [activeBooking, setActiveBooking] = useState<any>(null);
   const [upcomingBookings, setUpcomingBookings] = useState<any[]>([]);
   const [dispatches, setDispatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsState, setGpsState] = useState<LocationState>(locationTracker.getState());
   const [tripInProcessRev, setTripInProcessRev] = useState(0);
+  const [isLangModalOpen, setIsLangModalOpen] = useState(false);
+
+  // Immediately hydrate cached driver session to prevent blank/green screen on offline boot
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const cached = await SecureStore.getItemAsync('kandy_cached_driver');
+        if (cached && isMounted) {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed === 'object') {
+            setDriver((prev: any) => prev || parsed);
+          }
+        }
+      } catch (_) {}
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const unsub = subscribeTripState(() => {
@@ -115,6 +141,50 @@ export default function DriverDashboardScreen() {
     return false;
   }, [driver]);
 
+  // Detailed document verification status for KYC verification card
+  const verificationDocs = useMemo(() => {
+    // Only marked complete when document file/image is actually attached and present
+    const isProfileDone = Boolean(driver?.profilePhotoUrl && String(driver.profilePhotoUrl).trim().length > 0);
+    const isLicenseDone = Boolean(driver?.licenseDocUrl && String(driver.licenseDocUrl).trim().length > 0);
+    const isRcDone = Boolean(driver?.rcDocUrl && String(driver.rcDocUrl).trim().length > 0);
+    const isInsuranceDone = Boolean(driver?.insuranceDocUrl && String(driver.insuranceDocUrl).trim().length > 0);
+
+    const docs: Array<{
+      id: string;
+      title: string;
+      icon: 'person' | 'card' | 'car' | 'shield-checkmark';
+      isCompleted: boolean;
+    }> = [
+      {
+        id: 'profile',
+        title: t('profile.profile_photo'),
+        icon: 'person',
+        isCompleted: isProfileDone,
+      },
+      {
+        id: 'license',
+        title: t('profile.driving_license'),
+        icon: 'card',
+        isCompleted: isLicenseDone,
+      },
+      {
+        id: 'rc',
+        title: t('profile.rc_book'),
+        icon: 'car',
+        isCompleted: isRcDone,
+      },
+      {
+        id: 'insurance',
+        title: t('profile.insurance'),
+        icon: 'shield-checkmark',
+        isCompleted: isInsuranceDone,
+      },
+    ];
+
+    const completedCount = docs.filter((d) => d.isCompleted).length;
+    return { docs, completedCount, totalCount: docs.length };
+  }, [driver, i18n.language, t]);
+
   // Listen to live GPS changes directly from device hardware/emulator
   useEffect(() => {
     const unsub = locationTracker.addListener((lat, lng, state) => {
@@ -150,7 +220,7 @@ export default function DriverDashboardScreen() {
     );
   }, [router]);
 
-  const fetchDriverData = useCallback(async () => {
+  const fetchDriverData = useCallback(async (isManualRetry: boolean = false) => {
     // Prevent simultaneous in-flight fetches
     if (isFetchingRef.current) {
       pendingRefreshRef.current = true;
@@ -158,14 +228,22 @@ export default function DriverDashboardScreen() {
     }
 
     isFetchingRef.current = true;
+    if (isManualRetry) {
+      setIsRetrying(true);
+      setConnectionError(null);
+    }
     try {
       const [statusRes, dispatchRes] = await Promise.all([
-        driverApiClient.fetch('/api/driver/status'),
-        driverApiClient.fetch('/api/driver/dispatches'),
+        driverApiClient.fetch('/api/driver/status', { timeoutMs: 8000 } as any),
+        driverApiClient.fetch('/api/driver/dispatches', { timeoutMs: 8000 } as any).catch(() => ({ success: false, dispatches: [] })),
       ]);
 
       if (statusRes && statusRes.success && statusRes.driver) {
         setDriver(statusRes.driver);
+        setConnectionError(null);
+        try {
+          await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(statusRes.driver));
+        } catch (_) {}
         setOnlineStatus(statusRes.driver.onlineStatus);
         setActiveBooking(statusRes.activeBooking);
         setUpcomingBookings(statusRes.upcomingBookings || []);
@@ -201,16 +279,24 @@ export default function DriverDashboardScreen() {
         } else {
           locationTracker.stopTracking();
         }
-      } else {
-        handleSessionExpired(statusRes?.message);
-        return;
+      } else if (statusRes && statusRes.success === false) {
+        if (
+          statusRes.message?.includes('deactivated') ||
+          statusRes.message?.includes('deleted') ||
+          statusRes.message?.includes('Unauthorized')
+        ) {
+          handleSessionExpired(statusRes.message);
+          return;
+        } else {
+          setConnectionError(statusRes.message || 'Unable to connect to server');
+        }
       }
 
-      if (dispatchRes.success) {
+      if (dispatchRes && dispatchRes.success) {
         setDispatches(dispatchRes.dispatches || []);
       }
     } catch (err: any) {
-      console.error('Failed to fetch driver data:', err);
+      console.warn('[DriverDashboard] Failed to fetch driver data:', err);
       if (
         err.status === 401 ||
         err.status === 403 ||
@@ -222,9 +308,15 @@ export default function DriverDashboardScreen() {
         handleSessionExpired(err.message);
         return;
       }
+      setConnectionError(
+        err.message?.includes('timed out')
+          ? 'Request timed out. Please check your network connection.'
+          : err.message || 'Unable to reach Kandy Cabs server. Please check your connection.'
+      );
     } finally {
       isFetchingRef.current = false;
       setLoading(false);
+      setIsRetrying(false);
 
       // Perform at most one follow-up refresh if another request arrived while in flight
       if (pendingRefreshRef.current) {
@@ -331,10 +423,10 @@ export default function DriverDashboardScreen() {
       }
     });
 
-    // 4-second active trip & phone release sync interval
+    // 15-second active trip & phone release sync interval (avoids hammering DB)
     const interval = setInterval(() => {
       triggerDebouncedFetch(0);
-    }, 4000);
+    }, 15000);
 
     // AppState listener for background / foreground transitions
     const appStateSubscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
@@ -581,131 +673,191 @@ export default function DriverDashboardScreen() {
 
   if (loading && !driver) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#ea580c" />
-        <Text style={{ color: '#0f172a', marginTop: 12, fontWeight: '700' }}>Loading Driver Workspace...</Text>
-      </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff', padding: 24 }}>
+          <Image
+            source={require('../assets/images/logo.png')}
+            style={{ width: 150, height: 50, marginBottom: 24 }}
+            resizeMode="contain"
+          />
+          <ActivityIndicator size="large" color="#ea580c" />
+          <Text style={{ color: '#0f172a', marginTop: 18, fontWeight: '700', fontSize: 16 }}>
+            Loading Driver Workspace...
+          </Text>
+          <Text style={{ color: '#94a3b8', marginTop: 6, fontSize: 12.5 }}>
+            Connecting to driver partner network
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!driver && connectionError) {
+    const configuredUrl = driverApiClient.getBaseUrl();
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28, backgroundColor: '#ffffff' }}>
+          {/* Professional Network Offline Icon Container */}
+          <View
+            style={{
+              width: 84,
+              height: 84,
+              borderRadius: 42,
+              backgroundColor: '#fff7ed',
+              borderWidth: 1.5,
+              borderColor: '#fed7aa',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 18,
+              elevation: 2,
+            }}
+          >
+            <Ionicons name="cloud-offline-outline" size={42} color="#ea580c" />
+          </View>
+
+          <Text style={{ fontSize: 20, fontWeight: '800', color: '#0f172a', textAlign: 'center', marginBottom: 8 }}>
+            Unable to Connect to Server
+          </Text>
+
+          <Text style={{ fontSize: 13, color: '#475569', textAlign: 'center', lineHeight: 20, marginBottom: 20 }}>
+            {connectionError}
+          </Text>
+
+          {/* Professional Troubleshooting Card */}
+          <View
+            style={{
+              width: '100%',
+              backgroundColor: '#f8fafc',
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: '#e2e8f0',
+              padding: 16,
+              marginBottom: 24,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+              <Ionicons name="wifi-outline" size={17} color="#ea580c" style={{ marginRight: 8 }} />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#0f172a' }}>Connection Guide</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6 }}>
+              <Text style={{ color: '#ea580c', fontWeight: '800', marginRight: 8, fontSize: 12 }}>•</Text>
+              <Text style={{ fontSize: 12, color: '#64748b', flex: 1, lineHeight: 18 }}>
+                Check if Wi-Fi is active and you have network connectivity.
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6 }}>
+              <Text style={{ color: '#ea580c', fontWeight: '800', marginRight: 8, fontSize: 12 }}>•</Text>
+              <Text style={{ fontSize: 12, color: '#64748b', flex: 1, lineHeight: 18 }}>
+                Connect to the same Wi-Fi router as the PC server.
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+              <Text style={{ color: '#ea580c', fontWeight: '800', marginRight: 8, fontSize: 12 }}>•</Text>
+              <Text style={{ fontSize: 11, color: '#94a3b8', flex: 1, lineHeight: 16 }}>
+                Configured Server: {configuredUrl}
+              </Text>
+            </View>
+          </View>
+
+          {/* Retry Connection Action Button */}
+          <TouchableOpacity
+            onPress={() => fetchDriverData(true)}
+            disabled={isRetrying}
+            style={{
+              width: '100%',
+              backgroundColor: '#ea580c',
+              paddingVertical: 14,
+              borderRadius: 12,
+              flexDirection: 'row',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 12,
+              elevation: 3,
+            }}
+            activeOpacity={0.85}
+          >
+            {isRetrying ? (
+              <ActivityIndicator color="#ffffff" size="small" style={{ marginRight: 8 }} />
+            ) : (
+              <Ionicons name="refresh" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+            )}
+            <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 15 }}>
+              {isRetrying ? 'Retrying Connection...' : 'Retry Connection'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Back to Login (preserves token without logging out) */}
+          <TouchableOpacity
+            onPress={() => router.replace('/login')}
+            style={{ paddingVertical: 10, paddingHorizontal: 20 }}
+            activeOpacity={0.7}
+          >
+            <Text style={{ color: '#64748b', fontSize: 13, fontWeight: '600' }}>
+              Back to Login
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!loading && !driver) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#ffffff' }}>
+          <Ionicons name="cloud-offline-outline" size={52} color="#ea580c" style={{ marginBottom: 16 }} />
+          <Text style={{ fontSize: 18, fontWeight: '700', color: '#0f172a', marginBottom: 8, textAlign: 'center' }}>
+            Connection Offline
+          </Text>
+          <Text style={{ fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 24, lineHeight: 20 }}>
+            Could not reach Kandy Cabs server.{'\n'}Please check your Wi-Fi or mobile network and retry.
+          </Text>
+          <TouchableOpacity
+            onPress={() => fetchDriverData(true)}
+            style={{ backgroundColor: '#ea580c', paddingHorizontal: 28, paddingVertical: 13, borderRadius: 10, marginBottom: 12, minWidth: 180, alignItems: 'center' }}
+            activeOpacity={0.85}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Retry Connection</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.replace('/login')}
+            style={{ padding: 10 }}
+            activeOpacity={0.7}
+          >
+            <Text style={{ color: '#64748b', fontSize: 13, fontWeight: '600' }}>Back to Login</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
   // Display booking (either active booking or mock demo if none)
   const currentTrip = activeBooking;
-  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : 20);
-
-  const HEADER_MAX_HEIGHT = topInset + 195;
-  const HEADER_MIN_HEIGHT = topInset + 54;
-
-  const heroTranslateY = scrollY.interpolate({
-    inputRange: [0, HEADER_MAX_HEIGHT],
-    outputRange: [0, -HEADER_MAX_HEIGHT * 0.45],
-    extrapolate: 'clamp',
-  });
-
-  const heroOpacity = scrollY.interpolate({
-    inputRange: [0, 80],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
-
-  const stickyBgOpacity = scrollY.interpolate({
-    inputRange: [15, 65],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-
-  const whiteLogoOpacity = scrollY.interpolate({
-    inputRange: [15, 45],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
-
-  const darkLogoOpacity = scrollY.interpolate({
-    inputRange: [25, 65],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-
-  const avatarScale = scrollY.interpolate({
-    inputRange: [0, 60],
-    outputRange: [1, 0.60],
-    extrapolate: 'clamp',
-  });
 
   return (
     <View style={styles.container}>
       <StatusBar
-        barStyle={activeBottomTab === 'HOME' ? 'light-content' : 'dark-content'}
-        backgroundColor={activeBottomTab === 'HOME' ? '#000000' : '#ffffff'}
+        barStyle="light-content"
+        backgroundColor="#162232"
         translucent={false}
       />
 
-      {/* STICKY TOP BRAND STRIP (zIndex: 100 - White background when scrolled) */}
-      {activeBottomTab === 'HOME' ? (
-        <View pointerEvents="box-none" style={[styles.stickyTopBarContainer, { height: HEADER_MIN_HEIGHT, paddingTop: topInset }]}>
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              StyleSheet.absoluteFillObject,
-              styles.stickyHeaderBackdropWhite,
-              { opacity: stickyBgOpacity },
-            ]}
-          />
-          <View pointerEvents="box-none" style={[styles.heroTopBar, { marginBottom: 0 }]}>
-            <View pointerEvents="none" style={styles.heroBrandLeft}>
-              {/* White Logo for dark transparent hero */}
-              <Animated.Image
-                source={require('../assets/images/logo-white.png')}
-                style={[styles.kandyCabsLogo, { opacity: whiteLogoOpacity }]}
-                resizeMode="contain"
-              />
-              {/* Dark / Color Logo for white scrolled header */}
-              <Animated.Image
-                source={require('../assets/images/logo.png')}
-                style={[styles.kandyCabsLogo, { position: 'absolute', left: 0, opacity: darkLogoOpacity }]}
-                resizeMode="contain"
-              />
-            </View>
-
-            <Animated.View style={{ transform: [{ scale: avatarScale }] }}>
-              <TouchableOpacity
-                style={styles.avatarRing}
-                onPress={() => setActiveBottomTab('PROFILE')}
-                activeOpacity={0.8}
-              >
-                {driver?.profilePhotoUrl ? (
-                  <View style={styles.avatarPhotoClipper}>
-                    <Image
-                      source={{ uri: driver.profilePhotoUrl }}
-                      style={styles.avatarImage}
-                      resizeMode="cover"
-                    />
-                  </View>
-                ) : (
-                  <Text style={styles.avatarEmoji}>👨🏽‍✈️</Text>
-                )}
-                {hasPendingDocuments && (
-                  <View style={styles.avatarPendingDot}>
-                    <Text style={styles.avatarPendingDotText}>!</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </Animated.View>
+      {/* TOP APP BAR IN BRAND DARK BLUE (#162232) */}
+      <View style={[styles.mainHeaderWhite, { paddingTop: Platform.OS === 'android' ? 6 : Math.max(insets.top, 8) }]}>
+        <View style={styles.headerBarInner}>
+          <View style={styles.headerLogoContainer}>
+            <Image
+              source={require('../assets/images/logo-white.png')}
+              style={styles.driverHeaderLogo}
+              resizeMode="contain"
+            />
           </View>
-        </View>
-      ) : (
-        /* COMPACT LOGO HEADER ONLY FOR MY TRIPS, SUPPORT, AND PROFILE TABS (WHITE BG) */
-        <View style={[styles.compactHeader, { paddingTop: topInset + 6 }]}>
-          <View style={styles.heroTopBar}>
-            <View style={styles.heroBrandLeft}>
-              <Image
-                source={require('../assets/images/logo.png')}
-                style={styles.kandyCabsLogo}
-                resizeMode="contain"
-              />
-            </View>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              {/* Mini Duty Toggle Pill */}
+          <View style={styles.headerRightGroup}>
+            {activeBottomTab !== 'HOME' && (
               <TouchableOpacity
                 style={[
                   styles.miniDutyBadge,
@@ -721,214 +873,221 @@ export default function DriverDashboardScreen() {
                     { color: onlineStatus ? '#059669' : '#dc2626' },
                   ]}
                 >
-                  {onlineStatus ? 'Online' : 'Offline'}
+                  {onlineStatus ? t('header.online') : t('header.offline')}
                 </Text>
               </TouchableOpacity>
+            )}
 
-              <TouchableOpacity
-                style={styles.avatarRingCompact}
-                onPress={() => setActiveBottomTab('PROFILE')}
-                activeOpacity={0.8}
-              >
-                {driver?.profilePhotoUrl ? (
-                  <View style={styles.avatarCompactPhotoClipper}>
-                    <Image
-                      source={{ uri: driver.profilePhotoUrl }}
-                      style={styles.avatarImageCompact}
-                      resizeMode="cover"
-                    />
-                  </View>
-                ) : (
-                  <Text style={styles.avatarEmojiCompact}>👨🏽‍✈️</Text>
-                )}
-                {hasPendingDocuments && (
-                  <View style={styles.avatarPendingDotCompact}>
-                    <Text style={styles.avatarPendingDotText}>!</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.avatarRingHeader}
+              onPress={() => setActiveBottomTab('PROFILE')}
+              activeOpacity={0.8}
+            >
+              {driver?.profilePhotoUrl ? (
+                <View style={styles.avatarPhotoClipper}>
+                  <Image
+                    source={{ uri: driver.profilePhotoUrl }}
+                    style={styles.avatarImageHeader}
+                    resizeMode="cover"
+                  />
+                </View>
+              ) : (
+                <View style={styles.avatarFallbackIconCircle}>
+                  <Ionicons name="person" size={20} color="#0f2744" />
+                </View>
+              )}
+              {hasPendingDocuments && (
+                <View style={styles.avatarNotificationBadge}>
+                  <Text style={styles.avatarNotificationBadgeText}>1</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
-      )}
+      </View>
+
+      {/* Offline banner when cached session is active but server is unreachable */}
+      {connectionError ? (
+        <View style={{ backgroundColor: '#fff7ed', borderBottomWidth: 1, borderBottomColor: '#fed7aa', paddingVertical: 7, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <Ionicons name="cloud-offline-outline" size={15} color="#ea580c" style={{ marginRight: 6 }} />
+            <Text style={{ fontSize: 12, color: '#9a3412', fontWeight: '600', flex: 1 }} numberOfLines={1}>
+              Offline mode • Check network connection
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => fetchDriverData(true)} style={{ paddingLeft: 8 }} activeOpacity={0.7}>
+            <Text style={{ fontSize: 12, color: '#ea580c', fontWeight: '800' }}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       {/* MAIN SCROLLABLE BODY */}
-      <Animated.ScrollView
+      <ScrollView
         style={[
           styles.mainScrollView,
           activeBottomTab === 'HOME' && styles.mainScrollViewHome,
         ]}
         contentContainerStyle={[
           styles.scrollContent,
-          activeBottomTab === 'HOME' ? styles.scrollContentHome : null,
+          activeBottomTab === 'HOME' && styles.scrollContentHome,
+          activeBottomTab === 'PROFILE' && styles.scrollContentProfile,
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
       >
         {/* ============================================================ */}
         {/* TAB 1: HOME (Live Duty, Active Trip & Radar)                 */}
         {/* ============================================================ */}
         {activeBottomTab === 'HOME' && (
-          <>
-            {/* HERO BANNER SECTION (First child of scroll) */}
-            <View style={[styles.heroBannerContainer, { height: HEADER_MAX_HEIGHT }]}>
+          <View style={styles.homeTabWrapper}>
+            {/* 1. HERO DRIVER CARD (MATCHING REFERENCE DESIGN) */}
+            <View style={styles.heroCardOuter}>
               <ImageBackground
                 source={require('../assets/images/hero-banner-scenic-night.jpg')}
-                style={[styles.heroBannerBackground, { height: HEADER_MAX_HEIGHT }]}
-                imageStyle={{ resizeMode: 'cover' }}
+                style={styles.heroCardBg}
+                imageStyle={{ borderRadius: 20, resizeMode: 'cover' }}
               >
-                <View style={[styles.heroOverlay, { paddingTop: HEADER_MIN_HEIGHT + 8, minHeight: HEADER_MAX_HEIGHT }]}>
-                  {/* Driver Snapshot Row with Duty Pill on Right */}
-                  <View style={[styles.heroContentRow, { alignItems: 'flex-end', paddingBottom: 26 }]}>
-                    {/* Left Driver Details */}
-                    <View style={styles.heroDriverBox}>
-                      <Text style={styles.heroDriverName} numberOfLines={1}>
-                        {driver?.fullName || 'Driver Partner'}
-                      </Text>
-                      <Text style={styles.heroVehiclePlate}>
+                <View style={styles.heroCardContent}>
+                  <View style={styles.heroCardLeft}>
+                    <Text style={styles.heroCardName} numberOfLines={1}>
+                      {driver?.fullName || 'Ramesh Kumar'}
+                    </Text>
+                    <Text style={styles.heroCardRole}>(Driver)</Text>
+
+                    <View style={styles.heroCardPlateRow}>
+                      <Ionicons name="car" size={15} color="#ffffff" style={{ marginRight: 6 }} />
+                      <Text style={styles.heroCardPlate}>
                         {driver?.vehicle?.plateNumber && driver.vehicle.plateNumber !== 'PENDING' && !driver.vehicle.plateNumber.startsWith('KA 01 TR 0000')
                           ? driver.vehicle.plateNumber.toUpperCase()
-                          : 'Plate Not Added'}
-                      </Text>
-                      <Text style={styles.heroVehicleModel} numberOfLines={1}>
-                        {driver?.vehicle
-                          ? `${driver.vehicle.category} • ${driver.vehicle.fuelType || 'DIESEL'}`
-                          : 'SEDAN • DIESEL'}
-                      </Text>
-                      <Text style={styles.heroTierBadge}>
-                        {driver?.verificationStatus === 'APPROVED' ? '✓ Verified Partner' : '⏳ Verification In Review'}
+                          : 'KA-01-3002'}
                       </Text>
                     </View>
 
-                    {/* Right: Duty Pill */}
+                    {/* Duty Pill: Interactive Toggle */}
                     <TouchableOpacity
                       style={[
-                        styles.dutyCapsule,
-                        onlineStatus ? styles.dutyCapsuleOnline : styles.dutyCapsuleOffline,
-                        { marginBottom: 2 },
+                        styles.heroDutyCapsule,
+                        onlineStatus ? styles.heroDutyCapsuleOnline : styles.heroDutyCapsuleOffline,
                       ]}
                       onPress={() => handleToggleOnline(!onlineStatus)}
-                      activeOpacity={0.8}
-                      hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                      activeOpacity={0.85}
                     >
-                      <View style={[styles.dutyDot, { backgroundColor: onlineStatus ? '#22c55e' : '#ef4444' }]} />
-                      <Text style={styles.dutyCapsuleText}>
-                        {onlineStatus ? 'Online' : 'Offline'}
+                      <View style={[styles.heroDutyDot, { backgroundColor: onlineStatus ? '#22c55e' : '#ef4444' }]} />
+                      <Text style={styles.heroDutyText}>
+                        {onlineStatus ? t('header.online') : t('header.offline')}
                       </Text>
-                      <Ionicons name="chevron-forward" size={13} color="#ffffff" style={{ marginLeft: 2 }} />
                     </TouchableOpacity>
                   </View>
                 </View>
               </ImageBackground>
             </View>
 
-            {/* FLOATING CARD CONTAINER REFLECTING ABOVE THE IMAGE */}
+            {/* FLOATING CARD CONTAINER */}
             <View style={styles.homeCardsContainer}>
-            {/* Top Priority KYC Incomplete Banner on Home Tab */}
+            {/* 2. Top Priority KYC Incomplete Banner on Home Tab */}
             {hasPendingDocuments && (
-              <View style={styles.homePendingKycBanner}>
-                <TouchableOpacity
-                  style={styles.homePendingKycHeader}
-                  onPress={() => router.push('/documents')}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.homePendingKycIconBox}>
-                    <Ionicons name="warning" size={24} color="#f97316" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.homePendingKycTitle}>KYC & Document Verification Required</Text>
-                    <Text style={styles.homePendingKycSub}>
-                      Please upload your Driver Profile Photo, Driving License, RC Book & 5-angle cab photos to complete verification.
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#ea580c" />
-                </TouchableOpacity>
+              <View style={styles.kycVerificationCard}>
+                {/* Background Watermark Shield */}
+                <View style={styles.kycWatermarkBg} pointerEvents="none">
+                  <Ionicons name="shield-checkmark" size={130} color="#0284c7" style={{ opacity: 0.05 }} />
+                </View>
 
-                {/* Quick Status Chips */}
-                <View style={styles.homePendingChipsRow}>
-                  {/* Profile Photo */}
-                  <View style={[styles.homePendingChip, driver?.profilePhotoUrl ? styles.homeChipDone : styles.homeChipPending]}>
-                    <Ionicons
-                      name="person-outline"
-                      size={14}
-                      color={driver?.profilePhotoUrl ? '#16a34a' : '#ea580c'}
-                    />
-                    <Text style={[styles.homeChipText, driver?.profilePhotoUrl ? styles.homeChipTextDone : styles.homeChipTextPending]}>
-                      Profile Photo
-                    </Text>
-                    <Ionicons
-                      name={driver?.profilePhotoUrl ? 'checkmark-circle' : 'alert-circle'}
-                      size={13}
-                      color={driver?.profilePhotoUrl ? '#16a34a' : '#ea580c'}
-                    />
+                {/* Header Row: Shield Icon + Title + Counter Pill */}
+                <View style={styles.kycHeaderRow}>
+                  <View style={styles.kycHeaderLeft}>
+                    <View style={styles.kycShieldBox}>
+                      <Ionicons name="shield-outline" size={30} color="#0f2744" />
+                      <View style={styles.kycShieldCheckmarkPos}>
+                        <Ionicons name="checkmark" size={17} color="#ea580c" />
+                      </View>
+                    </View>
+                    <View style={styles.kycHeaderTitleBox}>
+                      <Text style={styles.kycHeaderTitle}>{t('dashboard.driver_verification')}</Text>
+                      <Text style={styles.kycHeaderSub}>{t('dashboard.driver_verification_sub')}</Text>
+                    </View>
                   </View>
 
-                  {/* License DL */}
-                  <View style={[styles.homePendingChip, driver?.licenseDocUrl ? styles.homeChipDone : styles.homeChipPending]}>
-                    <Ionicons
-                      name="card-outline"
-                      size={14}
-                      color={driver?.licenseDocUrl ? '#16a34a' : '#ea580c'}
-                    />
-                    <Text style={[styles.homeChipText, driver?.licenseDocUrl ? styles.homeChipTextDone : styles.homeChipTextPending]}>
-                      License DL
+                  <View style={styles.kycCountPill}>
+                    <Text style={styles.kycCountPillText}>
+                      {verificationDocs.completedCount} / {verificationDocs.totalCount}
                     </Text>
-                    <Ionicons
-                      name={driver?.licenseDocUrl ? 'checkmark-circle' : 'alert-circle'}
-                      size={13}
-                      color={driver?.licenseDocUrl ? '#16a34a' : '#ea580c'}
-                    />
-                  </View>
-
-                  {/* RC Book */}
-                  <View style={[styles.homePendingChip, driver?.rcDocUrl ? styles.homeChipDone : styles.homeChipPending]}>
-                    <Ionicons
-                      name="car-outline"
-                      size={14}
-                      color={driver?.rcDocUrl ? '#16a34a' : '#ea580c'}
-                    />
-                    <Text style={[styles.homeChipText, driver?.rcDocUrl ? styles.homeChipTextDone : styles.homeChipTextPending]}>
-                      RC Book
-                    </Text>
-                    <Ionicons
-                      name={driver?.rcDocUrl ? 'checkmark-circle' : 'alert-circle'}
-                      size={13}
-                      color={driver?.rcDocUrl ? '#16a34a' : '#ea580c'}
-                    />
-                  </View>
-
-                  {/* Insurance */}
-                  <View style={[styles.homePendingChip, driver?.insuranceDocUrl ? styles.homeChipDone : styles.homeChipPending]}>
-                    <Ionicons
-                      name="shield-outline"
-                      size={14}
-                      color={driver?.insuranceDocUrl ? '#16a34a' : '#ea580c'}
-                    />
-                    <Text style={[styles.homeChipText, driver?.insuranceDocUrl ? styles.homeChipTextDone : styles.homeChipTextPending]}>
-                      Insurance
-                    </Text>
-                    <Ionicons
-                      name={driver?.insuranceDocUrl ? 'checkmark-circle' : 'alert-circle'}
-                      size={13}
-                      color={driver?.insuranceDocUrl ? '#16a34a' : '#ea580c'}
-                    />
                   </View>
                 </View>
 
+                {/* Segmented Progress Bar: 4 Segments */}
+                <View style={styles.kycSegmentContainer}>
+                  {verificationDocs.docs.map((doc) => (
+                    <View
+                      key={doc.id}
+                      style={[
+                        styles.kycSegmentBar,
+                        doc.isCompleted ? styles.kycSegmentBarActive : styles.kycSegmentBarInactive,
+                      ]}
+                    />
+                  ))}
+                </View>
+
+                {/* Document Rows: 4 Distinct Rows */}
+                <View style={styles.kycDocList}>
+                  {verificationDocs.docs.map((doc, index) => {
+                    const isLast = index === verificationDocs.docs.length - 1;
+                    return (
+                      <View
+                        key={doc.id}
+                        style={[styles.kycDocRow, !isLast && styles.kycDocRowDivider]}
+                      >
+                        <View style={styles.kycDocIconCircle}>
+                          <Ionicons name={doc.icon} size={18} color="#0f2744" />
+                        </View>
+
+                        <View style={styles.kycDocInfo}>
+                          <Text style={styles.kycDocTitle}>{doc.title}</Text>
+                          {doc.isCompleted ? (
+                            <View style={styles.kycStatusRow}>
+                              <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                              <Text style={styles.kycStatusSuccessText}>{t('dashboard.approved')}</Text>
+                            </View>
+                          ) : (
+                            <View style={styles.kycStatusRow}>
+                              <Ionicons name="time" size={14} color="#ea580c" />
+                              <Text style={styles.kycStatusWarningText}>{t('dashboard.upload_required')}</Text>
+                            </View>
+                          )}
+                        </View>
+
+                        {!doc.isCompleted && (
+                          <TouchableOpacity
+                            style={styles.kycUploadMiniBtn}
+                            onPress={() => router.push('/documents')}
+                            activeOpacity={0.75}
+                          >
+                            <Ionicons name="cloud-upload-outline" size={15} color="#0f2744" />
+                            <Text style={styles.kycUploadMiniBtnText}>{t('dashboard.upload')}</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+
+                {/* Full-Width Primary CTA Button */}
                 <TouchableOpacity
-                  style={styles.homeUploadDocsBtn}
+                  style={styles.kycCompleteCtaBtn}
                   onPress={() => router.push('/documents')}
                   activeOpacity={0.85}
                 >
-                  <Ionicons name="cloud-upload-outline" size={17} color="#ffffff" />
-                  <Text style={styles.homeUploadDocsBtnText}>UPLOAD KYC DOCUMENTS NOW</Text>
-                  <Ionicons name="arrow-forward" size={15} color="#ffffff" />
+                  <Ionicons name="cloud-upload-outline" size={19} color="#ffffff" />
+                  <Text style={styles.kycCompleteCtaBtnText}>{t('dashboard.complete_verification')}</Text>
+                  <Ionicons name="arrow-forward" size={17} color="#ffffff" />
                 </TouchableOpacity>
+
+                {/* Bottom Disclaimer */}
+                <View style={styles.kycNoticeRow}>
+                  <Ionicons name="information-circle-outline" size={14} color="#64748b" />
+                  <Text style={styles.kycNoticeText}>
+                    {t('dashboard.documents_review_note')}
+                  </Text>
+                </View>
               </View>
             )}
 
@@ -944,10 +1103,10 @@ export default function DriverDashboardScreen() {
                     <Ionicons
                       name="car-sport"
                       size={17}
-                      color={activeCardTab === 'MY_TRIPS' ? '#ea580c' : '#64748b'}
+                      color={activeCardTab === 'MY_TRIPS' ? '#0f2744' : '#64748b'}
                     />
                     <Text style={[styles.subTabText, activeCardTab === 'MY_TRIPS' && styles.subTabTextActive]}>
-                      My Trips
+                      {t('dashboard.subtab_my_trips')}
                     </Text>
                     {activeCardTab === 'MY_TRIPS' && <View style={styles.subTabUnderline} />}
                   </TouchableOpacity>
@@ -960,10 +1119,10 @@ export default function DriverDashboardScreen() {
                     <Ionicons
                       name="calendar-outline"
                       size={16}
-                      color={activeCardTab === 'UPCOMING' ? '#ea580c' : '#64748b'}
+                      color={activeCardTab === 'UPCOMING' ? '#0f2744' : '#64748b'}
                     />
                     <Text style={[styles.subTabText, activeCardTab === 'UPCOMING' && styles.subTabTextActive]}>
-                      Upcoming
+                      {t('dashboard.subtab_upcoming')}
                     </Text>
                     {activeCardTab === 'UPCOMING' && <View style={styles.subTabUnderline} />}
                   </TouchableOpacity>
@@ -976,10 +1135,10 @@ export default function DriverDashboardScreen() {
                     <Ionicons
                       name="time-outline"
                       size={16}
-                      color={activeCardTab === 'HISTORY' ? '#ea580c' : '#64748b'}
+                      color={activeCardTab === 'HISTORY' ? '#0f2744' : '#64748b'}
                     />
                     <Text style={[styles.subTabText, activeCardTab === 'HISTORY' && styles.subTabTextActive]}>
-                      History
+                      {t('dashboard.subtab_history')}
                     </Text>
                     {activeCardTab === 'HISTORY' && <View style={styles.subTabUnderline} />}
                   </TouchableOpacity>
@@ -1018,10 +1177,10 @@ export default function DriverDashboardScreen() {
                               onPress={() => openNavigationMap(currentTrip.pickupLat, currentTrip.pickupLng, currentTrip.pickupAddress)}
                               activeOpacity={0.7}
                             >
-                              <View style={styles.pickupCircle} />
+                              <Ionicons name="location-sharp" size={16} color="#16a34a" style={styles.pickupPin} />
                               <View style={styles.stepTextGroup}>
                                 <Text style={styles.locationTitle}>{currentTrip.pickupAddress}</Text>
-                                <Text style={styles.locationSubtitle}>Pickup Location 📍 (Tap to navigate)</Text>
+                                <Text style={styles.locationSubtitle}>{t('dashboard.pickup_location_nav')}</Text>
                               </View>
                             </TouchableOpacity>
 
@@ -1032,10 +1191,10 @@ export default function DriverDashboardScreen() {
                               onPress={() => openNavigationMap(currentTrip.dropLat, currentTrip.dropLng, currentTrip.dropAddress)}
                               activeOpacity={0.7}
                             >
-                              <View style={styles.dropCircle} />
+                              <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
                               <View style={styles.stepTextGroup}>
                                 <Text style={styles.locationTitle}>{currentTrip.dropAddress}</Text>
-                                <Text style={styles.locationSubtitle}>Destination 🏁 (Tap to navigate)</Text>
+                                <Text style={styles.locationSubtitle}>{t('dashboard.destination_nav')}</Text>
                               </View>
                             </TouchableOpacity>
                           </View>
@@ -1052,7 +1211,7 @@ export default function DriverDashboardScreen() {
                           >
                             <Ionicons name="navigate" size={15} color="#2563eb" />
                             <Text style={styles.stepperViewRouteText}>
-                              {isTripInProcess ? 'Drop-off Route' : 'Pickup Location'}
+                              {isTripInProcess ? t('dashboard.drop_off_route') : t('dashboard.pickup_location')}
                             </Text>
                             <Ionicons name="chevron-forward" size={13} color="#2563eb" />
                           </TouchableOpacity>
@@ -1110,7 +1269,7 @@ export default function DriverDashboardScreen() {
                           {/* Col 3: Distance / Trip Type */}
                           <View style={styles.infoThreeCol}>
                             <View style={styles.infoColHeaderRow}>
-                              <Ionicons name="navigate-outline" size={14} color="#ea580c" />
+                              <Ionicons name="navigate-outline" size={14} color="#0f2744" />
                               <Text style={styles.infoColHeaderLabel} numberOfLines={1}>Distance</Text>
                             </View>
                             <Text style={styles.infoFareValBold}>
@@ -1138,7 +1297,7 @@ export default function DriverDashboardScreen() {
                                   activeOpacity={0.85}
                                 >
                                   <Ionicons name="camera" size={15} color="#ffffff" style={{ marginRight: 2 }} />
-                                  <Text style={styles.inspectionBtnText}>VEHICLE INSPECTION</Text>
+                                  <Text style={styles.inspectionBtnText}>{t('dashboard.vehicle_inspection')}</Text>
                                 </TouchableOpacity>
                               ) : (
                                 <TouchableOpacity
@@ -1166,7 +1325,7 @@ export default function DriverDashboardScreen() {
                                 >
                                   <Ionicons name={isTripInProcess ? 'navigate' : 'car'} size={17} color="#ffffff" style={{ marginRight: 4 }} />
                                   <Text style={styles.greenBtnText}>
-                                    {isTripInProcess ? 'ON TRIP' : 'START TRIP'}
+                                    {isTripInProcess ? t('dashboard.on_trip') : t('dashboard.start_trip_caps')}
                                   </Text>
                                 </TouchableOpacity>
                               )}
@@ -1181,9 +1340,9 @@ export default function DriverDashboardScreen() {
                                 }}
                                 activeOpacity={0.85}
                               >
-                                <Ionicons name="location" size={17} color="#ea580c" />
+                                <Ionicons name="location" size={17} color="#0f2744" />
                                 <Text style={styles.creamBtnText}>
-                                  {isTripInProcess ? 'DROP OFF LOCATION' : 'PICKUP LOCATION'}
+                                  {isTripInProcess ? t('dashboard.drop_off_location') : t('dashboard.pickup_location')}
                                 </Text>
                               </TouchableOpacity>
                             </View>
@@ -1198,7 +1357,7 @@ export default function DriverDashboardScreen() {
                             activeOpacity={0.8}
                           >
                             <Ionicons name="call" size={14} color="#0f172a" />
-                            <Text style={styles.quickActionText}>CALL CUSTOMER</Text>
+                            <Text style={styles.quickActionText}>{t('dashboard.call_customer')}</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -1207,7 +1366,7 @@ export default function DriverDashboardScreen() {
                             activeOpacity={0.8}
                           >
                             <Ionicons name="chatbox" size={14} color="#0f172a" />
-                            <Text style={styles.quickActionText}>MESSAGE</Text>
+                            <Text style={styles.quickActionText}>{t('dashboard.message')}</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -1221,7 +1380,7 @@ export default function DriverDashboardScreen() {
                             activeOpacity={0.8}
                           >
                             <Ionicons name="document-text" size={14} color="#0f172a" />
-                            <Text style={styles.quickActionText}>TRIP DETAILS</Text>
+                            <Text style={styles.quickActionText}>{t('dashboard.trip_details')}</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -1231,7 +1390,7 @@ export default function DriverDashboardScreen() {
                   upcomingBookings.length === 0 ? (
                     <View style={styles.emptyCardInner}>
                       <Ionicons name="calendar-outline" size={32} color="#94a3b8" style={{ marginBottom: 8 }} />
-                      <Text style={styles.emptyCardInnerTitle}>No Upcoming Scheduled Trips</Text>
+                      <Text style={styles.emptyCardInnerTitle}>{t('dashboard.no_upcoming_scheduled')}</Text>
                       <Text style={styles.emptyCardInnerSubtitle}>Accepted rides and advanced bookings allocated to you will appear here.</Text>
                     </View>
                   ) : (
@@ -1258,12 +1417,12 @@ export default function DriverDashboardScreen() {
                             {/* Top Row: Ref & Upcoming Tag */}
                             <View style={styles.bookingTopRow}>
                               <View>
-                                <Text style={styles.bookingIdLabel}>Upcoming Booking</Text>
+                                <Text style={styles.bookingIdLabel}>{t('dashboard.upcoming_booking')}</Text>
                                 <Text style={styles.bookingIdNumber}>{upBooking.humanReadableRef}</Text>
                               </View>
                               <View style={styles.upcomingBadgePill}>
                                 <Ionicons name="calendar" size={11} color="#2563eb" />
-                                <Text style={styles.upcomingBadgeText}>NEXT IN QUEUE</Text>
+                                <Text style={styles.upcomingBadgeText}>{t('dashboard.next_in_queue')}</Text>
                               </View>
                             </View>
 
@@ -1275,10 +1434,10 @@ export default function DriverDashboardScreen() {
                                   onPress={() => openNavigationMap(upBooking.pickupLat, upBooking.pickupLng, upBooking.pickupAddress)}
                                   activeOpacity={0.7}
                                 >
-                                  <View style={styles.pickupCircle} />
+                                  <Ionicons name="location-sharp" size={16} color="#16a34a" style={styles.pickupPin} />
                                   <View style={styles.stepTextGroup}>
                                     <Text style={styles.locationTitle}>{upBooking.pickupAddress}</Text>
-                                    <Text style={styles.locationSubtitle}>Pickup Location 📍</Text>
+                                    <Text style={styles.locationSubtitle}>{t('dashboard.pickup_pin')}</Text>
                                   </View>
                                 </TouchableOpacity>
 
@@ -1289,10 +1448,10 @@ export default function DriverDashboardScreen() {
                                   onPress={() => openNavigationMap(upBooking.dropLat, upBooking.dropLng, upBooking.dropAddress)}
                                   activeOpacity={0.7}
                                 >
-                                  <View style={styles.dropCircle} />
+                                  <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
                                   <View style={styles.stepTextGroup}>
                                     <Text style={styles.locationTitle}>{upBooking.dropAddress}</Text>
-                                    <Text style={styles.locationSubtitle}>Destination 🏁</Text>
+                                    <Text style={styles.locationSubtitle}>{t('dashboard.destination_pin')}</Text>
                                   </View>
                                 </TouchableOpacity>
                               </View>
@@ -1379,9 +1538,9 @@ export default function DriverDashboardScreen() {
                 ) : (
                   <View style={styles.emptyCardInner}>
                     <Ionicons name="time-outline" size={32} color="#94a3b8" style={{ marginBottom: 8 }} />
-                    <Text style={styles.emptyCardInnerTitle}>Recent Trip History</Text>
+                    <Text style={styles.emptyCardInnerTitle}>{t('dashboard.recent_trip_history')}</Text>
                     <Text style={styles.emptyCardInnerSubtitle}>
-                      {driverTrips.length} completed trips recorded. Switch to the 'My Trips' bottom tab for full accounting.
+                      {t('dashboard.recent_trip_history_sub', { count: driverTrips.length })}
                     </Text>
                   </View>
                 )}
@@ -1393,14 +1552,14 @@ export default function DriverDashboardScreen() {
               <View style={styles.separateQueuedCardWrapper}>
                 <View style={styles.separateQueuedHeader}>
                   <View style={styles.separateQueuedHeaderLeft}>
-                    <Ionicons name="layers" size={17} color="#ea580c" />
+                    <Ionicons name="layers" size={17} color="#0f2744" />
                     <Text style={styles.separateQueuedTitle}>
-                      Queued / Accepted Trips ({upcomingBookings.length})
+                      {t('dashboard.queued_accepted_trips', { count: upcomingBookings.length })}
                     </Text>
                   </View>
                   <View style={styles.queuedBadgeLight}>
                     <Ionicons name="time" size={11} color="#2563eb" />
-                    <Text style={styles.queuedBadgeTextLight}>Next In Queue</Text>
+                    <Text style={styles.queuedBadgeTextLight}>{t('dashboard.next_in_queue_light')}</Text>
                   </View>
                 </View>
 
@@ -1443,10 +1602,10 @@ export default function DriverDashboardScreen() {
                               onPress={() => openNavigationMap(upBooking.pickupLat, upBooking.pickupLng, upBooking.pickupAddress)}
                               activeOpacity={0.7}
                             >
-                              <View style={styles.pickupCircle} />
+                              <Ionicons name="location-sharp" size={16} color="#16a34a" style={styles.pickupPin} />
                               <View style={styles.stepTextGroup}>
                                 <Text style={styles.locationTitle}>{upBooking.pickupAddress}</Text>
-                                <Text style={styles.locationSubtitle}>Pickup Location 📍</Text>
+                                <Text style={styles.locationSubtitle}>{t('dashboard.pickup_pin')}</Text>
                               </View>
                             </TouchableOpacity>
 
@@ -1457,10 +1616,10 @@ export default function DriverDashboardScreen() {
                               onPress={() => openNavigationMap(upBooking.dropLat, upBooking.dropLng, upBooking.dropAddress)}
                               activeOpacity={0.7}
                             >
-                              <View style={styles.dropCircle} />
+                              <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
                               <View style={styles.stepTextGroup}>
                                 <Text style={styles.locationTitle}>{upBooking.dropAddress}</Text>
-                                <Text style={styles.locationSubtitle}>Destination 🏁</Text>
+                                <Text style={styles.locationSubtitle}>{t('dashboard.destination_pin')}</Text>
                               </View>
                             </TouchableOpacity>
                           </View>
@@ -1538,7 +1697,7 @@ export default function DriverDashboardScreen() {
                             }}
                             activeOpacity={0.8}
                           >
-                            <Ionicons name="document-text" size={15} color="#ea580c" />
+                            <Ionicons name="document-text" size={15} color="#0f2744" />
                             <Text style={[styles.creamBtnText, { fontSize: 11.5 }]}>DETAILS</Text>
                           </TouchableOpacity>
                         </View>
@@ -1554,9 +1713,9 @@ export default function DriverDashboardScreen() {
               <View style={styles.offlineBoxWhite}>
                 <View style={styles.dispatchesCardHeader}>
                   <View style={styles.dispatchesHeaderLeft}>
-                    <Ionicons name="car-sport" size={17} color="#ea580c" />
+                    <Ionicons name="car-sport" size={17} color="#0f2744" />
                     <Text style={styles.dispatchesTitle}>
-                      Admin Bookings & Assignments
+                      Admin Assignments
                     </Text>
                   </View>
                   <View style={styles.pausedBadge}>
@@ -1594,9 +1753,9 @@ export default function DriverDashboardScreen() {
                 <View style={styles.radarCardWhite}>
                   <View style={styles.dispatchesCardHeader}>
                     <View style={styles.dispatchesHeaderLeft}>
-                      <Ionicons name="car-sport" size={17} color="#ea580c" />
+                      <Ionicons name="car-sport" size={17} color="#0f2744" />
                       <Text style={styles.dispatchesTitle}>
-                        Admin Bookings & Assignments
+                        Admin Assignments
                       </Text>
                     </View>
                     <View style={styles.listeningBadgeLight}>
@@ -1609,7 +1768,7 @@ export default function DriverDashboardScreen() {
 
                   <View style={styles.radarCardBody}>
                     <View style={styles.radarIconCircleDark}>
-                      <Ionicons name="shield-checkmark" size={28} color="#ea580c" />
+                      <Ionicons name="shield-checkmark" size={28} color="#0f2744" />
                     </View>
                     <Text style={styles.radarTitleDark}>Ready for Admin Assignment</Text>
                     <Text style={styles.radarSubtitleDark}>
@@ -1627,7 +1786,7 @@ export default function DriverDashboardScreen() {
                         activeOpacity={0.85}
                       >
                         <View style={styles.radarKycIconCircle}>
-                          <Ionicons name="warning" size={18} color="#f97316" />
+                          <Ionicons name="warning" size={18} color="#0f2744" />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={styles.radarKycNoticeTitle}>KYC Verification Incomplete</Text>
@@ -1648,14 +1807,14 @@ export default function DriverDashboardScreen() {
                 {currentTrip && (
                   <View style={styles.otherTripsHeader}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Ionicons name="radio" size={16} color="#ea580c" />
+                      <Ionicons name="radio" size={16} color="#0f2744" />
                       <Text style={styles.otherTripsHeaderTitle}>
-                        Assigned Trips from Admin <Text style={styles.dispatchesCount}>({dispatches.length})</Text>
+                        {t('dashboard.assigned_trips_from_admin')} <Text style={styles.dispatchesCount}>({dispatches.length})</Text>
                       </Text>
                     </View>
                     <View style={styles.availableQueueBadge}>
                       <Ionicons name="checkmark-circle" size={11} color="#15803d" />
-                      <Text style={styles.availableQueueBadgeText}>Accept Available</Text>
+                      <Text style={styles.availableQueueBadgeText}>{t('dashboard.accept_available')}</Text>
                     </View>
                   </View>
                 )}
@@ -1666,15 +1825,18 @@ export default function DriverDashboardScreen() {
 
                   return (
                     <View key={d.id} style={styles.floatingDispatchCardWhite}>
-                      <View style={styles.dispatchHeaderRow}>
-                        <View>
-                          <View style={styles.newAlertBadge}>
-                            <Text style={styles.newAlertText}>⚡ DIRECT ADMIN ASSIGNMENT</Text>
+                      <View style={styles.dispatchHeaderBanner}>
+                        <View style={styles.dispatchHeaderRow}>
+                          <View>
+                            <View style={styles.newAlertBadge}>
+                              <Ionicons name="radio-button-on" size={13} color="#2563eb" />
+                              <Text style={styles.newAlertText}>{t('dashboard.new_ride')}</Text>
+                            </View>
+                            <Text style={styles.dispatchRefText}>{b.humanReadableRef}</Text>
                           </View>
-                          <Text style={styles.dispatchRefText}>{b.humanReadableRef}</Text>
-                        </View>
-                        <View style={styles.distanceBadgeLight}>
-                          <Text style={styles.distanceBadgeTextLight}>📍 {b.distanceKm} km</Text>
+                          <View style={styles.distanceBadgeLight}>
+                            <Text style={styles.distanceBadgeTextLight}>📍 {b.distanceKm} km</Text>
+                          </View>
                         </View>
                       </View>
 
@@ -1682,18 +1844,18 @@ export default function DriverDashboardScreen() {
                       <View style={styles.stepperContainer}>
                         <View style={styles.stepperLeft}>
                           <View style={styles.stepPoint}>
-                            <View style={styles.pickupCircle} />
+                            <Ionicons name="location-sharp" size={16} color="#16a34a" style={styles.pickupPin} />
                             <View style={styles.stepTextGroup}>
                               <Text style={styles.locationTitle}>{b.pickupAddress}</Text>
-                              <Text style={styles.locationSubtitle}>Pickup Location</Text>
+                              <Text style={styles.locationSubtitle}>{t('dashboard.pickup_location_title')}</Text>
                             </View>
                           </View>
                           <View style={styles.dashedTrail} />
                           <View style={styles.stepPoint}>
-                            <View style={styles.dropCircle} />
+                            <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
                             <View style={styles.stepTextGroup}>
                               <Text style={styles.locationTitle}>{b.dropAddress}</Text>
-                              <Text style={styles.locationSubtitle}>Destination</Text>
+                              <Text style={styles.locationSubtitle}>{t('dashboard.drop')}</Text>
                             </View>
                           </View>
                         </View>
@@ -1721,7 +1883,7 @@ export default function DriverDashboardScreen() {
               </View>
             )}
             </View>
-          </>
+          </View>
         )}
 
         {/* ============================================================ */}
@@ -1733,17 +1895,16 @@ export default function DriverDashboardScreen() {
               <View style={{ paddingVertical: 48, alignItems: 'center', justifyContent: 'center' }}>
                 <ActivityIndicator size="large" color="#ea580c" />
                 <Text style={{ color: '#0f172a', marginTop: 14, fontWeight: '700', fontSize: 14 }}>
-                  Loading Trip Accounting & History...
+                  {t('trips.loading_title')}
                 </Text>
                 <Text style={{ color: '#64748b', marginTop: 4, fontSize: 12 }}>
-                  Fetching settlements and monthly breakdowns
+                  {t('trips.loading_sub')}
                 </Text>
               </View>
             ) : (
               <>
                 {/* Month Selector Pills */}
                 <View style={styles.monthSelectorBoxWhite}>
-                  <Text style={styles.monthSelectorLabelDark}>📅 SELECT BILLING MONTH</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.monthPillsScroll}>
                     {currentMonthSummary && (
                       <TouchableOpacity
@@ -1752,7 +1913,7 @@ export default function DriverDashboardScreen() {
                         activeOpacity={0.7}
                       >
                         <Text style={[styles.monthPillTextDark, selectedMonthKey === currentMonthSummary.monthKey && styles.monthPillTextWhite]}>
-                          ⚡ {currentMonthSummary.shortMonth} (This Month)
+                          {currentMonthSummary.shortMonth} ({t('trips.this_month')})
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -1764,7 +1925,7 @@ export default function DriverDashboardScreen() {
                         activeOpacity={0.7}
                       >
                         <Text style={[styles.monthPillTextDark, selectedMonthKey === previousMonthSummary.monthKey && styles.monthPillTextWhite]}>
-                          ⏮️ {previousMonthSummary.shortMonth} (Last Month)
+                          {previousMonthSummary.shortMonth} ({t('trips.last_month')})
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -1779,7 +1940,7 @@ export default function DriverDashboardScreen() {
                           activeOpacity={0.7}
                         >
                           <Text style={[styles.monthPillTextDark, selectedMonthKey === m.monthKey && styles.monthPillTextWhite]}>
-                            🗓️ {m.shortMonth}
+                            {m.shortMonth}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -1790,7 +1951,7 @@ export default function DriverDashboardScreen() {
                       activeOpacity={0.7}
                     >
                       <Text style={[styles.monthPillTextDark, selectedMonthKey === 'ALL' && styles.monthPillTextWhite]}>
-                        🌐 All Time
+                        {t('trips.all_time')}
                       </Text>
                     </TouchableOpacity>
                   </ScrollView>
@@ -1801,24 +1962,24 @@ export default function DriverDashboardScreen() {
                   <View style={styles.kpiHeaderRow}>
                     <Text style={styles.kpiHeaderLabelOrange}>
                       {selectedMonthKey === 'ALL'
-                        ? '🌐 ALL TIME TRIPS'
+                        ? t('trips.all_time_trips')
                         : selectedMonthKey === currentMonthSummary?.monthKey
-                        ? `📅 THIS MONTH (${(currentMonthSummary.monthName || '').toUpperCase()})`
-                        : `🗓️ ${(selectedMonthKey).toUpperCase()} TRIPS`}
+                        ? `${t('trips.this_month_caps')} (${(currentMonthSummary.monthName || '').toUpperCase()})`
+                        : `${(selectedMonthKey).toUpperCase()} ${t('trips.trips_caps')}`}
                     </Text>
                     <View style={styles.kpiTripsCountBadgeLight}>
-                      <Text style={styles.kpiTripsCountTextGreen}>{activeKpiSummary.completedTripsCount || 0} Completed Trips</Text>
+                      <Text style={styles.kpiTripsCountTextGreen}>{activeKpiSummary.completedTripsCount || 0} {t('trips.completed_trips_count')}</Text>
                     </View>
                   </View>
 
                   <View style={styles.kpiSettlementRowLight}>
                     <View style={styles.kpiSettledPillLight}>
-                      <Text style={styles.kpiSettledLabel}>✓ PAID TRIPS</Text>
-                      <Text style={styles.kpiSettledCountText}>{activeKpiSummary.paidTripsCount || 0} Settled</Text>
+                      <Text style={styles.kpiSettledLabel}>{t('trips.paid_trips')}</Text>
+                      <Text style={styles.kpiSettledCountText}>{activeKpiSummary.paidTripsCount || 0} {t('trips.settled')}</Text>
                     </View>
                     <View style={styles.kpiPendingPillLight}>
-                      <Text style={styles.kpiPendingLabel}>⏳ NOT PAID TRIPS</Text>
-                      <Text style={styles.kpiPendingCountText}>{activeKpiSummary.unpaidTripsCount || 0} Pending</Text>
+                      <Text style={styles.kpiPendingLabel}>{t('trips.not_paid_trips')}</Text>
+                      <Text style={styles.kpiPendingCountText}>{activeKpiSummary.unpaidTripsCount || 0} {t('trips.pending')}</Text>
                     </View>
                   </View>
                 </View>
@@ -1826,23 +1987,28 @@ export default function DriverDashboardScreen() {
                 {/* Trips List */}
                 <View style={styles.tripsHeaderRow}>
                   <Text style={styles.tripsHeaderTitleDark}>
-                    Trip History ({filteredTrips.length}{selectedMonthKey !== 'ALL' ? ' in selected month' : ''})
+                    {t('trips.trip_history')} ({filteredTrips.length}{selectedMonthKey !== 'ALL' ? ` ${t('trips.in_selected_month')}` : ''})
                   </Text>
                   <TouchableOpacity onPress={() => fetchTripsData(true)} style={styles.refreshBtnLight} disabled={tripsLoading}>
-                    <Text style={styles.refreshBtnTextOrange}>
-                      {tripsLoading ? '⏳ Refreshing...' : '🔄 Refresh'}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="refresh" size={12} color="#162232" />
+                      <Text style={styles.refreshBtnTextOrange}>
+                        {tripsLoading ? t('trips.refreshing') : t('trips.refresh')}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
 
             {filteredTrips.length === 0 ? (
               <View style={styles.emptyCardWhite}>
-                <Text style={styles.emptyCardEmoji}>🧾</Text>
-                <Text style={styles.emptyCardTitleDark}>No Trips in Selected Period</Text>
+                <View style={{ marginBottom: 10 }}>
+                  <Ionicons name="receipt-outline" size={40} color="#94a3b8" />
+                </View>
+                <Text style={styles.emptyCardTitleDark}>{t('trips.no_trips_title')}</Text>
                 <Text style={styles.emptyCardSubtitleDark}>
                   {selectedMonthKey === 'ALL'
-                    ? 'Your assigned rides and payment statuses will appear here.'
-                    : `No completed rides recorded for ${selectedMonthKey}. Select another month or All Time.`}
+                    ? t('trips.no_trips_all')
+                    : t('trips.no_trips_month', { month: selectedMonthKey })}
                 </Text>
               </View>
             ) : (
@@ -1871,7 +2037,7 @@ export default function DriverDashboardScreen() {
                         </View>
                         <View style={[styles.settledBadgePill, isSettled ? styles.badgeGreen : styles.badgeAmber]}>
                           <Text style={isSettled ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                            {isSettled ? '✓ PAID' : '⏳ NOT PAID'}
+                            {isSettled ? t('trips.paid') : t('trips.not_paid')}
                           </Text>
                         </View>
                       </View>
@@ -1879,21 +2045,21 @@ export default function DriverDashboardScreen() {
 
                     <View style={styles.tripCardRoute}>
                       <Text style={styles.tripRouteLine} numberOfLines={1}>
-                        📍 <Text style={{ fontWeight: '700' }}>Pickup:</Text> {trip.pickupAddress}
+                        <Text style={{ fontWeight: '700' }}>{t('trips.pickup')} </Text>{trip.pickupAddress}
                       </Text>
                       <Text style={styles.tripRouteLine} numberOfLines={1}>
-                        🏁 <Text style={{ fontWeight: '700' }}>Drop:</Text> {trip.dropAddress}
+                        <Text style={{ fontWeight: '700' }}>{t('trips.drop')} </Text>{trip.dropAddress}
                       </Text>
                       <Text style={styles.tripDistanceLine}>
-                        🚗 Distance: {trip.distanceKm} km
+                        <Text style={{ fontWeight: '700' }}>{t('trips.distance')} </Text>{trip.distanceKm} km
                       </Text>
                     </View>
 
                     <View style={styles.tripPaymentStatusRow}>
-                      <Text style={styles.tripPaymentStatusLabel}>Driver Payment Status:</Text>
+                      <Text style={styles.tripPaymentStatusLabel}>{t('trips.driver_payment_status')}</Text>
                       <View style={[styles.settledBadgePillInline, isSettled ? styles.badgeGreen : styles.badgeAmber]}>
                         <Text style={isSettled ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                          {isSettled ? '✓ PAID' : '⏳ NOT PAID'}
+                          {isSettled ? `✓ ${t('trips.paid')}` : `⏳ ${t('trips.not_paid')}`}
                         </Text>
                       </View>
                     </View>
@@ -1912,10 +2078,12 @@ export default function DriverDashboardScreen() {
         {activeBottomTab === 'SUPPORT' && (
           <View style={styles.tabSectionContainer}>
             <View style={styles.supportHeaderCardWhite}>
-              <Text style={styles.supportHeaderEmoji}>🎧</Text>
-              <Text style={styles.supportHeaderTitleDark}>Driver Partner Support Desk</Text>
+              <View style={{ marginBottom: 6 }}>
+                <Ionicons name="headset-outline" size={32} color="#0f2744" />
+              </View>
+              <Text style={styles.supportHeaderTitleDark}>{t('support.header_title')}</Text>
               <Text style={styles.supportHeaderSubtitleDark}>
-                We are here 24 hours a day, 7 days a week to ensure safe and comfortable driving operations.
+                {t('support.header_subtitle')}
               </Text>
             </View>
 
@@ -1926,12 +2094,12 @@ export default function DriverDashboardScreen() {
               activeOpacity={0.8}
             >
               <View style={styles.supportActionIconCircleGreen}>
-                <Text style={styles.supportActionIcon}>📞</Text>
+                <Ionicons name="call" size={20} color="#0f172a" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.supportActionTitle}>24x7 Driver Partner Helpline</Text>
-                <Text style={styles.supportActionSubtitle}>Call dispatch desk for immediate roadside or trip assistance</Text>
-                <Text style={styles.supportActionPhone}>+91 88888 88888 (Toll Free)</Text>
+                <Text style={styles.supportActionTitle}>{t('support.helpline_title')}</Text>
+                <Text style={styles.supportActionSubtitle}>{t('support.helpline_subtitle')}</Text>
+                <Text style={styles.supportActionPhone}>{t('support.toll_free')}</Text>
               </View>
               <Text style={styles.supportActionArrow}>›</Text>
             </TouchableOpacity>
@@ -1943,12 +2111,12 @@ export default function DriverDashboardScreen() {
               activeOpacity={0.8}
             >
               <View style={styles.supportActionIconCircleEmerald}>
-                <Text style={styles.supportActionIcon}>💬</Text>
+                <Ionicons name="logo-whatsapp" size={22} color="#16a34a" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.supportActionTitle}>WhatsApp Dispatch Desk</Text>
-                <Text style={styles.supportActionSubtitle}>Send trip screenshots, toll receipts, or ask billing questions</Text>
-                <Text style={styles.supportActionEmeraldText}>Instant WhatsApp Response</Text>
+                <Text style={styles.supportActionTitle}>{t('support.whatsapp_title')}</Text>
+                <Text style={styles.supportActionSubtitle}>{t('support.whatsapp_subtitle')}</Text>
+                <Text style={styles.supportActionEmeraldText}>{t('support.whatsapp_response')}</Text>
               </View>
               <Text style={styles.supportActionArrow}>›</Text>
             </TouchableOpacity>
@@ -1958,31 +2126,31 @@ export default function DriverDashboardScreen() {
               style={styles.supportSosCard}
               onPress={() => {
                 Alert.alert(
-                  '🚨 Emergency SOS',
-                  'Are you in immediate physical danger or an accident? Tap below to call emergency services.',
+                  t('support.sos_alert_title'),
+                  t('support.sos_alert_msg'),
                   [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Call 112 Emergency', style: 'destructive', onPress: () => Linking.openURL('tel:112') },
+                    { text: t('common.cancel'), style: 'cancel' },
+                    { text: t('support.call_112'), style: 'destructive', onPress: () => Linking.openURL('tel:112') },
                   ]
                 );
               }}
               activeOpacity={0.8}
             >
               <View style={styles.sosIconBox}>
-                <Text style={styles.sosIcon}>🚨</Text>
+                <Ionicons name="warning" size={18} color="#ffffff" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.sosTitle}>Emergency SOS & Police Beacon</Text>
-                <Text style={styles.sosSubtitle}>Direct hotline to 112 & Kandy Emergency Incident Team</Text>
+                <Text style={styles.sosTitle}>{t('support.sos_title')}</Text>
+                <Text style={styles.sosSubtitle}>{t('support.sos_subtitle')}</Text>
               </View>
             </TouchableOpacity>
 
             {/* Driver Policy & FAQs */}
             <View style={styles.faqBoxWhite}>
-              <Text style={styles.faqTitleOrange}>Driver Partner Guidelines:</Text>
-              <Text style={styles.faqItemDark}>• <Text style={{ fontWeight: '700' }}>Night Charges:</Text> ₹400/night applies for trips starting or ending between 10 PM and 6 AM.</Text>
-              <Text style={styles.faqItemDark}>• <Text style={{ fontWeight: '700' }}>Toll & Parking:</Text> Always retain fastag receipts to claim toll balance reimbursement.</Text>
-              <Text style={styles.faqItemDark}>• <Text style={{ fontWeight: '700' }}>Customer OTP:</Text> Never begin a ride before verifying the passenger's 4-digit code.</Text>
+              <Text style={styles.faqTitleOrange}>{t('support.guidelines_title')}</Text>
+              <Text style={styles.faqItemDark}>• <Text style={{ fontWeight: '700' }}>{t('support.night_charges_label')}</Text>{t('support.night_charges_desc')}</Text>
+              <Text style={styles.faqItemDark}>• <Text style={{ fontWeight: '700' }}>{t('support.toll_parking_label')}</Text>{t('support.toll_parking_desc')}</Text>
+              <Text style={styles.faqItemDark}>• <Text style={{ fontWeight: '700' }}>{t('support.customer_otp_label')}</Text>{t('support.customer_otp_desc')}</Text>
             </View>
           </View>
         )}
@@ -1992,207 +2160,382 @@ export default function DriverDashboardScreen() {
         {/* ============================================================ */}
         {activeBottomTab === 'PROFILE' && (
           <View style={styles.tabSectionContainer}>
-            {/* Pending Alert Banner if any KYC document is pending */}
-            {hasPendingDocuments && (
+            {/* 1. Driver Hero Card */}
+            <View style={styles.profileHeroCardOuter}>
+              <ImageBackground
+                source={require('../assets/images/hero-driver-card-navy-2x.png')}
+                style={styles.profileHeroCardBg}
+                imageStyle={{ borderRadius: 20, resizeMode: 'cover' }}
+              >
+                <View style={styles.profileHeroCardOverlay}>
+                  <View style={styles.profileHeroAvatarOuter}>
+                    <View style={styles.profileHeroAvatarInner}>
+                      {driver?.profilePhotoUrl ? (
+                        <Image
+                          source={{ uri: driver.profilePhotoUrl }}
+                          style={styles.profileHeroAvatarImg}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={styles.profileHeroAvatarFallback}>
+                          <Ionicons name="person" size={34} color="#0f2744" />
+                        </View>
+                      )}
+                    </View>
+                    {/* Camera icon badge */}
+                    <TouchableOpacity
+                      style={styles.profileHeroCameraBadge}
+                      onPress={() => router.push('/documents')}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="camera" size={11} color="#0f2744" />
+                    </TouchableOpacity>
+                    {/* Status indicator dot - only shown when driver is verified */}
+                    {!hasPendingDocuments && driver?.verificationStatus === 'APPROVED' && (
+                      <View style={[styles.profileHeroOnlineDot, { backgroundColor: onlineStatus ? '#22c55e' : '#94a3b8' }]} />
+                    )}
+                  </View>
+
+                  <View style={styles.profileHeroInfo}>
+                    <Text style={styles.profileHeroName} numberOfLines={1}>
+                      {driver?.fullName || 'Ramesh Kumar'}
+                    </Text>
+                    <Text style={styles.profileHeroRole}>
+                      ({driver?.roles?.[0] ? (driver.roles[0] === 'DRIVER' ? 'Test Driver' : driver.roles[0]) : 'Test Driver'})
+                    </Text>
+                    <View style={styles.profileHeroPhoneRow}>
+                      <Ionicons name="call" size={12} color="#ffffff" style={{ marginRight: 5 }} />
+                      <Text style={styles.profileHeroPhone}>
+                        +91 {driver?.phone || '91888888888'}
+                      </Text>
+                    </View>
+                    <View style={styles.profileHeroRatingPill}>
+                      <Ionicons name="star" size={11} color="#f59e0b" style={{ marginRight: 3 }} />
+                      <Text style={styles.profileHeroRatingText}>4.9 Rating</Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => router.push('/documents')}
+                    style={styles.profileHeroChevronBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="chevron-forward" size={22} color="#ffffff" />
+                  </TouchableOpacity>
+                </View>
+              </ImageBackground>
+            </View>
+
+            {/* 2. KYC Verification Status Banner */}
+            {hasPendingDocuments ? (
               <TouchableOpacity
-                style={styles.pendingKycAlertCard}
+                style={styles.profileKycBannerPending}
                 onPress={() => router.push('/documents')}
                 activeOpacity={0.85}
               >
-                <View style={styles.pendingKycAlertIconBox}>
-                  <Text style={{ fontSize: 20 }}>⚠️</Text>
+                <View style={styles.profileKycIconPending}>
+                  <MaterialCommunityIcons name="shield-alert-outline" size={28} color="#ef4444" />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.pendingKycAlertTitle}>KYC Verification Incomplete</Text>
-                  <Text style={styles.pendingKycAlertSub}>Upload pending KYC documents & vehicle specifications</Text>
-                </View>
-                <View style={styles.pendingKycActionBtn}>
-                  <Text style={styles.pendingKycActionText}>Upload ›</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-
-            {/* Driver Card */}
-            <View style={styles.profileHeaderCardWhite}>
-              <View style={styles.profileAvatarLarge}>
-                {driver?.profilePhotoUrl ? (
-                  <Image
-                    source={{ uri: driver.profilePhotoUrl }}
-                    style={styles.profileAvatarPhotoLarge}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <Text style={{ fontSize: 36 }}>👨🏽‍✈️</Text>
-                )}
-              </View>
-              <Text style={styles.profileDriverNameDark}>{driver?.fullName || 'Driver Partner'}</Text>
-              <Text style={styles.profileDriverPhoneDark}>📱 +91 {driver?.phone || '8888888888'}</Text>
-              <View style={styles.profileTierBadgeRow}>
-                <View style={driver?.verificationStatus === 'APPROVED' ? styles.verifiedBadgeLight : styles.pendingBadgeLight}>
-                  <Text style={driver?.verificationStatus === 'APPROVED' ? styles.verifiedBadgeText : styles.pendingBadgeText}>
-                    {driver?.verificationStatus === 'APPROVED' ? '✓ Verified Partner' : '⏳ Verification Pending'}
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={styles.profileKycTitlePending}>{t('profile.kyc_incomplete')}</Text>
+                  <Text style={styles.profileKycSubPending}>
+                    {t('profile.kyc_incomplete_sub')}
                   </Text>
                 </View>
-                <View style={styles.ratingBadgeLight}>
-                  <Text style={styles.ratingBadgeText}>⭐ 4.9 Rating</Text>
+                <View style={styles.profileKycBtnPending}>
+                  <Text style={styles.profileKycBtnPendingText}>{t('profile.upload')}</Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.profileKycBannerComplete}>
+                <View style={styles.profileKycIconComplete}>
+                  <Ionicons name="shield-checkmark" size={28} color="#16a34a" />
+                </View>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={styles.profileKycTitleComplete}>{t('profile.kyc_complete')}</Text>
+                  <Text style={styles.profileKycSubComplete}>
+                    {t('profile.kyc_complete_sub')}
+                  </Text>
+                </View>
+                <View style={styles.profileKycBadgeVerified}>
+                  <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                  <Text style={styles.profileKycBadgeVerifiedText}>{t('profile.verified')}</Text>
                 </View>
               </View>
-            </View>
+            )}
 
-            {/* Vehicle Card */}
-            <View style={styles.profileSectionCardWhite}>
-              <Text style={styles.profileSectionTitle}>🚕 ASSIGNED CAB DETAILS</Text>
-              <View style={styles.profileDetailRow}>
-                <Text style={styles.profileDetailLabel}>Vehicle Plate:</Text>
-                <Text style={styles.profileDetailValueBold}>
-                  {driver?.vehicle?.plateNumber && driver.vehicle.plateNumber !== 'PENDING' && !driver.vehicle.plateNumber.startsWith('KA 01 TR 0000')
-                    ? driver.vehicle.plateNumber.toUpperCase()
-                    : 'Not Added (Pending KYC)'}
-                </Text>
-              </View>
-              <View style={styles.profileDetailRow}>
-                <Text style={styles.profileDetailLabel}>Category:</Text>
-                <Text style={styles.profileDetailValue}>{driver?.vehicle?.category || 'SEDAN'}</Text>
-              </View>
-              <View style={styles.profileDetailRow}>
-                <Text style={styles.profileDetailLabel}>Fuel / Emission:</Text>
-                <Text style={styles.profileDetailValue}>{driver?.vehicle?.fuelType || 'CNG / Green Compliant'}</Text>
-              </View>
-              <View style={styles.profileDetailRow}>
-                <Text style={styles.profileDetailLabel}>Seating Capacity:</Text>
-                <Text style={styles.profileDetailValue}>
-                  {driver?.vehicle?.seatCount ? `${driver.vehicle.seatCount} Passenger Seats` : '4 Passenger Seats'}
-                </Text>
-              </View>
-            </View>
-
-            {/* Verification Documents */}
-            <View style={styles.profileSectionCardWhite}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <Text style={styles.profileSectionTitle}>📑 DOCUMENT BADGES</Text>
-                <TouchableOpacity
-                  style={styles.uploadBadgeBtn}
-                  onPress={() => router.push('/documents')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.uploadBadgeBtnText}>📤 Upload / Edit</Text>
-                </TouchableOpacity>
+            {/* 3. Assigned Cab Details Card */}
+            <View style={styles.profileCardWhite}>
+              <View style={styles.profileCardHeader}>
+                <View style={styles.profileCardHeaderLeft}>
+                  <Ionicons name="car-sport" size={18} color="#0f2744" style={{ marginRight: 8 }} />
+                  <Text style={styles.profileCardHeaderTitle}>{t('profile.assigned_cab')}</Text>
+                </View>
+                <View style={styles.profilePlatePill}>
+                  <Text style={styles.profilePlatePillText}>
+                    {driver?.vehicle?.plateNumber && driver.vehicle.plateNumber !== 'PENDING' && !driver.vehicle.plateNumber.startsWith('KA 01 TR 0000')
+                      ? driver.vehicle.plateNumber.toUpperCase()
+                      : 'KA-01-SD-2002'}
+                  </Text>
+                </View>
               </View>
 
-              <View style={styles.docRow}>
-                <Text style={styles.docName}>Driver Profile Photo (Portrait / Selfie)</Text>
-                <Text
-                  style={
-                    driver?.profilePhotoUrl
-                      ? styles.docStatusGreen
-                      : styles.docStatusAmber
-                  }
-                >
-                  {driver?.verificationStatus === 'APPROVED' && driver?.profilePhotoUrl
-                    ? '✓ Verified'
-                    : driver?.profilePhotoUrl
-                    ? '✓ Attached'
-                    : '⏳ Pending'}
-                </Text>
-              </View>
-              <View style={styles.docRow}>
-                <Text style={styles.docName}>Driving License (DL): {driver?.licenseNumber || 'KA 202612356'}</Text>
-                <Text
-                  style={
-                    driver?.licenseDocUrl
-                      ? styles.docStatusGreen
-                      : styles.docStatusAmber
-                  }
-                >
-                  {driver?.verificationStatus === 'APPROVED' && driver?.licenseDocUrl
-                    ? '✓ Verified'
-                    : driver?.licenseDocUrl
-                    ? '✓ Attached'
-                    : '⏳ Pending'}
-                </Text>
-              </View>
-              <View style={styles.docRow}>
-                <Text style={styles.docName}>RC Certificate</Text>
-                <Text
-                  style={
-                    driver?.rcDocUrl
-                      ? styles.docStatusGreen
-                      : styles.docStatusAmber
-                  }
-                >
-                  {driver?.verificationStatus === 'APPROVED' && driver?.rcDocUrl
-                    ? '✓ Verified'
-                    : driver?.rcDocUrl
-                    ? '✓ Attached'
-                    : '⏳ Pending'}
-                </Text>
-              </View>
-              <View style={styles.docRow}>
-                <Text style={styles.docName}>Vehicle Insurance & Fitness</Text>
-                <Text
-                  style={
-                    driver?.insuranceDocUrl
-                      ? styles.docStatusGreen
-                      : styles.docStatusAmber
-                  }
-                >
-                  {driver?.verificationStatus === 'APPROVED' && driver?.insuranceDocUrl
-                    ? '✓ Active'
-                    : driver?.insuranceDocUrl
-                    ? '✓ Attached'
-                    : '⏳ Pending'}
-                </Text>
+              <View style={styles.profileCabColsRow}>
+                <View style={styles.profileCabCol}>
+                  <Text style={styles.profileCabColLabel}>{t('profile.vehicle_plate')}</Text>
+                  <Text style={styles.profileCabColValue}>
+                    {driver?.vehicle?.plateNumber && driver.vehicle.plateNumber !== 'PENDING' && !driver.vehicle.plateNumber.startsWith('KA 01 TR 0000')
+                      ? driver.vehicle.plateNumber.toUpperCase()
+                      : 'KA-01-SD-2002'}
+                  </Text>
+                </View>
+                <View style={styles.profileCabColDivider} />
+                <View style={styles.profileCabCol}>
+                  <Text style={styles.profileCabColLabel}>{t('profile.category')}</Text>
+                  <Text style={styles.profileCabColValue}>
+                    {driver?.vehicle?.category
+                      ? driver.vehicle.category.charAt(0).toUpperCase() + driver.vehicle.category.slice(1).toLowerCase()
+                      : 'Sedan'}
+                  </Text>
+                </View>
+                <View style={styles.profileCabColDivider} />
+                <View style={styles.profileCabCol}>
+                  <Text style={styles.profileCabColLabel}>{t('profile.fuel_emission')}</Text>
+                  <Text style={styles.profileCabColValue}>
+                    {driver?.vehicle?.fuelType || 'Diesel'}
+                  </Text>
+                </View>
               </View>
 
-              <TouchableOpacity
-                style={styles.fullUploadBtnOrange}
-                onPress={() => router.push('/documents')}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.fullUploadBtnIcon}>📸</Text>
-                <Text style={styles.fullUploadBtnText}>UPLOAD VEHICLE SPECS & KYC DOCUMENTS</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Bank Payout Info */}
-            <View style={styles.profileSectionCardWhite}>
-              <Text style={styles.profileSectionTitle}>💳 SETTLEMENT & PAYOUT ACCOUNT</Text>
-              <View style={styles.profileDetailRow}>
-                <Text style={styles.profileDetailLabel}>Settlement Cycle:</Text>
-                <Text style={styles.profileDetailValue}>Weekly Direct Bank / UPI</Text>
-              </View>
-              <View style={styles.profileDetailRow}>
-                <Text style={styles.profileDetailLabel}>Bank Status:</Text>
-                <Text style={styles.profileDetailValueGreen}>✓ Active on File</Text>
+              <View style={styles.profileSeatingRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="person" size={15} color="#64748b" />
+                  <Text style={styles.profileSeatingLabel}>{t('profile.seating_capacity')}</Text>
+                </View>
+                <Text style={styles.profileSeatingValue}>
+                  {driver?.vehicle?.seatCount ? `${driver.vehicle.seatCount} ${t('profile.passenger_seats')}` : `4 ${t('profile.passenger_seats')}`}
+                </Text>
               </View>
             </View>
 
-            {/* Sign Out Button */}
-            <TouchableOpacity onPress={handleLogout} style={styles.profileLogoutBtnWhite} activeOpacity={0.8}>
-              <Text style={styles.profileLogoutText}>🚪 Sign Out from Driver Account</Text>
+            {/* 4. Document Status Card */}
+            <View style={styles.profileCardWhite}>
+              <View style={styles.profileCardHeader}>
+                <View style={styles.profileCardHeaderLeft}>
+                  <Ionicons name="document-text" size={18} color="#0f2744" style={{ marginRight: 8 }} />
+                  <Text style={styles.profileCardHeaderTitle}>{t('profile.document_status')}</Text>
+                </View>
+                {!hasPendingDocuments ? (
+                  <View style={styles.allDocsVerifiedBadge}>
+                    <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                    <Text style={styles.allDocsVerifiedText}>{t('profile.all_docs_verified')}</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.pendingDocsBadge}
+                    onPress={() => router.push('/documents')}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="time" size={13} color="#0f2744" />
+                    <Text style={styles.pendingDocsText}>
+                      {verificationDocs.completedCount} / 4 {t('profile.verified_count')}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={13} color="#0f2744" />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* 4 Mini Cards Row */}
+              <View style={styles.profileDocGrid}>
+                {verificationDocs.docs.map((doc) => (
+                  <TouchableOpacity
+                    key={doc.id}
+                    style={styles.profileDocMiniCard}
+                    onPress={() => router.push('/documents')}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name={doc.icon} size={20} color="#0f2744" />
+                    <Text style={styles.profileDocMiniTitle} numberOfLines={1}>
+                      {doc.title}
+                    </Text>
+                    {doc.isCompleted ? (
+                      <View style={styles.profileDocMiniStatusRow}>
+                        <Ionicons name="checkmark-circle" size={11} color="#16a34a" />
+                        <Text style={styles.profileDocMiniStatusGreen}>{t('profile.verified')}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.profileDocMiniStatusRow}>
+                        <Ionicons name="time" size={11} color="#ea580c" />
+                        <Text style={styles.profileDocMiniStatusOrange}>{t('profile.pending')}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* 5. Settlement & Payout Account Card */}
+            {(() => {
+              const hasPayout = Boolean(driver?.bankAccountNumber || driver?.payoutUpiId);
+              const isUpi = driver?.payoutMethod === 'UPI';
+              const isVerified = driver?.payoutStatus === 'VERIFIED';
+              const payoutTitle = hasPayout
+                ? isUpi
+                  ? `UPI: ${driver.payoutUpiId}`
+                  : `${driver.bankName ? driver.bankName + ' • ' : ''}A/C •••• ${driver.bankAccountNumber?.slice(-4)}`
+                : t('profile.add_bank_or_upi');
+
+              return (
+                <View style={styles.profileCardWhite}>
+                  <TouchableOpacity
+                    style={styles.profilePayoutRow}
+                    activeOpacity={0.7}
+                    onPress={() => router.push('/payout-details')}
+                  >
+                    <View style={styles.profilePayoutIconBox}>
+                      <Ionicons name="wallet" size={18} color="#ffffff" />
+                    </View>
+                    <View style={{ flex: 1, paddingHorizontal: 12 }}>
+                      <Text style={styles.profilePayoutTitle}>{t('profile.settlement_payout')}</Text>
+                      <Text style={styles.profilePayoutSub} numberOfLines={1}>{payoutTitle}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      {hasPayout ? (
+                        <>
+                          <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                          <Text style={styles.profilePayoutGreenText}>{t('profile.active_on_file')}</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Ionicons name="alert-circle" size={14} color="#ea580c" />
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#ea580c' }}>{t('profile.add_details')}</Text>
+                        </>
+                      )}
+                      <Ionicons name="chevron-forward" size={16} color="#64748b" />
+                    </View>
+                  </TouchableOpacity>
+
+                  <View style={styles.profilePayoutDivider} />
+
+                  <TouchableOpacity
+                    style={styles.profilePayoutRow}
+                    activeOpacity={0.7}
+                    onPress={() => router.push('/payout-details')}
+                  >
+                    <View style={styles.profilePayoutIconBox}>
+                      <Ionicons name="stats-chart" size={18} color="#ffffff" />
+                    </View>
+                    <View style={{ flex: 1, paddingHorizontal: 12 }}>
+                      <Text style={styles.profilePayoutTitle}>{t('profile.bank_upi_status')}</Text>
+                      <Text style={styles.profilePayoutSub} numberOfLines={1}>
+                        {isVerified
+                          ? t('profile.payout_verified_sub')
+                          : hasPayout
+                          ? t('profile.payout_pending_sub')
+                          : t('profile.payout_not_submitted_sub')}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      {isVerified ? (
+                        <>
+                          <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                          <Text style={styles.profilePayoutGreenText}>{t('profile.verified')}</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Ionicons name="time" size={14} color="#d97706" />
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#d97706' }}>
+                            {hasPayout ? t('profile.in_review') : t('profile.pending')}
+                          </Text>
+                        </>
+                      )}
+                      <Ionicons name="chevron-forward" size={16} color="#64748b" />
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              );
+            })()}
+
+            {/* 6. App Language Row (Matching Customer App) */}
+            {(() => {
+              const activeLangMeta = SUPPORTED_LANGUAGES.find((l) => l.code === (i18n.language || 'en')) || SUPPORTED_LANGUAGES[0];
+              const langSub = activeLangMeta.code === 'en'
+                ? 'English'
+                : `${activeLangMeta.nativeLabel} (${activeLangMeta.label})`;
+
+              return (
+                <View style={styles.profileCardWhite}>
+                  <TouchableOpacity
+                    style={styles.profilePayoutRow}
+                    activeOpacity={0.7}
+                    onPress={() => setIsLangModalOpen(true)}
+                  >
+                    <View style={[styles.profilePayoutIconBox, { backgroundColor: '#0f2744' }]}>
+                      <Ionicons name="globe-outline" size={18} color="#ffffff" />
+                    </View>
+                    <View style={{ flex: 1, paddingHorizontal: 12 }}>
+                      <Text style={styles.profilePayoutTitle}>{t('profile.app_language')}</Text>
+                      <Text style={styles.profilePayoutSub} numberOfLines={1}>{langSub}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={styles.profileLangCurrentBadge}>
+                        <Ionicons name="globe-outline" size={11} color="rgb(240, 117, 15)" style={{ marginRight: 4 }} />
+                        <Text style={styles.profileLangCurrentBadgeText}>
+                          {activeLangMeta.nativeLabel}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color="#64748b" />
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              );
+            })()}
+
+            {/* Language Selection Modal (As done in Customer App) */}
+            <LanguageSelectionModal
+              visible={isLangModalOpen}
+              onClose={() => setIsLangModalOpen(false)}
+            />
+
+            {/* 7. Sign Out Button */}
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={styles.profileSignOutBtn}
+              activeOpacity={0.8}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Ionicons name="log-out-outline" size={22} color="#dc2626" />
+                <Text style={styles.profileSignOutText}>{t('profile.sign_out')}</Text>
+              </View>
+              <View style={styles.profileSignOutChevronCircle}>
+                <Ionicons name="chevron-forward" size={18} color="#dc2626" />
+              </View>
             </TouchableOpacity>
+
             <Text style={styles.versionTextDark}>Kandy Cabs Driver App v1.0.0</Text>
           </View>
         )}
-      </Animated.ScrollView>
+      </ScrollView>
 
       {/* ============================================================ */}
       {/* BOTTOM NAVIGATION BAR (HOME, MY TRIPS, SUPPORT, PROFILE)     */}
       {/* ============================================================ */}
-      <View style={styles.bottomNavContainer}>
+      <View style={[styles.bottomNavContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         {/* Home Tab */}
         <TouchableOpacity
           style={styles.bottomNavTab}
           onPress={() => setActiveBottomTab('HOME')}
           activeOpacity={0.7}
         >
-          {activeBottomTab === 'HOME' && <View style={styles.bottomActiveBar} />}
           <Ionicons
             name={activeBottomTab === 'HOME' ? 'home' : 'home-outline'}
             size={22}
-            color={activeBottomTab === 'HOME' ? '#ea580c' : '#ffffff'}
+            color={activeBottomTab === 'HOME' ? '#f0750f' : '#94a3b8'}
           />
-          <Text style={[styles.bottomNavText, activeBottomTab === 'HOME' && styles.bottomNavTextActive]}>Home</Text>
+          <Text style={[styles.bottomNavText, activeBottomTab === 'HOME' && styles.bottomNavTextActive]}>
+            {t('tabs.home')}
+          </Text>
+          {activeBottomTab === 'HOME' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
 
         {/* My Trips Tab */}
@@ -2201,13 +2544,15 @@ export default function DriverDashboardScreen() {
           onPress={() => setActiveBottomTab('MY_TRIPS')}
           activeOpacity={0.7}
         >
-          {activeBottomTab === 'MY_TRIPS' && <View style={styles.bottomActiveBar} />}
           <Ionicons
             name={activeBottomTab === 'MY_TRIPS' ? 'receipt' : 'receipt-outline'}
             size={22}
-            color={activeBottomTab === 'MY_TRIPS' ? '#ea580c' : '#ffffff'}
+            color={activeBottomTab === 'MY_TRIPS' ? '#f0750f' : '#94a3b8'}
           />
-          <Text style={[styles.bottomNavText, activeBottomTab === 'MY_TRIPS' && styles.bottomNavTextActive]}>My Trips</Text>
+          <Text style={[styles.bottomNavText, activeBottomTab === 'MY_TRIPS' && styles.bottomNavTextActive]}>
+            {t('tabs.my_trips')}
+          </Text>
+          {activeBottomTab === 'MY_TRIPS' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
 
         {/* Support Tab */}
@@ -2216,13 +2561,15 @@ export default function DriverDashboardScreen() {
           onPress={() => setActiveBottomTab('SUPPORT')}
           activeOpacity={0.7}
         >
-          {activeBottomTab === 'SUPPORT' && <View style={styles.bottomActiveBar} />}
           <Ionicons
             name={activeBottomTab === 'SUPPORT' ? 'headset' : 'headset-outline'}
             size={22}
-            color={activeBottomTab === 'SUPPORT' ? '#ea580c' : '#ffffff'}
+            color={activeBottomTab === 'SUPPORT' ? '#f0750f' : '#94a3b8'}
           />
-          <Text style={[styles.bottomNavText, activeBottomTab === 'SUPPORT' && styles.bottomNavTextActive]}>Support</Text>
+          <Text style={[styles.bottomNavText, activeBottomTab === 'SUPPORT' && styles.bottomNavTextActive]}>
+            {t('tabs.support')}
+          </Text>
+          {activeBottomTab === 'SUPPORT' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
 
         {/* Profile Tab */}
@@ -2231,20 +2578,20 @@ export default function DriverDashboardScreen() {
           onPress={() => setActiveBottomTab('PROFILE')}
           activeOpacity={0.7}
         >
-          {activeBottomTab === 'PROFILE' && <View style={styles.bottomActiveBar} />}
           <View style={styles.tabIconWrapper}>
             <Ionicons
               name={activeBottomTab === 'PROFILE' ? 'person' : 'person-outline'}
               size={22}
-              color={activeBottomTab === 'PROFILE' ? '#ea580c' : '#ffffff'}
+              color={activeBottomTab === 'PROFILE' ? '#f0750f' : '#94a3b8'}
             />
-            {hasPendingDocuments && (
-              <View style={styles.profilePendingNotificationBadge}>
-                <Text style={styles.profilePendingNotificationBadgeText}>!</Text>
-              </View>
-            )}
+            <View style={styles.profilePendingNotificationBadge}>
+              <Text style={styles.profilePendingNotificationBadgeText}>1</Text>
+            </View>
           </View>
-          <Text style={[styles.bottomNavText, activeBottomTab === 'PROFILE' && styles.bottomNavTextActive]}>Profile</Text>
+          <Text style={[styles.bottomNavText, activeBottomTab === 'PROFILE' && styles.bottomNavTextActive]}>
+            {t('tabs.profile')}
+          </Text>
+          {activeBottomTab === 'PROFILE' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
       </View>
     </View>
@@ -2256,12 +2603,155 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
-  heroBannerContainer: {
-    width: '100%',
+  mainHeaderWhite: {
+    backgroundColor: '#162232',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 16,
+    paddingBottom: 6,
+    zIndex: 50,
+  },
+  headerBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerLogoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  driverHeaderLogo: {
+    width: 125,
+    height: 38,
+  },
+  headerRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  avatarRingHeader: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  avatarFallbackIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarImageHeader: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  avatarNotificationBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#f97316',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarNotificationBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  homeTabWrapper: {
+    paddingBottom: 24,
+  },
+  heroCardOuter: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 20,
     overflow: 'hidden',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  heroCardBg: {
+    width: '100%',
+    height: 144,
+    justifyContent: 'center',
+  },
+  heroCardContent: {
+    flex: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    justifyContent: 'center',
+  },
+  heroCardLeft: {
+    maxWidth: '56%',
+  },
+  heroCardName: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 0.2,
+  },
+  heroCardRole: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.75)',
+    marginTop: 1,
+  },
+  heroCardPlateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  heroCardPlate: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  heroDutyCapsule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    marginTop: 8,
+  },
+  heroDutyCapsuleOnline: {
+    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  heroDutyCapsuleOffline: {
+    backgroundColor: 'rgba(239, 68, 68, 0.25)',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  heroDutyDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    marginRight: 6,
+  },
+  heroDutyText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#ffffff',
   },
   homeCardsContainer: {
-    marginTop: -26,
+    marginTop: 12,
     paddingHorizontal: 14,
     zIndex: 20,
   },
@@ -2283,6 +2773,10 @@ const styles = StyleSheet.create({
     elevation: 4,
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+  },
+  heroBannerContainer: {
+    width: '100%',
+    overflow: 'hidden',
   },
   heroBannerBackground: {
     width: '100%',
@@ -2617,11 +3111,15 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 14,
-    paddingBottom: 140,
+    paddingBottom: Platform.OS === 'android' ? 78 : 88,
   },
   scrollContentHome: {
     padding: 0,
-    paddingBottom: 140,
+    paddingBottom: Platform.OS === 'android' ? 78 : 88,
+  },
+  scrollContentProfile: {
+    padding: 14,
+    paddingBottom: Platform.OS === 'android' ? 76 : 84,
   },
   cardWrapper: {
     backgroundColor: '#ffffff',
@@ -2746,10 +3244,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 16,
-    padding: 14,
-    marginVertical: 6,
+    backgroundColor: 'transparent',
+    paddingVertical: 8,
+    paddingHorizontal: 0,
+    marginVertical: 4,
   },
   stepperLeft: {
     flex: 1,
@@ -2771,25 +3269,31 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 8,
   },
+  pickupPin: {
+    marginTop: 1,
+  },
+  dropPin: {
+    marginTop: 1,
+  },
   pickupCircle: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#ea580c',
+    backgroundColor: '#16a34a',
     marginTop: 2,
   },
   dropCircle: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#dc2626',
     marginTop: 2,
   },
   dashedTrail: {
     width: 2,
     height: 18,
     backgroundColor: '#cbd5e1',
-    marginLeft: 5,
+    marginLeft: 7,
     marginVertical: 2,
   },
   stepTextGroup: {
@@ -2967,15 +3471,20 @@ const styles = StyleSheet.create({
   },
   creamViewRouteBtn: {
     flex: 1,
-    backgroundColor: '#fffaf5',
-    borderWidth: 1.5,
-    borderColor: '#fed7aa',
-    borderRadius: 14,
-    paddingVertical: 13,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 20,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   creamBtnText: {
     color: '#ea580c',
@@ -3303,14 +3812,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ea580c',
+    backgroundColor: '#0f2744',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
     marginTop: 18,
-    shadowColor: '#ea580c',
+    shadowColor: '#0f2744',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
   },
@@ -3352,17 +3861,17 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#fff7ed',
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#ffedd5',
+    borderColor: '#e2e8f0',
   },
   radarTitleDark: {
     fontSize: 15,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#0f2744',
     textAlign: 'center',
   },
   radarSubtitleDark: {
@@ -3376,25 +3885,25 @@ const styles = StyleSheet.create({
   radarPillOrange: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff7ed',
+    backgroundColor: '#f8fafc',
     paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: 16,
     marginTop: 16,
     borderWidth: 1.5,
-    borderColor: '#ea580c',
+    borderColor: '#cbd5e1',
   },
   radarPulseDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ea580c',
+    backgroundColor: '#0f2744',
     marginRight: 8,
   },
   radarPillTextOrange: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#ea580c',
+    color: '#0f2744',
   },
   floatingDispatchCardWhite: {
     backgroundColor: '#ffffff',
@@ -3408,52 +3917,66 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
+  dispatchHeaderBanner: {
+    backgroundColor: '#f8fafc',
+    marginHorizontal: -14,
+    marginTop: -14,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 10,
+    borderTopLeftRadius: 17,
+    borderTopRightRadius: 17,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    marginBottom: 10,
+  },
   dispatchHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+    alignItems: 'center',
   },
   newAlertBadge: {
-    backgroundColor: '#fff7ed',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     alignSelf: 'flex-start',
     marginBottom: 2,
   },
   newAlertText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '900',
-    color: '#ea580c',
+    color: '#0f2744',
+    letterSpacing: 0.3,
   },
   dispatchRefText: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#0f2744',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   distanceBadgeLight: {
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   distanceBadgeTextLight: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#0f2744',
   },
   dispatchPassengerRowLight: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    padding: 8,
-    borderRadius: 8,
-    marginVertical: 8,
+    backgroundColor: 'transparent',
+    paddingVertical: 8,
+    paddingHorizontal: 0,
+    marginVertical: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
   },
   dispatchPassengerNameDark: {
     fontSize: 11,
@@ -3541,8 +4064,8 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   monthPillActiveOrange: {
-    backgroundColor: '#ea580c',
-    borderColor: '#ea580c',
+    backgroundColor: '#162232',
+    borderColor: '#162232',
   },
   monthPillTextDark: {
     fontSize: 11,
@@ -3572,13 +4095,11 @@ const styles = StyleSheet.create({
   kpiHeaderLabelOrange: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#ea580c',
+    color: '#162232',
   },
   kpiTripsCountBadgeLight: {
-    backgroundColor: '#ecfdf5',
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,
     paddingVertical: 2,
-    borderRadius: 6,
   },
   kpiTripsCountTextGreen: {
     fontSize: 9,
@@ -3610,9 +4131,8 @@ const styles = StyleSheet.create({
   },
   kpiSettledPillLight: {
     flex: 1,
-    backgroundColor: '#f0fdf4',
-    padding: 8,
-    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
   },
   kpiSettledLabel: {
     fontSize: 8.5,
@@ -3627,9 +4147,8 @@ const styles = StyleSheet.create({
   },
   kpiPendingPillLight: {
     flex: 1,
-    backgroundColor: '#fffbeb',
-    padding: 8,
-    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
   },
   kpiPendingLabel: {
     fontSize: 8.5,
@@ -3664,7 +4183,7 @@ const styles = StyleSheet.create({
   refreshBtnTextOrange: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#ea580c',
+    color: '#162232',
   },
   emptyCardWhite: {
     backgroundColor: '#ffffff',
@@ -3814,18 +4333,14 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   supportActionIconCircleGreen: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#ecfdf5',
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
   supportActionIconCircleEmerald: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#ecfdf5',
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -3909,204 +4424,515 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     marginVertical: 2,
   },
-  profileHeaderCardWhite: {
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+  profileHeroCardOuter: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#0f2744',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 3,
   },
-  profileAvatarLarge: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+  profileHeroCardBg: {
+    width: '100%',
+  },
+  profileHeroCardOverlay: {
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 39, 68, 0.45)',
+  },
+  profileHeroAvatarOuter: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     borderWidth: 2.5,
     borderColor: '#ea580c',
-    backgroundColor: '#0f172a',
+    padding: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
-    overflow: 'hidden',
+    position: 'relative',
   },
-  profileAvatarPhotoLarge: {
+  profileHeroAvatarInner: {
+    width: 63,
+    height: 63,
+    borderRadius: 31.5,
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileHeroAvatarImg: {
     width: '100%',
     height: '100%',
   },
-  profileDriverNameDark: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#0f172a',
+  profileHeroAvatarFallback: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  profileDriverPhoneDark: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  profileTierBadgeRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
-  },
-  verifiedBadgeLight: {
-    backgroundColor: '#ecfdf5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#a7f3d0',
-  },
-  verifiedBadgeText: {
-    color: '#059669',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  pendingBadgeLight: {
-    backgroundColor: '#fffbeb',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#fde68a',
-  },
-  pendingBadgeText: {
-    color: '#b45309',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  ratingBadgeLight: {
-    backgroundColor: '#fffbeb',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#fde68a',
-  },
-  ratingBadgeText: {
-    color: '#b45309',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  profileSectionCardWhite: {
+  profileHeroCameraBadge: {
+    position: 'absolute',
+    bottom: -2,
+    left: 24,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  profileHeroOnlineDot: {
+    position: 'absolute',
+    bottom: 2,
+    right: 0,
+    width: 15,
+    height: 15,
+    borderRadius: 7.5,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  profileHeroInfo: {
+    marginLeft: 14,
+    flex: 1,
+  },
+  profileHeroName: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  profileHeroRole: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 12.5,
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  profileHeroPhoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  profileHeroPhone: {
+    color: '#ffffff',
+    fontSize: 12.5,
+    fontWeight: '500',
+  },
+  profileHeroRatingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  profileHeroRatingText: {
+    color: '#ffffff',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  profileHeroChevronBtn: {
+    padding: 6,
+  },
+  profileKycBannerComplete: {
+    backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-  },
-  profileSectionTitle: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#ea580c',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  profileDetailRow: {
+    borderRadius: 18,
+    padding: 14,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    shadowColor: '#0f2744',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  profileKycIconComplete: {
+    width: 32,
+    height: 32,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  profileKycTitleComplete: {
+    color: '#065f46',
+    fontWeight: '800',
+    fontSize: 14.5,
+  },
+  profileKycSubComplete: {
+    color: '#047857',
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  profileKycBadgeVerified: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#86efac',
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  profileKycBadgeVerifiedText: {
+    color: '#16a34a',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  profileKycBannerPending: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#0f2744',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  profileKycIconPending: {
+    width: 32,
+    height: 32,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  profileKycTitlePending: {
+    color: '#0f2744',
+    fontWeight: '800',
+    fontSize: 14.5,
+  },
+  profileKycSubPending: {
+    color: '#334155',
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  profileKycBtnPending: {
+    backgroundColor: '#0f2744',
+    paddingHorizontal: 13,
+    paddingVertical: 6.5,
+    borderRadius: 14,
+  },
+  profileKycBtnPendingText: {
+    color: '#ffffff',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  profileCardWhite: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f2744',
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  profileCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  profileCardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profileCardHeaderTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0f2744',
+  },
+  profilePlatePill: {
+    backgroundColor: '#e0f2fe',
+    paddingHorizontal: 10,
     paddingVertical: 4,
+    borderRadius: 10,
+  },
+  profilePlatePillText: {
+    color: '#0f2744',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  profileCabColsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
-  profileDetailLabel: {
+  profileCabCol: {
+    flex: 1,
+  },
+  profileCabColLabel: {
     fontSize: 11,
     color: '#64748b',
+    fontWeight: '500',
   },
-  profileDetailValue: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  profileDetailValueBold: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: '#0f172a',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
-  profileDetailValueGreen: {
-    fontSize: 11,
+  profileCabColValue: {
+    fontSize: 13.5,
     fontWeight: '800',
-    color: '#059669',
+    color: '#0f2744',
+    marginTop: 3,
   },
-  docRow: {
+  profileCabColDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: '#e2e8f0',
+    marginHorizontal: 8,
+  },
+  profileSeatingRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
+    paddingTop: 12,
   },
-  docName: {
-    fontSize: 11,
-    color: '#0f172a',
-    fontWeight: '600',
+  profileSeatingLabel: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '500',
   },
-  docStatusGreen: {
-    fontSize: 11,
-    color: '#059669',
-    fontWeight: '800',
-  },
-  docStatusAmber: {
-    fontSize: 11,
-    color: '#d97706',
-    fontWeight: '800',
-  },
-  uploadBadgeBtn: {
-    backgroundColor: '#fff7ed',
-    borderWidth: 1,
-    borderColor: '#ea580c',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  uploadBadgeBtnText: {
-    color: '#ea580c',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  fullUploadBtnOrange: {
-    backgroundColor: '#ea580c',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 10,
-    shadowColor: '#ea580c',
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  fullUploadBtnIcon: {
-    fontSize: 14,
-  },
-  fullUploadBtnText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.3,
-  },
-  profileLogoutBtnWhite: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#ef4444',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  profileLogoutText: {
-    color: '#ef4444',
+  profileSeatingValue: {
     fontSize: 13,
     fontWeight: '800',
+    color: '#0f2744',
+  },
+  allDocsVerifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  allDocsVerifiedText: {
+    color: '#16a34a',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  pendingDocsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#e0f2fe',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  pendingDocsText: {
+    color: '#0f2744',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  profileDocGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+  },
+  profileDocMiniCard: {
+    flex: 1,
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileDocMiniTitle: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#0f2744',
+    marginTop: 6,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  profileDocMiniStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  profileDocMiniStatusGreen: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#16a34a',
+  },
+  profileDocMiniStatusOrange: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#ea580c',
+  },
+  profilePayoutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  profilePayoutIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#0f2744',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profilePayoutTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f2744',
+  },
+  profilePayoutSub: {
+    fontSize: 11.5,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  profilePayoutGreenText: {
+    color: '#16a34a',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  profilePayoutDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    marginVertical: 12,
+  },
+  profileLangCurrentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7ed',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  profileLangCurrentBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgb(240, 117, 15)',
+  },
+  profileLangSubtext: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
+    marginBottom: 12,
+  },
+  langSelectorRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  langSelectorPill: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  langSelectorPillActive: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#009669',
+  },
+  langBadgeCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  langBadgeCircleActive: {
+    backgroundColor: '#009669',
+  },
+  langBadgeText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#475569',
+  },
+  langBadgeTextActive: {
+    color: '#ffffff',
+  },
+  langNameText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  langNameTextActive: {
+    color: '#009669',
+    fontWeight: '800',
+  },
+  langCheckmarkBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#009669',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  langUncheckedCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+  },
+  profileSignOutBtn: {
+    backgroundColor: '#fff1f2',
+    borderWidth: 1,
+    borderColor: '#ffe4e6',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  profileSignOutText: {
+    color: '#dc2626',
+    fontSize: 14.5,
+    fontWeight: '800',
+  },
+  profileSignOutChevronCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#fee2e2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   versionTextDark: {
     color: '#94a3b8',
     fontSize: 10,
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: 4,
+    marginBottom: 4,
   },
   bottomNavContainer: {
     position: 'absolute',
@@ -4116,20 +4942,20 @@ const styles = StyleSheet.create({
     zIndex: 999,
     height: Platform.OS === 'android' ? 68 : 74,
     paddingBottom: Platform.OS === 'android' ? 8 : 16,
-    backgroundColor: '#000000',
+    backgroundColor: '#162232',
     flexDirection: 'row',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
     borderColor: 'rgba(255, 255, 255, 0.12)',
     overflow: 'hidden',
-    elevation: 25,
+    elevation: 10,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
   },
   bottomNavTab: {
     flex: 1,
@@ -4139,13 +4965,11 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   bottomActiveBar: {
-    position: 'absolute',
-    top: 0,
-    left: '25%',
-    right: '25%',
+    width: 28,
     height: 3,
-    backgroundColor: '#ea580c',
-    borderRadius: 2,
+    backgroundColor: '#f0750f',
+    borderRadius: 1.5,
+    marginTop: 4,
   },
   bottomNavEmoji: {
     fontSize: 18,
@@ -4156,13 +4980,13 @@ const styles = StyleSheet.create({
   },
   bottomNavText: {
     fontSize: 11,
-    color: '#ffffff',
-    fontWeight: '800',
+    color: '#94a3b8',
+    fontWeight: '700',
     marginTop: 3,
     letterSpacing: 0.2,
   },
   bottomNavTextActive: {
-    color: '#ea580c',
+    color: '#f0750f',
     fontWeight: '900',
   },
   tabIconWrapper: {
@@ -4181,7 +5005,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#000000',
+    borderColor: '#ffffff',
   },
   profilePendingNotificationBadgeText: {
     color: '#ffffff',
@@ -4291,103 +5115,195 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
   },
-  homePendingKycBanner: {
-    backgroundColor: '#fffaf5',
-    borderWidth: 1.5,
-    borderColor: '#fed7aa',
-    borderRadius: 24,
-    padding: 16,
+  kycVerificationCard: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 14,
     marginBottom: 16,
-    shadowColor: '#0f172a',
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 16,
-    elevation: 6,
+    shadowColor: '#0f2744',
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 3,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  homePendingKycHeader: {
+  kycWatermarkBg: {
+    position: 'absolute',
+    right: -15,
+    top: 15,
+  },
+  kycHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
   },
-  homePendingKycIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#ffedd5',
+  kycHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingRight: 10,
+  },
+  kycShieldBox: {
+    width: 30,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
-  homePendingKycTitle: {
-    fontSize: 14.5,
+  kycShieldCheckmarkPos: {
+    position: 'absolute',
+    top: 6,
+    left: 6.5,
+  },
+  kycHeaderTitleBox: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  kycHeaderTitle: {
+    fontSize: 16.5,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#0f2744',
+    letterSpacing: -0.2,
   },
-  homePendingKycSub: {
+  kycHeaderSub: {
     fontSize: 11.5,
     color: '#64748b',
     marginTop: 2,
-    lineHeight: 16,
+    lineHeight: 15,
   },
-  homePendingChipsRow: {
+  kycCountPill: {
+    backgroundColor: '#ffedd5',
+    paddingHorizontal: 12,
+    paddingVertical: 4.5,
+    borderRadius: 14,
+    alignSelf: 'flex-start',
+  },
+  kycCountPillText: {
+    color: '#c2410c',
+    fontSize: 13.5,
+    fontWeight: '800',
+  },
+  kycSegmentContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
     marginTop: 14,
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  homePendingChip: {
+  kycSegmentBar: {
+    flex: 1,
+    height: 4.5,
+    borderRadius: 3,
+  },
+  kycSegmentBarActive: {
+    backgroundColor: '#10b981',
+  },
+  kycSegmentBarInactive: {
+    backgroundColor: '#e2e8f0',
+  },
+  kycDocList: {
+    marginTop: 4,
+  },
+  kycDocRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+  },
+  kycDocRowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  kycDocIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  kycDocInfo: {
+    flex: 1,
+  },
+  kycDocTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f2744',
+  },
+  kycStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4.5,
+    marginTop: 2.5,
+  },
+  kycStatusSuccessText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#16a34a',
+  },
+  kycStatusWarningText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#ea580c',
+  },
+  kycUploadMiniBtn: {
+    backgroundColor: '#ffedd5',
+    paddingVertical: 5.5,
+    paddingHorizontal: 12,
+    borderRadius: 18,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
   },
-  homeChipDone: {
-    backgroundColor: '#f0fdf4',
-    borderColor: '#bbf7d0',
-  },
-  homeChipPending: {
-    backgroundColor: '#fff1f2',
-    borderColor: '#fecaca',
-  },
-  homeChipText: {
-    fontSize: 11,
+  kycUploadMiniBtnText: {
+    color: '#0f2744',
+    fontSize: 12,
     fontWeight: '700',
   },
-  homeChipTextDone: {
-    color: '#16a34a',
-  },
-  homeChipTextPending: {
-    color: '#ea580c',
-  },
-  homeUploadDocsBtn: {
-    backgroundColor: '#ea580c',
+  kycCompleteCtaBtn: {
+    backgroundColor: '#0f2744',
     borderRadius: 14,
     paddingVertical: 13,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#ea580c',
-    shadowOpacity: 0.35,
+    marginTop: 14,
+    shadowColor: '#0f2744',
+    shadowOpacity: 0.15,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 6,
-    elevation: 4,
+    elevation: 3,
   },
-  homeUploadDocsBtnText: {
+  kycCompleteCtaBtnText: {
     color: '#ffffff',
-    fontSize: 12.5,
-    fontWeight: '900',
-    letterSpacing: 0.3,
+    fontSize: 14.5,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  kycNoticeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: 10,
+    marginBottom: 2,
+  },
+  kycNoticeText: {
+    fontSize: 11.5,
+    color: '#64748b',
+    fontWeight: '500',
   },
   radarKycNoticeBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fffaf5',
+    backgroundColor: '#f8fafc',
     borderWidth: 1.5,
-    borderColor: '#fed7aa',
+    borderColor: '#e2e8f0',
     borderRadius: 14,
     padding: 12,
     marginTop: 14,
@@ -4397,14 +5313,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#ffedd5',
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
   },
   radarKycNoticeTitle: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#0f172a',
+    color: '#0f2744',
   },
   radarKycNoticeSub: {
     fontSize: 10,
@@ -4412,7 +5328,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   radarKycNoticeBtn: {
-    backgroundColor: '#ea580c',
+    backgroundColor: '#0f2744',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,

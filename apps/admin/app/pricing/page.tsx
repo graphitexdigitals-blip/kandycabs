@@ -98,6 +98,63 @@ export default function AdminPricingPage() {
   ]);
   const [savingSeaterRates, setSavingSeaterRates] = useState(false);
 
+  // Dynamic Pet Friendly Surcharge Rates (Cat: 200, Dog: 500, Bird: 100)
+  const [petRates, setPetRates] = useState<{ cat: number; dog: number; bird: number }>({
+    cat: 200,
+    dog: 500,
+    bird: 100,
+  });
+  const [savingPetRates, setSavingPetRates] = useState(false);
+
+  const fetchPetRates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/settings/pet-rates');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.rates) {
+          setPetRates({
+            cat: Number(data.rates.cat) || 200,
+            dog: Number(data.rates.dog) || 500,
+            bird: Number(data.rates.bird) || 100,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load pet rates:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPetRates();
+  }, [fetchPetRates]);
+
+  const handleSavePetRates = async () => {
+    setSavingPetRates(true);
+    try {
+      const res = await fetch('/api/admin/settings/pet-rates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(petRates),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.rates) {
+          setPetRates(data.rates);
+        }
+        setSuccessToast(`Saved Pet Surcharge Rates: Cat ₹${petRates.cat}, Dog ₹${petRates.dog}, Bird ₹${petRates.bird}!`);
+        setTimeout(() => setSuccessToast(null), 3500);
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to update pet rates');
+      }
+    } catch (err) {
+      console.error('Error saving pet rates:', err);
+      alert('Error saving pet rates');
+    } finally {
+      setSavingPetRates(false);
+    }
+  };
+
   const handleUpdateSeaterField = (id: string, field: 'rate' | 'extraKm' | 'extraKmThreshold', value: number | null) => {
     setSeaterRates((prev) =>
       prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
@@ -542,6 +599,157 @@ export default function AdminPricingPage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        {/* Pet-Friendly Surcharge Rates Card */}
+        <div className="bg-white border border-amber-200/90 rounded-2xl p-5 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-100 pb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🐾</span>
+                <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+                  Pet-Friendly Surcharge Rates (Mobile App & Web)
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
+                  Live Pricing
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Configure per-trip pet sanitization and convenience surcharges for <strong>Cat</strong>, <strong>Dog</strong>, and <strong>Bird</strong>. When customers enable "Pet Friendly" in the app, these rates are dynamically presented and added to the trip fare.
+              </p>
+            </div>
+
+            <button
+              onClick={handleSavePetRates}
+              disabled={savingPetRates}
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 self-start sm:self-auto shrink-0"
+            >
+              <span>{savingPetRates ? '⏳' : '💾'}</span>
+              <span>{savingPetRates ? 'Saving Rates...' : 'Save Pet Rates'}</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Cat */}
+            <div className="bg-amber-50/50 border border-amber-200/80 rounded-xl p-4 flex flex-col justify-between hover:border-amber-300 transition shadow-2xs">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">🐱</span>
+                    <div>
+                      <h4 className="text-sm font-extrabold text-slate-900">Cat / Feline</h4>
+                      <p className="text-[11px] text-slate-500">Cats, kittens & small felines</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-200">
+                    Per Trip
+                  </span>
+                </div>
+
+                <div className="mt-3">
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                    Surcharge Amount (₹):
+                  </label>
+                  <div className="flex items-center bg-white border border-slate-300 focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-500/20 rounded-lg px-2.5 py-1.5 shadow-2xs transition">
+                    <span className="text-xs font-black text-slate-400 mr-1.5">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="10"
+                      value={petRates.cat}
+                      onChange={(e) => setPetRates((prev) => ({ ...prev, cat: Math.max(0, parseInt(e.target.value) || 0) }))}
+                      className="w-full text-sm font-black text-slate-900 bg-transparent focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-amber-200/60 flex items-center justify-between text-[11px]">
+                <span className="text-slate-500">Customer App Fee:</span>
+                <span className="font-extrabold text-amber-900">+₹{petRates.cat}</span>
+              </div>
+            </div>
+
+            {/* Dog */}
+            <div className="bg-amber-50/50 border border-amber-200/80 rounded-xl p-4 flex flex-col justify-between hover:border-amber-300 transition shadow-2xs">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">🐶</span>
+                    <div>
+                      <h4 className="text-sm font-extrabold text-slate-900">Dog / Canine</h4>
+                      <p className="text-[11px] text-slate-500">Dogs, puppies & large canines</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-200">
+                    Per Trip
+                  </span>
+                </div>
+
+                <div className="mt-3">
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                    Surcharge Amount (₹):
+                  </label>
+                  <div className="flex items-center bg-white border border-slate-300 focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-500/20 rounded-lg px-2.5 py-1.5 shadow-2xs transition">
+                    <span className="text-xs font-black text-slate-400 mr-1.5">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="10"
+                      value={petRates.dog}
+                      onChange={(e) => setPetRates((prev) => ({ ...prev, dog: Math.max(0, parseInt(e.target.value) || 0) }))}
+                      className="w-full text-sm font-black text-slate-900 bg-transparent focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-amber-200/60 flex items-center justify-between text-[11px]">
+                <span className="text-slate-500">Customer App Fee:</span>
+                <span className="font-extrabold text-amber-900">+₹{petRates.dog}</span>
+              </div>
+            </div>
+
+            {/* Bird */}
+            <div className="bg-amber-50/50 border border-amber-200/80 rounded-xl p-4 flex flex-col justify-between hover:border-amber-300 transition shadow-2xs">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">🦜</span>
+                    <div>
+                      <h4 className="text-sm font-extrabold text-slate-900">Bird / Caged Pet</h4>
+                      <p className="text-[11px] text-slate-500">Parrots, canaries & caged birds</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-200">
+                    Per Trip
+                  </span>
+                </div>
+
+                <div className="mt-3">
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                    Surcharge Amount (₹):
+                  </label>
+                  <div className="flex items-center bg-white border border-slate-300 focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-500/20 rounded-lg px-2.5 py-1.5 shadow-2xs transition">
+                    <span className="text-xs font-black text-slate-400 mr-1.5">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="10"
+                      value={petRates.bird}
+                      onChange={(e) => setPetRates((prev) => ({ ...prev, bird: Math.max(0, parseInt(e.target.value) || 0) }))}
+                      className="w-full text-sm font-black text-slate-900 bg-transparent focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-amber-200/60 flex items-center justify-between text-[11px]">
+                <span className="text-slate-500">Customer App Fee:</span>
+                <span className="font-extrabold text-amber-900">+₹{petRates.bird}</span>
+              </div>
+            </div>
           </div>
         </div>
 

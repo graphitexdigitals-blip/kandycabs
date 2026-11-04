@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
             bookingId,
             type: PaymentType.BALANCE,
             amount: totalBalanceCollected,
+            paymentMethod,
             razorpayPaymentId: `${paymentMethod.toLowerCase()}_pay_${Date.now()}`,
             status: PaymentStatus.PAID,
             verifiedAt: now,

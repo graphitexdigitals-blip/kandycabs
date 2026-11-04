@@ -13,6 +13,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import { driverApiClient } from '../lib/api';
 
 export default function DriverLoginScreen() {
@@ -62,6 +63,17 @@ export default function DriverLoginScreen() {
     try {
       const res = await driverApiClient.auth.verifyOtp(phone, otp, undefined, 'DRIVER');
       if (res.success && res.token) {
+        try {
+          const initialDriver = {
+            id: res.user?.id || 'driver',
+            name: (res.user as any)?.fullName || (res.user as any)?.name || (phone === '9587425635' ? 'Mukesh' : (phone === '8888888888' ? 'Ramesh Kumar' : 'Driver Partner')),
+            phone: phone,
+            vehicleNumber: phone === '9587425635' ? 'KA 01 MJ 2023' : (phone === '8888888888' ? 'KA-01-SD-2002' : ''),
+            status: 'APPROVED',
+            onlineStatus: false,
+          };
+          await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(initialDriver));
+        } catch (_) {}
         router.replace('/dashboard');
       } else {
         setError(res.message || 'Verification failed');
@@ -139,6 +151,17 @@ export default function DriverLoginScreen() {
                     const devCode = otpRes.debugOtp || '1234';
                     const verifyRes = await driverApiClient.auth.verifyOtp('9587425635', devCode);
                     if (verifyRes.success) {
+                      try {
+                        const initialDriver = {
+                          id: verifyRes.user?.id || 'mukesh',
+                          name: 'Mukesh',
+                          phone: '9587425635',
+                          vehicleNumber: 'KA 01 MJ 2023',
+                          status: 'APPROVED',
+                          onlineStatus: false,
+                        };
+                        await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(initialDriver));
+                      } catch (_) {}
                       router.replace('/dashboard');
                     } else {
                       setStep('OTP');
@@ -172,6 +195,17 @@ export default function DriverLoginScreen() {
                     const devCode = otpRes.debugOtp || '1234';
                     const verifyRes = await driverApiClient.auth.verifyOtp('8888888888', devCode);
                     if (verifyRes.success) {
+                      try {
+                        const initialDriver = {
+                          id: verifyRes.user?.id || 'ramesh',
+                          name: 'Ramesh Kumar',
+                          phone: '8888888888',
+                          vehicleNumber: 'KA-01-SD-2002',
+                          status: 'APPROVED',
+                          onlineStatus: false,
+                        };
+                        await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(initialDriver));
+                      } catch (_) {}
                       router.replace('/dashboard');
                     } else {
                       setStep('OTP');

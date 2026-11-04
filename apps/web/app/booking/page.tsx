@@ -32,7 +32,7 @@ const VEHICLE_META: Record<
 > = {
   [VehicleCategory.HATCHBACK]: {
     image: '/images/fleet-hatchback.webp',
-    tagline: 'WagonR, Swift, Tiago or equivalent',
+    tagline: 'Swift, WagonR, Tiago or equivalent',
     badge: 'POPULAR CHOICE',
   },
   [VehicleCategory.SEDAN]: {

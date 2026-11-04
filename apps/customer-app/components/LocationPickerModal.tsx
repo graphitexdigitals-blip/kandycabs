@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   Modal,
   View,
@@ -6,6 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  ScrollView,
   StyleSheet,
   SafeAreaView,
   ActivityIndicator,
@@ -13,225 +14,266 @@ import {
   Platform,
   Alert,
   Linking,
+  useWindowDimensions,
+  StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { ALL_LOCATIONS, PlaceLocation } from '../lib/locations';
+import { useTranslation } from 'react-i18next';
+import { ALL_LOCATIONS, PlaceLocation, isAirportLocation, isSameLocation } from '../lib/locations';
+
+export interface StopItem {
+  id: string;
+  label: string;
+  location?: PlaceLocation;
+}
 
 interface LocationPickerModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelect: (location: PlaceLocation) => void;
-  title: string;
+  onSelect?: (location: PlaceLocation) => void;
+  title?: string;
   currentValue?: string;
   isPickup?: boolean;
-}
-
-type TabCategory = 'ALL' | 'AIRPORTS' | 'RAILWAY' | 'MANGALURU' | 'OUTSTATION';
-
-interface LocationMeta {
-  iconName: keyof typeof Ionicons.glyphMap;
-  badgeLabel: string;
-  badgeBg: string;
-  badgeColor: string;
-  iconBg: string;
-  iconColor: string;
-}
-
-function getLocationMeta(loc: PlaceLocation): LocationMeta {
-  const text = `${loc.label} ${loc.sublabel || ''} ${loc.keywords?.join(' ') || ''}`.toLowerCase();
-
-  // 1. Train / Railway Stations - STRICT: Never show airport icon for railway!
-  if (
-    text.includes('railway') ||
-    text.includes('train') ||
-    text.includes('railway station') ||
-    (text.includes('station') && !text.includes('police') && !text.includes('fire'))
-  ) {
-    return {
-      iconName: 'train',
-      badgeLabel: 'TRAIN',
-      badgeBg: '#eef2ff',
-      badgeColor: '#4338ca',
-      iconBg: '#e0e7ff',
-      iconColor: '#4f46e5',
-    };
-  }
-
-  // 2. Bus Terminals / Stands
-  if (
-    text.includes('bus stand') ||
-    text.includes('ksrtc') ||
-    text.includes('terminus') ||
-    text.includes('bus terminal')
-  ) {
-    return {
-      iconName: 'bus',
-      badgeLabel: 'BUS',
-      badgeBg: '#f0fdfa',
-      badgeColor: '#0f766e',
-      iconBg: '#ccfbf1',
-      iconColor: '#0d9488',
-    };
-  }
-
-  // 3. Genuine Airports Only
-  if (
-    (loc.category === 'AIRPORTS' || text.includes('airport') || text.includes('aerodrome') || text.includes('ixe') || text.includes('blr') || text.includes('flight')) &&
-    !text.includes('railway') &&
-    !text.includes('train')
-  ) {
-    return {
-      iconName: 'airplane',
-      badgeLabel: 'AIRPORT',
-      badgeBg: '#f0f9ff',
-      badgeColor: '#0369a1',
-      iconBg: '#e0f2fe',
-      iconColor: '#0284c7',
-    };
-  }
-
-  // 4. Temples / Shrines / Cultural
-  if (
-    text.includes('temple') ||
-    text.includes('shrine') ||
-    text.includes('church') ||
-    text.includes('cathedral') ||
-    text.includes('darga') ||
-    text.includes('mandir') ||
-    text.includes('chapel')
-  ) {
-    return {
-      iconName: 'sparkles',
-      badgeLabel: 'TEMPLE',
-      badgeBg: '#fffbeb',
-      badgeColor: '#b45309',
-      iconBg: '#fef3c7',
-      iconColor: '#d97706',
-    };
-  }
-
-  // 5. Hospitals / Medical
-  if (
-    text.includes('hospital') ||
-    text.includes('medical') ||
-    text.includes('clinic') ||
-    text.includes('health') ||
-    text.includes('kshema')
-  ) {
-    return {
-      iconName: 'medkit',
-      badgeLabel: 'MEDICAL',
-      badgeBg: '#fff1f2',
-      badgeColor: '#be123c',
-      iconBg: '#ffe4e6',
-      iconColor: '#e11d48',
-    };
-  }
-
-  // 6. Colleges / Universities / IT Parks
-  if (
-    text.includes('college') ||
-    text.includes('university') ||
-    text.includes('campus') ||
-    text.includes('institute') ||
-    text.includes('sjec') ||
-    text.includes('nitk') ||
-    text.includes('infosys')
-  ) {
-    return {
-      iconName: 'school',
-      badgeLabel: 'CAMPUS',
-      badgeBg: '#f5f3ff',
-      badgeColor: '#6d28d9',
-      iconBg: '#ede9fe',
-      iconColor: '#7c3aed',
-    };
-  }
-
-  // 7. Malls & Shopping
-  if (
-    text.includes('mall') ||
-    text.includes('shopping') ||
-    text.includes('centre') ||
-    text.includes('market')
-  ) {
-    return {
-      iconName: 'cart',
-      badgeLabel: 'MALL',
-      badgeBg: '#ecfdf5',
-      badgeColor: '#047857',
-      iconBg: '#d1fae5',
-      iconColor: '#059669',
-    };
-  }
-
-  // 8. Outstation Destinations
-  if (loc.category === 'OUTSTATION') {
-    return {
-      iconName: 'car',
-      badgeLabel: 'OUTSTATION',
-      badgeBg: '#fff7ed',
-      badgeColor: '#c2410c',
-      iconBg: '#fed7aa',
-      iconColor: '#ea580c',
-    };
-  }
-
-  // Default: City / Local Area
-  return {
-    iconName: 'location',
-    badgeLabel: 'LOCAL',
-    badgeBg: '#f8fafc',
-    badgeColor: '#475569',
-    iconBg: '#f1f5f9',
-    iconColor: '#64748b',
-  };
+  initialTarget?: 'PICKUP' | 'STOP' | 'DROP';
+  initialStopIndex?: number;
+  pickupValue?: string;
+  dropValue?: string;
+  pickupLocation?: PlaceLocation | null;
+  dropLocation?: PlaceLocation | null;
+  viaStops?: PlaceLocation[];
+  onSelectPickup?: (location: PlaceLocation) => void;
+  onSelectDrop?: (location: PlaceLocation) => void;
+  onAddStop?: (location: PlaceLocation) => void;
+  onRemoveStop?: (index: number) => void;
+  onConfirmRoute?: (route: {
+    pickup: PlaceLocation | null;
+    drop: PlaceLocation | null;
+    stops: PlaceLocation[];
+  }) => void;
+  hideDrop?: boolean;
+  hideStops?: boolean;
+  singleLocationOnly?: boolean;
+  pickupPlaceholder?: string;
+  dropPlaceholder?: string;
+  pickupAirportsOnly?: boolean;
+  dropAirportsOnly?: boolean;
+  airportsOnly?: boolean;
 }
 
 export function LocationPickerModal({
   visible,
   onClose,
   onSelect,
-  title,
+  title = 'Select Location',
   currentValue,
   isPickup,
+  initialTarget,
+  initialStopIndex = 0,
+  pickupValue,
+  dropValue,
+  pickupLocation,
+  dropLocation,
+  viaStops,
+  onSelectPickup,
+  onSelectDrop,
+  onAddStop,
+  onRemoveStop,
+  onConfirmRoute,
+  hideDrop,
+  hideStops,
+  singleLocationOnly,
+  pickupPlaceholder,
+  dropPlaceholder,
+  pickupAirportsOnly,
+  dropAirportsOnly,
+  airportsOnly,
 }: LocationPickerModalProps) {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const isSmallDevice = windowWidth < 380 || windowHeight < 700;
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
+
+  const pickupInputRef = useRef<TextInput>(null);
+  const stopInputRefs = useRef<{ [key: number]: TextInput | null }>({});
+  const dropInputRef = useRef<TextInput>(null);
+  const routeCardScrollRef = useRef<ScrollView>(null);
+
+  const [pickupText, setPickupText] = useState(
+    pickupValue || (isPickup !== false ? currentValue : '') || ''
+  );
+  const [dropText, setDropText] = useState(
+    hideDrop ? '' : (dropValue || (isPickup === false ? currentValue : '') || '')
+  );
+  const [pickupItem, setPickupItem] = useState<PlaceLocation | null>(pickupLocation || null);
+  const [dropItem, setDropItem] = useState<PlaceLocation | null>(dropLocation || null);
+  const [stops, setStops] = useState<StopItem[]>(() => {
+    if (hideDrop || singleLocationOnly || hideStops) return [];
+    let initStops: StopItem[] = [];
+    if (viaStops && viaStops.length > 0) {
+      initStops = viaStops.map((s, idx) => ({
+        id: `stop-${idx}-${Date.now()}`,
+        label: s.label,
+        location: s,
+      }));
+    }
+    if (initialTarget === 'STOP') {
+      if (
+        initialStopIndex !== undefined &&
+        initialStopIndex >= initStops.length &&
+        initStops.length < 12
+      ) {
+        initStops.push({
+          id: `stop-${initStops.length}-${Date.now()}`,
+          label: '',
+        });
+      } else if (initStops.length === 0) {
+        initStops = [{ id: `stop-0-${Date.now()}`, label: '' }];
+      }
+    }
+    return initStops;
+  });
+
+  const [activeStopIndex, setActiveStopIndex] = useState<number>(initialStopIndex || 0);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<TabCategory>('ALL');
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [activeTarget, setActiveTarget] = useState<'PICKUP' | 'STOP' | 'DROP'>(
+    hideDrop || singleLocationOnly
+      ? (isPickup !== false ? 'PICKUP' : 'DROP')
+      : (initialTarget || (isPickup !== false ? 'PICKUP' : 'DROP'))
+  );
+
+  const prevVisibleRef = useRef(false);
+
+  // Synchronize state only when modal first opens
+  React.useEffect(() => {
+    if (visible && !prevVisibleRef.current) {
+      const p = pickupValue || (isPickup !== false ? currentValue : '') || '';
+      const d = hideDrop ? '' : (dropValue || (isPickup === false ? currentValue : '') || '');
+
+      const initialPickupItem = pickupLocation || (p ? ALL_LOCATIONS.find((l) => l.label.toLowerCase() === p.trim().toLowerCase()) || null : null);
+      const initialDropItem = dropLocation || (d ? ALL_LOCATIONS.find((l) => l.label.toLowerCase() === d.trim().toLowerCase()) || null : null);
+      setPickupItem(initialPickupItem);
+      setDropItem(initialDropItem);
+
+      let initStops: StopItem[] = [];
+      if (!hideDrop && !singleLocationOnly && !hideStops && viaStops && viaStops.length > 0) {
+        initStops = viaStops.map((s, idx) => ({
+          id: `stop-${idx}-${Date.now()}`,
+          label: s.label,
+          location: s,
+        }));
+      }
+
+      const target = hideDrop || singleLocationOnly
+        ? (isPickup !== false ? 'PICKUP' : 'DROP')
+        : (initialTarget || (isPickup !== false ? 'PICKUP' : 'DROP'));
+
+      let sIdx = 0;
+      if (!hideDrop && !singleLocationOnly && target === 'STOP') {
+        // If clicking "+ Add Stop X" (e.g. initialStopIndex >= initStops.length), automatically append the new stop row!
+        if (
+          initialStopIndex !== undefined &&
+          initialStopIndex >= initStops.length &&
+          initStops.length < 12
+        ) {
+          const newIdx = initStops.length;
+          initStops.push({
+            id: `stop-${newIdx}-${Date.now()}`,
+            label: '',
+          });
+          sIdx = newIdx;
+        } else if (
+          initialStopIndex !== undefined &&
+          initialStopIndex >= 0 &&
+          initialStopIndex < initStops.length
+        ) {
+          sIdx = initialStopIndex;
+        } else if (initStops.length === 0) {
+          initStops.push({
+            id: `stop-0-${Date.now()}`,
+            label: '',
+          });
+          sIdx = 0;
+        } else {
+          sIdx = Math.max(0, initStops.length - 1);
+        }
+      } else {
+        sIdx = Math.max(0, initStops.length - 1);
+      }
+
+      setPickupText(p);
+      setDropText(d);
+      setStops(initStops);
+      setActiveTarget(target);
+      setActiveStopIndex(sIdx);
+      setSearchQuery('');
+
+      if (target === 'PICKUP') {
+        setTimeout(() => pickupInputRef.current?.focus(), 150);
+      } else if (target === 'DROP') {
+        setTimeout(() => dropInputRef.current?.focus(), 150);
+      } else if (target === 'STOP') {
+        setTimeout(() => {
+          routeCardScrollRef.current?.scrollToEnd({ animated: true });
+          stopInputRefs.current[sIdx]?.focus();
+        }, 150);
+      }
+    }
+    prevVisibleRef.current = visible;
+  }, [visible, pickupValue, dropValue, pickupLocation, dropLocation, viaStops, currentValue, isPickup, initialTarget, initialStopIndex, hideDrop, hideStops, singleLocationOnly, pickupAirportsOnly, dropAirportsOnly, airportsOnly]);
+
+  const isTargetAirportOnly = useMemo(() => {
+    if (airportsOnly) return true;
+    if (activeTarget === 'PICKUP' && pickupAirportsOnly) return true;
+    if (activeTarget === 'DROP' && dropAirportsOnly) return true;
+    return false;
+  }, [airportsOnly, activeTarget, pickupAirportsOnly, dropAirportsOnly]);
+
+  const modalTitle = useMemo(() => {
+    if (hideDrop || singleLocationOnly) {
+      if (title) return title;
+      return isPickup !== false
+        ? t('modals.locationPicker.selectPickupLocation', { defaultValue: 'Select Pickup Location' })
+        : t('modals.locationPicker.selectDropLocation', { defaultValue: 'Select Drop Location' });
+    }
+    if (activeTarget === 'PICKUP') {
+      return pickupAirportsOnly
+        ? t('modals.locationPicker.selectPickupAirport', { defaultValue: 'Select Pickup Airport' })
+        : t('modals.locationPicker.selectPickupLocation', { defaultValue: 'Select Pickup Location' });
+    }
+    if (activeTarget === 'DROP') {
+      return dropAirportsOnly
+        ? t('modals.locationPicker.selectDestAirport', { defaultValue: 'Select Destination Airport' })
+        : t('modals.locationPicker.selectDropLocation', { defaultValue: 'Select Drop Location' });
+    }
+    if (activeTarget === 'STOP') {
+      return t('modals.locationPicker.selectStopLocation', { index: activeStopIndex + 1, defaultValue: `Select Stop ${activeStopIndex + 1}` });
+    }
+    return title || t('modals.locationPicker.title', { defaultValue: 'Select Location' });
+  }, [title, hideDrop, singleLocationOnly, isPickup, activeTarget, pickupAirportsOnly, dropAirportsOnly, activeStopIndex, t]);
+
+  const baseLocations = useMemo(() => {
+    if (isTargetAirportOnly) {
+      return ALL_LOCATIONS.filter(isAirportLocation);
+    }
+    return ALL_LOCATIONS;
+  }, [isTargetAirportOnly]);
 
   const filteredLocations = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return ALL_LOCATIONS.filter((loc) => {
-      const text = `${loc.label} ${loc.sublabel || ''} ${loc.keywords?.join(' ') || ''}`.toLowerCase();
-      const isRailway =
-        text.includes('railway') ||
-        text.includes('train') ||
-        text.includes('railway station') ||
-        (text.includes('station') && !text.includes('police'));
+    if (!query) return baseLocations;
 
-      // Category filter
-      if (activeCategory === 'AIRPORTS') {
-        if (isRailway) return false;
-        if (loc.category !== 'AIRPORTS' && !text.includes('airport')) return false;
-      } else if (activeCategory === 'RAILWAY') {
-        if (!isRailway) return false;
-      } else if (activeCategory === 'MANGALURU') {
-        if (loc.category !== 'MANGALURU') return false;
-      } else if (activeCategory === 'OUTSTATION') {
-        if (loc.category !== 'OUTSTATION') return false;
-      }
-
-      if (!query) return true;
-
+    return baseLocations.filter((loc) => {
       const labelMatch = loc.label.toLowerCase().includes(query);
       const sublabelMatch = loc.sublabel?.toLowerCase().includes(query) || false;
       const keywordMatch = loc.keywords?.some((k) => k.toLowerCase().includes(query)) || false;
 
       return labelMatch || sublabelMatch || keywordMatch;
     });
-  }, [searchQuery, activeCategory]);
+  }, [searchQuery, baseLocations]);
 
   const handleUseCurrentLocation = async () => {
     setGpsLoading(true);
@@ -289,15 +331,21 @@ export function LocationPickerModal({
         return;
       }
 
-      // 3. Obtain fresh current GPS position (prevent cached stale points)
-      let loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Highest,
-        mayShowUserSettingsDialog: true,
-      }).catch(async () => {
-        return await Location.getLastKnownPositionAsync({
-          maxAge: 3000,
+      // 3. Obtain current GPS position (fast fix with fallback)
+      let loc = await Location.getLastKnownPositionAsync({ maxAge: 60000 });
+      if (!loc) {
+        loc = await Promise.race([
+          Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+            mayShowUserSettingsDialog: true,
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('GPS timeout')), 4000)
+          ),
+        ]).catch(async () => {
+          return await Location.getLastKnownPositionAsync();
         });
-      });
+      }
 
       if (!loc) {
         throw new Error('Unable to obtain GPS fix');
@@ -313,7 +361,7 @@ export function LocationPickerModal({
       // Try OpenStreetMap Nominatim for exact street & locality
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 3500);
+        const timeout = setTimeout(() => controller.abort(), 2000);
 
         const osmRes = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
@@ -401,8 +449,133 @@ export function LocationPickerModal({
         source: 'OSM_LIVE',
       };
 
-      onSelect(placeLoc);
-      onClose();
+      if (hideDrop || singleLocationOnly) {
+        if (isPickup !== false) {
+          if (dropLocation && isSameLocation(placeLoc, dropLocation)) {
+            Alert.alert(
+              t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+              t('modals.locationPicker.sameLocationMsg', { defaultValue: 'Pickup and drop location cannot be the same. Please choose a different destination.' })
+            );
+            return;
+          }
+          setPickupItem(placeLoc);
+          setPickupText(placeLoc.label);
+          onSelectPickup?.(placeLoc);
+          onSelect?.(placeLoc);
+          onConfirmRoute?.({
+            pickup: placeLoc,
+            drop: null,
+            stops: [],
+          });
+          onClose();
+        } else {
+          if (pickupLocation && isSameLocation(placeLoc, pickupLocation)) {
+            Alert.alert(
+              t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+              t('modals.locationPicker.sameLocationMsg', { defaultValue: 'Pickup and drop location cannot be the same. Please choose a different destination.' })
+            );
+            return;
+          }
+          setDropItem(placeLoc);
+          setDropText(placeLoc.label);
+          onSelectDrop?.(placeLoc);
+          onSelect?.(placeLoc);
+          onConfirmRoute?.({
+            pickup: null,
+            drop: placeLoc,
+            stops: [],
+          });
+          onClose();
+        }
+        return;
+      }
+
+      if (activeTarget === 'PICKUP') {
+        if (dropText.trim() && isSameLocation(placeLoc, dropItem || dropText)) {
+          Alert.alert(
+            t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+            t('modals.locationPicker.sameLocationMsg', { defaultValue: 'Pickup and drop location cannot be the same. Please choose a different destination.' })
+          );
+          return;
+        }
+        const matchStop = stops.find((s) => s.label && isSameLocation(placeLoc, s.location || s.label));
+        if (matchStop) {
+          Alert.alert(
+            t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+            t('modals.locationPicker.sameStopMsg', { defaultValue: 'Stop location cannot be the same as pickup or drop location.' })
+          );
+          return;
+        }
+        setPickupItem(placeLoc);
+        setPickupText(placeLoc.label);
+        onSelectPickup?.(placeLoc);
+        setSearchQuery('');
+        if (stops.length > 0 && !stops[0].label) {
+          setActiveTarget('STOP');
+          setActiveStopIndex(0);
+        } else {
+          setActiveTarget('DROP');
+        }
+      } else if (activeTarget === 'STOP') {
+        if (pickupText.trim() && isSameLocation(placeLoc, pickupItem || pickupText)) {
+          Alert.alert(
+            t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+            t('modals.locationPicker.sameStopMsg', { defaultValue: 'Stop location cannot be the same as pickup or drop location.' })
+          );
+          return;
+        }
+        if (dropText.trim() && isSameLocation(placeLoc, dropItem || dropText)) {
+          Alert.alert(
+            t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+            t('modals.locationPicker.sameStopMsg', { defaultValue: 'Stop location cannot be the same as pickup or drop location.' })
+          );
+          return;
+        }
+        const matchOtherStop = stops.find(
+          (s, idx) => idx !== activeStopIndex && s.label && isSameLocation(placeLoc, s.location || s.label)
+        );
+        if (matchOtherStop) {
+          Alert.alert(
+            t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+            t('modals.locationPicker.sameStopMsg', { defaultValue: 'Stop location cannot be the same as pickup or drop location.' })
+          );
+          return;
+        }
+        setStops((prev) =>
+          prev.map((s, idx) =>
+            idx === activeStopIndex ? { ...s, label: placeLoc.label, location: placeLoc } : s
+          )
+        );
+        setSearchQuery('');
+        if (activeStopIndex + 1 < stops.length) {
+          setActiveStopIndex(activeStopIndex + 1);
+        } else {
+          setActiveTarget('DROP');
+        }
+      } else {
+        if (pickupText.trim() && isSameLocation(placeLoc, pickupItem || pickupText)) {
+          Alert.alert(
+            t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+            t('modals.locationPicker.sameLocationMsg', { defaultValue: 'Pickup and drop location cannot be the same. Please choose a different destination.' })
+          );
+          return;
+        }
+        const matchStop = stops.find((s) => s.label && isSameLocation(placeLoc, s.location || s.label));
+        if (matchStop) {
+          Alert.alert(
+            t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+            t('modals.locationPicker.sameStopMsg', { defaultValue: 'Stop location cannot be the same as pickup or drop location.' })
+          );
+          return;
+        }
+        setDropItem(placeLoc);
+        setDropText(placeLoc.label);
+        onSelectDrop?.(placeLoc);
+        setSearchQuery('');
+        if (!pickupText) {
+          setActiveTarget('PICKUP');
+        }
+      }
     } catch (e: any) {
       Alert.alert(
         'Location / Network Error',
@@ -414,177 +587,769 @@ export function LocationPickerModal({
     }
   };
 
+  const handleAddStop = () => {
+    if (stops.length >= 12) {
+      Alert.alert('Maximum Stops', 'You can add up to 12 stops per route.');
+      return;
+    }
+    const newIdx = stops.length;
+    const newStop: StopItem = {
+      id: `stop-${Date.now()}-${newIdx}`,
+      label: '',
+    };
+    setStops((prev) => [...prev, newStop]);
+    setActiveTarget('STOP');
+    setActiveStopIndex(newIdx);
+    setSearchQuery('');
+    setTimeout(() => {
+      routeCardScrollRef.current?.scrollToEnd({ animated: true });
+      stopInputRefs.current[newIdx]?.focus();
+    }, 150);
+  };
+
+  const handleRemoveStop = (indexToRemove: number) => {
+    const nextStops = stops.filter((_, idx) => idx !== indexToRemove);
+    setStops(nextStops);
+    onRemoveStop?.(indexToRemove);
+    if (activeTarget === 'STOP') {
+      if (nextStops.length === 0) {
+        setActiveTarget('DROP');
+        setActiveStopIndex(0);
+      } else if (activeStopIndex >= nextStops.length) {
+        setActiveStopIndex(nextStops.length - 1);
+      }
+    }
+  };
+
+  const handleUpdateStopText = (index: number, text: string) => {
+    setStops((prev) =>
+      prev.map((s, idx) => (idx === index ? { ...s, label: text } : s))
+    );
+    setSearchQuery(text);
+  };
+
+  const handleConfirmAndClose = () => {
+    let pLoc: PlaceLocation | null = null;
+    if (pickupText.trim()) {
+      if (pickupItem && pickupItem.label.toLowerCase() === pickupText.trim().toLowerCase()) {
+        pLoc = pickupItem;
+      } else {
+        const match = ALL_LOCATIONS.find(
+          (l) => l.label.toLowerCase() === pickupText.trim().toLowerCase()
+        );
+        pLoc = match || {
+          label: pickupText.trim(),
+          sublabel: 'Pickup Location',
+          lat: 12.9141,
+          lng: 74.8560,
+        };
+      }
+      onSelectPickup?.(pLoc);
+      if (isPickup !== false) onSelect?.(pLoc);
+    }
+
+    if (hideDrop || singleLocationOnly) {
+      if (isPickup !== false) {
+        onConfirmRoute?.({
+          pickup: pLoc,
+          drop: null,
+          stops: [],
+        });
+      } else {
+        let dLoc: PlaceLocation | null = null;
+        if (dropText.trim()) {
+          if (dropItem && dropItem.label.toLowerCase() === dropText.trim().toLowerCase()) {
+            dLoc = dropItem;
+          } else {
+            const match = ALL_LOCATIONS.find(
+              (l) => l.label.toLowerCase() === dropText.trim().toLowerCase()
+            );
+            dLoc = match || {
+              label: dropText.trim(),
+              sublabel: 'Destination',
+              lat: 12.9141,
+              lng: 74.8560,
+            };
+          }
+          onSelectDrop?.(dLoc);
+          onSelect?.(dLoc);
+        }
+        onConfirmRoute?.({
+          pickup: null,
+          drop: dLoc,
+          stops: [],
+        });
+      }
+      onClose();
+      return;
+    }
+
+    const validStops: PlaceLocation[] = stops
+      .filter((s) => s.label.trim().length > 0)
+      .map((s) => {
+        if (s.location) return s.location;
+        const match = ALL_LOCATIONS.find(
+          (l) => l.label.toLowerCase() === s.label.trim().toLowerCase()
+        );
+        return (
+          match || {
+            label: s.label.trim(),
+            sublabel: 'Via Stop',
+            lat: 12.9141,
+            lng: 74.8560,
+          }
+        );
+      });
+
+    let dLoc: PlaceLocation | null = null;
+    if (dropText.trim()) {
+      if (dropItem && dropItem.label.toLowerCase() === dropText.trim().toLowerCase()) {
+        dLoc = dropItem;
+      } else {
+        const match = ALL_LOCATIONS.find(
+          (l) => l.label.toLowerCase() === dropText.trim().toLowerCase()
+        );
+        dLoc = match || {
+          label: dropText.trim(),
+          sublabel: 'Destination',
+          lat: 12.9141,
+          lng: 74.8560,
+        };
+      }
+      onSelectDrop?.(dLoc);
+      if (!isPickup) onSelect?.(dLoc);
+    }
+
+    if (pickupText.trim() && dropText.trim() && isSameLocation(pLoc || pickupText, dLoc || dropText)) {
+      Alert.alert(
+        t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+        t('modals.locationPicker.sameLocationMsg', { defaultValue: 'Pickup and drop location cannot be the same. Please choose a different destination.' })
+      );
+      return;
+    }
+
+    if (pickupText.trim() && validStops.some((s) => isSameLocation(pLoc || pickupText, s))) {
+      Alert.alert(
+        t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+        t('modals.locationPicker.sameStopMsg', { defaultValue: 'Stop location cannot be the same as pickup or drop location.' })
+      );
+      return;
+    }
+
+    if (dropText.trim() && validStops.some((s) => isSameLocation(dLoc || dropText, s))) {
+      Alert.alert(
+        t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+        t('modals.locationPicker.sameStopMsg', { defaultValue: 'Stop location cannot be the same as pickup or drop location.' })
+      );
+      return;
+    }
+
+    onConfirmRoute?.({
+      pickup: pLoc,
+      drop: dLoc,
+      stops: validStops,
+    });
+
+    onClose();
+  };
+
+  const currentPickupDisplay = pickupValue || (isPickup ? currentValue : '') || ', Mangaluru, Karnataka 575001, India';
+  const currentDropDisplay = dropValue || (!isPickup ? currentValue : '') || t('modals.locationPicker.enterDrop', { defaultValue: 'Drop location' });
+
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { paddingTop: topInset }]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.container}
         >
           {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.7}>
-              <Ionicons name="close" size={20} color="#103A75" />
+          <View style={[styles.header, isSmallDevice && { paddingHorizontal: 12, paddingBottom: 8 }]}>
+            <TouchableOpacity onPress={onClose} style={[styles.closeButton, isSmallDevice && { width: 34, height: 34, borderRadius: 17 }]} activeOpacity={0.7}>
+              <Ionicons name="close" size={isSmallDevice ? 18 : 20} color="rgb(22, 34, 50)" />
             </TouchableOpacity>
             <View style={styles.headerTitleContainer}>
-              <Text style={styles.headerTitle}>{title}</Text>
-              <Text style={styles.headerSubtitle}>Tap landmark or type to search</Text>
+              <Text
+                style={[styles.headerTitle, isSmallDevice && { fontSize: 16 }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.8}
+              >
+                {modalTitle}
+              </Text>
+              <Text style={[styles.headerSubtitle, isSmallDevice && { fontSize: 11 }]} numberOfLines={1}>
+                {hideDrop || singleLocationOnly
+                  ? t('modals.locationPicker.tapLandmarkOrType', { defaultValue: 'Tap landmark or type address' })
+                  : activeTarget === 'PICKUP'
+                  ? t('modals.locationPicker.editingPickup', { defaultValue: 'Editing Pickup • Tap landmark or type' })
+                  : activeTarget === 'STOP'
+                  ? t('modals.locationPicker.editingStop', { index: activeStopIndex + 1, defaultValue: `Editing Stop ${activeStopIndex + 1} • Tap landmark or type` })
+                  : t('modals.locationPicker.editingDrop', { defaultValue: 'Editing Drop • Tap landmark or type' })}
+              </Text>
             </View>
-            <View style={{ width: 36 }} />
+            {((!hideDrop && !singleLocationOnly && pickupText.trim().length > 0 && dropText.trim().length > 0) ||
+              ((hideDrop || singleLocationOnly) && (isPickup !== false ? pickupText.trim().length > 0 : dropText.trim().length > 0))) ? (
+              <TouchableOpacity onPress={handleConfirmAndClose} style={[styles.headerDoneBtn, isSmallDevice && { paddingHorizontal: 10, paddingVertical: 5 }]} activeOpacity={0.7}>
+                <Text style={[styles.headerDoneText, isSmallDevice && { fontSize: 12.5 }]}>
+                  {t('common.done', { defaultValue: 'Done' })}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={{ width: isSmallDevice ? 32 : 36 }} />
+            )}
           </View>
 
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={19} color="#64748b" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search airport, railway station, locality..."
-              placeholderTextColor="#94a3b8"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoFocus={false}
-              clearButtonMode="while-editing"
-            />
-            {searchQuery.length > 0 && Platform.OS !== 'ios' && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close-circle" size={18} color="#94a3b8" />
+          {/* Connected Multi-Stop Route Card (Supporting up to 12 stops) */}
+          <View style={[styles.routeCardWrapper, isSmallDevice && { marginHorizontal: 10, marginTop: 6 }]}>
+            <ScrollView
+              ref={routeCardScrollRef}
+              style={styles.routeCardScroll}
+              contentContainerStyle={styles.routeCard}
+              nestedScrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={stops.length > 2}
+            >
+              {/* Timeline Column */}
+              <View style={[styles.timelineCol, (hideDrop || singleLocationOnly) && { justifyContent: 'center' }]}>
+                <Ionicons
+                  name="location-sharp"
+                  size={20}
+                  color={singleLocationOnly && isPickup === false ? '#ef4444' : '#16a34a'}
+                />
+                {!hideDrop && !singleLocationOnly && (
+                  <>
+                    <View style={styles.timelineLine} />
+                    {!hideStops && stops.map((stop, idx) => {
+                      const isStopActive = activeTarget === 'STOP' && activeStopIndex === idx;
+                      return (
+                        <React.Fragment key={`tl-${stop.id || idx}`}>
+                          <View
+                            style={[
+                              styles.circleStopNode,
+                              isStopActive && styles.circleStopNodeActive,
+                            ]}
+                          >
+                            <Text style={styles.circleStopText}>{idx + 1}</Text>
+                          </View>
+                          <View style={styles.timelineLine} />
+                        </React.Fragment>
+                      );
+                    })}
+                    <Ionicons name="location-sharp" size={20} color="#ef4444" />
+                  </>
+                )}
+              </View>
+
+              {/* Route Fields Column */}
+              <View style={styles.routeFieldsCol}>
+                {/* Pickup Row with TextInput */}
+                {(!singleLocationOnly || isPickup !== false) && (
+                  <TouchableOpacity
+                    activeOpacity={0.95}
+                    onPress={() => {
+                      setActiveTarget('PICKUP');
+                      setSearchQuery(pickupAirportsOnly ? '' : pickupText);
+                      pickupInputRef.current?.focus();
+                    }}
+                    style={[
+                      styles.routeFieldRow,
+                      activeTarget === 'PICKUP' && styles.routeFieldRowActive,
+                    ]}
+                  >
+                    <TextInput
+                      ref={pickupInputRef}
+                      style={[
+                        styles.routeInput,
+                        activeTarget === 'PICKUP' && styles.routeInputActive,
+                      ]}
+                      value={pickupText}
+                      onChangeText={(t) => {
+                        setPickupText(t);
+                        setSearchQuery(t);
+                      }}
+                      onFocus={() => {
+                        setActiveTarget('PICKUP');
+                        setSearchQuery(pickupAirportsOnly ? '' : pickupText);
+                      }}
+                      placeholder={
+                        pickupPlaceholder ||
+                        (pickupAirportsOnly ? t('modals.locationPicker.enterAirport', { defaultValue: 'Enter airport location' }) : t('modals.locationPicker.enterPickup', { defaultValue: 'Enter pickup location' }))
+                      }
+                      placeholderTextColor="#94a3b8"
+                    />
+                    {pickupText.length > 0 && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setPickupText('');
+                          setSearchQuery('');
+                          pickupInputRef.current?.focus();
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        activeOpacity={0.7}
+                        style={{ paddingHorizontal: 4 }}
+                      >
+                        <Ionicons name="close-circle" size={17} color="#94a3b8" />
+                      </TouchableOpacity>
+                    )}
+                  </TouchableOpacity>
+                )}
+
+                {/* Multiple Stops & Drop Rows (only when drop is allowed) */}
+                {!hideDrop && !singleLocationOnly && (
+                  <>
+                    {!hideStops && stops.map((stop, idx) => {
+                      const isStopActive = activeTarget === 'STOP' && activeStopIndex === idx;
+                      return (
+                        <React.Fragment key={`field-${stop.id || idx}`}>
+                          <View style={styles.routeDivider} />
+                          <TouchableOpacity
+                            activeOpacity={0.95}
+                            onPress={() => {
+                              setActiveTarget('STOP');
+                              setActiveStopIndex(idx);
+                              setSearchQuery(stop.label);
+                              stopInputRefs.current[idx]?.focus();
+                            }}
+                            style={[
+                              styles.routeFieldRow,
+                              isStopActive && styles.routeFieldRowActive,
+                            ]}
+                          >
+                            <TextInput
+                              ref={(ref) => {
+                                stopInputRefs.current[idx] = ref;
+                              }}
+                              style={[
+                                styles.routeInput,
+                                isStopActive && styles.routeInputActive,
+                              ]}
+                              value={stop.label}
+                              onChangeText={(t) => handleUpdateStopText(idx, t)}
+                              onFocus={() => {
+                                setActiveTarget('STOP');
+                                setActiveStopIndex(idx);
+                                setSearchQuery(stop.label);
+                              }}
+                              placeholder={t('modals.locationPicker.addStopPlaceholder', { defaultValue: `Add Stop ${idx + 1}`, index: idx + 1 })}
+                              placeholderTextColor="#475569"
+                            />
+                            <View style={styles.stopActions}>
+                              {stop.label.length > 0 && (
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    handleUpdateStopText(idx, '');
+                                    setSearchQuery('');
+                                    stopInputRefs.current[idx]?.focus();
+                                  }}
+                                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                  activeOpacity={0.7}
+                                  style={{ marginRight: 6 }}
+                                >
+                                  <Ionicons name="close-circle" size={17} color="#94a3b8" />
+                                </TouchableOpacity>
+                              )}
+                              <Ionicons
+                                name="reorder-two-outline"
+                                size={21}
+                                color="#475569"
+                                style={{ marginRight: 8 }}
+                              />
+                              <TouchableOpacity
+                                onPress={() => handleRemoveStop(idx)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                activeOpacity={0.7}
+                              >
+                                <Ionicons name="close" size={17} color="#64748b" />
+                              </TouchableOpacity>
+                            </View>
+                          </TouchableOpacity>
+                        </React.Fragment>
+                      );
+                    })}
+
+                    <View style={styles.routeDivider} />
+
+                    {/* Drop Row with TextInput */}
+                    <TouchableOpacity
+                      activeOpacity={0.95}
+                      onPress={() => {
+                        setActiveTarget('DROP');
+                        setSearchQuery(dropAirportsOnly ? '' : dropText);
+                        dropInputRef.current?.focus();
+                      }}
+                      style={[
+                        styles.routeFieldRow,
+                        activeTarget === 'DROP' && styles.routeFieldRowActive,
+                      ]}
+                    >
+                      <TextInput
+                        ref={dropInputRef}
+                        style={[
+                          styles.routeInput,
+                          activeTarget === 'DROP' && styles.routeInputActive,
+                        ]}
+                        value={dropText}
+                        onChangeText={(t) => {
+                          setDropText(t);
+                          setSearchQuery(t);
+                        }}
+                        onFocus={() => {
+                          setActiveTarget('DROP');
+                          setSearchQuery(dropAirportsOnly ? '' : dropText);
+                        }}
+                        placeholder={
+                          dropPlaceholder ||
+                          (dropAirportsOnly ? t('modals.locationPicker.enterAirport', { defaultValue: 'Enter airport location' }) : t('modals.locationPicker.enterDrop', { defaultValue: 'Drop location' }))
+                        }
+                        placeholderTextColor="#64748b"
+                      />
+                      {dropText.length > 0 && (
+                        <TouchableOpacity
+                          onPress={() => {
+                            setDropText('');
+                            setSearchQuery('');
+                            dropInputRef.current?.focus();
+                          }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          activeOpacity={0.7}
+                          style={{ paddingHorizontal: 4 }}
+                        >
+                          <Ionicons name="close-circle" size={17} color="#94a3b8" />
+                        </TouchableOpacity>
+                      )}
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                {/* Single Location Only Drop Row (e.g. return drop modal where isPickup === false) */}
+                {singleLocationOnly && isPickup === false && (
+                  <TouchableOpacity
+                    activeOpacity={0.95}
+                    onPress={() => {
+                      setActiveTarget('DROP');
+                      setSearchQuery(dropAirportsOnly ? '' : dropText);
+                      dropInputRef.current?.focus();
+                    }}
+                    style={[
+                      styles.routeFieldRow,
+                      activeTarget === 'DROP' && styles.routeFieldRowActive,
+                    ]}
+                  >
+                    <TextInput
+                      ref={dropInputRef}
+                      style={[
+                        styles.routeInput,
+                        activeTarget === 'DROP' && styles.routeInputActive,
+                      ]}
+                      value={dropText}
+                      onChangeText={(t) => {
+                        setDropText(t);
+                        setSearchQuery(t);
+                      }}
+                      onFocus={() => {
+                        setActiveTarget('DROP');
+                        setSearchQuery(dropAirportsOnly ? '' : dropText);
+                      }}
+                      placeholder={
+                        dropPlaceholder ||
+                        (dropAirportsOnly ? t('modals.locationPicker.enterAirport', { defaultValue: 'Enter airport location' }) : t('modals.locationPicker.enterDrop', { defaultValue: 'Enter drop location' }))
+                      }
+                      placeholderTextColor="#94a3b8"
+                    />
+                    {dropText.length > 0 && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setDropText('');
+                          setSearchQuery('');
+                          dropInputRef.current?.focus();
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        activeOpacity={0.7}
+                        style={{ paddingHorizontal: 4 }}
+                      >
+                        <Ionicons name="close-circle" size={17} color="#94a3b8" />
+                      </TouchableOpacity>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+
+          {/* Action Pills: Current Location & Add Stops (Right side of Current Location) */}
+          <View style={[styles.actionPillsRow, isSmallDevice && { paddingHorizontal: 10, marginTop: 6 }]}>
+            {!isTargetAirportOnly && isPickup !== false && (
+              <TouchableOpacity
+                style={styles.currentLocationPill}
+                onPress={handleUseCurrentLocation}
+                disabled={gpsLoading}
+                activeOpacity={0.7}
+              >
+                <View style={styles.currentLocationIconCircle}>
+                  {gpsLoading ? (
+                    <ActivityIndicator size="small" color="rgb(240, 117, 15)" />
+                  ) : (
+                    <Ionicons name="navigate" size={15} color="rgb(240, 117, 15)" />
+                  )}
+                </View>
+                <Text style={styles.currentLocationText}>
+                  {t('modals.locationPicker.useCurrentLocation', { defaultValue: 'Use my location' })}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {isTargetAirportOnly && (
+              <View style={styles.airportNoticePill}>
+                <View style={styles.airportNoticeIconCircle}>
+                  <Ionicons name="airplane" size={13} color="rgb(240, 117, 15)" />
+                </View>
+                <Text style={styles.airportNoticeText}>{t('modals.locationPicker.airportOnly', { defaultValue: 'Airport Locations Only' })}</Text>
+              </View>
+            )}
+
+            {!isTargetAirportOnly && !hideDrop && !singleLocationOnly && !hideStops && stops.length < 12 && (
+              <TouchableOpacity
+                style={[styles.addStopsPill, isPickup === false && { marginLeft: 'auto' }]}
+                onPress={handleAddStop}
+                activeOpacity={0.7}
+              >
+                <View style={styles.addStopsIconCircle}>
+                  <Ionicons name="add" size={16} color="rgb(22, 34, 50)" />
+                </View>
+                <Text style={styles.addStopsText}>
+                  {stops.length === 0 ? t('modals.locationPicker.addStops', { defaultValue: 'Add stops' }) : t('modals.locationPicker.addStopNum', { defaultValue: `Add Stop ${stops.length + 1}`, number: stops.length + 1 })}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
 
-          {/* GPS Location Button for Pickup */}
-          {isPickup && (
-            <TouchableOpacity
-              style={styles.gpsButton}
-              onPress={handleUseCurrentLocation}
-              disabled={gpsLoading}
-              activeOpacity={0.8}
-            >
-              <View style={styles.gpsIconCircle}>
-                {gpsLoading ? (
-                  <ActivityIndicator size="small" color="#ea580c" />
-                ) : (
-                  <Ionicons name="navigate" size={16} color="#ea580c" />
-                )}
-              </View>
-              <View style={styles.gpsTextCol}>
-                <Text style={styles.gpsButtonTitle}>Use My Current Live Location</Text>
-                <Text style={styles.gpsButtonSubtitle}>Auto-detect accurate GPS position</Text>
-              </View>
-              <View style={styles.gpsBadge}>
-                <View style={styles.gpsLiveDot} />
-                <Text style={styles.gpsBadgeText}>GPS</Text>
-              </View>
-            </TouchableOpacity>
-          )}
-
-          {/* Category Tabs */}
-          <View style={styles.categoryTabsWrapper}>
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoryTabs}
-              data={[
-                { id: 'ALL' as TabCategory, label: 'All', icon: 'grid-outline' as const },
-                { id: 'AIRPORTS' as TabCategory, label: 'Airports', icon: 'airplane-outline' as const },
-                { id: 'RAILWAY' as TabCategory, label: 'Railway', icon: 'train-outline' as const },
-                { id: 'MANGALURU' as TabCategory, label: 'Mangaluru', icon: 'business-outline' as const },
-                { id: 'OUTSTATION' as TabCategory, label: 'Outstation', icon: 'car-outline' as const },
-              ]}
-              keyExtractor={(tab) => tab.id}
-              renderItem={({ item: tab }) => {
-                const isActive = activeCategory === tab.id;
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.categoryTab,
-                      isActive && styles.categoryTabActive,
-                    ]}
-                    onPress={() => setActiveCategory(tab.id)}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name={tab.icon}
-                      size={13}
-                      color={isActive ? '#ffffff' : '#64748b'}
-                      style={{ marginRight: 5 }}
-                    />
-                    <Text
-                      style={[
-                        styles.categoryTabText,
-                        isActive && styles.categoryTabTextActive,
-                      ]}
-                    >
-                      {tab.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          </View>
-
-          {/* Locations List */}
+          {/* Locations List (Starts immediately below Action Pills, Search Bar Removed) */}
           <FlatList
             data={filteredLocations}
             keyExtractor={(item, index) => `${item.label}-${index}`}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, isSmallDevice && { paddingHorizontal: 10, paddingTop: 2 }]}
             keyboardShouldPersistTaps="handled"
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS === 'android'}
             renderItem={({ item }) => {
-              const isSelected = currentValue === item.label;
-              const meta = getLocationMeta(item);
+              const isItemAirport = isAirportLocation(item);
+              const isSelected =
+                (activeTarget === 'PICKUP' && pickupText === item.label) ||
+                (activeTarget === 'STOP' && stops[activeStopIndex]?.label === item.label) ||
+                (activeTarget === 'DROP' && dropText === item.label) ||
+                currentValue === item.label;
+              const pinColor = isItemAirport ? 'rgb(240, 117, 15)' : (activeTarget === 'DROP' ? '#ef4444' : '#16a34a');
 
               return (
                 <TouchableOpacity
-                  style={[styles.locationItem, isSelected && styles.locationItemSelected]}
+                  style={[styles.locationItem, isSelected && styles.locationItemSelected, isSmallDevice && { paddingVertical: 10, paddingHorizontal: 10 }]}
                   activeOpacity={0.7}
                   onPress={() => {
-                    onSelect(item);
-                    onClose();
+                    if (hideDrop || singleLocationOnly) {
+                      if (isPickup !== false) {
+                        if (dropLocation && isSameLocation(item, dropLocation)) {
+                          Alert.alert(
+                            t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+                            t('modals.locationPicker.sameLocationMsg', { defaultValue: 'Pickup and drop location cannot be the same. Please choose a different destination.' })
+                          );
+                          return;
+                        }
+                        setPickupItem(item);
+                        setPickupText(item.label);
+                        onSelectPickup?.(item);
+                        onSelect?.(item);
+                        onConfirmRoute?.({
+                          pickup: item,
+                          drop: null,
+                          stops: [],
+                        });
+                        onClose();
+                      } else {
+                        if (pickupLocation && isSameLocation(item, pickupLocation)) {
+                          Alert.alert(
+                            t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+                            t('modals.locationPicker.sameLocationMsg', { defaultValue: 'Pickup and drop location cannot be the same. Please choose a different destination.' })
+                          );
+                          return;
+                        }
+                        setDropItem(item);
+                        setDropText(item.label);
+                        onSelectDrop?.(item);
+                        onSelect?.(item);
+                        onConfirmRoute?.({
+                          pickup: null,
+                          drop: item,
+                          stops: [],
+                        });
+                        onClose();
+                      }
+                      return;
+                    }
+
+                    if (activeTarget === 'PICKUP') {
+                      if (dropText.trim() && isSameLocation(item, dropItem || dropText)) {
+                        Alert.alert(
+                          t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+                          t('modals.locationPicker.sameLocationMsg', { defaultValue: 'Pickup and drop location cannot be the same. Please choose a different destination.' })
+                        );
+                        return;
+                      }
+                      const matchStop = stops.find((s) => s.label && isSameLocation(item, s.location || s.label));
+                      if (matchStop) {
+                        Alert.alert(
+                          t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+                          t('modals.locationPicker.sameStopMsg', { defaultValue: 'Stop location cannot be the same as pickup or drop location.' })
+                        );
+                        return;
+                      }
+                      setPickupItem(item);
+                      setPickupText(item.label);
+                      onSelectPickup?.(item);
+                      setSearchQuery('');
+                      if (stops.length > 0 && !stops[0].label) {
+                        setActiveTarget('STOP');
+                        setActiveStopIndex(0);
+                      } else {
+                        setActiveTarget('DROP');
+                      }
+                    } else if (activeTarget === 'STOP') {
+                      if (pickupText.trim() && isSameLocation(item, pickupItem || pickupText)) {
+                        Alert.alert(
+                          t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+                          t('modals.locationPicker.sameStopMsg', { defaultValue: 'Stop location cannot be the same as pickup or drop location.' })
+                        );
+                        return;
+                      }
+                      if (dropText.trim() && isSameLocation(item, dropItem || dropText)) {
+                        Alert.alert(
+                          t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+                          t('modals.locationPicker.sameStopMsg', { defaultValue: 'Stop location cannot be the same as pickup or drop location.' })
+                        );
+                        return;
+                      }
+                      const matchOtherStop = stops.find(
+                        (s, idx) => idx !== activeStopIndex && s.label && isSameLocation(item, s.location || s.label)
+                      );
+                      if (matchOtherStop) {
+                        Alert.alert(
+                          t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+                          t('modals.locationPicker.sameStopMsg', { defaultValue: 'Stop location cannot be the same as pickup or drop location.' })
+                        );
+                        return;
+                      }
+                      setStops((prev) =>
+                        prev.map((s, idx) =>
+                          idx === activeStopIndex ? { ...s, label: item.label, location: item } : s
+                        )
+                      );
+                      setSearchQuery('');
+                      if (activeStopIndex + 1 < stops.length) {
+                        setActiveStopIndex(activeStopIndex + 1);
+                      } else {
+                        setActiveTarget('DROP');
+                      }
+                    } else {
+                      if (pickupText.trim() && isSameLocation(item, pickupItem || pickupText)) {
+                        Alert.alert(
+                          t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+                          t('modals.locationPicker.sameLocationMsg', { defaultValue: 'Pickup and drop location cannot be the same. Please choose a different destination.' })
+                        );
+                        return;
+                      }
+                      const matchStop = stops.find((s) => s.label && isSameLocation(item, s.location || s.label));
+                      if (matchStop) {
+                        Alert.alert(
+                          t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+                          t('modals.locationPicker.sameStopMsg', { defaultValue: 'Stop location cannot be the same as pickup or drop location.' })
+                        );
+                        return;
+                      }
+                      setDropItem(item);
+                      setDropText(item.label);
+                      onSelectDrop?.(item);
+                      setSearchQuery('');
+                      if (!pickupText) {
+                        setActiveTarget('PICKUP');
+                      }
+                    }
                   }}
                 >
-                  <View style={[styles.iconContainer, { backgroundColor: meta.iconBg }]}>
+                  <View style={[styles.iconContainer, isItemAirport && styles.airportIconContainer, isSmallDevice && { width: 26, marginRight: 8 }]}>
                     <Ionicons
-                      name={meta.iconName}
-                      size={18}
-                      color={meta.iconColor}
+                      name={isItemAirport ? 'airplane' : 'location-sharp'}
+                      size={isItemAirport ? (isSmallDevice ? 17 : 19) : (isSmallDevice ? 20 : 23)}
+                      color={pinColor}
                     />
                   </View>
                   <View style={styles.locationTextContainer}>
-                    <View style={styles.labelRow}>
+                    <Text
+                      style={[
+                        styles.locationLabel,
+                        isSelected && styles.locationLabelSelected,
+                        isSmallDevice && { fontSize: 13.5 },
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.8}
+                    >
+                      {item.label}
+                    </Text>
+                    {item.sublabel ? (
                       <Text
-                        style={[styles.locationLabel, isSelected && styles.locationLabelSelected]}
+                        style={[styles.locationSublabel, isSmallDevice && { fontSize: 11.5 }]}
                         numberOfLines={1}
                       >
-                        {item.label}
-                      </Text>
-                      <View style={[styles.typeBadge, { backgroundColor: meta.badgeBg }]}>
-                        <Text style={[styles.typeBadgeText, { color: meta.badgeColor }]}>
-                          {meta.badgeLabel}
-                        </Text>
-                      </View>
-                    </View>
-                    {item.sublabel ? (
-                      <Text style={styles.locationSublabel} numberOfLines={1}>
                         {item.sublabel}
                       </Text>
                     ) : null}
                   </View>
                   {isSelected ? (
-                    <Ionicons name="checkmark-circle" size={20} color="#ea580c" />
+                    <Ionicons name="checkmark-circle" size={isSmallDevice ? 19 : 22} color="rgb(240, 117, 15)" />
                   ) : (
-                    <Ionicons name="chevron-forward" size={15} color="#cbd5e1" />
+                    <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
                   )}
                 </TouchableOpacity>
               );
             }}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Ionicons name="location-outline" size={48} color="#cbd5e1" />
-                <Text style={styles.emptyTitle}>No matching locations found</Text>
-                <Text style={styles.emptySubtitle}>Try searching by locality, area or station name</Text>
+                <Ionicons name={isTargetAirportOnly ? 'airplane-outline' : 'location-outline'} size={48} color="#cbd5e1" />
+                <Text style={styles.emptyTitle}>
+                  {isTargetAirportOnly ? t('modals.locationPicker.noAirports', { defaultValue: 'No matching airports found' }) : t('modals.locationPicker.noLocations', { defaultValue: 'No matching locations found' })}
+                </Text>
+                <Text style={styles.emptySubtitle}>
+                  {isTargetAirportOnly ? t('modals.locationPicker.trySearchAirport', { defaultValue: 'Try searching airport name or city' }) : t('modals.locationPicker.trySearchLandmark', { defaultValue: 'Try searching or selecting a landmark' })}
+                </Text>
               </View>
             }
           />
+
+          {/* Confirm Button */}
+          {((!hideDrop && !singleLocationOnly && pickupText.trim().length > 0 && dropText.trim().length > 0) ||
+            ((hideDrop || singleLocationOnly) && (isPickup !== false ? pickupText.trim().length > 0 : dropText.trim().length > 0))) && (
+            <View
+              style={[
+                styles.confirmDock,
+                { paddingBottom: Math.max(insets.bottom, 12) },
+                isSmallDevice && { paddingHorizontal: 12, paddingVertical: 8 },
+              ]}
+            >
+              <TouchableOpacity
+                style={[styles.confirmBtn, isSmallDevice && { paddingVertical: 10 }]}
+                activeOpacity={0.85}
+                onPress={handleConfirmAndClose}
+              >
+                <Text style={[styles.confirmBtnText, isSmallDevice && { fontSize: 13.5 }]}>
+                  {hideDrop || singleLocationOnly
+                    ? (isPickup !== false ? t('common.confirm', { defaultValue: 'Confirm Pickup' }) : t('common.confirm', { defaultValue: 'Confirm Location' }))
+                    : t('modals.locationPicker.confirmRoute', { defaultValue: 'Confirm Route' })}
+                </Text>
+                <Ionicons name="arrow-forward" size={isSmallDevice ? 16 : 18} color="#ffffff" style={{ marginLeft: 6 }} />
+              </TouchableOpacity>
+            </View>
+          )}
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
@@ -620,7 +1385,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   headerSubtitle: {
     fontSize: 11,
@@ -628,122 +1393,223 @@ const styles = StyleSheet.create({
     marginTop: 1,
     fontWeight: '500',
   },
-  searchContainer: {
-    flexDirection: 'row',
+  headerDoneBtn: {
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 14,
+    backgroundColor: 'rgb(240, 117, 15)',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    shadowColor: 'rgb(240, 117, 15)',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  headerDoneText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  // Connected Route Card (supporting up to 12 stops)
+  routeCardWrapper: {
     marginHorizontal: 16,
     marginTop: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
+    borderRadius: 16,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 3,
     elevation: 2,
+    maxHeight: 240,
+    overflow: 'hidden',
   },
-  searchIcon: {
-    marginRight: 8,
+  routeCardScroll: {
+    maxHeight: 240,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#103A75',
-    fontWeight: '500',
-  },
-  gpsButton: {
+  routeCard: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff7ed',
-    borderWidth: 1,
-    borderColor: '#fed7aa',
-    marginHorizontal: 16,
-    marginTop: 9,
+    backgroundColor: '#ffffff',
+    paddingVertical: 4,
     paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 12,
   },
-  gpsIconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#ffedd5',
+  timelineCol: {
+    width: 24,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
+  timelineLine: {
+    width: 2.5,
+    flex: 1,
+    backgroundColor: '#475569',
+    marginVertical: 3,
+  },
+  circleStopNode: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#0f172a',
+    borderWidth: 1.5,
+    borderColor: '#475569',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: '#fed7aa',
   },
-  gpsTextCol: {
-    flex: 1,
+  circleStopNodeActive: {
+    backgroundColor: 'rgb(240, 117, 15)',
+    borderColor: 'rgb(240, 117, 15)',
   },
-  gpsButtonTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#c2410c',
-  },
-  gpsButtonSubtitle: {
-    fontSize: 11,
-    color: '#9a3412',
-    marginTop: 1,
-    fontWeight: '500',
-  },
-  gpsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ea580c',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  gpsLiveDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#4ade80',
-    marginRight: 4,
-  },
-  gpsBadgeText: {
+  circleStopText: {
     color: '#ffffff',
     fontSize: 10,
     fontWeight: '800',
+    textAlign: 'center',
   },
-  categoryTabsWrapper: {
-    marginTop: 10,
-    marginBottom: 6,
+  routeFieldsCol: {
+    flex: 1,
+    marginLeft: 8,
   },
-  categoryTabs: {
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  categoryTab: {
+  routeFieldRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 18,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    justifyContent: 'space-between',
+    paddingVertical: Platform.OS === 'ios' ? 7 : 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  categoryTabActive: {
-    backgroundColor: '#EE5C21',
-    borderColor: '#EE5C21',
+  routeFieldRowActive: {
+    backgroundColor: '#fffaf5',
+    borderColor: 'rgb(240, 117, 15)',
   },
-  categoryTabText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  categoryTabTextActive: {
-    color: '#ffffff',
+  routeInput: {
+    fontSize: 14,
     fontWeight: '700',
+    color: 'rgb(22, 34, 50)',
+    flex: 1,
+    paddingVertical: Platform.OS === 'ios' ? 6 : 4,
+    paddingHorizontal: 4,
+    letterSpacing: -0.2,
+  },
+  routeInputActive: {
+    color: 'rgb(22, 34, 50)',
+    fontWeight: '800',
+  },
+  routeDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+  },
+  stopActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 4,
+  },
+
+  // Action Pills Row: Current Location & Add Stops
+  actionPillsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  currentLocationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingVertical: 3.5,
+    paddingLeft: 4,
+    paddingRight: 10,
+    borderRadius: 20,
+    borderWidth: 1.2,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  currentLocationIconCircle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+    marginLeft: 4,
+  },
+  currentLocationText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: 'rgb(22, 34, 50)',
+    letterSpacing: -0.2,
+  },
+  addStopsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingVertical: 3.5,
+    paddingLeft: 4,
+    paddingRight: 10,
+    borderRadius: 20,
+    borderWidth: 1.2,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  addStopsIconCircle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+    marginLeft: 4,
+  },
+  addStopsText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: 'rgb(22, 34, 50)',
+    letterSpacing: -0.2,
+  },
+
+  confirmDock: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  confirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgb(240, 117, 15)',
+    paddingVertical: 13,
+    borderRadius: 24,
+    shadowColor: 'rgb(240, 117, 15)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  confirmBtnText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   listContent: {
     paddingHorizontal: 16,
+    paddingTop: 4,
     paddingBottom: 28,
   },
   locationItem: {
@@ -754,61 +1620,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 14,
     marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
+    borderWidth: 1.2,
+    borderColor: '#e2e8f0',
   },
   locationItemSelected: {
-    borderColor: '#ea580c',
+    borderColor: 'rgb(240, 117, 15)',
     backgroundColor: '#fffaf5',
     borderWidth: 1.5,
   },
   iconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   locationTextContainer: {
     flex: 1,
     marginRight: 8,
   },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   locationLabel: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#103A75',
-    marginRight: 6,
+    fontSize: 15,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
+    letterSpacing: -0.2,
   },
   locationLabelSelected: {
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
   },
   locationSublabel: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '500',
     color: '#64748b',
-    marginTop: 2,
-  },
-  typeBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 5,
-  },
-  typeBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    marginTop: 2.5,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -825,5 +1668,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94a3b8',
     marginTop: 4,
+  },
+  airportNoticePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7ed',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#ffedd5',
+  },
+  airportNoticeIconCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#ffedd5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  airportNoticeText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#c2410c',
+  },
+  airportIconContainer: {
+    backgroundColor: '#fff7ed',
+    borderRadius: 15,
   },
 });

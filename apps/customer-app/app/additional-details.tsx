@@ -12,10 +12,12 @@ import {
   Switch,
   Image,
   KeyboardAvoidingView,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import BookingFlowHeader from '../components/BookingFlowHeader';
 
 interface LuggageOption {
@@ -72,9 +74,12 @@ const QUICK_TAGS: QuickTagItem[] = [
 ];
 
 export default function AdditionalDetailsScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isSmallDevice = width < 380;
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
 
   // Vehicle and Route params passed from select-cab
@@ -102,7 +107,7 @@ export default function AdditionalDetailsScreen() {
   );
 
   // 2. Luggage Details state
-  const [selectedLuggage, setSelectedLuggage] = useState<string>('Normal Luggage');
+  const [selectedLuggage, setSelectedLuggage] = useState<string>('No Luggage');
 
   // 3. Roof Carrier state
   const [requestCarrier, setRequestCarrier] = useState<boolean>(false);
@@ -154,15 +159,22 @@ export default function AdditionalDetailsScreen() {
     switch (cat?.toUpperCase()) {
       case 'HATCHBACK':
         return require('../assets/images/fleet-hatchback.png');
+      case 'SWIFT_DZIRE':
       case 'SEDAN':
         return require('../assets/images/fleet-sedan.png');
+      case 'TOYOTA_ETIOS':
+        return require('../assets/images/fleet-4-sedan.png');
+      case 'SUV_ERTIGA':
       case 'SUV':
         return require('../assets/images/fleet-suv.png');
+      case 'SUV_CRYSTA':
       case 'CRYSTA':
         return require('../assets/images/fleet-crysta.png');
+      case 'TEMPO_TRAVELER':
       case 'TRAVELLER':
-      case 'URBANIA':
         return require('../assets/images/fleet-traveller.png');
+      case 'URBANIA':
+        return require('../assets/images/fleet-urbania.png');
       default:
         return require('../assets/images/fleet-hatchback.png');
     }
@@ -204,14 +216,14 @@ export default function AdditionalDetailsScreen() {
   const dropCity = drop.split(',')[0].trim();
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: topInset }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
       {/* Header Bar */}
       <BookingFlowHeader
         currentStep={2}
-        title="Vehicle Options"
-        subStepLabel="Luggage & Passengers"
+        title={t('additionalDetails.title', { defaultValue: 'Vehicle Options' })}
+        subStepLabel={t('additionalDetails.subtitle', { defaultValue: 'Luggage & Travellers' })}
         topInset={0}
         onBack={() => router.back()}
         onStep1Press={() => {
@@ -231,7 +243,11 @@ export default function AdditionalDetailsScreen() {
       >
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: Math.max(insets.bottom + 85, 105) },
+            isSmallDevice && { paddingHorizontal: 10 },
+          ]}
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
@@ -274,7 +290,7 @@ export default function AdditionalDetailsScreen() {
 
             {/* Clean Route Strip */}
             <View style={styles.routePillStrip}>
-              <Ionicons name="navigate-circle" size={15} color="#ea580c" />
+              <Ionicons name="navigate-circle" size={15} color="rgb(240, 117, 15)" />
               <Text style={styles.routePillText} numberOfLines={1}>
                 {pickupCity} ➔ {dropCity}
               </Text>
@@ -291,7 +307,7 @@ export default function AdditionalDetailsScreen() {
               <View style={styles.passengerTextGroup}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="people-outline" size={18} color="#0f172a" />
-                  <Text style={styles.cardSectionTitle}>Passengers</Text>
+                  <Text style={styles.cardSectionTitle}>Travellers</Text>
                 </View>
                 <Text style={styles.cardSectionSubtitle}>
                   {passengerCount} of max {maxSeats} seats selected
@@ -362,7 +378,7 @@ export default function AdditionalDetailsScreen() {
                         <Ionicons
                           name={item.icon}
                           size={16}
-                          color={isSelected ? '#ea580c' : '#64748b'}
+                          color={isSelected ? 'rgb(240, 117, 15)' : '#64748b'}
                         />
                       </View>
                       <View style={styles.luggageItemTexts}>
@@ -387,7 +403,7 @@ export default function AdditionalDetailsScreen() {
                       </View>
                       {isSelected ? (
                         <View style={styles.checkedBadge}>
-                          <Ionicons name="checkmark-circle" size={15} color="#ea580c" />
+                          <Ionicons name="checkmark-circle" size={15} color="rgb(240, 117, 15)" />
                         </View>
                       ) : null}
                     </TouchableOpacity>
@@ -401,30 +417,19 @@ export default function AdditionalDetailsScreen() {
               <>
                 <View style={styles.cardDivider} />
                 <TouchableOpacity
-                  style={[styles.carrierCard, requestCarrier && styles.carrierCardActive]}
+                  style={styles.carrierCard}
                   onPress={() => setRequestCarrier((prev) => !prev)}
                   activeOpacity={0.7}
                 >
-                  <View
-                    style={[
-                      styles.carrierIconBox,
-                      requestCarrier && styles.carrierIconBoxActive,
-                    ]}
-                  >
-                    <Ionicons
-                      name="layers-outline"
-                      size={18}
-                      color={requestCarrier ? '#ea580c' : '#64748b'}
+                  <View style={styles.carrierIconBox}>
+                    <Image
+                      source={require('../assets/images/roof-carrier-icon.png')}
+                      style={{ width: 25, height: 21, resizeMode: 'contain', tintColor: 'rgb(240, 117, 15)' }}
                     />
                   </View>
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text
-                        style={[
-                          styles.carrierTitle,
-                          requestCarrier && styles.carrierTitleActive,
-                        ]}
-                      >
+                      <Text style={styles.carrierTitle}>
                         Roof Luggage Carrier
                       </Text>
                       {requestCarrier ? (
@@ -441,7 +446,7 @@ export default function AdditionalDetailsScreen() {
                   <View pointerEvents="none">
                     <Switch
                       value={requestCarrier}
-                      trackColor={{ false: '#cbd5e1', true: '#ea580c' }}
+                      trackColor={{ false: '#cbd5e1', true: 'rgb(240, 117, 15)' }}
                       thumbColor="#ffffff"
                       ios_backgroundColor="#cbd5e1"
                     />
@@ -483,7 +488,7 @@ export default function AdditionalDetailsScreen() {
                     <Ionicons
                       name={tagItem.icon}
                       size={13}
-                      color={isSelected ? '#ea580c' : '#64748b'}
+                      color={isSelected ? 'rgb(240, 117, 15)' : '#64748b'}
                     />
                     <Text
                       style={[
@@ -522,7 +527,9 @@ export default function AdditionalDetailsScreen() {
           onPress={handleProceed}
           activeOpacity={0.85}
         >
-          <Text style={styles.proceedButtonText}>Continue to Passenger Info</Text>
+          <Text style={styles.proceedButtonText} numberOfLines={1} adjustsFontSizeToFit={true}>
+            {t('additionalDetails.continueToReview', { defaultValue: 'Continue to Review' })}
+          </Text>
           <Ionicons name="arrow-forward" size={17} color="#ffffff" style={{ marginLeft: 6 }} />
         </TouchableOpacity>
       </View>
@@ -597,7 +604,7 @@ const styles = StyleSheet.create({
   vehicleHeroName: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   specsPillRow: {
     flexDirection: 'row',
@@ -628,7 +635,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 11,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginLeft: 5,
     marginRight: 6,
   },
@@ -643,7 +650,7 @@ const styles = StyleSheet.create({
   tripTypeBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
   },
 
   // Generic Card Section
@@ -662,7 +669,7 @@ const styles = StyleSheet.create({
   cardSectionTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   cardSectionSubtitle: {
     fontSize: 11,
@@ -718,7 +725,7 @@ const styles = StyleSheet.create({
   stepperValueText: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
 
   // Luggage Section
@@ -748,7 +755,7 @@ const styles = StyleSheet.create({
   },
   luggageGridItemSelected: {
     backgroundColor: '#fff7ed',
-    borderColor: '#ea580c',
+    borderColor: 'rgb(240, 117, 15)',
   },
   luggageIconCircle: {
     width: 30,
@@ -770,10 +777,10 @@ const styles = StyleSheet.create({
   luggageItemTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   luggageItemTitleSelected: {
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     fontWeight: '800',
   },
   luggageItemDesc: {
@@ -795,38 +802,28 @@ const styles = StyleSheet.create({
   carrierCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#f8fafc',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  carrierCardActive: {
-    backgroundColor: '#fff7ed',
-    borderColor: '#fed7aa',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
   },
   carrierIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  carrierIconBoxActive: {
-    backgroundColor: '#ffedd5',
-    borderColor: '#fed7aa',
+    borderColor: '#f1f5f9',
   },
   carrierTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#103A75',
-  },
-  carrierTitleActive: {
-    color: '#ea580c',
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: 'rgb(22, 34, 50)',
   },
   carrierAddedBadge: {
     backgroundColor: '#dcfce7',
@@ -891,7 +888,7 @@ const styles = StyleSheet.create({
   },
   quickTagPillSelected: {
     backgroundColor: '#fff7ed',
-    borderColor: '#ea580c',
+    borderColor: 'rgb(240, 117, 15)',
   },
   quickTagText: {
     fontSize: 11,
@@ -899,7 +896,7 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   quickTagTextSelected: {
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     fontWeight: '700',
   },
   notesInput: {
@@ -911,7 +908,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     minHeight: 52,
     fontSize: 12,
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     fontWeight: '500',
   },
 
@@ -928,13 +925,13 @@ const styles = StyleSheet.create({
     borderTopColor: '#f1f5f9',
   },
   proceedButton: {
-    backgroundColor: '#ea580c',
+    backgroundColor: 'rgb(240, 117, 15)',
     borderRadius: 12,
     paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#ea580c',
+    shadowColor: 'rgb(240, 117, 15)',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 6,

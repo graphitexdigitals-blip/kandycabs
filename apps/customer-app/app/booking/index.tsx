@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,57 +12,65 @@ import {
   Platform,
   Alert,
   Dimensions,
+  useWindowDimensions,
   KeyboardAvoidingView,
   Image,
   Modal,
   Switch,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { AuthModal } from '../../components/AuthModal';
 import BookingFlowHeader from '../../components/BookingFlowHeader';
 import { customerApiClient, customerTokenStorage } from '../../lib/api';
+import { termsAgreementState } from '../../lib/terms-agreement';
 import { VehicleCategory, TripType, FuelType } from '@kandy-cabs/shared';
 
 const { width } = Dimensions.get('window');
 
 interface LuggageOption {
-  id: string;
+  id: 'small' | 'medium' | 'large' | 'extraLarge';
   label: string;
   shortLabel: string;
   description: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  iconName: keyof typeof MaterialCommunityIcons.glyphMap;
+  image?: any;
 }
 
 const LUGGAGE_OPTIONS: LuggageOption[] = [
   {
-    id: 'NORMAL',
-    label: 'Normal Luggage',
-    shortLabel: 'Normal Luggage',
-    description: '2 Standard suitcases',
-    icon: 'bag-handle-outline',
+    id: 'small',
+    label: 'Small Bag',
+    shortLabel: 'Small',
+    description: 'Handbags, laptop bags & small personal bags',
+    iconName: 'bag-personal-outline',
+    image: require('../../assets/images/luggage-small.png'),
   },
   {
-    id: 'HAND_BAGS',
-    label: 'Hand Bags Only',
-    shortLabel: 'Hand Bags Only',
-    description: 'Backpacks & small bags',
-    icon: 'briefcase-outline',
+    id: 'medium',
+    label: 'Medium Bag - 10 Kgs',
+    shortLabel: 'Medium (10kg)',
+    description: 'Cabin-size trolley bags & carry-on suitcases',
+    iconName: 'bag-carry-on',
+    image: require('../../assets/images/luggage-medium.png'),
   },
   {
-    id: 'EXTRA_HEAVY',
-    label: 'Heavy / Extra Luggage',
-    shortLabel: 'Heavy Luggage',
-    description: '3+ Large suitcases / cargo',
-    icon: 'cube-outline',
+    id: 'large',
+    label: 'Large Bag - 20 Kgs',
+    shortLabel: 'Large (20kg)',
+    description: 'Standard check-in suitcases & travel bags',
+    iconName: 'bag-suitcase',
+    image: require('../../assets/images/luggage-large.png'),
   },
   {
-    id: 'NO_LUGGAGE',
-    label: 'No Luggage',
-    shortLabel: 'No Luggage',
-    description: 'Cabin bags only',
-    icon: 'walk-outline',
+    id: 'extraLarge',
+    label: 'Extra Large Bag - 30 Kgs',
+    shortLabel: 'Extra Large (30kg)',
+    description: 'Oversized check-in suitcases & large travel bags',
+    iconName: 'bag-checked',
+    image: require('../../assets/images/luggage-extra-large.png'),
   },
 ];
 
@@ -77,7 +85,6 @@ const QUICK_TAGS: QuickTagItem[] = [
   { id: 'boot', label: 'Extra Boot Space', icon: 'car-outline' },
   { id: 'silent', label: 'Silent Ride', icon: 'volume-mute-outline' },
   { id: 'elderly', label: 'Elderly Passenger', icon: 'person-outline' },
-  { id: 'pet', label: 'Pet Friendly', icon: 'paw-outline' },
 ];
 
 const FLEET_INFO: Record<
@@ -97,7 +104,7 @@ const FLEET_INFO: Record<
 > = {
   HATCHBACK: {
     name: 'Hatchback',
-    models: 'WagonR, Tiago, Celerio',
+    models: 'Toyota Glanza, WagonR, Tiago or equivalent',
     ratePerKm: 11,
     minKm: 50,
     passengers: 4,
@@ -107,21 +114,45 @@ const FLEET_INFO: Record<
     color: '#059669',
     category: VehicleCategory.HATCHBACK,
   },
-  SEDAN: {
-    name: 'Prime Sedan',
-    models: 'Dzire, Etios, Honda Amaze',
+  SWIFT_DZIRE: {
+    name: 'Swift Dzire',
+    models: 'Maruti Suzuki Dzire or equivalent',
     ratePerKm: 13,
     minKm: 60,
     passengers: 4,
     luggage: 3,
     badge: 'MOST POPULAR',
     image: require('../../assets/images/fleet-sedan.png'),
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     category: VehicleCategory.SEDAN,
   },
-  SUV: {
-    name: 'Prime SUV',
-    models: 'Ertiga, Carens, XL6',
+  SEDAN: {
+    name: 'Swift Dzire',
+    models: 'Maruti Suzuki Dzire or equivalent',
+    ratePerKm: 13,
+    minKm: 60,
+    passengers: 4,
+    luggage: 3,
+    badge: 'MOST POPULAR',
+    image: require('../../assets/images/fleet-sedan.png'),
+    color: 'rgb(240, 117, 15)',
+    category: VehicleCategory.SEDAN,
+  },
+  TOYOTA_ETIOS: {
+    name: 'Toyota Etios',
+    models: 'Toyota Etios Diesel with Large Boot Space',
+    ratePerKm: 14,
+    minKm: 60,
+    passengers: 4,
+    luggage: 4,
+    badge: 'DIESEL WITH BOOT',
+    image: require('../../assets/images/fleet-4-sedan.png'),
+    color: 'rgb(240, 117, 15)',
+    category: VehicleCategory.SEDAN,
+  },
+  SUV_ERTIGA: {
+    name: 'SUVs Ertiga',
+    models: 'Maruti Suzuki Ertiga or equivalent',
     ratePerKm: 16,
     minKm: 80,
     passengers: 6,
@@ -131,9 +162,45 @@ const FLEET_INFO: Record<
     color: '#0284c7',
     category: VehicleCategory.SUV,
   },
-  CRYSTA: {
-    name: 'Innova Crysta Luxury',
-    models: 'Toyota Innova Crysta / Hycross',
+  SUV: {
+    name: 'SUVs Ertiga',
+    models: 'Maruti Suzuki Ertiga or equivalent',
+    ratePerKm: 16,
+    minKm: 80,
+    passengers: 6,
+    luggage: 4,
+    badge: 'FAMILY & GROUP',
+    image: require('../../assets/images/fleet-suv.png'),
+    color: '#0284c7',
+    category: VehicleCategory.SUV,
+  },
+  SUV_CARENS: {
+    name: 'SUVs Kia Carens',
+    models: 'Kia Carens Diesel Luxury 6+1',
+    ratePerKm: 18,
+    minKm: 80,
+    passengers: 6,
+    luggage: 4,
+    badge: 'PREMIUM 6-SEATER',
+    image: require('../../assets/images/fleet-carens.png'),
+    color: '#0284c7',
+    category: VehicleCategory.SUV,
+  },
+  SUV_INNOVA: {
+    name: 'SUVs Toyota Innova',
+    models: 'Toyota Innova Diesel 7+1 Touring',
+    ratePerKm: 19,
+    minKm: 90,
+    passengers: 7,
+    luggage: 5,
+    badge: 'POPULAR 7-SEATER',
+    image: require('../../assets/images/fleet-innova.png'),
+    color: '#7c3aed',
+    category: VehicleCategory.SUV_PREMIUM,
+  },
+  SUV_CRYSTA: {
+    name: 'SUVs Innova Crysta',
+    models: 'Toyota Innova Crysta Diesel Luxury',
     ratePerKm: 20,
     minKm: 100,
     passengers: 7,
@@ -144,8 +211,8 @@ const FLEET_INFO: Record<
     category: VehicleCategory.SUV_PREMIUM,
   },
   SUV_PREMIUM: {
-    name: 'Innova Crysta Luxury',
-    models: 'Toyota Innova Crysta / Hycross',
+    name: 'SUVs Innova Crysta',
+    models: 'Toyota Innova Crysta Diesel Luxury',
     ratePerKm: 20,
     minKm: 100,
     passengers: 7,
@@ -155,7 +222,19 @@ const FLEET_INFO: Record<
     color: '#7c3aed',
     category: VehicleCategory.SUV_PREMIUM,
   },
-  TRAVELLER: {
+  CRYSTA: {
+    name: 'SUVs Innova Crysta',
+    models: 'Toyota Innova Crysta Diesel Luxury',
+    ratePerKm: 20,
+    minKm: 100,
+    passengers: 7,
+    luggage: 5,
+    badge: 'EXECUTIVE LUXURY',
+    image: require('../../assets/images/fleet-crysta.png'),
+    color: '#7c3aed',
+    category: VehicleCategory.SUV_PREMIUM,
+  },
+  TEMPO_TRAVELER: {
     name: 'Tempo Traveller',
     models: 'Force Traveller 3350 AC (12+1)',
     ratePerKm: 26,
@@ -167,7 +246,7 @@ const FLEET_INFO: Record<
     color: '#b45309',
     category: VehicleCategory.TEMPO_TRAVELER,
   },
-  TEMPO_TRAVELER: {
+  TRAVELLER: {
     name: 'Tempo Traveller',
     models: 'Force Traveller 3350 AC (12+1)',
     ratePerKm: 26,
@@ -187,7 +266,7 @@ const FLEET_INFO: Record<
     passengers: 17,
     luggage: 10,
     badge: 'LUXURY VAN',
-    image: require('../../assets/images/vehicle-urbania.jpg'),
+    image: require('../../assets/images/fleet-urbania.png'),
     color: '#474D5E',
     category: VehicleCategory.TEMPO_TRAVELER,
   },
@@ -209,9 +288,12 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
 }
 
 export default function BookingFunnelScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isSmallDevice = width < 380;
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
 
   // Stepper: 1: Contact Info / Login, 2: Review & Payment, 3: Success Confirmation
@@ -241,6 +323,12 @@ export default function BookingFunnelScreen() {
   const dropLng = Number(params.dropLng) || 74.782;
 
   const vehicleInfo = FLEET_INFO[rawCategory] || FLEET_INFO.SEDAN;
+  const isLargeFleetApproval =
+    params.isFleetApprovalRequired === 'true' ||
+    vehicleInfo.category === VehicleCategory.TEMPO_TRAVELER ||
+    rawCategory === 'TEMPO_TRAVELER' ||
+    rawCategory === 'TRAVELLER' ||
+    rawCategory === 'URBANIA';
 
   // Estimated Distance & Time
   const estimatedKm = useMemo(() => {
@@ -318,72 +406,665 @@ export default function BookingFunnelScreen() {
   const luggageDetailsParam = (params.luggage as string) || 'Normal Luggage';
   const requestCarrierParam = params.requestCarrier === 'true' || params.hasCarrier === 'true';
   const specialReqParam = (params.specialRequirements as string) || '';
+  const openRequirementsParam = params.openRequirements === 'true';
+  const [showRequirementsModal, setShowRequirementsModal] = useState<boolean>(openRequirementsParam);
 
   const [passengerCount, setPassengerCount] = useState<number>(() => {
     const p = Number(params.passengers);
     if (p && p > 0) return p;
     return maxSeatsParam >= 10 ? Math.min(maxSeatsParam, 10) : Math.min(4, maxSeatsParam);
   });
-  interface LuggageCounts {
-    normal: number;
-    handBags: number;
-    heavy: number;
-  }
-
-  const MAX_LUGGAGE_BAGS = 10;
-
-  const [luggageCounts, setLuggageCounts] = useState<LuggageCounts>({
-    normal: 1,
-    handBags: 0,
-    heavy: 0,
-  });
-  const [isNoLuggage, setIsNoLuggage] = useState<boolean>(false);
-
-  const totalLuggageBags = isNoLuggage ? 0 : (luggageCounts.normal + luggageCounts.handBags + luggageCounts.heavy);
-
-  const selectedLuggageSummary = useMemo(() => {
-    if (isNoLuggage || (luggageCounts.normal === 0 && luggageCounts.handBags === 0 && luggageCounts.heavy === 0)) {
-      return 'No Luggage';
-    }
-    const parts: string[] = [];
-    if (luggageCounts.normal > 0) parts.push(`Normal Luggage: ${luggageCounts.normal}`);
-    if (luggageCounts.handBags > 0) parts.push(`Hand Bags: ${luggageCounts.handBags}`);
-    if (luggageCounts.heavy > 0) parts.push(`Heavy Luggage: ${luggageCounts.heavy}`);
-    return `${parts.join(', ')} (Total: ${totalLuggageBags} bags)`;
-  }, [isNoLuggage, luggageCounts, totalLuggageBags]);
-
-  const handleIncrementLuggage = (category: 'normal' | 'handBags' | 'heavy') => {
-    if (totalLuggageBags >= MAX_LUGGAGE_BAGS) {
-      Alert.alert('Maximum Luggage', `Maximum limit of ${MAX_LUGGAGE_BAGS} bags reached across all luggage types.`);
-      return;
-    }
-    setIsNoLuggage(false);
-    setLuggageCounts((prev) => ({
-      ...prev,
-      [category]: Math.min(MAX_LUGGAGE_BAGS, prev[category] + 1),
-    }));
-  };
-
-  const handleDecrementLuggage = (category: 'normal' | 'handBags' | 'heavy') => {
-    setLuggageCounts((prev) => {
-      const nextVal = Math.max(0, prev[category] - 1);
-      const updated = { ...prev, [category]: nextVal };
-      if (updated.normal === 0 && updated.handBags === 0 && updated.heavy === 0) {
-        setIsNoLuggage(true);
-      }
-      return updated;
-    });
-  };
-
-  const handleSelectNoLuggage = () => {
-    setIsNoLuggage(true);
-    setLuggageCounts({ normal: 0, handBags: 0, heavy: 0 });
-  };
+  type LuggageKey = 'small' | 'medium' | 'large' | 'extraLarge';
 
   const [requestCarrier, setRequestCarrier] = useState<boolean>(
     params.requestCarrier === 'true'
   );
+
+  // Normalize fleet category across all query param formats and models
+  const normalizedCategory = useMemo(() => {
+    const c = (rawCategory || 'SEDAN').toUpperCase().trim();
+    if (c.includes('HATCHBACK') || (c.includes('SWIFT') && !c.includes('DZIRE')) || c.includes('WAGONR') || c.includes('TIAGO')) return 'HATCHBACK';
+    if (c.includes('ETIOS')) return 'TOYOTA_ETIOS';
+    if (c.includes('DZIRE') || c === 'SEDAN') return 'SWIFT_DZIRE';
+    if (c.includes('CARENS')) return 'SUV_CARENS';
+    if (c.includes('ERTIGA') || c === 'SUV' || c === 'MUV') return 'SUV_ERTIGA';
+    if (c.includes('CRYSTA') || c.includes('HYCROSS') || c === 'SUV_PREMIUM') return 'SUV_CRYSTA';
+    if (c.includes('INNOVA')) return 'SUV_INNOVA';
+    if (c.includes('TEMPO') || c.includes('TRAVELLER')) return 'TEMPO_TRAVELER';
+    if (c.includes('URBANIA')) return 'URBANIA';
+    return c;
+  }, [rawCategory]);
+
+  const maxVehicleLuggageLimit = useMemo(() => {
+    if (normalizedCategory === 'TEMPO_TRAVELER') {
+      return requestCarrier ? 16 : 8;
+    }
+    if (normalizedCategory === 'URBANIA') {
+      return 12;
+    }
+    if (normalizedCategory === 'TOYOTA_ETIOS') {
+      return 16;
+    }
+    if (normalizedCategory === 'SWIFT_DZIRE') {
+      return 14;
+    }
+    if (normalizedCategory === 'SUV_INNOVA' || normalizedCategory === 'SUV_CRYSTA') {
+      return requestCarrier ? 8 : 5;
+    }
+    if (normalizedCategory === 'SUV_ERTIGA' || normalizedCategory === 'SUV_CARENS') {
+      return requestCarrier ? 6 : 3;
+    }
+    if (normalizedCategory === 'HATCHBACK') {
+      return 8;
+    }
+    return 14;
+  }, [normalizedCategory, requestCarrier]);
+
+  const MAX_LUGGAGE_BAGS = maxVehicleLuggageLimit;
+
+  const [luggageCounts, setLuggageCounts] = useState<Record<LuggageKey, number>>({
+    small: 0,
+    medium: 0,
+    large: 0,
+    extraLarge: 0,
+  });
+
+  const [isLuggageDropdownOpen, setIsLuggageDropdownOpen] = useState<boolean>(false);
+
+  const totalLuggageBags =
+    luggageCounts.small +
+    luggageCounts.medium +
+    luggageCounts.large +
+    luggageCounts.extraLarge;
+
+  const isNoLuggage = totalLuggageBags === 0;
+
+  const selectedLuggageList = useMemo(() => {
+    return LUGGAGE_OPTIONS.filter((opt) => luggageCounts[opt.id] > 0);
+  }, [luggageCounts]);
+
+  const selectedLuggageSummary = useMemo(() => {
+    if (totalLuggageBags === 0) {
+      return 'No Luggage';
+    }
+    const parts = selectedLuggageList.map(
+      (opt) => `${opt.shortLabel}: ${luggageCounts[opt.id]}`
+    );
+    return `${parts.join(', ')} (${totalLuggageBags} ${
+      totalLuggageBags === 1 ? 'bag' : 'bags'
+    })`;
+  }, [totalLuggageBags, selectedLuggageList, luggageCounts]);
+
+  const [needReturnJourney, setNeedReturnJourney] = useState<boolean>(
+    params.needReturnJourney === 'true' || params.returnJourney === 'true'
+  );
+  const [needAirportDrop, setNeedAirportDrop] = useState<boolean>(
+    params.needAirportDrop === 'true' || params.airportDrop === 'true'
+  );
+  const [needAirportPickup, setNeedAirportPickup] = useState<boolean>(
+    params.needAirportPickup === 'true' || params.airportPickup === 'true'
+  );
+  const [isSeniorCitizen, setIsSeniorCitizen] = useState<boolean>(
+    params.isSeniorCitizen === 'true' || /senior|elder/i.test(specialReqParam)
+  );
+  const [isPetFriendly, setIsPetFriendly] = useState<boolean>(
+    params.isPetFriendly === 'true' || /pet\s*friendly/i.test(specialReqParam)
+  );
+  type PetType = 'cat' | 'dog' | 'bird';
+  const [selectedPetType, setSelectedPetType] = useState<PetType>('dog');
+  const [petRates, setPetRates] = useState<{ cat: number; dog: number; bird: number }>({
+    cat: 200,
+    dog: 500,
+    bird: 100,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await customerApiClient.fetch('/api/settings/pet-rates');
+        if (res && res.success && res.rates && isMounted) {
+          setPetRates({
+            cat: Number(res.rates.cat) || 200,
+            dog: Number(res.rates.dog) || 500,
+            bird: Number(res.rates.bird) || 100,
+          });
+        }
+      } catch {
+        // Fallback to default rates
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+  const [isBabyOnBoard, setIsBabyOnBoard] = useState<boolean>(
+    params.isBabyOnBoard === 'true' || /baby\s*on\s*board/i.test(specialReqParam)
+  );
+  const [isPregnancyFriendly, setIsPregnancyFriendly] = useState<boolean>(
+    params.isPregnancyFriendly === 'true' || /pregnan/i.test(specialReqParam)
+  );
+  const [isHandicapped, setIsHandicapped] = useState<boolean>(
+    params.isHandicapped === 'true' || /handicap|wheelchair|disabilit/i.test(specialReqParam)
+  );
   const [pickupNotes, setPickupNotes] = useState<string>(specialReqParam);
+
+  // Luggage Capacity Modal & Refs for Special Notes Navigation
+  const [showLuggageAlertModal, setShowLuggageAlertModal] = useState<boolean>(false);
+  const [luggageAlertReason, setLuggageAlertReason] = useState<string>('');
+  const sheetScrollRef = useRef<ScrollView>(null);
+  const notesInputRef = useRef<TextInput>(null);
+  const [isNotesHighlighted, setIsNotesHighlighted] = useState<boolean>(false);
+
+  // Check if luggage counts exceed the specific cab's boot / carrier capacity based on Official Fleet Guide
+  const checkLuggageCapacity = useCallback(
+    (counts: Record<LuggageKey, number>) => {
+      const total = counts.small + counts.medium + counts.large + counts.extraLarge;
+      const standardBags = counts.large + counts.medium; // standard check-in & cabin suitcases (10kg + 20kg)
+      const cat = normalizedCategory;
+
+      // 1. Maruti Swift / Hatchback (~268L - 300L boot, No roof carrier)
+      if (cat === 'HATCHBACK') {
+        if (counts.extraLarge >= 2) {
+          return {
+            exceeded: true,
+            reason: 'A hatchback boot cannot fit 2 or more Extra Large (30kg) suitcases. Combined depth exceeds boot floor; rear hatchback glass cannot close.',
+            maxBags: 2,
+          };
+        }
+        if (counts.extraLarge === 1 && (counts.large >= 1 || counts.medium >= 1 || total > 2)) {
+          return {
+            exceeded: true,
+            reason: 'With 1 Extra Large (30kg) suitcase, hatchback boot space is limited to 1 small personal bag.',
+            maxBags: 2,
+          };
+        }
+        if (counts.large >= 2) {
+          return {
+            exceeded: true,
+            reason: 'A hatchback boot cannot fit 2 or more Large (20kg) suitcases. Maximum boot capacity is 1 Large + 1 Medium suitcase.',
+            maxBags: 2,
+          };
+        }
+        if (counts.large === 1 && counts.medium >= 2) {
+          return {
+            exceeded: true,
+            reason: 'Hatchback boot capacity is 1 Large + 1 Medium suitcase (or 2 Medium suitcases).',
+            maxBags: 2,
+          };
+        }
+        if (counts.medium >= 3) {
+          return {
+            exceeded: true,
+            reason: 'Hatchback boot can fit at most 2 Medium (10kg) cabin suitcases.',
+            maxBags: 2,
+          };
+        }
+        if (standardBags > 2) {
+          return {
+            exceeded: true,
+            reason: 'Swift / Hatchback luggage capacity is 2 standard bags (1 Large + 1 Medium, or 2 Medium).',
+            maxBags: 2,
+          };
+        }
+        if ((counts.large > 0 || counts.medium > 0) && total > 3) {
+          return {
+            exceeded: true,
+            reason: 'Swift / Hatchback boot capacity is up to 2–3 bags maximum when standard suitcases are carried.',
+            maxBags: 2,
+          };
+        }
+        if (total > 8) {
+          return {
+            exceeded: true,
+            reason: 'Hatchback boot capacity is up to 7–8 small soft bags maximum.',
+            maxBags: 2,
+          };
+        }
+      }
+
+      // 2. Swift Dzire / Sedan (~378L - 400L boot, No roof carrier under RTO)
+      else if (cat === 'SWIFT_DZIRE') {
+        if (counts.extraLarge >= 3) {
+          return {
+            exceeded: true,
+            reason: 'A sedan trunk cannot fit 3 or more Extra Large (30kg) suitcases. Sedans strictly have no roof carriers under RTO regulations.',
+            maxBags: 3,
+          };
+        }
+        if (counts.extraLarge === 2 && (counts.large >= 1 || counts.medium >= 1 || total > 3)) {
+          return {
+            exceeded: true,
+            reason: 'With 2 Extra Large suitcases, sedan trunk can only take 1 small bag.',
+            maxBags: 3,
+          };
+        }
+        if (counts.extraLarge === 1 && (counts.large >= 2 || counts.large + counts.medium > 2)) {
+          return {
+            exceeded: true,
+            reason: 'With 1 Extra Large suitcase, sedan trunk can fit at most 1 Large or 1 Medium bag.',
+            maxBags: 3,
+          };
+        }
+        if (counts.large >= 3) {
+          return {
+            exceeded: true,
+            reason: 'Swift Dzire trunk cannot fit 3 or more Large (20kg) suitcases. Maximum is 2 Large + 1 Medium bag.',
+            maxBags: 3,
+          };
+        }
+        if (standardBags > 3) {
+          return {
+            exceeded: true,
+            reason: 'Swift Dzire luggage capacity is 3 standard bags (2 Large + 1 Medium).',
+            maxBags: 3,
+          };
+        }
+        if ((counts.large > 0 || counts.medium > 0 || counts.extraLarge > 0) && total > 5) {
+          return {
+            exceeded: true,
+            reason: 'Sedan boot capacity is up to 3 standard bags plus 1–2 small bags (max 5 bags total).',
+            maxBags: 3,
+          };
+        }
+        if (total > 14) {
+          return {
+            exceeded: true,
+            reason: 'Sedan trunk capacity is up to 14 small/work bags maximum.',
+            maxBags: 3,
+          };
+        }
+      }
+
+      // 3. Toyota Etios (Huge 592L boot, No roof carrier under RTO)
+      else if (cat === 'TOYOTA_ETIOS') {
+        if (counts.extraLarge >= 3) {
+          return {
+            exceeded: true,
+            reason: 'Toyota Etios trunk cannot fit 3 or more Extra Large (30kg) suitcases. Sedans strictly have no roof carriers under RTO regulations.',
+            maxBags: 4,
+          };
+        }
+        if (counts.extraLarge === 2 && (counts.large >= 1 || counts.medium >= 1 || total > 3)) {
+          return {
+            exceeded: true,
+            reason: 'With 2 Extra Large suitcases, Toyota Etios trunk can take 1 small personal bag.',
+            maxBags: 4,
+          };
+        }
+        if (counts.extraLarge === 1 && (counts.large >= 2 || counts.large + counts.medium > 3)) {
+          return {
+            exceeded: true,
+            reason: 'With 1 Extra Large suitcase, Toyota Etios boot accommodates up to 2 standard bags.',
+            maxBags: 4,
+          };
+        }
+        if (counts.large >= 3) {
+          return {
+            exceeded: true,
+            reason: 'Toyota Etios boot fits at most 2 Large (20kg) suitcases + 2 Medium (10kg) cabin bags.',
+            maxBags: 4,
+          };
+        }
+        if (standardBags > 4) {
+          return {
+            exceeded: true,
+            reason: 'Toyota Etios luggage capacity is 4 standard bags (2 Large + 2 Medium).',
+            maxBags: 4,
+          };
+        }
+        if ((counts.large > 0 || counts.medium > 0 || counts.extraLarge > 0) && total > 6) {
+          return {
+            exceeded: true,
+            reason: 'Toyota Etios maximum capacity is 2 Large + 2 Medium + 2 Small bags (6 bags total).',
+            maxBags: 4,
+          };
+        }
+        if (total > 16) {
+          return {
+            exceeded: true,
+            reason: 'Toyota Etios trunk capacity is up to 14–16 small/work bags maximum.',
+            maxBags: 4,
+          };
+        }
+      }
+
+      // 4. Maruti Ertiga / Kia Carens (~209L boot with all 6 seats full, Optional roof carrier)
+      else if (cat === 'SUV_ERTIGA' || cat === 'SUV_CARENS') {
+        const vehicleTitle = cat === 'SUV_CARENS' ? 'Kia Carens' : 'Maruti Ertiga';
+        if (!requestCarrier) {
+          if (counts.extraLarge >= 2) {
+            return {
+              exceeded: true,
+              reason: `Without a roof carrier, ${vehicleTitle} boot with all 6 passenger seats occupied can only fit 1 Extra Large bag.`,
+              maxBags: 2,
+            };
+          }
+          if (counts.extraLarge === 1 && (counts.large >= 1 || counts.medium >= 1 || total > 2)) {
+            return {
+              exceeded: true,
+              reason: `With 1 Extra Large suitcase in ${vehicleTitle} boot, space is limited to 1 small personal bag.`,
+              maxBags: 2,
+            };
+          }
+          if (counts.large >= 2) {
+            return {
+              exceeded: true,
+              reason: `Without a roof carrier, ${vehicleTitle} rear boot can only fit 1 Large (20kg) bag laid flat or 2 Medium bags.`,
+              maxBags: 2,
+            };
+          }
+          if (counts.large === 1 && counts.medium >= 1) {
+            return {
+              exceeded: true,
+              reason: `Without a roof carrier, ${vehicleTitle} boot can fit 1 Large bag laid flat + 2 Small bags, OR 2 Medium bags.`,
+              maxBags: 2,
+            };
+          }
+          if (counts.medium >= 3) {
+            return {
+              exceeded: true,
+              reason: `Without a roof carrier, ${vehicleTitle} boot fits at most 2 Medium (10kg) bags upright.`,
+              maxBags: 2,
+            };
+          }
+          if (standardBags > 2) {
+            return {
+              exceeded: true,
+              reason: `If all 6 passengers travel without a roof carrier, ${vehicleTitle} boot can only fit 2 standard bags.`,
+              maxBags: 2,
+            };
+          }
+          if (total > 3) {
+            return {
+              exceeded: true,
+              reason: `Without a roof carrier, ${vehicleTitle} boot accommodates up to 2 standard bags + 1 small bag (3 bags total). Select Roof Carrier or write in Special Notes.`,
+              maxBags: 2,
+            };
+          }
+        } else {
+          // With Roof Carrier
+          if (counts.extraLarge >= 3) {
+            return {
+              exceeded: true,
+              reason: `${vehicleTitle} with roof carrier can carry at most 2 Extra Large (30kg) suitcases.`,
+              maxBags: 4,
+            };
+          }
+          if (counts.extraLarge === 2 && (counts.large >= 2 || total > 4)) {
+            return {
+              exceeded: true,
+              reason: `With 2 Extra Large suitcases on carrier, ${vehicleTitle} accommodates up to 1–2 additional medium/small bags.`,
+              maxBags: 4,
+            };
+          }
+          if (counts.large >= 5) {
+            return {
+              exceeded: true,
+              reason: `${vehicleTitle} with roof carrier fits up to 4 Large (20kg) bags (2 in boot + 2 on roof carrier).`,
+              maxBags: 4,
+            };
+          }
+          if (standardBags > 5) {
+            return {
+              exceeded: true,
+              reason: `${vehicleTitle} with roof carrier accommodates up to 4–5 standard bags.`,
+              maxBags: 4,
+            };
+          }
+          if (total > 6) {
+            return {
+              exceeded: true,
+              reason: `${vehicleTitle} with roof carrier accommodates up to 4 Large bags + 2 Small bags (6 bags total).`,
+              maxBags: 4,
+            };
+          }
+        }
+      }
+
+      // 5. Toyota Innova / Innova Crysta Luxury (~300L behind 3rd row, Roof carrier available)
+      else if (cat === 'SUV_INNOVA' || cat === 'SUV_CRYSTA') {
+        const vehicleTitle = cat === 'SUV_CRYSTA' ? 'Innova Crysta' : 'Toyota Innova';
+        if (!requestCarrier) {
+          if (counts.extraLarge >= 3) {
+            return {
+              exceeded: true,
+              reason: `${vehicleTitle} boot can fit at most 2 Extra Large (30kg) suitcases with all 7 passenger seats occupied.`,
+              maxBags: 3,
+            };
+          }
+          if (counts.extraLarge === 2 && (counts.large >= 1 || counts.medium >= 1 || total > 3)) {
+            return {
+              exceeded: true,
+              reason: `With 2 Extra Large suitcases in ${vehicleTitle} boot, space is limited to 1 small personal bag.`,
+              maxBags: 3,
+            };
+          }
+          if (counts.extraLarge === 1 && (counts.large >= 2 || standardBags > 2)) {
+            return {
+              exceeded: true,
+              reason: `With 1 Extra Large suitcase in ${vehicleTitle} boot, space allows 1 additional Large or Medium suitcase.`,
+              maxBags: 3,
+            };
+          }
+          if (counts.large >= 2) {
+            return {
+              exceeded: true,
+              reason: `Without a roof carrier, ${vehicleTitle} boot fits 1 Large (20kg) + 2 Medium (10kg) + 2 Small bags standing upright.`,
+              maxBags: 3,
+            };
+          }
+          if (standardBags > 3) {
+            return {
+              exceeded: true,
+              reason: `${vehicleTitle} rear boot fits up to 3 standard bags (1 Large + 2 Medium) when all 7 seats are occupied.`,
+              maxBags: 3,
+            };
+          }
+          if (total > 5) {
+            return {
+              exceeded: true,
+              reason: `Without a roof carrier, ${vehicleTitle} boot accommodates up to 3 standard bags + 2 Small bags (5 bags total). Enable top carrier for 5–7 suitcases.`,
+              maxBags: 3,
+            };
+          }
+        } else {
+          // With Roof Carrier
+          if (counts.extraLarge >= 4) {
+            return {
+              exceeded: true,
+              reason: `${vehicleTitle} with top carrier can carry at most 2 Extra Large in boot + 1 on roof carrier (3 XL max).`,
+              maxBags: 7,
+            };
+          }
+          if (counts.extraLarge === 3 && counts.large >= 2) {
+            return {
+              exceeded: true,
+              reason: `${vehicleTitle} capacity reached with 3 Extra Large suitcases.`,
+              maxBags: 7,
+            };
+          }
+          if (counts.large >= 6) {
+            return {
+              exceeded: true,
+              reason: `${vehicleTitle} with top carrier can carry up to 5 Large suitcases (3 inside boot + 2 on top rack).`,
+              maxBags: 7,
+            };
+          }
+          if (standardBags > 7) {
+            return {
+              exceeded: true,
+              reason: `${vehicleTitle} with heavy-duty roof carrier accommodates up to 5–7 standard suitcases.`,
+              maxBags: 7,
+            };
+          }
+          if (total > 8) {
+            return {
+              exceeded: true,
+              reason: `${vehicleTitle} total luggage limit is 5–7 standard suitcases + 1–2 small bags (up to 8 bags total).`,
+              maxBags: 7,
+            };
+          }
+        }
+      }
+
+      // 6. Force Tempo Traveller (12-17 Seater, Rear Boot Bay + Roof Rack)
+      else if (cat === 'TEMPO_TRAVELER') {
+        if (!requestCarrier) {
+          if (counts.extraLarge >= 5) {
+            return {
+              exceeded: true,
+              reason: 'Tempo Traveller rear boot bay fits at most 3–4 Extra Large suitcases without roof rack.',
+              maxBags: 6,
+            };
+          }
+          if (counts.large >= 7) {
+            return {
+              exceeded: true,
+              reason: 'Tempo Traveller internal rear boot bay accommodates 5 to 6 Large check-in suitcases.',
+              maxBags: 6,
+            };
+          }
+          if (standardBags > 6) {
+            return {
+              exceeded: true,
+              reason: 'Tempo Traveller rear boot bay accommodates up to 5–6 suitcases without roof rack.',
+              maxBags: 6,
+            };
+          }
+          if (total > 8) {
+            return {
+              exceeded: true,
+              reason: 'Tempo Traveller internal boot accommodates 5–6 suitcases + 2 under-seat backpacks (8 bags total). Enable roof rack for up to 14 suitcases.',
+              maxBags: 6,
+            };
+          }
+        } else {
+          // With Roof Carrier
+          if (counts.extraLarge >= 9) {
+            return {
+              exceeded: true,
+              reason: 'Tempo Traveller heavy-duty roof rack accommodates up to 6–8 Extra Large suitcases.',
+              maxBags: 14,
+            };
+          }
+          if (counts.large + counts.medium + counts.extraLarge > 14) {
+            return {
+              exceeded: true,
+              reason: 'Tempo Traveller with roof rack accommodates up to 10–14 suitcases and trolleys securely roped.',
+              maxBags: 14,
+            };
+          }
+          if (total > 16) {
+            return {
+              exceeded: true,
+              reason: 'Tempo Traveller maximum tour luggage limit of 14 suitcases + soft personal bags reached.',
+              maxBags: 14,
+            };
+          }
+        }
+      }
+
+      // 7. Force Urbania Luxury Van (Deep High-Capacity Rear Boot, No Roof Carrier)
+      else if (cat === 'URBANIA') {
+        if (counts.extraLarge >= 7) {
+          return {
+            exceeded: true,
+            reason: 'Force Urbania deep internal boot accommodates up to 5–6 Extra Large (30kg) suitcases.',
+            maxBags: 10,
+          };
+        }
+        if (counts.extraLarge >= 5 && counts.large >= 3) {
+          return {
+            exceeded: true,
+            reason: 'Force Urbania boot accommodates up to 5–6 Extra Large suitcases + 4 Medium cabin bags.',
+            maxBags: 10,
+          };
+        }
+        if (counts.large >= 11) {
+          return {
+            exceeded: true,
+            reason: 'Force Urbania dedicated rear boot fits 8 to 10 Large check-in suitcases.',
+            maxBags: 10,
+          };
+        }
+        if (standardBags > 10) {
+          return {
+            exceeded: true,
+            reason: 'Force Urbania internal luggage compartment accommodates up to 8–10 standard suitcases.',
+            maxBags: 10,
+          };
+        }
+        if (total > 12) {
+          return {
+            exceeded: true,
+            reason: 'Force Urbania rear luggage boot accommodates up to 10–12 bags (5–6 XL suitcases + 4 medium cabin bags + duffles).',
+            maxBags: 10,
+          };
+        }
+      }
+
+      return { exceeded: false, reason: '', maxBags: vehicleInfo.luggage || 4 };
+    },
+    [normalizedCategory, requestCarrier, vehicleInfo.luggage]
+  );
+
+  const currentLuggageCheck = useMemo(() => {
+    return checkLuggageCapacity(luggageCounts);
+  }, [checkLuggageCapacity, luggageCounts]);
+
+  const handleGoToSpecialNotes = () => {
+    setShowLuggageAlertModal(false);
+    setIsLuggageDropdownOpen(false);
+    setIsNotesHighlighted(true);
+    setTimeout(() => {
+      sheetScrollRef.current?.scrollToEnd({ animated: true });
+      setTimeout(() => {
+        notesInputRef.current?.focus();
+        setTimeout(() => {
+          setIsNotesHighlighted(false);
+        }, 3500);
+      }, 250);
+    }, 150);
+  };
+
+  const handleIncrementLuggage = (category: LuggageKey) => {
+    const nextCounts = {
+      ...luggageCounts,
+      [category]: luggageCounts[category] + 1,
+    };
+
+    const capacityCheck = checkLuggageCapacity(nextCounts);
+    if (capacityCheck.exceeded) {
+      setLuggageAlertReason(capacityCheck.reason);
+      setShowLuggageAlertModal(true);
+      return;
+    }
+
+    if (totalLuggageBags >= MAX_LUGGAGE_BAGS) {
+      setLuggageAlertReason(`Maximum luggage limit of ${MAX_LUGGAGE_BAGS} bags reached for this vehicle.`);
+      setShowLuggageAlertModal(true);
+      return;
+    }
+
+    setLuggageCounts(nextCounts);
+  };
+
+  const handleDecrementLuggage = (category: LuggageKey) => {
+    setLuggageCounts((prev) => ({
+      ...prev,
+      [category]: Math.max(0, prev[category] - 1),
+    }));
+  };
+
+  const handleClearAllLuggage = () => {
+    setLuggageCounts({
+      small: 0,
+      medium: 0,
+      large: 0,
+      extraLarge: 0,
+    });
+  };
 
   const handleDecrementPassengers = () => {
     if (passengerCount > 1) {
@@ -397,16 +1078,20 @@ export default function BookingFunnelScreen() {
     }
   };
 
-  const toggleQuickTag = (tagLabel: string) => {
-    const isPresent = pickupNotes.includes(tagLabel);
-    if (isPresent) {
-      const regex = new RegExp(`(^|,\\s*)${tagLabel}`, 'g');
-      const updated = pickupNotes.replace(regex, '').replace(/^,\s*/, '').trim();
+  const toggleQuickTag = (tagKeyOrLabel: string, defaultLabel?: string) => {
+    const key = defaultLabel ? tagKeyOrLabel : undefined;
+    const fallback = defaultLabel || tagKeyOrLabel;
+    const translated = key ? t(`additionalRequirements.quickTags.${key}`, { defaultValue: fallback }) : fallback;
+    const matches = [translated, fallback].filter(Boolean);
+    const found = matches.find((m) => pickupNotes.includes(m));
+    if (found) {
+      const regex = new RegExp(`(^|,\\s*)${found.replace(/[-\\/\\\\^$*+?.()|[\\]{}]/g, '\\\\$&')}`, 'g');
+      const updated = pickupNotes.replace(regex, '').replace(/^,\\s*/, '').trim();
       setPickupNotes(updated);
     } else {
       const updated = pickupNotes.trim()
-        ? `${pickupNotes.trim()}, ${tagLabel}`
-        : tagLabel;
+        ? `${pickupNotes.trim()}, ${translated}`
+        : translated;
       setPickupNotes(updated);
     }
   };
@@ -473,9 +1158,14 @@ export default function BookingFunnelScreen() {
   }, [pickupTime]);
 
   // Step 1: Passenger Contact Info
-  const [passengerName, setPassengerName] = useState('');
-  const [passengerPhone, setPassengerPhone] = useState('');
-  const [passengerEmail, setPassengerEmail] = useState('');
+  const initialUser = customerTokenStorage.getUser();
+  const initialRawName = initialUser?.fullName || '';
+  const initialCleanName = (initialRawName === 'Kandy Customer' ? '' : initialRawName).trim();
+  const initialCleanP = initialUser?.phone ? initialUser.phone.replace(/^\+91/, '').replace(/\D/g, '').slice(-10) : '';
+
+  const [passengerName, setPassengerName] = useState(initialCleanName);
+  const [passengerPhone, setPassengerPhone] = useState(initialCleanP ? `+91 ${initialCleanP.slice(0, 5)} ${initialCleanP.slice(5)}` : '');
+  const [passengerEmail, setPassengerEmail] = useState(initialUser?.email || '');
   const [alternatePhone, setAlternatePhone] = useState('');
   const [alternateEmail, setAlternateEmail] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -490,12 +1180,14 @@ export default function BookingFunnelScreen() {
     const nextVal = !sameAsAccount;
     setSameAsAccount(nextVal);
     if (nextVal) {
-      if (user) {
-        const rawName = user.fullName || '';
-        const cleanP = user.phone ? user.phone.replace(/^\+91/, '').replace(/\D/g, '').slice(-10) : '';
-        setPassengerName(rawName === 'Kandy Customer' ? '' : rawName);
+      const accountUser = user || customerTokenStorage.getUser();
+      if (accountUser) {
+        const rawName = accountUser.fullName || '';
+        const cleanName = (rawName === 'Kandy Customer' ? '' : rawName).trim();
+        const cleanP = accountUser.phone ? accountUser.phone.replace(/^\+91/, '').replace(/\D/g, '').slice(-10) : '';
+        setPassengerName(cleanName);
         setPassengerPhone(cleanP ? `+91 ${cleanP.slice(0, 5)} ${cleanP.slice(5)}` : '');
-        setPassengerEmail(user.email || '');
+        setPassengerEmail(accountUser.email || '');
       } else {
         setAuthModalVisible(true);
       }
@@ -508,12 +1200,23 @@ export default function BookingFunnelScreen() {
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponMsg, setCouponMsg] = useState<string | null>(null);
   const [showCouponInput, setShowCouponInput] = useState(false);
+  const [paymentOption, setPaymentOption] = useState<'PART' | 'FULL'>('PART');
   const [paymentMode, setPaymentMode] = useState<'ADVANCE_25' | 'PAY_ON_DROP' | 'CORPORATE'>(
     tripTypeParam === 'CORPORATE' ? 'CORPORATE' : 'ADVANCE_25'
   );
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'UPI' | 'CARD' | 'NETBANKING' | 'OTHER_UPI'>('UPI');
-  const [agreedToTerms, setAgreedToTerms] = useState(true);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+
+  // Sync agreement status if accepted from the Terms & Conditions screen
+  useEffect(() => {
+    const unsub = termsAgreementState.subscribe((val) => {
+      if (val) {
+        setAgreedToTerms(true);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   // Auto-scroll to top when switching steps
   useEffect(() => {
@@ -526,75 +1229,105 @@ export default function BookingFunnelScreen() {
 
   // Check user authentication on mount
   useEffect(() => {
+    let isMounted = true;
+
     async function checkAuth() {
       setAuthChecking(true);
       try {
-        const token = customerTokenStorage.getToken();
+        // 1. Immediately check in-memory cached user or async SecureStore
+        let cached = customerTokenStorage.getUser();
+        if (!cached && typeof customerTokenStorage.getUserAsync === 'function') {
+          cached = await customerTokenStorage.getUserAsync();
+        }
+
+        let token = customerTokenStorage.getToken();
         if (!token) {
-          setUser(null);
-          setPassengerName('');
-          setPassengerPhone('');
-          setPassengerEmail('');
-          setAuthChecking(false);
+          token = await customerTokenStorage.getTokenAsync();
+        }
+
+        // 2. If cached user exists, populate immediately!
+        if (cached && isMounted) {
+          const rawName = cached.fullName || '';
+          const registeredName = (rawName === 'Kandy Customer' ? '' : rawName).trim();
+          const cleanP = cached.phone ? cached.phone.replace(/^\+91/, '').replace(/\D/g, '').slice(-10) : '';
+
+          setUser(cached);
+          if (registeredName) {
+            setPassengerName((prev: string) => prev || registeredName);
+          }
+          if (cleanP) {
+            setPassengerPhone((prev: string) => prev || `+91 ${cleanP.slice(0, 5)} ${cleanP.slice(5)}`);
+          }
+          if (cached.email) {
+            setPassengerEmail((prev: string) => prev || cached.email);
+          }
+          setSameAsAccount(true);
+        }
+
+        if (!token) {
+          if (isMounted) setAuthChecking(false);
           return;
         }
-        const res = await customerApiClient.fetch('/api/auth/me');
-        const rawName = res?.user?.fullName;
-        const registeredName = (rawName === 'Kandy Customer' ? '' : (rawName || '')).trim();
-        const cleanP = res?.user?.phone ? res.user.phone.replace(/^\+91/, '').replace(/\D/g, '').slice(-10) : '';
 
-        if (res?.user && registeredName.length > 0) {
-          const validUser = { ...res.user, fullName: registeredName };
-          customerTokenStorage.setUser(validUser);
-          setUser(validUser);
-          setPassengerName(registeredName);
-          setPassengerPhone(cleanP ? `+91 ${cleanP.slice(0, 5)} ${cleanP.slice(5)}` : '');
-          setPassengerEmail(res.user.email || '');
-          setSameAsAccount(true);
-        } else {
-          setUser(null);
-          setPassengerName('');
-          if (cleanP) {
-            setAuthPhone(cleanP);
-            setPassengerPhone(`+91 ${cleanP.slice(0, 5)} ${cleanP.slice(5)}`);
-            setAuthStep('NAME');
-          } else {
-            setPassengerPhone('');
-            setAuthStep('PHONE');
+        // 3. Try refreshing from /api/auth/me
+        try {
+          const res = await customerApiClient.fetch('/api/auth/me');
+          if (res?.user && isMounted) {
+            const rawName = res.user.fullName || '';
+            const registeredName = (rawName === 'Kandy Customer' ? '' : rawName).trim();
+            const cleanP = res.user.phone ? res.user.phone.replace(/^\+91/, '').replace(/\D/g, '').slice(-10) : '';
+
+            const validUser = { ...res.user, fullName: registeredName || rawName };
+            customerTokenStorage.setUser(validUser);
+            setUser(validUser);
+            if (registeredName) {
+              setPassengerName(registeredName);
+            }
+            if (cleanP) {
+              setPassengerPhone(`+91 ${cleanP.slice(0, 5)} ${cleanP.slice(5)}`);
+            }
+            if (res.user.email) {
+              setPassengerEmail(res.user.email);
+            }
+            setSameAsAccount(true);
           }
-          setPassengerEmail('');
-          setSameAsAccount(false);
+        } catch {
+          // If offline or network fails, KEEP the cached user! Do NOT erase!
         }
-      } catch {
-        // Guest mode
-        setUser(null);
-        setPassengerName('');
-        setPassengerPhone('');
-        setPassengerEmail('');
-        setSameAsAccount(false);
+      } catch (err) {
+        console.warn('[Booking] checkAuth error:', err);
       } finally {
-        setAuthChecking(false);
+        if (isMounted) setAuthChecking(false);
       }
     }
+
     checkAuth();
+
     const unsub = customerTokenStorage.subscribe(() => {
       const current = customerTokenStorage.getUser();
-      const rawName = current?.fullName;
-      const currentName = (rawName === 'Kandy Customer' ? '' : (rawName || '')).trim();
-      if (!current || !currentName) {
-        setUser(null);
-        setSameAsAccount(false);
-      } else {
-        const validUser = { ...current, fullName: currentName };
-        setUser(validUser);
-        setPassengerName(currentName);
-        const cleanP = current.phone ? current.phone.replace(/^\+91/, '').replace(/\D/g, '').slice(-10) : '';
-        setPassengerPhone(cleanP ? `+91 ${cleanP.slice(0, 5)} ${cleanP.slice(5)}` : '');
-        setPassengerEmail(current.email || '');
-        setSameAsAccount(true);
+      if (!current || !isMounted) return;
+
+      const rawName = current.fullName || '';
+      const cleanName = (rawName === 'Kandy Customer' ? '' : rawName).trim();
+      const cleanP = current.phone ? current.phone.replace(/^\+91/, '').replace(/\D/g, '').slice(-10) : '';
+
+      setUser(current);
+      if (cleanName) {
+        setPassengerName(cleanName);
       }
+      if (cleanP) {
+        setPassengerPhone(`+91 ${cleanP.slice(0, 5)} ${cleanP.slice(5)}`);
+      }
+      if (current.email) {
+        setPassengerEmail(current.email);
+      }
+      setSameAsAccount(true);
     });
-    return () => unsub();
+
+    return () => {
+      isMounted = false;
+      unsub();
+    };
   }, []);
 
   // Handle Send OTP for Guest Auth
@@ -728,7 +1461,12 @@ export default function BookingFunnelScreen() {
       return;
     }
 
-    if (code === 'KANDY10' || code === 'SAVE10') {
+    if (code === 'KCD500') {
+      const discount = 500;
+      setCouponDiscount(discount);
+      setCouponApplied(true);
+      setCouponMsg(`🎉 Festive Promo "${code}" applied! You saved ₹${discount}`);
+    } else if (code === 'KANDY10' || code === 'SAVE10') {
       const discount = Math.round(baseEstimatedFare * 0.1);
       setCouponDiscount(discount);
       setCouponApplied(true);
@@ -745,16 +1483,20 @@ export default function BookingFunnelScreen() {
     }
   };
 
-  // Pet Friendly detection & convenience fee
-  const isPetFriendly = /pet\s*friendly/i.test(pickupNotes);
-  const petFee = isPetFriendly ? 500 : 0;
+  // Pet Friendly convenience fee (dynamically determined by selected pet: Cat, Dog, or Bird)
+  const petFee = isPetFriendly ? (petRates[selectedPetType] ?? 500) : 0;
+  const petLabel = selectedPetType === 'cat' ? 'Cat' : selectedPetType === 'bird' ? 'Bird' : 'Dog';
 
   // Calculate final totals
   const subtotal = Math.max(0, baseEstimatedFare + petFee - couponDiscount);
   const gstAmount = Math.round(subtotal * 0.05);
   const totalFare = subtotal + gstAmount;
-  const advanceAmount = Math.round(totalFare * 0.25);
+  const advanceAmount = Math.round(totalFare * 0.30);
   const balanceAmount = totalFare - advanceAmount;
+
+  // Selected payment amount depending on choice (30% Part Payment vs Full Amount)
+  const payableAmount = paymentOption === 'FULL' ? totalFare : advanceAmount;
+  const dueToDriver = paymentOption === 'FULL' ? 0 : balanceAmount;
 
   // Proceed to Step 2
   const handleProceedToStep2 = () => {
@@ -780,7 +1522,10 @@ export default function BookingFunnelScreen() {
   // Step 2 -> Step 3: Create Booking
   const handleConfirmBooking = async () => {
     if (!agreedToTerms) {
-      Alert.alert('Terms & Conditions', 'Please accept the Terms & Conditions and Cancellation Policy to proceed.');
+      router.push({
+        pathname: '/terms',
+        params: { fromBooking: 'true' },
+      });
       return;
     }
     if (!user) {
@@ -817,15 +1562,21 @@ export default function BookingFunnelScreen() {
           alternateEmail: alternateEmail.trim() || undefined,
           companyName: companyName.trim() || undefined,
           gstin: gstin.trim().toUpperCase() || undefined,
-          paymentMode: paymentMode === 'PAY_ON_DROP' ? 'PAY_ON_DROP' : 'ADVANCE',
+          paymentMode: isLargeFleetApproval
+            ? 'PAY_ON_APPROVAL'
+            : (paymentOption === 'FULL' ? 'FULL' : (paymentMode === 'PAY_ON_DROP' ? 'PAY_ON_DROP' : 'ADVANCE')),
+          isFleetApprovalRequired: isLargeFleetApproval,
           requestCarrier: requestCarrier,
           hasCarrier: requestCarrier,
           flightNumber: flightNumber.trim() ? flightNumber.trim().toUpperCase() : undefined,
           hasPet: isPetFriendly,
           isPetFriendly: isPetFriendly,
+          petType: selectedPetType,
           petFee: petFee,
           notes: [
+            isLargeFleetApproval ? '[FLEET AVAILABILITY APPROVAL REQUIRED] Admin fleet availability verification required. Payment deferred until Admin approval.' : '',
             corporateInfoNote,
+            `Payment Option: ${paymentOption === 'FULL' ? 'Full Payment' : 'Part Payment (Advance)'}`,
             `Payment Method: ${selectedPaymentMethod}`,
             viaStops.length > 0 ? `Intermediate Stops: ${viaStops.map((s: any) => s.label).join(' ➔ ')}` : '',
             flightNumber.trim() ? `Flight: ${flightNumber.trim().toUpperCase()}` : '',
@@ -834,12 +1585,20 @@ export default function BookingFunnelScreen() {
             gstin.trim() ? `GSTIN: ${gstin.trim().toUpperCase()}${companyName.trim() ? ` (${companyName.trim()})` : ''}` : '',
             selectedLuggageSummary ? `Luggage: ${selectedLuggageSummary}` : '',
             requestCarrier ? 'Roof Luggage Carrier Requested' : '',
-            isPetFriendly ? 'Pet Friendly Requested' : '',
+            isSeniorCitizen ? 'Senior Citizen / Elderly (Age 60+): Yes' : '',
+            needReturnJourney ? 'Return Journey Requested Later' : '',
+            needAirportDrop ? 'Airport Drop Requested' : '',
+            needAirportPickup ? 'Airport Pickup Requested' : '',
+            isPetFriendly ? `Pet Friendly Requested (${petLabel} - Surcharge ₹${petFee})` : '',
+            isBabyOnBoard ? 'Baby on Board: Yes (Child Safety)' : '',
+            isPregnancyFriendly ? 'Pregnancy Friendly: Yes (Smooth Drive)' : '',
+            isHandicapped ? 'Handicap / Wheelchair Assistance: Yes' : '',
             pickupNotes.trim(),
           ].filter(Boolean).join(' | ') || undefined,
           passengers: passengerCount,
           luggage: selectedLuggageSummary || luggageDetailsParam,
           specialRequirements: [
+            isLargeFleetApproval ? 'Fleet Availability Check: Required (Admin verification needed before payment)' : '',
             corporateInfoNote,
             `Payment: ${selectedPaymentMethod}`,
             viaStops.length > 0 ? `Via Stops (${viaStops.length}): ${viaStops.map((s: any) => s.label).join(' ➔ ')}` : '',
@@ -848,7 +1607,14 @@ export default function BookingFunnelScreen() {
             alternateEmail.trim() ? `Alt Email: ${alternateEmail.trim()}` : '',
             gstin.trim() ? `GST Details: ${gstin.trim().toUpperCase()}${companyName.trim() ? ` - ${companyName.trim()}` : ''}` : '',
             requestCarrier ? 'Roof Luggage Carrier: Requested (Cab Rooftop Carrier)' : '',
-            isPetFriendly ? 'Pet Friendly: Yes' : '',
+            isSeniorCitizen ? 'Senior Citizen / Elderly (Age 60+): Yes (Easy Access & Assistance)' : '',
+            needReturnJourney ? 'Return Journey: Yes (Later date)' : '',
+            needAirportDrop ? 'Airport Drop: Yes' : '',
+            needAirportPickup ? 'Airport Pickup: Yes' : '',
+            isPetFriendly ? `Pet Friendly: Yes (${petLabel} - Surcharge ₹${petFee})` : '',
+            isBabyOnBoard ? 'Baby on Board: Yes' : '',
+            isPregnancyFriendly ? 'Pregnancy Friendly: Yes' : '',
+            isHandicapped ? 'Handicap / Wheelchair Assistance: Yes (Driver Assistance & Easy Boarding)' : '',
             pickupNotes.trim(),
           ].filter(Boolean).join(' | ') || undefined,
         }),
@@ -874,20 +1640,20 @@ export default function BookingFunnelScreen() {
       {/* 1 & 2. Unified Booking Header & 3-Step Stepper */}
       <BookingFlowHeader
         currentStep={3}
-        title={step === 3 ? 'Booking Confirmed 🎉' : step === 2 ? 'Review & Payment' : 'Passenger Details'}
+        title={step === 3 ? t('bookingReview.bookingSuccessTitle', { defaultValue: 'Booking Confirmed' }) : step === 2 ? (isLargeFleetApproval ? 'Review Booking Request' : t('bookingReview.title', { defaultValue: 'Review & Payment' })) : t('additionalDetails.contactInfo', { defaultValue: 'Passenger Details' })}
         subtitle={
           step === 3
-            ? 'Your verified cab booking has been created and dispatched.'
+            ? t('bookingReview.bookingSuccessMsg', { defaultValue: 'Your verified cab booking has been created and dispatched.' })
             : undefined
         }
         subStepLabel={
           step === 3
-            ? 'Confirmed'
+            ? t('nav.confirmed', { defaultValue: 'Confirmed' })
             : step === 2
-            ? 'Review & Payment'
+            ? (isLargeFleetApproval ? 'Review Request' : t('nav.reviewAndPay', { defaultValue: 'Review & Payment' }))
             : 'Passenger Info'
         }
-        step3Label={step === 2 ? 'Review & Pay' : undefined}
+        step3Label={step === 2 ? (isLargeFleetApproval ? 'Review Request' : t('nav.reviewAndPay', { defaultValue: 'Review & Pay' })) : undefined}
         isConfirmed={step === 3}
         topInset={topInset}
         onBack={() => {
@@ -933,11 +1699,17 @@ export default function BookingFunnelScreen() {
           style={styles.scrollView}
           contentContainerStyle={[
             styles.scrollContent,
+            {
+              paddingBottom:
+                step === 3
+                  ? Math.max(insets.bottom + 20, 28)
+                  : 12,
+              paddingHorizontal: isSmallDevice ? 8 : 12,
+            },
             step === 3 && {
               flexGrow: 1,
               paddingTop: 4,
-              paddingBottom: Math.max(insets.bottom, 4),
-              paddingHorizontal: 10,
+              paddingHorizontal: isSmallDevice ? 8 : 10,
             },
           ]}
           showsVerticalScrollIndicator={false}
@@ -953,32 +1725,54 @@ export default function BookingFunnelScreen() {
                 {/* 1. Vehicle & Fare Row */}
                 <View style={styles.topSummaryUpperRow}>
                   {/* Left: Car Image */}
-                  <Image
-                    source={vehicleInfo.image}
-                    style={styles.topSummaryVehicleImage}
-                    resizeMode="contain"
-                  />
+                  {vehicleInfo.image ? (
+                    <Image
+                      source={vehicleInfo.image}
+                      style={[
+                        styles.topSummaryVehicleImage,
+                        isSmallDevice && { width: 76, height: 48 },
+                      ]}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.topSummaryVehicleImage,
+                        isSmallDevice && { width: 76, height: 48 },
+                        { alignItems: 'center', justifyContent: 'center' },
+                      ]}
+                    >
+                      <Ionicons name="car-outline" size={24} color="#94a3b8" />
+                    </View>
+                  )}
 
                   {/* Middle: Vehicle Specs & Change Vehicle */}
-                  <View style={styles.topSummaryVehicleDetails}>
-                    <Text style={styles.topSummaryVehicleName}>{customVehicleName}</Text>
+                  <View style={[styles.topSummaryVehicleDetails, isSmallDevice && { paddingHorizontal: 4 }]}>
+                    <Text
+                      style={[styles.topSummaryVehicleName, isSmallDevice && { fontSize: 14 }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.8}
+                    >
+                      {customVehicleName}
+                    </Text>
 
                     {/* Specs Icons */}
                     <View style={styles.topSummarySpecsRow}>
                       <View style={styles.topSummarySpecItem}>
-                        <Ionicons name="person" size={11} color="#64748b" />
+                        <Ionicons name="person" size={13.5} color="#64748b" />
                         <Text style={styles.topSummarySpecText}>
                           {passengerCountParam || vehicleInfo.passengers} + 1
                         </Text>
                       </View>
                       <Text style={styles.topSummarySpecPipe}>|</Text>
                       <View style={styles.topSummarySpecItem}>
-                        <Ionicons name="briefcase" size={11} color="#64748b" />
+                        <Ionicons name="briefcase" size={13.5} color="#64748b" />
                         <Text style={styles.topSummarySpecText}>{vehicleInfo.luggage}</Text>
                       </View>
                       <Text style={styles.topSummarySpecPipe}>|</Text>
                       <View style={styles.topSummarySpecItem}>
-                        <Ionicons name="snow" size={11} color="#64748b" />
+                        <Ionicons name="snow" size={13.5} color="#64748b" />
                         <Text style={styles.topSummarySpecText}>A/C</Text>
                       </View>
                     </View>
@@ -990,7 +1784,7 @@ export default function BookingFunnelScreen() {
                       onPress={() => router.back()}
                     >
                       <Text style={styles.topSummaryChangeVehicleText}>Change Vehicle</Text>
-                      <Ionicons name="chevron-down" size={12} color="#2563eb" style={{ marginLeft: 2 }} />
+                      <Ionicons name="chevron-down" size={13.5} color="#2563eb" style={{ marginLeft: 2 }} />
                     </TouchableOpacity>
                   </View>
 
@@ -999,62 +1793,77 @@ export default function BookingFunnelScreen() {
 
                   {/* Right: Fare Column */}
                   <View style={styles.topSummaryPriceCol}>
-                    <Text style={styles.topSummaryPrice}>₹ {totalFare.toLocaleString('en-IN')}</Text>
-                    <Text style={styles.topSummaryGst}>(Total Trip Fare)</Text>
-                    <View style={styles.topSummaryAdvancePill}>
-                      <Text style={styles.topSummaryAdvanceText}>Pay 25%: ₹{advanceAmount.toLocaleString('en-IN')}</Text>
-                    </View>
+                    <Text
+                      style={[styles.topSummaryPrice, isSmallDevice && { fontSize: 17 }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.8}
+                    >
+                      ₹ {totalFare.toLocaleString('en-IN')}
+                    </Text>
+                    <Text style={styles.topSummaryGst} numberOfLines={1}>(Total Trip Fare)</Text>
                   </View>
                 </View>
 
                 {/* Horizontal Divider */}
                 <View style={styles.topSummaryHorizontalLine} />
 
-                {/* 2. Route & Scheduled Time Row */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.topSummaryRouteScrollContent}
-                >
-                  {/* Pickup & Drop Section */}
-                  <View style={styles.topSummaryLocationsGroup}>
-                    {/* Pickup */}
-                    <View style={styles.topSummaryLocationItem}>
-                      <Ionicons name="location" size={14} color="#ea580c" style={{ marginRight: 3 }} />
-                      <View>
-                        <Text style={styles.topSummaryLocationName} numberOfLines={1}>
-                          {pickupCity}
-                        </Text>
-                        <Text style={styles.topSummaryLocationSub}>Pickup Location</Text>
-                      </View>
-                    </View>
-
-                    {/* Dashed / Arrow Separator */}
-                    <View style={styles.topSummaryArrowContainer}>
-                      <Text style={styles.topSummaryArrowLine}>┄┄</Text>
-                      <Ionicons name="arrow-forward" size={11} color="#94a3b8" />
-                    </View>
-
-                    {/* Drop */}
-                    <View style={styles.topSummaryLocationItem}>
-                      <Ionicons name="location" size={14} color="#103A75" style={{ marginRight: 3 }} />
-                      <View>
-                        <Text style={styles.topSummaryLocationName} numberOfLines={1}>
-                          {dropCity}
-                        </Text>
-                        <Text style={styles.topSummaryLocationSub}>Drop Location</Text>
-                      </View>
+                {/* 2. Route Locations Row */}
+                <View style={styles.topSummaryLocationsRow}>
+                  {/* Pickup */}
+                  <View style={styles.topSummaryLocationItem}>
+                    <Ionicons name="location" size={18} color="#16a34a" style={{ marginRight: 5 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={styles.topSummaryLocationName}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {pickupCity}
+                      </Text>
+                      <Text style={styles.topSummaryLocationSub}>Pickup Location</Text>
                     </View>
                   </View>
 
-                  {/* Vertical Divider */}
-                  <View style={styles.topSummaryRouteDivider} />
+                  {/* Dashed / Arrow Separator */}
+                  <View style={styles.topSummaryArrowContainer}>
+                    <Text style={styles.topSummaryArrowLine}>┄┄</Text>
+                    <Ionicons name="arrow-forward" size={14} color="#94a3b8" />
+                  </View>
 
+                  {/* Drop */}
+                  <View style={styles.topSummaryLocationItem}>
+                    <Ionicons name="location" size={18} color="#ef4444" style={{ marginRight: 5 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={styles.topSummaryLocationName}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {dropCity}
+                      </Text>
+                      <Text style={styles.topSummaryLocationSub}>Drop Location</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Inner Horizontal Divider */}
+                <View style={styles.topSummaryInnerDivider} />
+
+                {/* 3. Scheduled Date & Time Row (Arranged Below Locations, Non-Slidable) */}
+                <View style={styles.topSummaryScheduleRow}>
                   {/* Pickup Date */}
-                  <View style={styles.topSummaryDateTimeItem}>
-                    <Ionicons name="calendar-outline" size={13} color="#103A75" style={{ marginRight: 3 }} />
+                  <View style={styles.topSummaryScheduleItem}>
+                    <Ionicons name="calendar-outline" size={18} color="rgb(22, 34, 50)" style={{ marginRight: 5 }} />
                     <View>
-                      <Text style={styles.topSummaryDateTimeText} numberOfLines={1}>
+                      <Text
+                        style={styles.topSummaryDateTimeText}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
                         {displayPickupDate}
                       </Text>
                       <Text style={styles.topSummaryLocationSub}>Pickup Date</Text>
@@ -1065,10 +1874,15 @@ export default function BookingFunnelScreen() {
                   <View style={styles.topSummaryRouteDivider} />
 
                   {/* Pickup Time */}
-                  <View style={styles.topSummaryDateTimeItem}>
-                    <Ionicons name="time-outline" size={13} color="#ea580c" style={{ marginRight: 3 }} />
+                  <View style={styles.topSummaryScheduleItem}>
+                    <Ionicons name="time-outline" size={18} color="rgb(22, 34, 50)" style={{ marginRight: 5 }} />
                     <View>
-                      <Text style={styles.topSummaryDateTimeText} numberOfLines={1}>
+                      <Text
+                        style={styles.topSummaryDateTimeText}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
                         {displayPickupTime}
                       </Text>
                       <Text style={styles.topSummaryLocationSub}>Pickup Time</Text>
@@ -1079,25 +1893,17 @@ export default function BookingFunnelScreen() {
                   {tripTypeParam === 'AIRPORT' && flightNumber.trim().length > 0 && (
                     <>
                       <View style={styles.topSummaryRouteDivider} />
-                      <View style={styles.topSummaryDateTimeItem}>
-                        <Ionicons name="airplane" size={13} color="#0284c7" style={{ marginRight: 3 }} />
+                      <View style={styles.topSummaryScheduleItem}>
+                        <Ionicons name="airplane" size={17} color="#0284c7" style={{ marginRight: 5 }} />
                         <View>
                           <Text style={styles.topSummaryDateTimeText} numberOfLines={1}>
                             {flightNumber.trim()}
                           </Text>
-                          <Text style={styles.topSummaryLocationSub}>Flight No</Text>
+                          <Text style={styles.topSummaryLocationSub}>{t('passengerDetails.flightNo', { defaultValue: 'Flight No' })}</Text>
                         </View>
                       </View>
                     </>
                   )}
-                </ScrollView>
-              </View>
-
-              {/* Passenger Details Title & Subtitle */}
-              <View style={styles.sectionHeaderRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionHeaderTitle}>Passenger Details</Text>
-                  <Text style={styles.sectionHeaderSub}>Enter passenger details for your booking</Text>
                 </View>
               </View>
 
@@ -1106,21 +1912,9 @@ export default function BookingFunnelScreen() {
                 {/* Top Header of Card */}
                 <View style={styles.leadPassengerHeaderRow}>
                   <View style={styles.leadPassengerLeftTitle}>
-                    <Ionicons name="person" size={17} color="#ea580c" />
-                    <Text style={styles.leadPassengerTitle}>Lead Passenger</Text>
-                    <Text style={styles.leadPassengerSub}>(Primary Contact)</Text>
+                    <Ionicons name="person" size={22} color="rgb(240, 117, 15)" />
+                    <Text style={styles.leadPassengerTitle}>{t('passengerDetails.leadPassenger', { defaultValue: 'Lead Passenger' })}</Text>
                   </View>
-
-                  <TouchableOpacity
-                    style={styles.sameAccountCheckboxRow}
-                    activeOpacity={0.7}
-                    onPress={handleToggleSameAsAccount}
-                  >
-                    <View style={[styles.checkboxBox, sameAsAccount && styles.checkboxBoxActive]}>
-                      {sameAsAccount && <Ionicons name="checkmark" size={11} color="#ffffff" />}
-                    </View>
-                    <Text style={styles.sameAccountText}>Same as account details</Text>
-                  </TouchableOpacity>
                 </View>
 
                 {/* 2x2 Grid of Inputs */}
@@ -1129,19 +1923,19 @@ export default function BookingFunnelScreen() {
                   {/* Full Name */}
                   <View style={[styles.gridCol, { marginRight: 4 }]}>
                     <View style={styles.inputCard}>
-                      <Ionicons name="person" size={18} color="#103A75" style={styles.inputCardIcon} />
+                      <Ionicons name="person" size={23} color="rgb(22, 34, 50)" style={styles.inputCardIcon} />
                       <View style={styles.inputCardTextCol}>
                         <Text style={styles.inputCardLabel}>
-                          Full Name <Text style={{ color: '#ea580c' }}>*</Text>
+                          {t('passengerDetails.fullName', { defaultValue: 'Full Name' })} <Text style={{ color: 'rgb(240, 117, 15)' }}>*</Text>
                         </Text>
                         <TextInput
-                          style={styles.inputCardField}
-                          placeholder="Enter full name"
+                          style={[styles.inputCardField, { color: 'rgb(22, 34, 50)' }]}
+                          placeholder={t('passengerDetails.enterFullName', { defaultValue: 'Enter full name' })}
                           placeholderTextColor="#94a3b8"
                           value={passengerName}
-                          onChangeText={(t) => {
-                            setPassengerName(t);
-                            if (sameAsAccount && user && t !== user.fullName) {
+                          onChangeText={(text) => {
+                            setPassengerName(text);
+                            if (sameAsAccount && user && text !== user.fullName) {
                               setSameAsAccount(false);
                             }
                           }}
@@ -1153,20 +1947,20 @@ export default function BookingFunnelScreen() {
                   {/* Mobile Number */}
                   <View style={[styles.gridCol, { marginLeft: 4 }]}>
                     <View style={styles.inputCard}>
-                      <Ionicons name="call" size={18} color="#103A75" style={styles.inputCardIcon} />
+                      <Ionicons name="call" size={23} color="rgb(22, 34, 50)" style={styles.inputCardIcon} />
                       <View style={styles.inputCardTextCol}>
                         <Text style={styles.inputCardLabel}>
-                          Mobile Number <Text style={{ color: '#ea580c' }}>*</Text>
+                          {t('passengerDetails.mobileNumber', { defaultValue: 'Mobile Number' })} <Text style={{ color: 'rgb(240, 117, 15)' }}>*</Text>
                         </Text>
                         <TextInput
-                          style={styles.inputCardField}
+                          style={[styles.inputCardField, { color: 'rgb(22, 34, 50)' }]}
                           placeholder="+91 98765 43210"
                           placeholderTextColor="#94a3b8"
                           keyboardType="phone-pad"
                           value={passengerPhone}
-                          onChangeText={(t) => {
-                            setPassengerPhone(t);
-                            if (sameAsAccount && user) {
+                          onChangeText={(text) => {
+                            setPassengerPhone(text);
+                            if (sameAsAccount && user && text !== user.phone) {
                               setSameAsAccount(false);
                             }
                           }}
@@ -1177,16 +1971,16 @@ export default function BookingFunnelScreen() {
                 </View>
 
                 {/* Row 2: Email ID & Alternate Mobile Number */}
-                <View style={[styles.gridRow, { marginTop: 8 }]}>
+                <View style={[styles.gridRow, { marginTop: 9 }]}>
                   {/* Email ID */}
                   <View style={[styles.gridCol, { marginRight: 4 }]}>
                     <View style={styles.inputCard}>
-                      <Ionicons name="mail-outline" size={18} color="#64748b" style={styles.inputCardIcon} />
+                      <Ionicons name="mail-outline" size={23} color="#64748b" style={styles.inputCardIcon} />
                       <View style={styles.inputCardTextCol}>
-                        <Text style={styles.inputCardLabel}>Email ID</Text>
+                        <Text style={styles.inputCardLabel}>{t('passengerDetails.emailId', { defaultValue: 'Email ID' })}</Text>
                         <TextInput
                           style={styles.inputCardField}
-                          placeholder="Enter email address"
+                          placeholder={t('passengerDetails.enterEmail', { defaultValue: 'Enter email address' })}
                           placeholderTextColor="#94a3b8"
                           keyboardType="email-address"
                           autoCapitalize="none"
@@ -1205,14 +1999,14 @@ export default function BookingFunnelScreen() {
                   {/* Alternate Mobile Number */}
                   <View style={[styles.gridCol, { marginLeft: 4 }]}>
                     <View style={styles.inputCard}>
-                      <Ionicons name="call-outline" size={18} color="#64748b" style={styles.inputCardIcon} />
+                      <Ionicons name="call-outline" size={23} color="#64748b" style={styles.inputCardIcon} />
                       <View style={styles.inputCardTextCol}>
                         <Text style={styles.inputCardLabel} numberOfLines={1} ellipsizeMode="tail">
-                          Alternate Mobile Number
+                          {t('passengerDetails.alternateMobile', { defaultValue: 'Alternate Mobile Number' })}
                         </Text>
                         <TextInput
                           style={styles.inputCardField}
-                          placeholder="Enter alternate number"
+                          placeholder={t('passengerDetails.enterAlternateMobile', { defaultValue: 'Enter alternate number' })}
                           placeholderTextColor="#94a3b8"
                           keyboardType="phone-pad"
                           value={alternatePhone}
@@ -1232,10 +2026,10 @@ export default function BookingFunnelScreen() {
                   >
                     <Ionicons
                       name={showAlternateEmail ? "remove" : "add"}
-                      size={13}
-                      color="#2563eb"
+                      size={14}
+                      color="rgb(22, 34, 50)"
                     />
-                    <Text style={styles.addonPillText}>Alternate Email</Text>
+                    <Text style={styles.addonPillText}>{t('passengerDetails.alternateEmail', { defaultValue: 'Alternate Email' })}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -1245,10 +2039,10 @@ export default function BookingFunnelScreen() {
                   >
                     <Ionicons
                       name={showGst ? "remove" : "add"}
-                      size={13}
-                      color="#2563eb"
+                      size={14}
+                      color="rgb(22, 34, 50)"
                     />
-                    <Text style={styles.addonPillText}>Add GST</Text>
+                    <Text style={styles.addonPillText}>{t('passengerDetails.addGst', { defaultValue: 'Add GST' })}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -1258,7 +2052,7 @@ export default function BookingFunnelScreen() {
                     <View style={styles.addonExpandColFull}>
                       <TextInput
                         style={styles.addonInputBox}
-                        placeholder="Enter alternate email address"
+                        placeholder={t('passengerDetails.enterAlternateEmail', { defaultValue: 'Enter alternate email address' })}
                         placeholderTextColor="#94a3b8"
                         keyboardType="email-address"
                         autoCapitalize="none"
@@ -1275,7 +2069,7 @@ export default function BookingFunnelScreen() {
                     <View style={styles.addonExpandColHalf}>
                       <TextInput
                         style={styles.addonInputBox}
-                        placeholder="Company Name"
+                        placeholder={t('passengerDetails.companyName', { defaultValue: 'Company Name' })}
                         placeholderTextColor="#94a3b8"
                         value={companyName}
                         onChangeText={setCompanyName}
@@ -1284,7 +2078,7 @@ export default function BookingFunnelScreen() {
                     <View style={styles.addonExpandColHalf}>
                       <TextInput
                         style={styles.addonInputBox}
-                        placeholder="15-digit GSTIN"
+                        placeholder={t('passengerDetails.gstinPlaceholder', { defaultValue: '15-digit GSTIN' })}
                         placeholderTextColor="#94a3b8"
                         value={gstin}
                         onChangeText={(t) => setGstin(t.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15))}
@@ -1298,15 +2092,15 @@ export default function BookingFunnelScreen() {
 
                 {/* Row 3: Flight Number (Airport Transfer Only) */}
                 {tripTypeParam === 'AIRPORT' && (
-                  <View style={[styles.gridRow, { marginTop: 8 }]}>
+                  <View style={[styles.gridRow, { marginTop: 9 }]}>
                     <View style={{ flex: 1 }}>
                       <View style={styles.inputCard}>
-                        <Ionicons name="airplane" size={18} color="#103A75" style={styles.inputCardIcon} />
+                        <Ionicons name="airplane" size={18} color="rgb(22, 34, 50)" style={styles.inputCardIcon} />
                         <View style={styles.inputCardTextCol}>
-                          <Text style={styles.inputCardLabel}>Flight Number (Optional)</Text>
+                          <Text style={styles.inputCardLabel}>{t('passengerDetails.flightNumberOptional', { defaultValue: 'Flight Number (Optional)' })}</Text>
                           <TextInput
                             style={styles.inputCardField}
-                            placeholder="e.g. 6E 214, AI 505"
+                            placeholder={t('passengerDetails.flightNumberPlaceholder', { defaultValue: 'e.g. 6E 214, AI 505' })}
                             placeholderTextColor="#94a3b8"
                             value={flightNumber}
                             onChangeText={(t) => setFlightNumber(t.toUpperCase())}
@@ -1328,17 +2122,1333 @@ export default function BookingFunnelScreen() {
                 )}
               </View>
 
-              {/* Passengers & Luggage Card */}
-              <View style={styles.cardSection}>
+              {/* Additional Requirements Trigger Card (Matching Reference Image) */}
+              <TouchableOpacity
+                style={styles.requirementsTriggerCard}
+                onPress={() => setShowRequirementsModal(true)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.requirementsTriggerTopRow}>
+                  <View style={styles.requirementsIconBox}>
+                    <Ionicons name="options-outline" size={24} color="rgb(240, 117, 15)" />
+                  </View>
+                  <View style={styles.requirementsTriggerTextGroup}>
+                    <View style={styles.requirementsTitleRow}>
+                      <Text style={styles.requirementsTriggerTitle}>{t('additionalRequirements.triggerTitle', { defaultValue: 'Additional Details' })}</Text>
+                      <View style={styles.requirementsEditPill}>
+                        <Text style={styles.requirementsEditText}>{t('additionalRequirements.configure', { defaultValue: 'Configure' })}</Text>
+                        <Ionicons name="chevron-forward" size={14} color="rgb(22, 34, 50)" />
+                      </View>
+                    </View>
+                    <Text style={styles.requirementsTriggerSubtitle}>
+                      {t('additionalRequirements.triggerSubtitle', { defaultValue: 'Add your requirements for a better travel experience.' })}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Live Requirements Summary Chips */}
+                {(() => {
+                  const summaryItems: {
+                    key: string;
+                    icon?: any;
+                    image?: any;
+                    imageStyle?: any;
+                    text: string;
+                  }[] = [
+                    {
+                      key: 'passengers',
+                      icon: 'people',
+                      text: `${passengerCount} ${passengerCount === 1 ? t('additionalRequirements.passenger', { defaultValue: 'Traveller' }) : t('additionalRequirements.passengersPlural', { defaultValue: 'Travellers' })}`,
+                    },
+                    {
+                      key: 'luggage',
+                      image: require('../../assets/images/luggage-two-suitcases.png'),
+                      imageStyle: { width: 22, height: 21, resizeMode: 'contain' as const, tintColor: 'rgb(22, 34, 50)' },
+                      text: totalLuggageBags === 0
+                        ? t('additionalRequirements.zeroLuggage', { defaultValue: '0 Luggage' })
+                        : `${totalLuggageBags} ${totalLuggageBags === 1 ? t('additionalRequirements.bag', { defaultValue: 'Bag' }) : t('additionalRequirements.bags', { defaultValue: 'Bags' })}`,
+                    },
+                    ...(isSeniorCitizen ? [{
+                      key: 'senior',
+                      image: require('../../assets/images/senior-citizen-icon.png'),
+                      imageStyle: { width: 22, height: 21, resizeMode: 'contain' as const, tintColor: 'rgb(22, 34, 50)' },
+                      text: t('additionalRequirements.seniorCitizenChip', { defaultValue: 'Senior (60+)' }),
+                    }] : []),
+                    ...(needReturnJourney ? [{
+                      key: 'return',
+                      icon: 'swap-horizontal',
+                      text: t('additionalRequirements.returnTripChip', { defaultValue: 'Return Later' }),
+                    }] : []),
+                    ...(needAirportDrop ? [{
+                      key: 'airportDrop',
+                      icon: 'airplane',
+                      text: t('additionalRequirements.airportDropChip', { defaultValue: 'Airport Drop' }),
+                    }] : []),
+                    ...(needAirportPickup ? [{
+                      key: 'airportPickup',
+                      icon: 'airplane',
+                      text: t('additionalRequirements.airportPickupChip', { defaultValue: 'Airport Pickup' }),
+                    }] : []),
+                    ...(isPetFriendly ? [{
+                      key: 'pet',
+                      icon: 'paw',
+                      text: t('additionalRequirements.petChip', { defaultValue: `Pet (${petLabel})` }),
+                    }] : []),
+                    ...(isBabyOnBoard ? [{
+                      key: 'baby',
+                      image: require('../../assets/images/baby-on-board-icon.png'),
+                      imageStyle: { width: 22, height: 21, resizeMode: 'contain' as const, tintColor: 'rgb(22, 34, 50)' },
+                      text: t('additionalRequirements.babyOnBoardChip', { defaultValue: 'Baby on Board' }),
+                    }] : []),
+                    ...(isPregnancyFriendly ? [{
+                      key: 'pregnancy',
+                      image: require('../../assets/images/pregnancy-icon.png'),
+                      imageStyle: { width: 21, height: 21, resizeMode: 'contain' as const, tintColor: 'rgb(22, 34, 50)' },
+                      text: t('additionalRequirements.pregnancyChip', { defaultValue: 'Pregnancy' }),
+                    }] : []),
+                    ...(isHandicapped ? [{
+                      key: 'handicap',
+                      icon: 'accessibility' as any,
+                      text: t('additionalRequirements.handicapChip', { defaultValue: 'Handicap' }),
+                    }] : []),
+                    ...(((hasCarrierParam || params.hasCarrier !== 'false') && requestCarrier) ? [{
+                      key: 'carrier',
+                      image: require('../../assets/images/roof-carrier-icon.png'),
+                      imageStyle: { width: 25, height: 21, resizeMode: 'contain' as const, tintColor: 'rgb(22, 34, 50)' },
+                      text: `${t('additionalRequirements.carrierChip', { defaultValue: 'Roof Carrier' })} ✓`,
+                    }] : []),
+                    ...(pickupNotes.trim().length > 0 ? [{
+                      key: 'notes',
+                      icon: 'sparkles',
+                      text: t('additionalRequirements.preferencesAdded', { defaultValue: 'Preferences Added' }),
+                    }] : []),
+                  ];
+
+                  // Group into rows with maximum 4 items per row (matching 4-column grid)
+                  const COLUMNS_PER_ROW = 4;
+                  const rows: typeof summaryItems[] = [];
+                  for (let i = 0; i < summaryItems.length; i += COLUMNS_PER_ROW) {
+                    rows.push(summaryItems.slice(i, i + COLUMNS_PER_ROW));
+                  }
+
+                  return (
+                    <View style={styles.requirementsSummaryContainer}>
+                      {rows.map((row, rowIndex) => {
+                        const emptySlotsCount = COLUMNS_PER_ROW - row.length;
+                        return (
+                          <View
+                            key={rowIndex}
+                            style={[
+                              styles.summaryRow,
+                              rowIndex > 0 && { marginTop: 10 },
+                            ]}
+                          >
+                            {row.map((item) => (
+                              <View key={item.key} style={styles.summaryChipItem}>
+                                {item.image ? (
+                                  <Image source={item.image} style={item.imageStyle} />
+                                ) : (
+                                  <Ionicons name={item.icon} size={22} color="rgb(22, 34, 50)" />
+                                )}
+                                <Text
+                                  style={styles.summaryChipText}
+                                  numberOfLines={1}
+                                  adjustsFontSizeToFit={true}
+                                  minimumFontScale={0.7}
+                                >
+                                  {item.text}
+                                </Text>
+                              </View>
+                            ))}
+                            {emptySlotsCount > 0 &&
+                              Array.from({ length: emptySlotsCount }).map((_, emptyIdx) => (
+                                <View key={`empty-${emptyIdx}`} style={styles.summaryChipEmptySlot} />
+                              ))}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  );
+                })()}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* ========================================================= */}
+          {/* STEP 2: REVIEW ROUTE & PAYMENT SELECTION                   */}
+          {/* ========================================================= */}
+          {step === 2 && (
+            <View style={styles.stepSection}>
+              {/* 1. Top Vehicle & Route Summary Card (Matching Reference Mock) */}
+              <View style={styles.topSummaryCard}>
+                {/* Upper Row: Vehicle Image, Details, Specs, Price */}
+                <View style={styles.topSummaryUpperRow}>
+                  {/* Left: Car Image */}
+                  {vehicleInfo.image ? (
+                    <Image
+                      source={vehicleInfo.image}
+                      style={[
+                        styles.topSummaryVehicleImage,
+                        isSmallDevice && { width: 76, height: 48 },
+                      ]}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.topSummaryVehicleImage,
+                        isSmallDevice && { width: 76, height: 48 },
+                        { alignItems: 'center', justifyContent: 'center' },
+                      ]}
+                    >
+                      <Ionicons name="car-outline" size={24} color="#94a3b8" />
+                    </View>
+                  )}
+
+                  {/* Middle: Vehicle Specs & Change Vehicle */}
+                  <View style={[styles.topSummaryVehicleDetails, isSmallDevice && { paddingHorizontal: 4 }]}>
+                    <Text
+                      style={[styles.topSummaryVehicleName, isSmallDevice && { fontSize: 14 }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.8}
+                    >
+                      {customVehicleName}
+                    </Text>
+
+                    {/* Specs Icons */}
+                    <View style={styles.topSummarySpecsRow}>
+                      <View style={styles.topSummarySpecItem}>
+                        <Ionicons name="person" size={13.5} color="#64748b" />
+                        <Text style={styles.topSummarySpecText}>
+                          {passengerCountParam || vehicleInfo.passengers} + 1
+                        </Text>
+                      </View>
+                      <Text style={styles.topSummarySpecPipe}>|</Text>
+                      <View style={styles.topSummarySpecItem}>
+                        <Ionicons name="briefcase" size={13.5} color="#64748b" />
+                        <Text style={styles.topSummarySpecText}>{vehicleInfo.luggage}</Text>
+                      </View>
+                      <Text style={styles.topSummarySpecPipe}>|</Text>
+                      <View style={styles.topSummarySpecItem}>
+                        <Ionicons name="snow" size={13.5} color="#64748b" />
+                        <Text style={styles.topSummarySpecText}>A/C</Text>
+                      </View>
+                    </View>
+
+                    {/* Change Vehicle Link */}
+                    <TouchableOpacity
+                      style={styles.topSummaryChangeVehicleBtn}
+                      activeOpacity={0.7}
+                      onPress={() => router.back()}
+                    >
+                      <Text style={styles.topSummaryChangeVehicleText}>Change Vehicle</Text>
+                      <Ionicons name="chevron-forward" size={13.5} color="#2563eb" style={{ marginLeft: 2 }} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Vertical Divider */}
+                  <View style={styles.topSummaryVerticalLine} />
+
+                  {/* Right: Fare Column */}
+                  <View style={styles.topSummaryPriceCol}>
+                    <Text
+                      style={[styles.topSummaryPrice, isSmallDevice && { fontSize: 17 }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.8}
+                    >
+                      ₹ {totalFare.toLocaleString('en-IN')}
+                    </Text>
+                    <Text style={styles.topSummaryGst} numberOfLines={1}>(Total Trip Fare)</Text>
+                  </View>
+                </View>
+
+                {/* Horizontal Divider */}
+                <View style={styles.topSummaryHorizontalLine} />
+
+                {/* 2. Route Locations Row */}
+                <View style={styles.topSummaryLocationsRow}>
+                  {/* Pickup */}
+                  <View style={styles.topSummaryLocationItem}>
+                    <Ionicons name="location" size={18} color="#16a34a" style={{ marginRight: 5 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={styles.topSummaryLocationName}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {pickupCity}
+                      </Text>
+                      <Text style={styles.topSummaryLocationSub}>Pickup Location</Text>
+                    </View>
+                  </View>
+
+                  {/* Dashed Separator */}
+                  <View style={styles.topSummaryArrowContainer}>
+                    <Text style={styles.topSummaryArrowLine}>┄┄</Text>
+                    <Ionicons name="arrow-forward" size={14} color="#94a3b8" />
+                  </View>
+
+                  {/* Drop */}
+                  <View style={styles.topSummaryLocationItem}>
+                    <Ionicons name="location" size={18} color="#ef4444" style={{ marginRight: 5 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={styles.topSummaryLocationName}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {dropCity}
+                      </Text>
+                      <Text style={styles.topSummaryLocationSub}>Drop Location</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Inner Horizontal Divider */}
+                <View style={styles.topSummaryInnerDivider} />
+
+                {/* 3. Scheduled Date & Time Row (Arranged Below Locations, Non-Slidable) */}
+                <View style={styles.topSummaryScheduleRow}>
+                  {/* Pickup Date */}
+                  <View style={styles.topSummaryScheduleItem}>
+                    <Ionicons name="calendar-outline" size={16} color="rgb(22, 34, 50)" style={{ marginRight: 5 }} />
+                    <View>
+                      <Text
+                        style={styles.topSummaryDateTimeText}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {displayPickupDate}
+                      </Text>
+                      <Text style={styles.topSummaryLocationSub}>Pickup Date</Text>
+                    </View>
+                  </View>
+
+                  {/* Vertical Divider */}
+                  <View style={styles.topSummaryRouteDivider} />
+
+                  {/* Pickup Time */}
+                  <View style={styles.topSummaryScheduleItem}>
+                    <Ionicons name="time-outline" size={18} color="rgb(22, 34, 50)" style={{ marginRight: 5 }} />
+                    <View>
+                      <Text
+                        style={styles.topSummaryDateTimeText}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {displayPickupTime}
+                      </Text>
+                      <Text style={styles.topSummaryLocationSub}>Pickup Time</Text>
+                    </View>
+                  </View>
+
+                  {/* Flight Number for Airport Transfer */}
+                  {tripTypeParam === 'AIRPORT' && flightNumber.trim().length > 0 && (
+                    <>
+                      <View style={styles.topSummaryRouteDivider} />
+                      <View style={styles.topSummaryScheduleItem}>
+                        <Ionicons name="airplane" size={15} color="#0284c7" style={{ marginRight: 5 }} />
+                        <View>
+                          <Text style={styles.topSummaryDateTimeText} numberOfLines={1}>
+                            {flightNumber.trim()}
+                          </Text>
+                          <Text style={styles.topSummaryLocationSub}>Flight No</Text>
+                        </View>
+                      </View>
+                    </>
+                  )}
+                </View>
+              </View>
+
+              {/* 2. Passenger Details Card (With Edit Button) */}
+              <View style={styles.passengerSummaryCard}>
+                <View style={styles.passengerSummaryHeader}>
+                  <View style={styles.passengerHeaderLeft}>
+                    <Ionicons name="person" size={20} color="rgb(240, 117, 15)" />
+                    <View style={{ marginLeft: 6 }}>
+                      <Text style={styles.passengerSummaryTitle}>{t('passengerDetails.summaryTitle', { defaultValue: 'Passenger Details' })}</Text>
+                      <Text style={styles.passengerSummarySub}>{t('passengerDetails.primaryContact', { defaultValue: 'Primary Contact' })}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.editPassengerBtn}
+                    activeOpacity={0.7}
+                    onPress={() => setStep(1)}
+                  >
+                    <Ionicons name="pencil" size={13} color="rgb(240, 117, 15)" />
+                    <Text style={styles.editPassengerBtnText}>{t('passengerDetails.edit', { defaultValue: 'Edit' })}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* 2x2 Grid */}
+                <View style={styles.passengerGridContainer}>
+                  <View style={styles.passengerGridRow}>
+                    <View style={styles.passengerGridBox}>
+                      <Text style={styles.passengerBoxLabel}>{t('passengerDetails.labelName', { defaultValue: 'PASSENGER NAME' })}</Text>
+                      <Text style={styles.passengerBoxVal} numberOfLines={1}>
+                        {passengerName.trim() || t('passengerDetails.notProvided', { defaultValue: 'Not Provided' })}
+                      </Text>
+                    </View>
+                    <View style={styles.passengerGridBox}>
+                      <Text style={styles.passengerBoxLabel}>{t('passengerDetails.labelPhone', { defaultValue: 'PHONE NUMBER' })}</Text>
+                      <Text style={styles.passengerBoxVal} numberOfLines={1}>
+                        {passengerPhone.trim() || t('passengerDetails.notProvided', { defaultValue: 'Not Provided' })}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[styles.passengerGridRow, { marginTop: 6 }]}>
+                    <View style={styles.passengerGridBox}>
+                      <Text style={styles.passengerBoxLabel}>{t('passengerDetails.labelEmail', { defaultValue: 'EMAIL ADDRESS' })}</Text>
+                      <Text style={styles.passengerBoxVal} numberOfLines={1}>
+                        {passengerEmail.trim() || t('passengerDetails.notProvided', { defaultValue: 'Not Provided' })}
+                      </Text>
+                    </View>
+                    <View style={styles.passengerGridBox}>
+                      <Text style={styles.passengerBoxLabel}>{t('passengerDetails.labelAltPhone', { defaultValue: 'ALTERNATE PHONE' })}</Text>
+                      <Text
+                        style={[
+                          styles.passengerBoxVal,
+                          !alternatePhone.trim() && { color: '#94a3b8', fontWeight: '500' },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {alternatePhone.trim()
+                          ? `+91 ${alternatePhone.replace(/\D/g, '').slice(-10)}`
+                          : t('passengerDetails.notProvided', { defaultValue: 'Not Provided' })}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {isPetFriendly && (
+                  <>
+                    <View style={styles.badgeDivider} />
+                    <View style={styles.petBadgeRow}>
+                      <Ionicons name="paw" size={14} color="rgb(240, 117, 15)" />
+                      <Text style={styles.petBadgeText}>
+                        {t('bookingReview.petBadge', { fee: petFee, pet: petLabel, defaultValue: `Ride Preference: Pet Friendly - ${petLabel} (+₹${petFee} applied)` })}
+                      </Text>
+                    </View>
+                  </>
+                )}
+
+                {needReturnJourney && (
+                  <>
+                    <View style={styles.badgeDivider} />
+                    <View style={styles.petBadgeRow}>
+                      <Ionicons name="swap-horizontal" size={14} color="rgb(240, 117, 15)" />
+                      <Text style={styles.petBadgeText}>
+                        {t('bookingReview.returnJourneyBadge', { defaultValue: 'Trip Option: Return Journey Later Requested' })}
+                      </Text>
+                    </View>
+                  </>
+                )}
+
+                {needAirportDrop && (
+                  <>
+                    <View style={styles.badgeDivider} />
+                    <View style={styles.petBadgeRow}>
+                      <Ionicons name="airplane" size={14} color="#0284c7" />
+                      <Text style={[styles.petBadgeText, { color: '#0369a1' }]}>
+                        {t('bookingReview.airportDropBadge', { defaultValue: 'Airport Service: Airport Drop Requested' })}
+                      </Text>
+                    </View>
+                  </>
+                )}
+
+                {needAirportPickup && (
+                  <>
+                    <View style={styles.badgeDivider} />
+                    <View style={styles.petBadgeRow}>
+                      <Ionicons name="airplane" size={14} color="#16a34a" />
+                      <Text style={[styles.petBadgeText, { color: '#15803d' }]}>
+                        {t('bookingReview.airportPickupBadge', { defaultValue: 'Airport Service: Airport Pickup Requested' })}
+                      </Text>
+                    </View>
+                  </>
+                )}
+
+                {tripTypeParam === 'AIRPORT' && flightNumber.trim().length > 0 && (
+                  <>
+                    <View style={styles.badgeDivider} />
+                    <View style={styles.flightBadgeRow}>
+                      <Ionicons name="airplane" size={14} color="#0284c7" />
+                      <Text style={styles.flightBadgeText}>
+                        {t('bookingReview.airportFlightBadge', { defaultValue: 'Airport Flight:' })}{' '}
+                        <Text style={{ fontWeight: '800', color: '#0369a1' }}>{flightNumber.trim()}</Text>
+                      </Text>
+                    </View>
+                  </>
+                )}
+
+                {alternateEmail.trim().length > 0 && (
+                  <>
+                    <View style={styles.badgeDivider} />
+                    <View style={styles.altEmailBadgeRow}>
+                      <Ionicons name="mail-outline" size={14} color="#2563eb" />
+                      <Text style={styles.altEmailBadgeText}>
+                        {t('bookingReview.alternateEmailBadge', { defaultValue: 'Alternate Email:' })}{' '}
+                        <Text style={{ fontWeight: '800', color: '#1d4ed8' }}>{alternateEmail.trim()}</Text>
+                      </Text>
+                    </View>
+                  </>
+                )}
+
+                {gstin.trim().length > 0 && (
+                  <>
+                    <View style={styles.badgeDivider} />
+                    <View style={styles.gstBadgeRow}>
+                      <Ionicons name="business" size={14} color="#4338ca" />
+                      <Text style={styles.gstBadgeText}>
+                        GSTIN: <Text style={{ fontWeight: '800', color: '#312e81' }}>{gstin.trim().toUpperCase()}</Text>
+                        {companyName.trim() ? ` • ${companyName.trim()}` : ''}
+                      </Text>
+                    </View>
+                  </>
+                )}
+              </View>
+
+              {/* 3. Middle Two-Column Grid: Fare Breakdown (Left) & Includes/Excludes (Right) */}
+              <View style={[styles.twoColContainer, isSmallDevice && { flexDirection: 'column', gap: 10 }]}>
+                {/* Left Column: Fare Breakdown Card */}
+                <View style={styles.fareBreakdownCol}>
+                  <View style={styles.colHeaderRow}>
+                    <Ionicons name="receipt-outline" size={16} color="rgb(240, 117, 15)" style={{ marginRight: 5 }} />
+                    <Text style={styles.colHeaderTitle}>{t('bookingReview.fareBreakdown', { defaultValue: 'Fare Breakdown' })}</Text>
+                  </View>
+
+                  <View style={styles.fareLineItem}>
+                    <Text style={styles.fareLineLabel}>
+                      {t('bookingReview.distanceFare', { km: Math.max(vehicleInfo.minKm, estimatedKm), defaultValue: `Distance Fare (${Math.max(vehicleInfo.minKm, estimatedKm)} km)` })}
+                    </Text>
+                    <Text style={styles.fareLineVal}>₹ {baseEstimatedFare.toLocaleString('en-IN')}</Text>
+                  </View>
+
+                  <View style={styles.fareLineItem}>
+                    <Text style={styles.fareLineLabel}>{t('bookingReview.chauffeurAllowance', { defaultValue: 'Chauffeur Allowance' })}</Text>
+                    <Text style={[styles.fareLineVal, { color: '#16a34a' }]}>{t('bookingReview.included', { defaultValue: 'Included' })}</Text>
+                  </View>
+
+                  <View style={styles.fareLineItem}>
+                    <Text style={styles.fareLineLabel}>{t('bookingReview.tollAndStateTax', { defaultValue: 'Toll & State Tax' })}</Text>
+                    <Text style={[styles.fareLineVal, { color: '#16a34a' }]}>{t('bookingReview.included', { defaultValue: 'Included' })}</Text>
+                  </View>
+
+                  {isPetFriendly && (
+                    <View style={styles.fareLineItem}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, flex: 1, marginRight: 4 }}>
+                        <Ionicons name="paw" size={11} color="rgb(240, 117, 15)" />
+                        <Text style={[styles.fareLineLabel, { color: 'rgb(240, 117, 15)', fontWeight: '700' }]}>
+                          {t('bookingReview.petFriendlyFee', { defaultValue: `Pet Friendly Fee (${petLabel})` })}
+                        </Text>
+                      </View>
+                      <Text style={[styles.fareLineVal, { color: 'rgb(240, 117, 15)', fontWeight: '800', flexShrink: 0 }]}>
+                        +₹{petFee.toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                  )}
+
+                  {couponDiscount > 0 && (
+                    <View style={styles.fareLineItem}>
+                      <Text style={[styles.fareLineLabel, { color: '#16a34a', fontWeight: '700' }]}>
+                        Coupon ({couponCode})
+                      </Text>
+                      <Text style={[styles.fareLineVal, { color: '#16a34a', fontWeight: '800' }]}>
+                        -₹ {couponDiscount.toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={styles.twoColDivider} />
+
+                  <View style={styles.fareLineItem}>
+                    <Text style={styles.fareLineLabelBold}>{t('bookingReview.subtotal', { defaultValue: 'Subtotal' })}</Text>
+                    <Text style={styles.fareLineValBold}>₹ {subtotal.toLocaleString('en-IN')}</Text>
+                  </View>
+
+                  <View style={styles.fareLineItem}>
+                    <Text style={styles.fareLineLabel}>{t('bookingReview.gst', { defaultValue: 'GST (5%)' })}</Text>
+                    <Text style={styles.fareLineVal}>₹ {gstAmount.toLocaleString('en-IN')}</Text>
+                  </View>
+
+                  <View style={styles.twoColDivider} />
+
+                  <View style={styles.fareLineItem}>
+                    <Text style={styles.fareLineLabelBold}>{t('bookingReview.totalRideFare', { defaultValue: 'Total Ride Fare' })}</Text>
+                    <Text style={styles.fareLineValBold}>₹ {totalFare.toLocaleString('en-IN')}</Text>
+                  </View>
+
+                  {/* Part Payment / Full Amount Payable Now Box */}
+                  <View style={styles.partPaymentPill}>
+                    <View style={{ flex: 1, marginRight: 4 }}>
+                      <Text style={styles.partPaymentPillTitle}>
+                        {paymentOption === 'FULL'
+                          ? t('bookingReview.payableNowFull', { defaultValue: 'Payable Now (Full Amount):' })
+                          : t('bookingReview.payableNowAdvance', { defaultValue: 'Payable Now (Advance):' })}
+                      </Text>
+                      <Text style={styles.partPaymentPillSub}>
+                        {paymentOption === 'FULL'
+                          ? t('bookingReview.zeroBalanceToDriver', { defaultValue: 'Zero balance to driver' })
+                          : t('bookingReview.restToDriverLater', { amount: balanceAmount.toLocaleString('en-IN'), defaultValue: `Rest ₹${balanceAmount.toLocaleString('en-IN')} to driver later` })}
+                      </Text>
+                    </View>
+                    <Text style={styles.partPaymentPillAmount}>₹ {payableAmount.toLocaleString('en-IN')}</Text>
+                  </View>
+
+                  {/* Optional Promo Code Toggle */}
+                  <TouchableOpacity
+                    style={{ marginTop: 6, alignSelf: 'flex-start' }}
+                    activeOpacity={0.7}
+                    onPress={() => setShowCouponInput((prev) => !prev)}
+                  >
+                    <Text style={{ fontSize: 9.5, color: '#2563eb', fontWeight: '700' }}>
+                      {couponApplied
+                        ? t('bookingReview.promoApplied', { code: couponCode, defaultValue: `Promo Applied: ${couponCode} (Edit)` })
+                        : showCouponInput
+                        ? t('bookingReview.hidePromoCode', { defaultValue: 'Hide Promo Code' })
+                        : t('bookingReview.applyPromoCoupon', { defaultValue: '+ Apply Promo / Coupon Code' })}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {showCouponInput && (
+                    <View style={{ marginTop: 5 }}>
+                      <View style={{ flexDirection: 'row', gap: 4 }}>
+                        <TextInput
+                          style={{
+                            flex: 1,
+                            borderWidth: 1,
+                            borderColor: '#cbd5e1',
+                            borderRadius: 6,
+                            paddingHorizontal: 6,
+                            paddingVertical: 3,
+                            fontSize: 10,
+                            fontWeight: '700',
+                            backgroundColor: '#ffffff',
+                            color: 'rgb(22, 34, 50)',
+                          }}
+                          placeholder={t('bookingReview.tryCouponPlaceholder', { defaultValue: 'Try KANDY10' })}
+                          placeholderTextColor="#94a3b8"
+                          autoCapitalize="characters"
+                          value={couponCode}
+                          onChangeText={setCouponCode}
+                        />
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor: 'rgb(240, 117, 15)',
+                            borderRadius: 6,
+                            paddingHorizontal: 8,
+                            justifyContent: 'center',
+                          }}
+                          onPress={handleApplyCoupon}
+                        >
+                          <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '700' }}>
+                            {t('bookingReview.apply', { defaultValue: 'Apply' })}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      {couponMsg && (
+                        <Text style={{ fontSize: 8.5, color: couponApplied ? '#16a34a' : '#dc2626', marginTop: 2 }}>
+                          {couponMsg}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+
+                {/* Right Column: Includes & Excludes Card */}
+                <View style={styles.includesExcludesCol}>
+                  {/* Includes Section */}
+                  <View style={styles.incExcSection}>
+                    <View style={styles.incHeaderRow}>
+                      <Ionicons name="checkmark-circle" size={15} color="#16a34a" style={{ marginRight: 5 }} />
+                      <Text style={styles.incHeaderTitle}>{t('bookingReview.includes', { defaultValue: 'Includes' })}</Text>
+                    </View>
+                    <View style={styles.bulletItem}>
+                      <Ionicons name="checkmark" size={13} color="#16a34a" style={styles.bulletIcon} />
+                      <Text style={styles.bulletText} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
+                        {t('bookingReview.fuelCharges', { defaultValue: 'Fuel Charges' })}
+                      </Text>
+                    </View>
+                    <View style={styles.bulletItem}>
+                      <Ionicons name="checkmark" size={13} color="#16a34a" style={styles.bulletIcon} />
+                      <Text style={styles.bulletText} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
+                        {t('bookingReview.chauffeurAllowance', { defaultValue: 'Chauffeur Allowance' })}
+                      </Text>
+                    </View>
+                    <View style={styles.bulletItem}>
+                      <Ionicons name="checkmark" size={13} color="#16a34a" style={styles.bulletIcon} />
+                      <Text style={styles.bulletText} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
+                        {t('bookingReview.kmsLimit', { km: Math.max(vehicleInfo.minKm, estimatedKm), defaultValue: `${Math.max(vehicleInfo.minKm, estimatedKm)} Kms Limit` })}
+                      </Text>
+                    </View>
+                    <View style={styles.bulletItem}>
+                      <Ionicons name="checkmark" size={13} color="#16a34a" style={styles.bulletIcon} />
+                      <Text style={styles.bulletText} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
+                        {t('bookingReview.gstIncluded', { defaultValue: '5% GST Included' })}
+                      </Text>
+                    </View>
+                    {isPetFriendly && (
+                      <View style={styles.bulletItem}>
+                        <Ionicons name="paw" size={13} color="#16a34a" style={styles.bulletIcon} />
+                        <Text style={[styles.bulletText, { color: '#16a34a', fontWeight: '700' }]} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
+                          {t('bookingReview.petFriendlyRide', { defaultValue: `Pet Friendly Ride (${petLabel})` })}
+                        </Text>
+                      </View>
+                    )}
+                    {isSeniorCitizen && (
+                      <View style={styles.bulletItem}>
+                        <Image
+                          source={require('../../assets/images/senior-citizen-icon.png')}
+                          style={{ width: 14, height: 14, resizeMode: 'contain', tintColor: '#16a34a', marginRight: 5 }}
+                        />
+                        <Text style={[styles.bulletText, { color: '#16a34a', fontWeight: '700' }]} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
+                          {t('bookingReview.seniorCitizenRide', { defaultValue: 'Senior Citizen (60+ Assistance)' })}
+                        </Text>
+                      </View>
+                    )}
+                    {isBabyOnBoard && (
+                      <View style={styles.bulletItem}>
+                        <Image
+                          source={require('../../assets/images/baby-on-board-icon.png')}
+                          style={{ width: 14, height: 14, resizeMode: 'contain', tintColor: '#16a34a', marginRight: 5 }}
+                        />
+                        <Text style={[styles.bulletText, { color: '#16a34a', fontWeight: '700' }]} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
+                          {t('bookingReview.babyOnBoardRide', { defaultValue: 'Baby on Board (Child Safety)' })}
+                        </Text>
+                      </View>
+                    )}
+                    {isPregnancyFriendly && (
+                      <View style={styles.bulletItem}>
+                        <Image
+                          source={require('../../assets/images/pregnancy-icon.png')}
+                          style={{ width: 14, height: 14, resizeMode: 'contain', tintColor: '#16a34a', marginRight: 5 }}
+                        />
+                        <Text style={[styles.bulletText, { color: '#16a34a', fontWeight: '700' }]} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
+                          {t('bookingReview.pregnancyRide', { defaultValue: 'Pregnancy Care (Smooth Drive)' })}
+                        </Text>
+                      </View>
+                    )}
+                    {isHandicapped && (
+                      <View style={styles.bulletItem}>
+                        <FontAwesome5 name="wheelchair" size={13} color="#16a34a" style={{ marginRight: 5 }} />
+                        <Text style={[styles.bulletText, { color: '#16a34a', fontWeight: '700' }]} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
+                          {t('bookingReview.handicapRide', { defaultValue: 'Handicap / Wheelchair Assistance' })}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.twoColDivider} />
+
+                  {/* Excludes Section */}
+                  <View style={styles.incExcSection}>
+                    <View style={styles.excHeaderRow}>
+                      <Ionicons name="alert-circle" size={15} color="#dc2626" style={{ marginRight: 5 }} />
+                      <Text style={styles.excHeaderTitle}>{t('bookingReview.excludes', { defaultValue: 'Excludes' })}</Text>
+                    </View>
+                    <View style={styles.bulletItem}>
+                      <Ionicons name="close" size={13} color="#dc2626" style={styles.bulletIcon} />
+                      <Text style={styles.bulletText} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
+                        {t('bookingReview.extraKmsRate', { rate: customRatePerKm, defaultValue: `Extra Kms @ ₹${customRatePerKm}/km` })}
+                      </Text>
+                    </View>
+                    <View style={styles.bulletItem}>
+                      <Ionicons name="close" size={13} color="#dc2626" style={styles.bulletIcon} />
+                      <Text style={styles.bulletText} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
+                        {t('bookingReview.tollAndParking', { defaultValue: 'Toll & Parking' })}
+                      </Text>
+                    </View>
+                    <View style={styles.bulletItem}>
+                      <Ionicons name="close" size={13} color="#dc2626" style={styles.bulletIcon} />
+                      <Text style={styles.bulletText} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
+                        {t('bookingReview.nightAllowance', { defaultValue: 'Night Allowance' })}
+                      </Text>
+                    </View>
+                    <View style={styles.bulletItem}>
+                      <Ionicons name="close" size={13} color="#dc2626" style={styles.bulletIcon} />
+                      <Text style={styles.bulletText} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
+                        {t('bookingReview.multiCityEntries', { defaultValue: 'Multi-City Entries' })}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Large Fleet Availability Notice for Tempo Traveller / Force Urbania */}
+              {isLargeFleetApproval && (
+                <View style={styles.fleetApprovalReviewCard}>
+                  <View style={styles.fleetApprovalHeaderRow}>
+                    <View style={styles.fleetApprovalIconCircle}>
+                      <Ionicons name="bus" size={18} color="#b45309" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.fleetApprovalTitle}>No Advance Payment Required Now</Text>
+                      <Text style={styles.fleetApprovalSub}>Zero upfront charge at checkout</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.fleetApprovalBodyText}>
+                    Because this is a large group vehicle ({vehicleInfo.name}), we will verify fleet availability with our manager.
+                    Once approved by Admin, you will be notified to pay the advance of ₹{advanceAmount.toLocaleString('en-IN')} directly from your <Text style={{ fontWeight: '700', color: 'rgb(240, 117, 15)' }}>My Bookings</Text> page.
+                  </Text>
+                </View>
+              )}
+
+              {/* Terms & Conditions Checkbox & Trust Badge */}
+              <View style={styles.reviewTermsContainer}>
+                <TouchableOpacity
+                  style={styles.termsRow}
+                  activeOpacity={0.7}
+                  onPress={() => setAgreedToTerms((prev) => !prev)}
+                >
+                  <View
+                    style={[
+                      styles.checkboxSquare,
+                      agreedToTerms && styles.checkboxSquareActive,
+                    ]}
+                  >
+                    {agreedToTerms && <Ionicons name="checkmark" size={13} color="#ffffff" />}
+                  </View>
+                  <Text style={styles.termsText}>
+                    {t('bookingReview.iAgreeToThe', { defaultValue: 'I agree to the' })}{' '}
+                    <Text
+                      style={{ color: 'rgb(240, 117, 15)', fontWeight: '700', textDecorationLine: 'underline' }}
+                      onPress={() => router.push('/terms')}
+                    >
+                      {t('bookingReview.termsAndConditions', { defaultValue: 'Terms & Conditions' })}
+                    </Text>{' '}
+                    {t('bookingReview.and', { defaultValue: 'and' })}{' '}
+                    <Text
+                      style={{ color: 'rgb(240, 117, 15)', fontWeight: '700', textDecorationLine: 'underline' }}
+                      onPress={() => router.push('/terms')}
+                    >
+                      {t('bookingReview.cancellationPolicy', { defaultValue: 'Cancellation Policy' })}
+                    </Text>
+                    .
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={styles.trustBadgeRow}>
+                  <Ionicons name="shield-checkmark" size={15} color="#2563eb" style={{ marginRight: 6 }} />
+                  <Text style={styles.trustBadgeText}>
+                    {t('bookingReview.safeAndSecureCheckout', { defaultValue: 'Safe & Secure 256-bit SSL encrypted checkout' })}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* ========================================================= */}
+          {/* STEP 3: BOOKING CONFIRMED SUCCESS SCREEN                  */}
+          {/* ========================================================= */}
+          {step === 3 && confirmedBooking && (
+            <View style={[styles.stepSection, { flex: 1 }]}>
+              <View style={[styles.successCard, { flex: 1, justifyContent: 'space-between' }]}>
+                {/* 1. Upper Content Block */}
+                <View style={{ width: '100%', alignItems: 'center' }}>
+                  {/* Celebration Icon */}
+                  <View style={styles.celebrationWrapper}>
+                    <View style={styles.successIconCircle}>
+                      <Ionicons name="checkmark" size={24} color="#ffffff" />
+                    </View>
+                  </View>
+
+                  {/* Booking Reference Pill */}
+                  <View style={styles.refContainer}>
+                    <Text style={styles.refPillLabel}>
+                      {t('bookingConfirmation.referenceLabel', { defaultValue: 'Booking Reference' })}
+                    </Text>
+                    <View style={styles.refPill}>
+                      <Text style={styles.refPillValue} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
+                        {confirmedBooking.humanReadableRef}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* 4-Digit Pickup OTP Card (Matching Reference Layout) */}
+                  {confirmedBooking.pickupOtp && (
+                    <View style={styles.pickupOtpBox}>
+                      <View style={styles.otpHeaderRow}>
+                        <Ionicons name="key" size={17} color="rgb(240, 117, 15)" />
+                        <Text style={styles.otpHeaderTitle}>
+                          {t('bookingConfirmation.otpHeaderTitle', { defaultValue: 'Your 4-Digit Pickup OTP' })}
+                        </Text>
+                      </View>
+
+                      <View style={styles.otpBoxesRow}>
+                        {String(confirmedBooking.pickupOtp)
+                          .replace(/\D/g, '')
+                          .padEnd(4, '0')
+                          .slice(0, 4)
+                          .split('')
+                          .map((digit, idx) => (
+                            <View key={idx} style={[styles.otpDigitCard, isSmallDevice && { width: 44, height: 50 }]}>
+                              <Text style={styles.otpDigitValue}>{digit}</Text>
+                            </View>
+                          ))}
+                      </View>
+
+                      <Text style={styles.otpInstructions}>
+                        {t('bookingConfirmation.otpInstructions', {
+                          defaultValue: 'Please share this code with your driver partner only when they arrive at pickup.',
+                        })}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Trip Details Summary */}
+                  <View style={styles.confirmedDetailsBox}>
+                    <View style={styles.confirmedRow}>
+                      <Text style={styles.confirmedLabel}>
+                        {t('bookingConfirmation.vehicleLabel', { defaultValue: 'Vehicle:' })}
+                      </Text>
+                      <Text style={styles.confirmedValue} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
+                        {vehicleInfo.name}
+                      </Text>
+                    </View>
+                    <View style={styles.confirmedRow}>
+                      <Text style={styles.confirmedLabel}>
+                        {t('bookingConfirmation.routeLabel', { defaultValue: 'Route:' })}
+                      </Text>
+                      <Text style={styles.confirmedValue} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
+                        {pickup} ➔ {drop}
+                      </Text>
+                    </View>
+                    <View style={styles.confirmedRow}>
+                      <Text style={styles.confirmedLabel}>
+                        {t('bookingConfirmation.scheduledDateLabel', { defaultValue: 'Scheduled Date:' })}
+                      </Text>
+                      <Text style={styles.confirmedValue} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
+                        {pickupDate} {t('bookingConfirmation.at', { defaultValue: 'at' })} {pickupTime}
+                      </Text>
+                    </View>
+                    <View style={styles.confirmedRow}>
+                      <Text style={styles.confirmedLabel}>
+                        {t('bookingConfirmation.passengerLabel', { defaultValue: 'Passenger:' })}
+                      </Text>
+                      <Text style={styles.confirmedValue} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
+                        {passengerName ? `${passengerName} (${passengerPhone.replace(/^\+91\s*/, '').replace(/^\+91/, '').trim() ? `+91 ${passengerPhone.replace(/^\+91\s*/, '').replace(/^\+91/, '').trim()}` : ''})` : passengerPhone}
+                      </Text>
+                    </View>
+                    <View style={styles.confirmedDivider} />
+                    <View style={styles.confirmedRow}>
+                      <Text style={styles.confirmedLabel}>
+                        {t('bookingConfirmation.advanceStatusLabel', { defaultValue: 'Advance Status:' })}
+                      </Text>
+                      <Text style={[styles.confirmedValue, { color: isLargeFleetApproval ? '#b45309' : '#16a34a', fontWeight: '800' }]} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
+                        {isLargeFleetApproval
+                          ? `₹${confirmedBooking.advanceAmount} (Pay after Admin Approval)`
+                          : (confirmedBooking.advanceAmount > 0
+                            ? `₹${confirmedBooking.advanceAmount} ${t('bookingConfirmation.paid', { defaultValue: '(PAID)' })}`
+                            : t('bookingConfirmation.payAtDrop', { defaultValue: 'Pay at Drop' }))}
+                      </Text>
+                    </View>
+                    <View style={styles.confirmedRow}>
+                      <Text style={styles.confirmedLabel}>
+                        {t('bookingConfirmation.balanceDueLabel', { defaultValue: 'Balance Due on Trip:' })}
+                      </Text>
+                      <Text style={[styles.confirmedValue, { fontWeight: '800', color: 'rgb(22, 34, 50)' }]} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
+                        ₹{confirmedBooking.balanceAmount}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Dispatch Status Notice */}
+                  <View style={[styles.dispatchNoticeBox, isLargeFleetApproval && { backgroundColor: '#fffbeb', borderColor: '#fef3c7' }]}>
+                    <Ionicons name={isLargeFleetApproval ? 'hourglass-outline' : 'navigate'} size={18} color={isLargeFleetApproval ? '#b45309' : 'rgb(22, 34, 50)'} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.dispatchNoticeTitle, isLargeFleetApproval && { color: '#92400e' }]}>
+                        {isLargeFleetApproval
+                          ? 'Checking Fleet Availability'
+                          : t('bookingConfirmation.dispatchTitle', { defaultValue: 'Driver Partner Assignment' })}
+                      </Text>
+                      <Text style={[styles.dispatchNoticeDesc, isLargeFleetApproval && { color: '#78350f' }]}>
+                        {isLargeFleetApproval
+                          ? 'Kindly await admin verification. Once fleet availability is approved, you will be notified to complete payment from My Bookings.'
+                          : t('bookingConfirmation.dispatchDesc', {
+                              defaultValue: 'Our dispatch system has notified admin. Driver details & vehicle plate number will appear in your rides dashboard.',
+                            })}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* 2. Pinned Bottom Action Group */}
+                <View style={{ width: '100%', marginTop: 'auto', paddingTop: 2 }}>
+                  <TouchableOpacity
+                    style={styles.viewMyRidesBtn}
+                    onPress={() => router.replace('/my-bookings')}
+                  >
+                    <Ionicons name="car-sport" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+                    <Text style={styles.viewMyRidesBtnText} numberOfLines={1} adjustsFontSizeToFit={true}>
+                      {t('bookingConfirmation.trackRideInMyBookings', { defaultValue: 'Track Ride in My Bookings' })}
+                    </Text>
+                    <Ionicons name="arrow-forward" size={15} color="#ffffff" style={{ marginLeft: 6 }} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.backHomeBtn}
+                    onPress={() => router.replace('/')}
+                  >
+                    <Text style={styles.backHomeBtnText} numberOfLines={1} adjustsFontSizeToFit={true}>
+                      {t('bookingConfirmation.backToHome', { defaultValue: 'Back to Home' })}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {step === 1 && <View style={{ height: 16 }} />}
+        </ScrollView>
+
+        {/* Sticky Bottom Bar for Step 1: Info Notice + Continue CTA */}
+        {step === 1 && (
+          <View style={[styles.stickyBottomBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+            {/* Info Notice Banner */}
+            <View style={[styles.infoNoticeBanner, isLargeFleetApproval && { backgroundColor: '#fffbeb', borderColor: '#fde68a' }]}>
+              <Ionicons
+                name={isLargeFleetApproval ? "hourglass-outline" : "information-circle"}
+                size={19}
+                color={isLargeFleetApproval ? "#b45309" : "#2563eb"}
+                style={styles.infoNoticeIcon}
+              />
+              <Text style={[styles.infoNoticeText, isLargeFleetApproval && { color: '#92400e' }]}>
+                {isLargeFleetApproval
+                  ? 'No advance payment needed now. Verify your passenger details to send booking approval request.'
+                  : t('passengerDetails.passengerNotice', { defaultValue: 'Please ensure all passenger details are correct. These details will be used for communication regarding your booking.' })}
+              </Text>
+            </View>
+
+            {/* Bottom CTA: Continue to Review & Pay / Send Booking Approval Request */}
+            <TouchableOpacity
+              style={styles.continueToReviewBtn}
+              activeOpacity={0.85}
+              onPress={handleProceedToStep2}
+            >
+              <Text style={styles.continueToReviewText} numberOfLines={1} adjustsFontSizeToFit={true}>
+                {isLargeFleetApproval
+                  ? t('passengerDetails.sendBookingApproval', { defaultValue: 'Send Booking Approval Request' })
+                  : t('passengerDetails.continueToReview', { defaultValue: 'Continue to Review & Pay' })}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color="#ffffff" style={{ marginLeft: 6 }} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Sticky Bottom Bar for Step 2: MakeMyTrip / Savaari style with Top Info Strip, 2 Payment Options & Orange PAY NOW */}
+        {step === 2 && (
+          <View style={styles.stickyBottomWrapper}>
+            {/* Top Info Strip: Mint / Teal bar */}
+            <View style={styles.stickyTopStrip}>
+              <Text style={styles.stickyTopStripText} numberOfLines={1}>
+                {isLargeFleetApproval
+                  ? 'No advance required now • Pay from My Bookings upon admin approval'
+                  : (paymentOption === 'FULL'
+                    ? t('bookingReview.payNowZeroBalance', { amount: totalFare.toLocaleString('en-IN'), defaultValue: `Pay ₹${totalFare.toLocaleString('en-IN')} now, zero balance to the driver` })
+                    : t('bookingReview.payNowRestToDriver', { advance: advanceAmount.toLocaleString('en-IN'), balance: balanceAmount.toLocaleString('en-IN'), defaultValue: `Pay ₹${advanceAmount.toLocaleString('en-IN')} now, to reserve, rest ₹${balanceAmount.toLocaleString('en-IN')} to the driver` }))}
+              </Text>
+              <TouchableOpacity
+                style={styles.stickyFareBreakupBtn}
+                activeOpacity={0.7}
+                onPress={() => {
+                  scrollRef.current?.scrollTo({ y: 260, animated: true });
+                }}
+              >
+                <Text style={styles.stickyFareBreakupText}>{t('bookingReview.fareBreakup', { defaultValue: 'Fare breakup' })}</Text>
+                <Ionicons name="chevron-up" size={13} color="#0284c7" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Bottom Actions Row */}
+            <View style={[styles.stickyBottomBarMmt, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+              {isLargeFleetApproval ? (
+                <View style={styles.stickyActionsRow}>
+                  <View style={{ flex: 1, justifyContent: 'center' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="hourglass" size={12} color="#b45309" />
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#b45309' }}>
+                        Advance on Approval
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 15, fontWeight: '900', color: 'rgb(22, 34, 50)' }}>
+                      ₹{advanceAmount.toLocaleString('en-IN')}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.stickyPayNowBtn,
+                      !agreedToTerms && styles.stickyPayNowBtnDisabled,
+                      submitting && { opacity: 0.7 },
+                      { flex: 1.8, backgroundColor: '#16a34a', shadowColor: '#16a34a' }
+                    ]}
+                    activeOpacity={agreedToTerms ? 0.85 : 0.6}
+                    onPress={handleConfirmBooking}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator color="#ffffff" size="small" />
+                    ) : (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <Text style={styles.stickyPayNowTitle} numberOfLines={1}>
+                          Submit Request
+                        </Text>
+                        <Ionicons name="arrow-forward" size={15} color="#ffffff" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.stickyActionsRow}>
+                  {/* Option 1: 30% Advance */}
+                  <TouchableOpacity
+                    style={[
+                      styles.stickyOptionBtn,
+                      paymentOption === 'PART' && styles.stickyOptionBtnActive,
+                    ]}
+                    activeOpacity={0.75}
+                    onPress={() => setPaymentOption('PART')}
+                  >
+                    <Text
+                      style={[
+                        styles.stickyOptionLabel,
+                        paymentOption === 'PART' && styles.stickyOptionLabelActive,
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.75}
+                    >
+                      {t('bookingReview.payAdvance', { defaultValue: 'Pay Advance' })}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.stickyOptionAmount,
+                        paymentOption === 'PART' && styles.stickyOptionAmountActive,
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.75}
+                    >
+                      ₹{advanceAmount.toLocaleString('en-IN')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Option 2: Full Amount */}
+                  <TouchableOpacity
+                    style={[
+                      styles.stickyOptionBtn,
+                      paymentOption === 'FULL' && styles.stickyOptionBtnActive,
+                    ]}
+                    activeOpacity={0.75}
+                    onPress={() => setPaymentOption('FULL')}
+                  >
+                    <Text
+                      style={[
+                        styles.stickyOptionLabel,
+                        paymentOption === 'FULL' && styles.stickyOptionLabelActive,
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.75}
+                    >
+                      {t('bookingReview.payFull', { defaultValue: 'Pay Full' })}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.stickyOptionAmount,
+                        paymentOption === 'FULL' && styles.stickyOptionAmountActive,
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.75}
+                    >
+                      ₹{totalFare.toLocaleString('en-IN')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* PAY NOW CTA Button */}
+                  <TouchableOpacity
+                    style={[
+                      styles.stickyPayNowBtn,
+                      !agreedToTerms && styles.stickyPayNowBtnDisabled,
+                      submitting && { opacity: 0.7 },
+                    ]}
+                    activeOpacity={agreedToTerms ? 0.85 : 0.6}
+                    onPress={handleConfirmBooking}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator color="#ffffff" size="small" />
+                    ) : (
+                      <View style={styles.stickyPayNowInner}>
+                        <Text style={styles.stickyPayNowTitle} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
+                          {t('bookingReview.payNow', { defaultValue: 'PAY NOW' })}
+                        </Text>
+                        <Text style={styles.stickyPayNowAmount} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
+                          ₹{payableAmount.toLocaleString('en-IN')}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+
+      <AuthModal
+        visible={authModalVisible}
+        onClose={() => setAuthModalVisible(false)}
+        onSuccess={(loggedInUser) => {
+          setUser(loggedInUser);
+          setPassengerName(loggedInUser.fullName || passengerName || 'Customer');
+          const cleanP = loggedInUser.phone ? loggedInUser.phone.replace(/\D/g, '').slice(-10) : '';
+          setPassengerPhone(cleanP ? `+91 ${cleanP.slice(0, 5)} ${cleanP.slice(5)}` : passengerPhone);
+          setPassengerEmail(loggedInUser.email || passengerEmail);
+          setSameAsAccount(true);
+          setStep(2);
+        }}
+      />
+
+      {/* Luggage Selection Modal */}
+      <Modal
+        visible={showLuggageModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowLuggageModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowLuggageModal(false)}
+        >
+          <View style={styles.luggageModalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="briefcase" size={20} color="rgb(240, 117, 15)" />
+              <Text style={styles.modalTitle}>Luggage Details</Text>
+            </View>
+            <Text style={styles.modalSub}>Select estimated luggage for your trip</Text>
+
+            {['No Luggage', 'Small', 'Medium', 'Large', 'Extra Large'].map((opt) => (
+              <TouchableOpacity
+                key={opt}
+                style={[
+                  styles.luggageOptionItem,
+                  (opt === 'No Luggage' ? totalLuggageBags === 0 : selectedLuggageSummary.includes(opt)) &&
+                    styles.luggageOptionSelected,
+                ]}
+                onPress={() => {
+                  if (opt === 'No Luggage') {
+                    handleClearAllLuggage();
+                  } else {
+                    const optId =
+                      opt === 'Small'
+                        ? 'small'
+                        : opt === 'Medium'
+                        ? 'medium'
+                        : opt === 'Large'
+                        ? 'large'
+                        : 'extraLarge';
+                    handleIncrementLuggage(optId);
+                  }
+                  setShowLuggageModal(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.luggageOptionText,
+                    (opt === 'No Luggage' ? totalLuggageBags === 0 : selectedLuggageSummary.includes(opt)) &&
+                      styles.luggageOptionTextSelected,
+                  ]}
+                >
+                  {opt}
+                </Text>
+                {(opt === 'No Luggage' ? totalLuggageBags === 0 : selectedLuggageSummary.includes(opt)) && (
+                  <Ionicons name="checkmark-circle" size={18} color="rgb(240, 117, 15)" />
+                )}
+              </TouchableOpacity>
+            ))}
+
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => setShowLuggageModal(false)}
+            >
+              <Text style={styles.modalCancelBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Additional Requirements Slide-Up Bottom Sheet Modal (Matching Reference Mockups) */}
+      <Modal
+        visible={showRequirementsModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowRequirementsModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.sheetOverlay}
+        >
+          {/* Semi-transparent backdrop */}
+          <TouchableOpacity
+            style={styles.sheetBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowRequirementsModal(false)}
+          />
+
+          {/* Slide-Up Bottom Sheet Container */}
+          <View style={[styles.sheetContainer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+            {/* Sheet Handle */}
+            <View style={styles.sheetHandleBar} />
+
+            {/* Modal Header */}
+            <View style={styles.sheetHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sheetHeaderTitle}>{t('additionalRequirements.title', { defaultValue: 'Additional Requirements' })}</Text>
+                <Text style={styles.sheetHeaderSub}>
+                  {t('additionalRequirements.subtitle', { defaultValue: 'Select travellers, luggage & ride preferences' })}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.sheetCloseBtn}
+                onPress={() => setShowRequirementsModal(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={20} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Scrollable Modal Content */}
+            <ScrollView
+              ref={sheetScrollRef}
+              style={styles.sheetScrollView}
+              contentContainerStyle={styles.sheetScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* Passengers & Luggage Card (Matching Reference Image 1) */}
+              <View style={styles.sheetCardSection}>
                 {/* Passengers Row */}
                 <View style={styles.passengerRow}>
                   <View style={styles.passengerTextGroup}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Ionicons name="people" size={18} color="#ea580c" />
-                      <Text style={styles.cardSectionTitle}>Passengers</Text>
+                      <Ionicons name="people" size={18} color="rgb(240, 117, 15)" />
+                      <Text style={styles.cardSectionTitle}>{t('additionalRequirements.passengers', { defaultValue: 'Travellers' })}</Text>
                     </View>
                     <Text style={styles.cardSectionSubtitle}>
-                      {passengerCount} of max {maxSeatsParam} seats selected
+                      {t('additionalRequirements.seatsSelected', {
+                        count: passengerCount,
+                        max: maxSeatsParam,
+                        defaultValue: `${passengerCount} of max ${maxSeatsParam} seats selected`
+                      })}
                     </Text>
                   </View>
 
@@ -1372,7 +3482,7 @@ export default function BookingFunnelScreen() {
                       <Ionicons
                         name="add"
                         size={16}
-                        color={passengerCount >= maxSeatsParam ? '#cbd5e1' : '#ea580c'}
+                        color={passengerCount >= maxSeatsParam ? '#cbd5e1' : 'rgb(240, 117, 15)'}
                       />
                     </TouchableOpacity>
                   </View>
@@ -1380,357 +3490,666 @@ export default function BookingFunnelScreen() {
 
                 <View style={styles.cardDivider} />
 
-                {/* Luggage 2x2 Grid with Multi-Select & Steppers */}
+                {/* Luggage 2x2 Grid: Small, Medium, Large, Extra Large */}
                 <View style={styles.luggageSection}>
-                  <View style={styles.luggageHeaderRow}>
-                    <View style={styles.sectionHeaderRowCompact}>
-                      <Ionicons name="bag-handle-outline" size={17} color="#103A75" />
-                      <Text style={styles.cardSectionTitle}>Luggage Load</Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.luggageTotalBadge,
-                        totalLuggageBags >= MAX_LUGGAGE_BAGS && styles.luggageTotalBadgeMax,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.luggageTotalBadgeText,
-                          totalLuggageBags >= MAX_LUGGAGE_BAGS && styles.luggageTotalBadgeTextMax,
-                        ]}
-                      >
-                        {isNoLuggage || totalLuggageBags === 0
-                          ? '0 / 10 Bags'
-                          : `${totalLuggageBags} / 10 Bags`}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.luggageGrid}>
-                    {LUGGAGE_OPTIONS.map((item) => {
-                      if (item.id === 'NO_LUGGAGE') {
-                        const isSelected = isNoLuggage || totalLuggageBags === 0;
-                        return (
-                          <TouchableOpacity
-                            key={item.id}
-                            style={[
-                              styles.luggageGridItem,
-                              isSelected && styles.luggageGridItemSelected,
-                            ]}
-                            onPress={handleSelectNoLuggage}
-                            activeOpacity={0.7}
-                          >
-                            <View style={styles.luggageItemTopRow}>
-                              <View
-                                style={[
-                                  styles.luggageIconCircle,
-                                  isSelected && styles.luggageIconCircleSelected,
-                                ]}
-                              >
-                                <Ionicons
-                                  name={item.icon}
-                                  size={16}
-                                  color={isSelected ? '#ea580c' : '#64748b'}
-                                />
-                              </View>
-                              <View style={styles.luggageItemTexts}>
-                                <Text
-                                  style={[
-                                    styles.luggageItemTitle,
-                                    isSelected && styles.luggageItemTitleSelected,
-                                  ]}
-                                  numberOfLines={1}
-                                >
-                                  {item.shortLabel}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.luggageItemDesc,
-                                    isSelected && styles.luggageItemDescSelected,
-                                  ]}
-                                  numberOfLines={1}
-                                >
-                                  {item.description}
-                                </Text>
-                              </View>
-                              {isSelected ? (
-                                <View style={styles.checkedBadge}>
-                                  <Ionicons name="checkmark-circle" size={15} color="#ea580c" />
-                                </View>
-                              ) : null}
-                            </View>
-
-                            <View style={styles.noLuggageActionRow}>
-                              <Text
-                                style={[
-                                  styles.noLuggageActionText,
-                                  isSelected && styles.noLuggageActionTextActive,
-                                ]}
-                              >
-                                {isSelected ? '✓ 0 Bags (Selected)' : 'Tap for 0 Bags'}
-                              </Text>
-                            </View>
-                          </TouchableOpacity>
-                        );
-                      }
-
-                      const countKey: 'normal' | 'handBags' | 'heavy' =
-                        item.id === 'NORMAL'
-                          ? 'normal'
-                          : item.id === 'HAND_BAGS'
-                          ? 'handBags'
-                          : 'heavy';
-                      const count = luggageCounts[countKey];
-                      const isSelected = count > 0 && !isNoLuggage;
-
-                      return (
-                        <View
-                          key={item.id}
-                          style={[
-                            styles.luggageGridItem,
-                            isSelected && styles.luggageGridItemSelected,
-                          ]}
-                        >
-                          <TouchableOpacity
-                            style={styles.luggageItemTopRow}
-                            onPress={() => {
-                              if (count === 0) {
-                                handleIncrementLuggage(countKey);
-                              }
-                            }}
-                            activeOpacity={0.8}
-                          >
-                            <View
-                              style={[
-                                styles.luggageIconCircle,
-                                isSelected && styles.luggageIconCircleSelected,
-                              ]}
-                            >
-                              <Ionicons
-                                name={item.icon}
-                                size={16}
-                                color={isSelected ? '#ea580c' : '#64748b'}
-                              />
-                            </View>
-                            <View style={styles.luggageItemTexts}>
-                              <Text
-                                style={[
-                                  styles.luggageItemTitle,
-                                  isSelected && styles.luggageItemTitleSelected,
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {item.shortLabel}
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.luggageItemDesc,
-                                  isSelected && styles.luggageItemDescSelected,
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {item.description}
-                              </Text>
-                            </View>
-                            {isSelected ? (
-                              <View style={styles.checkedBadge}>
-                                <Ionicons name="checkmark-circle" size={15} color="#ea580c" />
-                              </View>
-                            ) : null}
-                          </TouchableOpacity>
-
-                          {/* Stepper controls */}
-                          <View style={styles.luggageStepperRow}>
-                            {isSelected ? (
-                              <View style={styles.stepperMiniGroup}>
-                                <TouchableOpacity
-                                  style={styles.stepperMiniBtn}
-                                  onPress={() => handleDecrementLuggage(countKey)}
-                                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                  activeOpacity={0.6}
-                                >
-                                  <Ionicons name="remove" size={14} color="#ea580c" />
-                                </TouchableOpacity>
-
-                                <View style={styles.stepperMiniCountBox}>
-                                  <Text style={styles.stepperMiniCountText}>{count}</Text>
-                                  <Text style={styles.stepperMiniCountUnit}>
-                                    {count === 1 ? 'bag' : 'bags'}
-                                  </Text>
-                                </View>
-
-                                <TouchableOpacity
-                                  style={[
-                                    styles.stepperMiniBtn,
-                                    totalLuggageBags >= MAX_LUGGAGE_BAGS &&
-                                      styles.stepperMiniBtnDisabled,
-                                  ]}
-                                  onPress={() => handleIncrementLuggage(countKey)}
-                                  disabled={totalLuggageBags >= MAX_LUGGAGE_BAGS}
-                                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                  activeOpacity={0.6}
-                                >
-                                  <Ionicons
-                                    name="add"
-                                    size={14}
-                                    color={
-                                      totalLuggageBags >= MAX_LUGGAGE_BAGS
-                                        ? '#cbd5e1'
-                                        : '#ea580c'
-                                    }
-                                  />
-                                </TouchableOpacity>
-                              </View>
-                            ) : (
-                              <TouchableOpacity
-                                style={[
-                                  styles.addLuggageMiniBtn,
-                                  totalLuggageBags >= MAX_LUGGAGE_BAGS &&
-                                    styles.stepperMiniBtnDisabled,
-                                ]}
-                                onPress={() => handleIncrementLuggage(countKey)}
-                                disabled={totalLuggageBags >= MAX_LUGGAGE_BAGS}
-                                activeOpacity={0.7}
-                              >
-                                <Ionicons
-                                  name="add"
-                                  size={13}
-                                  color={
-                                    totalLuggageBags >= MAX_LUGGAGE_BAGS
-                                      ? '#94a3b8'
-                                      : '#ea580c'
-                                  }
-                                />
-                                <Text
-                                  style={[
-                                    styles.addLuggageMiniBtnText,
-                                    totalLuggageBags >= MAX_LUGGAGE_BAGS && {
-                                      color: '#94a3b8',
-                                    },
-                                  ]}
-                                >
-                                  Add Qty
-                                </Text>
-                              </TouchableOpacity>
-                            )}
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                </View>
-
-                {/* Roof Carrier Option */}
-                {hasCarrierParam ? (
-                  <>
-                    <View style={styles.cardDivider} />
+                  {/* Top Block: Big Icon on the Left, [Luggage Load + Dropdown Bar] on the Right */}
+                  <View style={styles.luggageTopRowContainer}>
+                    {/* Big Luggage Icon on the Left (Matching Reference Image) */}
                     <TouchableOpacity
-                      style={[styles.carrierCard, requestCarrier && styles.carrierCardActive]}
-                      onPress={() => setRequestCarrier((prev) => !prev)}
-                      activeOpacity={0.7}
+                      style={styles.luggageBigIconBox}
+                      onPress={() => setIsLuggageDropdownOpen((prev) => !prev)}
+                      activeOpacity={0.8}
                     >
-                      <View
-                        style={[
-                          styles.carrierIconBox,
-                          requestCarrier && styles.carrierIconBoxActive,
-                        ]}
-                      >
-                        <Ionicons
-                          name="layers-outline"
-                          size={18}
-                          color={requestCarrier ? '#ea580c' : '#64748b'}
-                        />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text
-                            style={[
-                              styles.carrierTitle,
-                              requestCarrier && styles.carrierTitleActive,
-                            ]}
+                      <Image
+                        source={require('../../assets/images/luggage-two-suitcases.png')}
+                        style={styles.luggageBigIcon}
+                      />
+                    </TouchableOpacity>
+
+                    {/* Right Side: Luggage Load Header + Dropdown Bar */}
+                    <View style={styles.luggageRightCol}>
+                      {/* Header Row: Luggage Load + Clear Button */}
+                      <View style={styles.luggageHeaderRowCompact}>
+                        <Text style={styles.cardSectionTitle}>{t('additionalRequirements.luggageLoad', { defaultValue: 'Luggage Load' })}</Text>
+                        {totalLuggageBags > 0 && (
+                          <TouchableOpacity
+                            onPress={handleClearAllLuggage}
+                            style={styles.clearLuggageBtn}
+                            activeOpacity={0.7}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                           >
-                            Roof Luggage Carrier
+                            <Text style={styles.clearLuggageBtnText}>{t('additionalRequirements.clear', { defaultValue: 'Clear' })}</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      {/* Dropdown Bar */}
+                      <TouchableOpacity
+                        style={[
+                          styles.luggageDropdownBar,
+                          isLuggageDropdownOpen && styles.luggageDropdownBarActive,
+                        ]}
+                        onPress={() => setIsLuggageDropdownOpen((prev) => !prev)}
+                        activeOpacity={0.8}
+                      >
+                        <View style={{ flex: 1, paddingRight: 4 }}>
+                          <Text
+                            style={styles.luggageDropdownBarMainText}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                          >
+                            {selectedLuggageList.length > 0
+                              ? selectedLuggageList
+                                  .map((s) => `${luggageCounts[s.id]} ${t(`additionalRequirements.luggage.${s.id}.short`, { defaultValue: s.shortLabel })}`)
+                                  .join(', ')
+                              : t('additionalRequirements.selectBagsPlaceholder', { defaultValue: 'Select Bags (Small, Medium, Large...)' })}
                           </Text>
-                          {requestCarrier ? (
-                            <View style={styles.carrierAddedBadge}>
-                              <Text style={styles.carrierAddedBadgeText}>Added ✓</Text>
-                            </View>
-                          ) : null}
+                          <Text style={styles.luggageDropdownBarSubText} numberOfLines={1}>
+                            {selectedLuggageList.length > 0
+                              ? t('additionalRequirements.bagsSelectedCount', {
+                                  count: totalLuggageBags,
+                                  defaultValue: `Total ${totalLuggageBags} ${totalLuggageBags === 1 ? 'bag' : 'bags'} selected • Tap to edit`
+                                })
+                              : t('additionalRequirements.selectBagsSub', { defaultValue: 'Tap to choose multiple bag types & quantities' })}
+                          </Text>
                         </View>
-                        <Text style={styles.carrierDesc}>
-                          {carrierTextParam || 'Up to 45 kg rooftop luggage space'}
+                        <Ionicons
+                          name={isLuggageDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                          size={18}
+                          color="rgb(22, 34, 50)"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Exceeded Luggage Warning Banner */}
+                  {currentLuggageCheck.exceeded && (
+                    <TouchableOpacity
+                      style={styles.luggageExceededBanner}
+                      onPress={handleGoToSpecialNotes}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="alert-circle" size={18} color="#c2410c" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.luggageExceededBannerTitle}>
+                          {t('additionalRequirements.luggageExceededBannerTitle', { defaultValue: 'Extra Luggage Notice' })}
+                        </Text>
+                        <Text style={styles.luggageExceededBannerText}>
+                          {t('additionalRequirements.luggageExceededBanner', { defaultValue: 'Selected luggage exceeds cab boot space. Kindly write your requirement in Special Notes so our team can assist.' })}
                         </Text>
                       </View>
+                      <Text style={styles.luggageExceededBannerBtn}>
+                        {t('additionalRequirements.addNotesBtn', { defaultValue: 'Add Notes' })} →
+                      </Text>
+                    </TouchableOpacity>
+                  )}
 
-                      <View pointerEvents="none">
+                  {/* Dropdown Options List */}
+                  {isLuggageDropdownOpen && (
+                    <View style={styles.luggageDropdownListCard}>
+                      {LUGGAGE_OPTIONS.map((item) => {
+                        const count = luggageCounts[item.id];
+                        const isSelected = count > 0;
+                        return (
+                          <View
+                            key={item.id}
+                            style={[
+                              styles.luggageDropdownItemRow,
+                              isSelected && styles.luggageDropdownItemRowSelected,
+                            ]}
+                          >
+                            <TouchableOpacity
+                              style={styles.luggageDropdownImageTouchable}
+                              onPress={() => {
+                                if (count === 0) {
+                                  handleIncrementLuggage(item.id);
+                                }
+                              }}
+                              activeOpacity={0.8}
+                            >
+                              <View style={[styles.luggageVectorBadge, isSelected && styles.luggageVectorBadgeSelected]}>
+                                {item.image ? (
+                                  <Image
+                                    source={item.image}
+                                    style={styles.luggageBadgeIcon}
+                                    resizeMode="contain"
+                                  />
+                                ) : (
+                                  <MaterialCommunityIcons
+                                    name={item.iconName}
+                                    size={28}
+                                    color={isSelected ? '#ea580c' : 'rgb(240, 117, 15)'}
+                                  />
+                                )}
+                              </View>
+                            </TouchableOpacity>
+
+                            <View style={styles.luggageDropdownDetailsCol}>
+                              <TouchableOpacity
+                                onPress={() => {
+                                  if (count === 0) {
+                                    handleIncrementLuggage(item.id);
+                                  }
+                                }}
+                                activeOpacity={0.8}
+                              >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                  <Text
+                                    style={[
+                                      styles.luggageDropdownItemTitle,
+                                      isSelected && styles.luggageDropdownItemTitleSelected,
+                                    ]}
+                                    numberOfLines={1}
+                                  >
+                                    {t(`additionalRequirements.luggage.${item.id}.label`, { defaultValue: item.label })}
+                                  </Text>
+                                  {isSelected && (
+                                    <Ionicons name="checkmark-circle" size={15} color="#16a34a" />
+                                  )}
+                                </View>
+                                <Text style={styles.luggageDropdownItemDesc}>
+                                  {t(`additionalRequirements.luggage.${item.id}.desc`, { defaultValue: item.description })}
+                                </Text>
+                              </TouchableOpacity>
+
+                              {/* Action: "+ Add" button or Stepper below the content */}
+                              <View style={styles.luggageDropdownActionRow}>
+                                {isSelected ? (
+                                  <View style={styles.dropdownStepperGroup}>
+                                    <TouchableOpacity
+                                      style={styles.stepperMiniBtn}
+                                      onPress={() => handleDecrementLuggage(item.id)}
+                                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                      activeOpacity={0.6}
+                                    >
+                                      <Ionicons name="remove" size={14} color="#334155" />
+                                    </TouchableOpacity>
+
+                                    <View style={styles.stepperMiniCountBox}>
+                                      <Text style={styles.stepperMiniCountText}>{count}</Text>
+                                      <Text style={styles.stepperMiniCountUnit}>
+                                        {count === 1 ? t('additionalRequirements.bag', { defaultValue: 'bag' }) : t('additionalRequirements.bags', { defaultValue: 'bags' })}
+                                      </Text>
+                                    </View>
+
+                                    <TouchableOpacity
+                                      style={[
+                                        styles.stepperMiniBtn,
+                                        totalLuggageBags >= MAX_LUGGAGE_BAGS &&
+                                          styles.stepperMiniBtnDisabled,
+                                      ]}
+                                      onPress={() => handleIncrementLuggage(item.id)}
+                                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                      activeOpacity={0.6}
+                                    >
+                                      <Ionicons
+                                        name="add"
+                                        size={14}
+                                        color={
+                                          totalLuggageBags >= MAX_LUGGAGE_BAGS
+                                            ? '#cbd5e1'
+                                            : '#334155'
+                                        }
+                                      />
+                                    </TouchableOpacity>
+                                  </View>
+                                ) : (
+                                  <TouchableOpacity
+                                    style={[
+                                      styles.addLuggageMiniBtn,
+                                      totalLuggageBags >= MAX_LUGGAGE_BAGS &&
+                                        styles.addLuggageMiniBtnDisabled,
+                                    ]}
+                                    onPress={() => handleIncrementLuggage(item.id)}
+                                    activeOpacity={0.7}
+                                  >
+                                    <Ionicons
+                                      name="add"
+                                      size={13}
+                                      color={
+                                        totalLuggageBags >= MAX_LUGGAGE_BAGS
+                                          ? '#94a3b8'
+                                          : 'rgb(22, 34, 50)'
+                                      }
+                                    />
+                                    <Text
+                                      style={[
+                                        styles.addLuggageMiniBtnText,
+                                        totalLuggageBags >= MAX_LUGGAGE_BAGS && {
+                                          color: '#94a3b8',
+                                        },
+                                      ]}
+                                    >
+                                      {t('additionalRequirements.add', { defaultValue: 'Add' })}
+                                    </Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+                            </View>
+                          </View>
+                        );
+                      })}
+
+                      {/* Done / Collapse Button */}
+                      <TouchableOpacity
+                        style={styles.closeLuggageDropdownBtn}
+                        onPress={() => setIsLuggageDropdownOpen(false)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.closeLuggageDropdownBtnText}>{t('common.done', { defaultValue: 'Done' })}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* Viewable in 1 Row: Selected Bags with Divider Lines (No square blue bg) */}
+                  {!isLuggageDropdownOpen && selectedLuggageList.length > 0 && (
+                    <View style={styles.selectedLuggageItemsRow}>
+                      {selectedLuggageList.map((item, index) => {
+                        const count = luggageCounts[item.id];
+                        return (
+                          <React.Fragment key={`sel-row-${item.id}`}>
+                            {index > 0 && <View style={styles.selectedLuggageDivider} />}
+                            <TouchableOpacity
+                              style={styles.selectedLuggageItemCol}
+                              onPress={() => setIsLuggageDropdownOpen(true)}
+                              activeOpacity={0.7}
+                            >
+                              {/* Big Luggage Icon (Orange) */}
+                              <Image
+                                source={item.image}
+                                style={styles.selectedLuggageSquareIcon}
+                              />
+
+                              {/* Bag Label */}
+                              <Text
+                                style={styles.selectedLuggageSquareLabel}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                              >
+                                {t(`additionalRequirements.luggage.${item.id}.short`, { defaultValue: item.shortLabel })}
+                              </Text>
+
+                              {/* Bag Count */}
+                              <Text style={styles.selectedLuggageSquareCount} numberOfLines={1}>
+                                <Text style={styles.selectedLuggageSquareCountNum}>{count}</Text>{' '}
+                                {count === 1 ? t('additionalRequirements.bag', { defaultValue: 'bag' }) : t('additionalRequirements.bags', { defaultValue: 'bags' })}
+                              </Text>
+                            </TouchableOpacity>
+                          </React.Fragment>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.cardDivider} />
+
+                {/* Additional Travel Options (Image 1 Mockup) */}
+                <View style={styles.travelTogglesSection}>
+                  {/* Senior Citizens / Elders (Above Age 60) - FIRST TOGGLE */}
+                  <View style={styles.travelToggleItemRow}>
+                    <TouchableOpacity
+                      style={styles.travelToggleItemInfo}
+                      onPress={() => setIsSeniorCitizen((prev) => !prev)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.travelToggleIconCircle}>
+                        <MaterialCommunityIcons
+                          name="human-cane"
+                          size={24}
+                          color="rgb(240, 117, 15)"
+                        />
+                      </View>
+                      <View style={styles.travelToggleTextGroup}>
+                        <Text style={styles.travelToggleTitle}>
+                          {t('additionalRequirements.seniorCitizenTitle', { defaultValue: 'Senior Citizens (Above Age 60)?' })}
+                        </Text>
+                        <Text style={styles.travelToggleDesc}>
+                          {t('additionalRequirements.seniorCitizenDesc', {
+                            defaultValue: 'Enable this for easy access seating, gentle driving & driver assistance.',
+                          })}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                    <Switch
+                      value={isSeniorCitizen}
+                      onValueChange={setIsSeniorCitizen}
+                      trackColor={{ false: '#cbd5e1', true: 'rgb(240, 117, 15)' }}
+                      thumbColor="#ffffff"
+                      ios_backgroundColor="#cbd5e1"
+                    />
+                  </View>
+
+                  <View style={styles.travelToggleDivider} />
+
+                  {/* Need a Return Journey Later? */}
+                  <View style={styles.travelToggleItemRow}>
+                    <TouchableOpacity
+                      style={styles.travelToggleItemInfo}
+                      onPress={() => setNeedReturnJourney((prev) => !prev)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.travelToggleIconCircle}>
+                        <Ionicons name="swap-horizontal" size={20} color="rgb(240, 117, 15)" />
+                      </View>
+                      <View style={styles.travelToggleTextGroup}>
+                        <Text style={styles.travelToggleTitle}>{t('additionalRequirements.returnJourneyTitle', { defaultValue: 'Need a Return Journey Later?' })}</Text>
+                        <Text style={styles.travelToggleDesc}>
+                          {t('additionalRequirements.returnJourneyDesc', { defaultValue: 'Enable this if you may need a return trip on a later date.' })}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                    <Switch
+                      value={needReturnJourney}
+                      onValueChange={setNeedReturnJourney}
+                      trackColor={{ false: '#cbd5e1', true: 'rgb(240, 117, 15)' }}
+                      thumbColor="#ffffff"
+                      ios_backgroundColor="#cbd5e1"
+                    />
+                  </View>
+
+                  <View style={styles.travelToggleDivider} />
+
+                  {/* Need an Airport Drop? */}
+                  <View style={styles.travelToggleItemRow}>
+                    <TouchableOpacity
+                      style={styles.travelToggleItemInfo}
+                      onPress={() => setNeedAirportDrop((prev) => !prev)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.travelToggleIconCircle}>
+                        <Ionicons name="airplane" size={20} color="rgb(240, 117, 15)" />
+                      </View>
+                      <View style={styles.travelToggleTextGroup}>
+                        <Text style={styles.travelToggleTitle}>{t('additionalRequirements.airportDropTitle', { defaultValue: 'Need an Airport Drop?' })}</Text>
+                        <Text style={styles.travelToggleDesc}>
+                          {t('additionalRequirements.airportDropDesc', { defaultValue: 'Enable this if you need to be dropped at the airport.' })}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                    <Switch
+                      value={needAirportDrop}
+                      onValueChange={setNeedAirportDrop}
+                      trackColor={{ false: '#cbd5e1', true: 'rgb(240, 117, 15)' }}
+                      thumbColor="#ffffff"
+                      ios_backgroundColor="#cbd5e1"
+                    />
+                  </View>
+
+                  <View style={styles.travelToggleDivider} />
+
+                  {/* Need an Airport Pickup? */}
+                  <View style={styles.travelToggleItemRow}>
+                    <TouchableOpacity
+                      style={styles.travelToggleItemInfo}
+                      onPress={() => setNeedAirportPickup((prev) => !prev)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.travelToggleIconCircle}>
+                        <Ionicons name="airplane" size={20} color="rgb(240, 117, 15)" />
+                      </View>
+                      <View style={styles.travelToggleTextGroup}>
+                        <Text style={styles.travelToggleTitle}>{t('additionalRequirements.airportPickupTitle', { defaultValue: 'Need an Airport Pickup?' })}</Text>
+                        <Text style={styles.travelToggleDesc}>
+                          {t('additionalRequirements.airportPickupDesc', { defaultValue: 'Enable this if you need to be picked up from the airport.' })}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                    <Switch
+                      value={needAirportPickup}
+                      onValueChange={setNeedAirportPickup}
+                      trackColor={{ false: '#cbd5e1', true: 'rgb(240, 117, 15)' }}
+                      thumbColor="#ffffff"
+                      ios_backgroundColor="#cbd5e1"
+                    />
+                  </View>
+
+                  <View style={styles.travelToggleDivider} />
+
+                  {/* Pet Friendly */}
+                  <View style={styles.travelToggleItemRow}>
+                    <TouchableOpacity
+                      style={styles.travelToggleItemInfo}
+                      onPress={() => setIsPetFriendly((prev) => !prev)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.travelToggleIconCircle}>
+                        <Ionicons name="paw" size={20} color="rgb(240, 117, 15)" />
+                      </View>
+                      <View style={styles.travelToggleTextGroup}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <Text style={styles.travelToggleTitle}>{t('additionalRequirements.petFriendlyTitle', { defaultValue: 'Pet Friendly' })}</Text>
+                          {isPetFriendly && (
+                            <View style={styles.petSelectedHeaderBadge}>
+                              <Text style={styles.petSelectedHeaderBadgeText}>
+                                {selectedPetType === 'cat' ? 'Cat' : selectedPetType === 'bird' ? 'Bird' : 'Dog'}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.travelToggleDesc}>
+                          {t('additionalRequirements.petFriendlyDesc', { defaultValue: 'Enable this if you are traveling with pets.' })}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                    <Switch
+                      value={isPetFriendly}
+                      onValueChange={setIsPetFriendly}
+                      trackColor={{ false: '#cbd5e1', true: 'rgb(240, 117, 15)' }}
+                      thumbColor="#ffffff"
+                      ios_backgroundColor="#cbd5e1"
+                    />
+                  </View>
+
+                  {/* Dropdown / Pet Type Selector when Pet Friendly is switched ON */}
+                  {isPetFriendly && (
+                    <View style={styles.petSelectorContainer}>
+                      <View style={styles.petSelectorHeaderRow}>
+                        <Text style={styles.petSelectorHeaderLabel}>
+                          Select Pet Type:
+                        </Text>
+                      </View>
+                      <View style={styles.petOptionsRow}>
+                        {([
+                          { type: 'cat' as const, label: 'Cat', image: require('../../assets/images/pet-cat-icon.png') },
+                          { type: 'dog' as const, label: 'Dog', image: require('../../assets/images/pet-dog-icon.png') },
+                          { type: 'bird' as const, label: 'Bird', image: require('../../assets/images/pet-bird-icon.png') },
+                        ]).map((item) => {
+                          const isSelected = selectedPetType === item.type;
+                          return (
+                            <TouchableOpacity
+                              key={item.type}
+                              style={[
+                                styles.petOptionCard,
+                                isSelected && styles.petOptionCardSelected,
+                              ]}
+                              onPress={() => setSelectedPetType(item.type)}
+                              activeOpacity={0.75}
+                            >
+                              <View style={styles.petOptionTopRow}>
+                                <Image
+                                  source={item.image}
+                                  style={[
+                                    styles.petOptionIconImage,
+                                    { tintColor: isSelected ? 'rgb(240, 117, 15)' : 'rgb(30, 41, 59)' },
+                                  ]}
+                                />
+                                {isSelected && (
+                                  <View style={styles.petCheckBadge}>
+                                    <Ionicons name="checkmark-circle" size={14} color="rgb(240, 117, 15)" />
+                                  </View>
+                                )}
+                              </View>
+                              <Text style={[styles.petOptionName, isSelected && styles.petOptionNameSelected]}>
+                                {item.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+
+                  <View style={styles.travelToggleDivider} />
+
+                  {/* Baby on Board */}
+                  <View style={styles.travelToggleItemRow}>
+                    <TouchableOpacity
+                      style={styles.travelToggleItemInfo}
+                      onPress={() => setIsBabyOnBoard((prev) => !prev)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.travelToggleIconCircle}>
+                        <MaterialCommunityIcons
+                          name="baby-carriage"
+                          size={22}
+                          color="rgb(240, 117, 15)"
+                        />
+                      </View>
+                      <View style={styles.travelToggleTextGroup}>
+                        <Text style={styles.travelToggleTitle}>
+                          {t('additionalRequirements.babyOnBoardTitle', { defaultValue: 'Baby on Board' })}
+                        </Text>
+                        <Text style={styles.travelToggleDesc}>
+                          {t('additionalRequirements.babyOnBoardDesc', { defaultValue: 'Enable this if traveling with an infant or child for safer driving.' })}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                    <Switch
+                      value={isBabyOnBoard}
+                      onValueChange={setIsBabyOnBoard}
+                      trackColor={{ false: '#cbd5e1', true: 'rgb(240, 117, 15)' }}
+                      thumbColor="#ffffff"
+                      ios_backgroundColor="#cbd5e1"
+                    />
+                  </View>
+
+                  <View style={styles.travelToggleDivider} />
+
+                  {/* Pregnancy Friendly */}
+                  <View style={styles.travelToggleItemRow}>
+                    <TouchableOpacity
+                      style={styles.travelToggleItemInfo}
+                      onPress={() => setIsPregnancyFriendly((prev) => !prev)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.travelToggleIconCircle}>
+                        <MaterialCommunityIcons
+                          name="human-pregnant"
+                          size={24}
+                          color="rgb(240, 117, 15)"
+                        />
+                      </View>
+                      <View style={styles.travelToggleTextGroup}>
+                        <Text style={styles.travelToggleTitle}>
+                          {t('additionalRequirements.pregnancyTitle', { defaultValue: 'Pregnancy Friendly' })}
+                        </Text>
+                        <Text style={styles.travelToggleDesc}>
+                          {t('additionalRequirements.pregnancyDesc', { defaultValue: 'Enable this if traveling with a pregnant passenger for extra gentle driving.' })}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                    <Switch
+                      value={isPregnancyFriendly}
+                      onValueChange={setIsPregnancyFriendly}
+                      trackColor={{ false: '#cbd5e1', true: 'rgb(240, 117, 15)' }}
+                      thumbColor="#ffffff"
+                      ios_backgroundColor="#cbd5e1"
+                    />
+                  </View>
+
+                  <View style={styles.travelToggleDivider} />
+
+                  {/* Handicap / Disability Assistance */}
+                  <View style={styles.travelToggleItemRow}>
+                    <TouchableOpacity
+                      style={styles.travelToggleItemInfo}
+                      onPress={() => setIsHandicapped((prev) => !prev)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.travelToggleIconCircle}>
+                        <FontAwesome5
+                          name="wheelchair"
+                          size={20}
+                          color="rgb(240, 117, 15)"
+                        />
+                      </View>
+                      <View style={styles.travelToggleTextGroup}>
+                        <Text style={styles.travelToggleTitle}>
+                          {t('additionalRequirements.handicapTitle', { defaultValue: 'Handicap / Disability Assistance?' })}
+                        </Text>
+                        <Text style={styles.travelToggleDesc}>
+                          {t('additionalRequirements.handicapDesc', { defaultValue: 'Enable this for wheelchair support, easy boarding & driver assistance.' })}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                    <Switch
+                      value={isHandicapped}
+                      onValueChange={setIsHandicapped}
+                      trackColor={{ false: '#cbd5e1', true: 'rgb(240, 117, 15)' }}
+                      thumbColor="#ffffff"
+                      ios_backgroundColor="#cbd5e1"
+                    />
+                  </View>
+
+                  {/* Roof Carrier */}
+                  {params.hasCarrier !== 'false' && (
+                    <>
+                      <View style={styles.travelToggleDivider} />
+                      <View style={styles.travelToggleItemRow}>
+                        <TouchableOpacity
+                          style={styles.travelToggleItemInfo}
+                          onPress={() => setRequestCarrier((prev) => !prev)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.travelToggleIconCircle}>
+                            <Image
+                              source={require('../../assets/images/roof-carrier-icon.png')}
+                              style={{
+                                width: 22,
+                                height: 22,
+                                resizeMode: 'contain',
+                                tintColor: 'rgb(240, 117, 15)',
+                              }}
+                            />
+                          </View>
+                          <View style={styles.travelToggleTextGroup}>
+                            <Text style={styles.travelToggleTitle}>
+                              {t('additionalRequirements.roofCarrierTitle', { defaultValue: 'Roof Carrier?' })}
+                            </Text>
+                            <Text style={styles.travelToggleDesc}>
+                              {t('additionalRequirements.roofCarrierDesc', { defaultValue: 'Enable this for rooftop luggage carrier for excess bags.' })}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
                         <Switch
                           value={requestCarrier}
-                          trackColor={{ false: '#cbd5e1', true: '#ea580c' }}
+                          onValueChange={setRequestCarrier}
+                          trackColor={{ false: '#cbd5e1', true: 'rgb(240, 117, 15)' }}
                           thumbColor="#ffffff"
                           ios_backgroundColor="#cbd5e1"
                         />
                       </View>
-                    </TouchableOpacity>
-                  </>
-                ) : null}
-
-                {carrierExcludedCarsParam ? (
-                  <View style={styles.carrierNoteBox}>
-                    <Ionicons name="information-circle-outline" size={14} color="#b45309" />
-                    <Text style={styles.carrierNoteText}>{carrierExcludedCarsParam}</Text>
-                  </View>
-                ) : null}
-              </View>
-
-              {/* Ride Preferences & Special Notes Card */}
-              <View style={styles.cardSection}>
-                <View style={styles.preferencesHeader}>
-                  <Ionicons name="options-outline" size={17} color="#103A75" />
-                  <Text style={styles.cardSectionTitle}>Ride Preferences</Text>
-                  <Text style={styles.optionalHint}>(Optional)</Text>
+                    </>
+                  )}
                 </View>
 
-                {/* Quick Suggestion Pills */}
-                <View style={styles.quickTagsContainer}>
-                  {QUICK_TAGS.map((tagItem) => {
-                    const isSelected = pickupNotes.includes(tagItem.label);
-                    return (
-                      <TouchableOpacity
-                        key={tagItem.id}
-                        style={[
-                          styles.quickTagPill,
-                          isSelected && styles.quickTagPillSelected,
-                        ]}
-                        onPress={() => toggleQuickTag(tagItem.label)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons
-                          name={isSelected && tagItem.id === 'baby' ? 'heart' : tagItem.icon}
-                          size={13}
-                          color={isSelected ? '#ea580c' : '#64748b'}
-                        />
-                        <Text
-                          style={[
-                            styles.quickTagText,
-                            isSelected && styles.quickTagTextSelected,
-                          ]}
-                        >
-                          {tagItem.label}
-                        </Text>
-                        {isSelected && (
-                          <Ionicons name="checkmark" size={11} color="#ea580c" style={{ marginLeft: 2 }} />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
+                <View style={styles.cardDivider} />
+
+                {/* Ride Preferences & Special Notes (Below Pet Friendly, same section) */}
+                <View style={styles.preferencesHeader}>
+                  <Ionicons name="options-outline" size={17} color="rgb(22, 34, 50)" />
+                  <Text style={styles.cardSectionTitle}>{t('additionalRequirements.ridePreferences', { defaultValue: 'Ride Preferences' })}</Text>
+                  <Text style={styles.optionalHint}>{t('additionalRequirements.optional', { defaultValue: '(Optional)' })}</Text>
                 </View>
 
                 {/* Refined Text Input with Left Icon */}
-                <View style={styles.notesInputContainer}>
-                  <Ionicons name="create-outline" size={15} color="#94a3b8" style={styles.notesInputIcon} />
+                <View style={[styles.notesInputContainer, isNotesHighlighted && styles.notesInputContainerHighlighted]}>
+                  <Ionicons name="create-outline" size={15} color={isNotesHighlighted ? "rgb(240, 117, 15)" : "#94a3b8"} style={styles.notesInputIcon} />
                   <TextInput
+                    ref={notesInputRef}
                     style={styles.notesInputField}
-                    placeholder="Any special notes (e.g. child seat, extra stops, elderly assistance)..."
+                    placeholder={t('additionalRequirements.notesPlaceholder', { defaultValue: 'Any special notes (e.g. child seat, extra stops, elderly assistance)...' })}
                     placeholderTextColor="#94a3b8"
                     multiline
                     numberOfLines={2}
@@ -1740,926 +4159,77 @@ export default function BookingFunnelScreen() {
                   />
                 </View>
               </View>
+            </ScrollView>
 
-              {/* Blue Info Notice Banner */}
-              <View style={styles.infoNoticeBanner}>
-                <Ionicons name="information-circle" size={19} color="#2563eb" style={styles.infoNoticeIcon} />
-                <Text style={styles.infoNoticeText}>
-                  Please ensure all passenger details are correct. These details will be used for communication regarding your booking.
-                </Text>
-              </View>
-
-              {/* Bottom CTA: Continue to Review & Pay */}
+            {/* Bottom Sticky Action Bar */}
+            <View style={styles.sheetBottomBar}>
               <TouchableOpacity
-                style={styles.continueToReviewBtn}
+                style={styles.sheetApplyBtn}
+                onPress={() => setShowRequirementsModal(false)}
                 activeOpacity={0.85}
-                onPress={handleProceedToStep2}
               >
-                <Text style={styles.continueToReviewText}>Continue to Review & Pay</Text>
-                <Ionicons name="chevron-forward" size={16} color="#ffffff" style={{ marginLeft: 6 }} />
+                <Text style={styles.sheetApplyBtnText}>{t('additionalRequirements.saveAndApply', { defaultValue: 'Save & Apply Requirements' })}</Text>
+                <Ionicons name="checkmark-circle" size={18} color="#ffffff" style={{ marginLeft: 6 }} />
               </TouchableOpacity>
             </View>
-          )}
 
-          {/* ========================================================= */}
-          {/* STEP 2: REVIEW ROUTE & PAYMENT SELECTION                   */}
-          {/* ========================================================= */}
-          {step === 2 && (
-            <View style={styles.stepSection}>
-              {/* 1. Top Vehicle & Route Summary Card (Matching Reference Mock) */}
-              <View style={styles.topSummaryCard}>
-                {/* Upper Row: Vehicle Image, Details, Specs, Price */}
-                <View style={styles.topSummaryUpperRow}>
-                  {/* Left: Car Image */}
-                  <Image
-                    source={vehicleInfo.image}
-                    style={styles.topSummaryVehicleImage}
-                    resizeMode="contain"
-                  />
-
-                  {/* Middle: Vehicle Specs & Change Vehicle */}
-                  <View style={styles.topSummaryVehicleDetails}>
-                    <Text style={styles.topSummaryVehicleName}>{customVehicleName}</Text>
-
-                    {/* Specs Icons */}
-                    <View style={styles.topSummarySpecsRow}>
-                      <View style={styles.topSummarySpecItem}>
-                        <Ionicons name="person" size={11} color="#64748b" />
-                        <Text style={styles.topSummarySpecText}>
-                          {passengerCountParam || vehicleInfo.passengers} + 1
-                        </Text>
-                      </View>
-                      <Text style={styles.topSummarySpecPipe}>|</Text>
-                      <View style={styles.topSummarySpecItem}>
-                        <Ionicons name="briefcase" size={11} color="#64748b" />
-                        <Text style={styles.topSummarySpecText}>{vehicleInfo.luggage}</Text>
-                      </View>
-                      <Text style={styles.topSummarySpecPipe}>|</Text>
-                      <View style={styles.topSummarySpecItem}>
-                        <Ionicons name="snow" size={11} color="#64748b" />
-                        <Text style={styles.topSummarySpecText}>A/C</Text>
-                      </View>
-                    </View>
-
-                    {/* Change Vehicle Link */}
-                    <TouchableOpacity
-                      style={styles.topSummaryChangeVehicleBtn}
-                      activeOpacity={0.7}
-                      onPress={() => router.back()}
-                    >
-                      <Text style={styles.topSummaryChangeVehicleText}>Change Vehicle</Text>
-                      <Ionicons name="chevron-forward" size={12} color="#2563eb" style={{ marginLeft: 2 }} />
-                    </TouchableOpacity>
+            {/* Luggage Exceeded / Special Notes Popup Modal Overlay */}
+            {showLuggageAlertModal && (
+              <View style={styles.sheetAlertOverlay}>
+                <View style={styles.luggageModalCard}>
+                  {/* Top Icon Badge */}
+                  <View style={styles.luggageModalIconCircle}>
+                    <Ionicons name="briefcase" size={30} color="rgb(240, 117, 15)" />
                   </View>
 
-                  {/* Vertical Divider */}
-                  <View style={styles.topSummaryVerticalLine} />
-
-                  {/* Right: Fare Column */}
-                  <View style={styles.topSummaryPriceCol}>
-                    <Text style={styles.topSummaryPrice}>₹ {totalFare.toLocaleString('en-IN')}</Text>
-                    <Text style={styles.topSummaryGst}>(Total Trip Fare)</Text>
-                    <View style={styles.topSummaryAdvancePill}>
-                      <Text style={styles.topSummaryAdvanceText}>Pay 25%: ₹{advanceAmount.toLocaleString('en-IN')}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Horizontal Divider */}
-                <View style={styles.topSummaryHorizontalLine} />
-
-                {/* Lower Row: Route & Scheduled Time Horizontal Strip */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.topSummaryRouteScrollContent}
-                >
-                  {/* Pickup & Drop Section */}
-                  <View style={styles.topSummaryLocationsGroup}>
-                    {/* Pickup */}
-                    <View style={styles.topSummaryLocationItem}>
-                      <Ionicons name="location" size={14} color="#ea580c" style={{ marginRight: 3 }} />
-                      <View>
-                        <Text style={styles.topSummaryLocationName} numberOfLines={1}>
-                          {pickupCity}
-                        </Text>
-                        <Text style={styles.topSummaryLocationSub}>Pickup Location</Text>
-                      </View>
-                    </View>
-
-                    {/* Dashed Separator */}
-                    <View style={styles.topSummaryArrowContainer}>
-                      <Text style={styles.topSummaryArrowLine}>┄┄</Text>
-                      <Ionicons name="arrow-forward" size={11} color="#94a3b8" />
-                    </View>
-
-                    {/* Drop */}
-                    <View style={styles.topSummaryLocationItem}>
-                      <Ionicons name="location" size={14} color="#103A75" style={{ marginRight: 3 }} />
-                      <View>
-                        <Text style={styles.topSummaryLocationName} numberOfLines={1}>
-                          {dropCity}
-                        </Text>
-                        <Text style={styles.topSummaryLocationSub}>Drop Location</Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Vertical Divider */}
-                  <View style={styles.topSummaryRouteDivider} />
-
-                  {/* Pickup Date */}
-                  <View style={styles.topSummaryDateTimeItem}>
-                    <Ionicons name="calendar-outline" size={13} color="#103A75" style={{ marginRight: 3 }} />
-                    <View>
-                      <Text style={styles.topSummaryDateTimeText} numberOfLines={1}>
-                        {displayPickupDate}
-                      </Text>
-                      <Text style={styles.topSummaryLocationSub}>Pickup Date</Text>
-                    </View>
-                  </View>
-
-                  {/* Vertical Divider */}
-                  <View style={styles.topSummaryRouteDivider} />
-
-                  {/* Pickup Time */}
-                  <View style={styles.topSummaryDateTimeItem}>
-                    <Ionicons name="time-outline" size={13} color="#ea580c" style={{ marginRight: 3 }} />
-                    <View>
-                      <Text style={styles.topSummaryDateTimeText} numberOfLines={1}>
-                        {displayPickupTime}
-                      </Text>
-                      <Text style={styles.topSummaryLocationSub}>Pickup Time</Text>
-                    </View>
-                  </View>
-
-                  {/* Flight Number for Airport Transfer */}
-                  {tripTypeParam === 'AIRPORT' && flightNumber.trim().length > 0 && (
-                    <>
-                      <View style={styles.topSummaryRouteDivider} />
-                      <View style={styles.topSummaryDateTimeItem}>
-                        <Ionicons name="airplane" size={13} color="#0284c7" style={{ marginRight: 3 }} />
-                        <View>
-                          <Text style={styles.topSummaryDateTimeText} numberOfLines={1}>
-                            {flightNumber.trim()}
-                          </Text>
-                          <Text style={styles.topSummaryLocationSub}>Flight No</Text>
-                        </View>
-                      </View>
-                    </>
-                  )}
-                </ScrollView>
-              </View>
-
-              {/* 2. Passenger Details Card (With Edit Button) */}
-              <View style={styles.passengerSummaryCard}>
-                <View style={styles.passengerSummaryHeader}>
-                  <View style={styles.passengerHeaderLeft}>
-                    <View style={styles.passengerIconCircle}>
-                      <Ionicons name="person" size={13} color="#ea580c" />
-                    </View>
-                    <View style={{ marginLeft: 8 }}>
-                      <Text style={styles.passengerSummaryTitle}>Passenger Details</Text>
-                      <Text style={styles.passengerSummarySub}>Primary Contact</Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.editPassengerBtn}
-                    activeOpacity={0.7}
-                    onPress={() => setStep(1)}
-                  >
-                    <Ionicons name="pencil" size={11} color="#ea580c" />
-                    <Text style={styles.editPassengerBtnText}>Edit</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* 2x2 Grid */}
-                <View style={styles.passengerGridContainer}>
-                  <View style={styles.passengerGridRow}>
-                    <View style={styles.passengerGridBox}>
-                      <Text style={styles.passengerBoxLabel}>PASSENGER NAME</Text>
-                      <Text style={styles.passengerBoxVal} numberOfLines={1}>
-                        {passengerName.trim() || 'Not Provided'}
-                      </Text>
-                    </View>
-                    <View style={styles.passengerGridBox}>
-                      <Text style={styles.passengerBoxLabel}>PHONE NUMBER</Text>
-                      <Text style={styles.passengerBoxVal} numberOfLines={1}>
-                        {passengerPhone.trim() || 'Not Provided'}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={[styles.passengerGridRow, { marginTop: 6 }]}>
-                    <View style={styles.passengerGridBox}>
-                      <Text style={styles.passengerBoxLabel}>EMAIL ADDRESS</Text>
-                      <Text style={styles.passengerBoxVal} numberOfLines={1}>
-                        {passengerEmail.trim() || 'Not Provided'}
-                      </Text>
-                    </View>
-                    <View style={styles.passengerGridBox}>
-                      <Text style={styles.passengerBoxLabel}>ALTERNATE PHONE</Text>
-                      <Text
-                        style={[
-                          styles.passengerBoxVal,
-                          !alternatePhone.trim() && { color: '#94a3b8', fontWeight: '500' },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {alternatePhone.trim()
-                          ? `+91 ${alternatePhone.replace(/\D/g, '').slice(-10)}`
-                          : 'Not Provided'}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                {isPetFriendly && (
-                  <View style={styles.petBadgeRow}>
-                    <Ionicons name="paw" size={12} color="#ea580c" />
-                    <Text style={styles.petBadgeText}>
-                      Ride Preference: Pet Friendly (+₹{petFee} applied)
-                    </Text>
-                  </View>
-                )}
-
-                {tripTypeParam === 'AIRPORT' && flightNumber.trim().length > 0 && (
-                  <View style={styles.flightBadgeRow}>
-                    <Ionicons name="airplane" size={13} color="#0284c7" />
-                    <Text style={styles.flightBadgeText}>
-                      Airport Flight: <Text style={{ fontWeight: '800', color: '#0369a1' }}>{flightNumber.trim()}</Text>
-                    </Text>
-                  </View>
-                )}
-
-                {alternateEmail.trim().length > 0 && (
-                  <View style={styles.altEmailBadgeRow}>
-                    <Ionicons name="mail-outline" size={13} color="#2563eb" />
-                    <Text style={styles.altEmailBadgeText}>
-                      Alternate Email: <Text style={{ fontWeight: '800', color: '#1d4ed8' }}>{alternateEmail.trim()}</Text>
-                    </Text>
-                  </View>
-                )}
-
-                {gstin.trim().length > 0 && (
-                  <View style={styles.gstBadgeRow}>
-                    <Ionicons name="business" size={13} color="#4338ca" />
-                    <Text style={styles.gstBadgeText}>
-                      GSTIN: <Text style={{ fontWeight: '800', color: '#312e81' }}>{gstin.trim().toUpperCase()}</Text>
-                      {companyName.trim() ? ` • ${companyName.trim()}` : ''}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* 3. Middle Two-Column Grid: Fare Breakdown (Left) & Includes/Excludes (Right) */}
-              <View style={styles.twoColContainer}>
-                {/* Left Column: Fare Breakdown Card */}
-                <View style={styles.fareBreakdownCol}>
-                  <View style={styles.colHeaderRow}>
-                    <Ionicons name="receipt-outline" size={13} color="#ea580c" style={{ marginRight: 4 }} />
-                    <Text style={styles.colHeaderTitle}>Fare Breakdown</Text>
-                  </View>
-
-                  <View style={styles.fareLineItem}>
-                    <Text style={styles.fareLineLabel}>
-                      Distance Fare ({Math.max(vehicleInfo.minKm, estimatedKm)} km)
-                    </Text>
-                    <Text style={styles.fareLineVal}>₹ {baseEstimatedFare.toLocaleString('en-IN')}</Text>
-                  </View>
-
-                  <View style={styles.fareLineItem}>
-                    <Text style={styles.fareLineLabel}>Chauffeur Allowance</Text>
-                    <Text style={[styles.fareLineVal, { color: '#16a34a' }]}>Included</Text>
-                  </View>
-
-                  <View style={styles.fareLineItem}>
-                    <Text style={styles.fareLineLabel}>Toll & State Tax</Text>
-                    <Text style={[styles.fareLineVal, { color: '#16a34a' }]}>Included</Text>
-                  </View>
-
-                  {isPetFriendly && (
-                    <View style={styles.fareLineItem}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, flex: 1, marginRight: 4 }}>
-                        <Ionicons name="paw" size={11} color="#ea580c" />
-                        <Text style={[styles.fareLineLabel, { color: '#ea580c', fontWeight: '700' }]}>
-                          Pet Friendly Fee
-                        </Text>
-                      </View>
-                      <Text style={[styles.fareLineVal, { color: '#ea580c', fontWeight: '800', flexShrink: 0 }]}>
-                        +₹{petFee.toLocaleString('en-IN')}
-                      </Text>
-                    </View>
-                  )}
-
-                  {couponDiscount > 0 && (
-                    <View style={styles.fareLineItem}>
-                      <Text style={[styles.fareLineLabel, { color: '#16a34a', fontWeight: '700' }]}>
-                        Coupon ({couponCode})
-                      </Text>
-                      <Text style={[styles.fareLineVal, { color: '#16a34a', fontWeight: '800' }]}>
-                        -₹ {couponDiscount.toLocaleString('en-IN')}
-                      </Text>
-                    </View>
-                  )}
-
-                  <View style={styles.twoColDivider} />
-
-                  <View style={styles.fareLineItem}>
-                    <Text style={styles.fareLineLabelBold}>Subtotal</Text>
-                    <Text style={styles.fareLineValBold}>₹ {subtotal.toLocaleString('en-IN')}</Text>
-                  </View>
-
-                  <View style={styles.fareLineItem}>
-                    <Text style={styles.fareLineLabel}>GST (5%)</Text>
-                    <Text style={styles.fareLineVal}>₹ {gstAmount.toLocaleString('en-IN')}</Text>
-                  </View>
-
-                  <View style={styles.twoColDivider} />
-
-                  <View style={styles.fareLineItem}>
-                    <Text style={styles.fareLineLabelBold}>Total Ride Fare</Text>
-                    <Text style={styles.fareLineValBold}>₹ {totalFare.toLocaleString('en-IN')}</Text>
-                  </View>
-
-                  {/* 25% Part Payment Payable Now Box */}
-                  <View style={styles.partPaymentPill}>
-                    <View style={{ flex: 1, marginRight: 4 }}>
-                      <Text style={styles.partPaymentPillTitle}>Payable Now (25%):</Text>
-                      <Text style={styles.partPaymentPillSub}>Rest ₹{balanceAmount.toLocaleString('en-IN')} to driver later</Text>
-                    </View>
-                    <Text style={styles.partPaymentPillAmount}>₹ {advanceAmount.toLocaleString('en-IN')}</Text>
-                  </View>
-
-                  {/* Optional Promo Code Toggle */}
-                  <TouchableOpacity
-                    style={{ marginTop: 6, alignSelf: 'flex-start' }}
-                    activeOpacity={0.7}
-                    onPress={() => setShowCouponInput((prev) => !prev)}
-                  >
-                    <Text style={{ fontSize: 9.5, color: '#2563eb', fontWeight: '700' }}>
-                      {couponApplied
-                        ? `Promo Applied: ${couponCode} (Edit)`
-                        : showCouponInput
-                        ? 'Hide Promo Code'
-                        : '+ Apply Promo / Coupon Code'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {showCouponInput && (
-                    <View style={{ marginTop: 5 }}>
-                      <View style={{ flexDirection: 'row', gap: 4 }}>
-                        <TextInput
-                          style={{
-                            flex: 1,
-                            borderWidth: 1,
-                            borderColor: '#cbd5e1',
-                            borderRadius: 6,
-                            paddingHorizontal: 6,
-                            paddingVertical: 3,
-                            fontSize: 10,
-                            fontWeight: '700',
-                            backgroundColor: '#ffffff',
-                            color: '#103A75',
-                          }}
-                          placeholder="Try KANDY10"
-                          placeholderTextColor="#94a3b8"
-                          autoCapitalize="characters"
-                          value={couponCode}
-                          onChangeText={setCouponCode}
-                        />
-                        <TouchableOpacity
-                          style={{
-                            backgroundColor: '#EE5C21',
-                            borderRadius: 6,
-                            paddingHorizontal: 8,
-                            justifyContent: 'center',
-                          }}
-                          onPress={handleApplyCoupon}
-                        >
-                          <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '700' }}>Apply</Text>
-                        </TouchableOpacity>
-                      </View>
-                      {couponMsg && (
-                        <Text style={{ fontSize: 8.5, color: couponApplied ? '#16a34a' : '#dc2626', marginTop: 2 }}>
-                          {couponMsg}
-                        </Text>
-                      )}
-                    </View>
-                  )}
-                </View>
-
-                {/* Right Column: Includes & Excludes Card */}
-                <View style={styles.includesExcludesCol}>
-                  {/* Includes Section */}
-                  <View style={styles.incExcSection}>
-                    <View style={styles.incHeaderRow}>
-                      <Ionicons name="checkmark-circle" size={12} color="#16a34a" style={{ marginRight: 4 }} />
-                      <Text style={styles.incHeaderTitle}>Includes</Text>
-                    </View>
-                    <View style={styles.bulletItem}>
-                      <Ionicons name="checkmark" size={10} color="#16a34a" style={{ marginRight: 4 }} />
-                      <Text style={styles.bulletText} numberOfLines={1}>Fuel Charges</Text>
-                    </View>
-                    <View style={styles.bulletItem}>
-                      <Ionicons name="checkmark" size={10} color="#16a34a" style={{ marginRight: 4 }} />
-                      <Text style={styles.bulletText} numberOfLines={1}>Chauffeur Allowance</Text>
-                    </View>
-                    <View style={styles.bulletItem}>
-                      <Ionicons name="checkmark" size={10} color="#16a34a" style={{ marginRight: 4 }} />
-                      <Text style={styles.bulletText} numberOfLines={1}>
-                        {Math.max(vehicleInfo.minKm, estimatedKm)} Kms Limit
-                      </Text>
-                    </View>
-                    <View style={styles.bulletItem}>
-                      <Ionicons name="checkmark" size={10} color="#16a34a" style={{ marginRight: 4 }} />
-                      <Text style={styles.bulletText} numberOfLines={1}>5% GST Included</Text>
-                    </View>
-                    {isPetFriendly && (
-                      <View style={styles.bulletItem}>
-                        <Ionicons name="paw" size={10} color="#16a34a" style={{ marginRight: 4 }} />
-                        <Text style={[styles.bulletText, { color: '#16a34a', fontWeight: '700' }]} numberOfLines={1}>
-                          Pet Friendly Ride
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={styles.twoColDivider} />
-
-                  {/* Excludes Section */}
-                  <View style={styles.incExcSection}>
-                    <View style={styles.excHeaderRow}>
-                      <Ionicons name="alert-circle" size={12} color="#dc2626" style={{ marginRight: 4 }} />
-                      <Text style={styles.excHeaderTitle}>Excludes</Text>
-                    </View>
-                    <View style={styles.bulletItem}>
-                      <Ionicons name="close" size={10} color="#dc2626" style={{ marginRight: 4 }} />
-                      <Text style={styles.bulletText} numberOfLines={1}>Extra Kms @ ₹{customRatePerKm}/km</Text>
-                    </View>
-                    <View style={styles.bulletItem}>
-                      <Ionicons name="close" size={10} color="#dc2626" style={{ marginRight: 4 }} />
-                      <Text style={styles.bulletText} numberOfLines={1}>Toll & Parking</Text>
-                    </View>
-                    <View style={styles.bulletItem}>
-                      <Ionicons name="close" size={10} color="#dc2626" style={{ marginRight: 4 }} />
-                      <Text style={styles.bulletText} numberOfLines={1}>Night Allowance</Text>
-                    </View>
-                    <View style={styles.bulletItem}>
-                      <Ionicons name="close" size={10} color="#dc2626" style={{ marginRight: 4 }} />
-                      <Text style={styles.bulletText} numberOfLines={1}>Multi-City Entries</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* 4. Select Payment Option Card */}
-              <View style={styles.paymentMethodCard}>
-                <View style={[styles.colHeaderRow, { justifyContent: 'space-between' }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Ionicons name="card-outline" size={13} color="#ea580c" style={{ marginRight: 4 }} />
-                    <Text style={styles.colHeaderTitle}>Select Payment Option</Text>
-                  </View>
-                  <View style={styles.advancePaymentBadge}>
-                    <Text style={styles.advancePaymentBadgeText}>25% Part Payment: ₹{advanceAmount.toLocaleString('en-IN')}</Text>
-                  </View>
-                </View>
-
-                {/* 4-Item Grid */}
-                <View style={styles.paymentGridRow}>
-                  {/* UPI */}
-                  <TouchableOpacity
-                    style={[
-                      styles.paymentGridItem,
-                      selectedPaymentMethod === 'UPI' && styles.paymentGridItemActive,
-                    ]}
-                    activeOpacity={0.7}
-                    onPress={() => setSelectedPaymentMethod('UPI')}
-                  >
-                    {selectedPaymentMethod === 'UPI' && (
-                      <View style={styles.selectedBadge}>
-                        <Ionicons name="checkmark" size={8} color="#ffffff" />
-                      </View>
-                    )}
-                    <Ionicons
-                      name="phone-portrait-outline"
-                      size={18}
-                      color={selectedPaymentMethod === 'UPI' ? '#ea580c' : '#64748b'}
-                    />
-                    <Text
-                      style={[
-                        styles.paymentItemTitle,
-                        selectedPaymentMethod === 'UPI' && styles.paymentItemTitleActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      UPI
-                    </Text>
-                    <Text
-                      style={[
-                        styles.paymentItemSub,
-                        selectedPaymentMethod === 'UPI' && styles.paymentItemSubActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      GPay/PhonePe
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Card Payment */}
-                  <TouchableOpacity
-                    style={[
-                      styles.paymentGridItem,
-                      selectedPaymentMethod === 'CARD' && styles.paymentGridItemActive,
-                    ]}
-                    activeOpacity={0.7}
-                    onPress={() => setSelectedPaymentMethod('CARD')}
-                  >
-                    {selectedPaymentMethod === 'CARD' && (
-                      <View style={styles.selectedBadge}>
-                        <Ionicons name="checkmark" size={8} color="#ffffff" />
-                      </View>
-                    )}
-                    <Ionicons
-                      name="card-outline"
-                      size={18}
-                      color={selectedPaymentMethod === 'CARD' ? '#ea580c' : '#64748b'}
-                    />
-                    <Text
-                      style={[
-                        styles.paymentItemTitle,
-                        selectedPaymentMethod === 'CARD' && styles.paymentItemTitleActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      Card
-                    </Text>
-                    <Text
-                      style={[
-                        styles.paymentItemSub,
-                        selectedPaymentMethod === 'CARD' && styles.paymentItemSubActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      Debit/Credit
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Net Banking */}
-                  <TouchableOpacity
-                    style={[
-                      styles.paymentGridItem,
-                      selectedPaymentMethod === 'NETBANKING' && styles.paymentGridItemActive,
-                    ]}
-                    activeOpacity={0.7}
-                    onPress={() => setSelectedPaymentMethod('NETBANKING')}
-                  >
-                    {selectedPaymentMethod === 'NETBANKING' && (
-                      <View style={styles.selectedBadge}>
-                        <Ionicons name="checkmark" size={8} color="#ffffff" />
-                      </View>
-                    )}
-                    <Ionicons
-                      name="business-outline"
-                      size={18}
-                      color={selectedPaymentMethod === 'NETBANKING' ? '#ea580c' : '#64748b'}
-                    />
-                    <Text
-                      style={[
-                        styles.paymentItemTitle,
-                        selectedPaymentMethod === 'NETBANKING' && styles.paymentItemTitleActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      Net Banking
-                    </Text>
-                    <Text
-                      style={[
-                        styles.paymentItemSub,
-                        selectedPaymentMethod === 'NETBANKING' && styles.paymentItemSubActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      All Banks
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Other UPI */}
-                  <TouchableOpacity
-                    style={[
-                      styles.paymentGridItem,
-                      selectedPaymentMethod === 'OTHER_UPI' && styles.paymentGridItemActive,
-                    ]}
-                    activeOpacity={0.7}
-                    onPress={() => setSelectedPaymentMethod('OTHER_UPI')}
-                  >
-                    {selectedPaymentMethod === 'OTHER_UPI' && (
-                      <View style={styles.selectedBadge}>
-                        <Ionicons name="checkmark" size={8} color="#ffffff" />
-                      </View>
-                    )}
-                    <Ionicons
-                      name="qr-code-outline"
-                      size={18}
-                      color={selectedPaymentMethod === 'OTHER_UPI' ? '#ea580c' : '#64748b'}
-                    />
-                    <Text
-                      style={[
-                        styles.paymentItemTitle,
-                        selectedPaymentMethod === 'OTHER_UPI' && styles.paymentItemTitleActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      Other UPI
-                    </Text>
-                    <Text
-                      style={[
-                        styles.paymentItemSub,
-                        selectedPaymentMethod === 'OTHER_UPI' && styles.paymentItemSubActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      Scan & Pay
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Blue Security Banner */}
-                <View style={styles.securityBanner}>
-                  <Ionicons name="shield-checkmark" size={14} color="#2563eb" style={{ marginRight: 6 }} />
-                  <Text style={styles.securityBannerText}>
-                    Safe & Secure 256-bit SSL encrypted payment. Pay ₹{advanceAmount.toLocaleString('en-IN')} (25%) advance now to confirm cab; balance ₹{balanceAmount.toLocaleString('en-IN')} payable to driver.
+                  {/* Title */}
+                  <Text style={styles.luggageModalTitle}>
+                    {t('additionalRequirements.luggageAlertTitle', { defaultValue: 'Luggage Limit Reached' })}
                   </Text>
-                </View>
 
-                {/* Terms & Conditions Checkbox */}
-                <TouchableOpacity
-                  style={styles.termsRow}
-                  activeOpacity={0.7}
-                  onPress={() => setAgreedToTerms((prev) => !prev)}
-                >
-                  <View
-                    style={[
-                      styles.checkboxSquare,
-                      agreedToTerms && styles.checkboxSquareActive,
-                    ]}
-                  >
-                    {agreedToTerms && <Ionicons name="checkmark" size={11} color="#ffffff" />}
+                  {/* Specific Reason / Vehicle Info */}
+                  <View style={styles.luggageModalReasonBox}>
+                    <Ionicons name="information-circle" size={16} color="#c2410c" style={{ marginTop: 1 }} />
+                    <Text style={styles.luggageModalReasonText}>
+                      {luggageAlertReason || `${vehicleInfo.name} has a standard boot capacity of ${vehicleInfo.luggage} bags.`}
+                    </Text>
                   </View>
-                  <Text style={styles.termsText}>
-                    I agree to the <Text style={{ color: '#ea580c', fontWeight: '700' }}>Terms & Conditions</Text> and{' '}
-                    <Text style={{ color: '#ea580c', fontWeight: '700' }}>Cancellation Policy</Text>.
+
+                  {/* User Requested Prompt Text */}
+                  <Text style={styles.luggageModalPrompt}>
+                    {t('additionalRequirements.luggageAlertPrompt', {
+                      defaultValue:
+                        'If you have any more luggage, kindly write in the special notes what your requirements are. Our team will contact you to help your journey.',
+                    })}
                   </Text>
-                </TouchableOpacity>
-              </View>
 
-              {/* 5. Bottom Action Bar */}
-              <View style={styles.bottomActionBar}>
-                <TouchableOpacity
-                  style={styles.reviewBackBtn}
-                  activeOpacity={0.7}
-                  onPress={() => setStep(1)}
-                  disabled={submitting}
-                >
-                  <Text style={styles.reviewBackBtnText}>← Back</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.reviewConfirmPayBtn, submitting && { opacity: 0.7 }]}
-                  activeOpacity={0.8}
-                  onPress={handleConfirmBooking}
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <ActivityIndicator color="#ffffff" size="small" />
-                  ) : (
-                    <View style={styles.reviewConfirmPayInner}>
-                      <View>
-                        <Text style={styles.reviewConfirmPayText}>Confirm & Pay 25% Advance</Text>
-                        <Text style={styles.reviewConfirmPaySubtext}>
-                          Pay ₹{advanceAmount.toLocaleString('en-IN')} now • Rest ₹{balanceAmount.toLocaleString('en-IN')} later
-                        </Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={styles.reviewConfirmPayPrice}>
-                          ₹ {advanceAmount.toLocaleString('en-IN')}
-                        </Text>
-                        <Ionicons name="arrow-forward" size={14} color="#ffffff" />
-                      </View>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* ========================================================= */}
-          {/* STEP 3: BOOKING CONFIRMED SUCCESS SCREEN                  */}
-          {/* ========================================================= */}
-          {step === 3 && confirmedBooking && (
-            <View style={[styles.stepSection, { flex: 1 }]}>
-              <View style={[styles.successCard, { flex: 1, justifyContent: 'space-between' }]}>
-                {/* 1. Upper Content Block */}
-                <View style={{ width: '100%', alignItems: 'center' }}>
-                  {/* Celebration Icon with Confetti Burst Accents */}
-                  <View style={styles.celebrationWrapper}>
-                    <View style={[styles.confettiDash, styles.confettiDashTopLeft1]} />
-                    <View style={[styles.confettiDash, styles.confettiDashTopLeft2]} />
-                    <View style={[styles.confettiDash, styles.confettiDashBottomLeft]} />
-                    <View style={[styles.confettiDash, styles.confettiDashTopRight1]} />
-                    <View style={[styles.confettiDash, styles.confettiDashTopRight2]} />
-                    <View style={[styles.confettiDash, styles.confettiDashBottomRight]} />
-
-                    <View style={styles.successIconCircle}>
-                      <Ionicons name="checkmark" size={24} color="#ffffff" />
-                    </View>
-                  </View>
-
-                  {/* Booking Reference Pill */}
-                  <View style={styles.refContainer}>
-                    <Text style={styles.refPillLabel}>Booking Reference</Text>
-                    <View style={styles.refPill}>
-                      <Text style={styles.refPillValue}>{confirmedBooking.humanReadableRef}</Text>
-                    </View>
-                  </View>
-
-                  {/* 4-Digit Pickup OTP Card (Matching Reference Layout) */}
-                  {confirmedBooking.pickupOtp && (
-                    <View style={styles.pickupOtpBox}>
-                      <View style={styles.otpHeaderRow}>
-                        <View style={styles.otpKeyBadge}>
-                          <Ionicons name="key" size={13} color="#ea580c" />
-                        </View>
-                        <Text style={styles.otpHeaderTitle}>Your 4-Digit Pickup OTP</Text>
-                      </View>
-
-                      <View style={styles.otpBoxesRow}>
-                        {String(confirmedBooking.pickupOtp)
-                          .replace(/\D/g, '')
-                          .padEnd(4, '0')
-                          .slice(0, 4)
-                          .split('')
-                          .map((digit, idx) => (
-                            <View key={idx} style={styles.otpDigitCard}>
-                              <Text style={styles.otpDigitValue}>{digit}</Text>
-                            </View>
-                          ))}
-                      </View>
-
-                      <Text style={styles.otpInstructions}>
-                        Please share this code with your driver partner only when they arrive at pickup.
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Trip Details Summary */}
-                  <View style={styles.confirmedDetailsBox}>
-                    <View style={styles.confirmedRow}>
-                      <Text style={styles.confirmedLabel}>Vehicle:</Text>
-                      <Text style={styles.confirmedValue}>{vehicleInfo.name}</Text>
-                    </View>
-                    <View style={styles.confirmedRow}>
-                      <Text style={styles.confirmedLabel}>Route:</Text>
-                      <Text style={styles.confirmedValue} numberOfLines={1}>
-                        {pickup} ➔ {drop}
-                      </Text>
-                    </View>
-                    <View style={styles.confirmedRow}>
-                      <Text style={styles.confirmedLabel}>Scheduled Date:</Text>
-                      <Text style={styles.confirmedValue}>{pickupDate} at {pickupTime}</Text>
-                    </View>
-                    <View style={styles.confirmedRow}>
-                      <Text style={styles.confirmedLabel}>Passenger:</Text>
-                      <Text style={styles.confirmedValue} numberOfLines={1}>
-                        {passengerName ? `${passengerName} (${passengerPhone.replace(/^\+91\s*/, '').replace(/^\+91/, '').trim() ? `+91 ${passengerPhone.replace(/^\+91\s*/, '').replace(/^\+91/, '').trim()}` : ''})` : passengerPhone}
-                      </Text>
-                    </View>
-                    <View style={styles.confirmedDivider} />
-                    <View style={styles.confirmedRow}>
-                      <Text style={styles.confirmedLabel}>Advance Status:</Text>
-                      <Text style={[styles.confirmedValue, { color: '#16a34a', fontWeight: '800' }]}>
-                        {confirmedBooking.advanceAmount > 0
-                          ? `₹${confirmedBooking.advanceAmount} (PAID)`
-                          : 'Pay at Drop'}
-                      </Text>
-                    </View>
-                    <View style={styles.confirmedRow}>
-                      <Text style={styles.confirmedLabel}>Balance Due on Trip:</Text>
-                      <Text style={[styles.confirmedValue, { fontWeight: '800', color: '#103A75' }]}>
-                        ₹{confirmedBooking.balanceAmount}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Dispatch Status Notice */}
-                  <View style={styles.dispatchNoticeBox}>
-                    <View style={styles.dispatchIconCircle}>
-                      <Ionicons name="navigate" size={13} color="#ea580c" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.dispatchNoticeTitle}>Driver Partner Assignment</Text>
-                      <Text style={styles.dispatchNoticeDesc}>
-                        Our dispatch system has notified nearby verified drivers. Driver details & vehicle plate number will appear in your rides dashboard.
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* 2. Pinned Bottom Action Group */}
-                <View style={{ width: '100%', marginTop: 'auto', paddingTop: 2 }}>
+                  {/* Primary Action Button: "Write in Special Notes" */}
                   <TouchableOpacity
-                    style={styles.viewMyRidesBtn}
-                    onPress={() => router.replace('/my-bookings')}
+                    style={styles.luggageModalPrimaryBtn}
+                    onPress={handleGoToSpecialNotes}
+                    activeOpacity={0.85}
                   >
-                    <Ionicons name="car-sport" size={16} color="#ffffff" style={{ marginRight: 6 }} />
-                    <Text style={styles.viewMyRidesBtnText}>Track Ride in My Bookings</Text>
-                    <Ionicons name="arrow-forward" size={15} color="#ffffff" style={{ marginLeft: 6 }} />
+                    <Ionicons name="create-outline" size={18} color="#ffffff" />
+                    <Text style={styles.luggageModalPrimaryBtnText}>
+                      {t('additionalRequirements.writeSpecialNotesBtn', { defaultValue: 'Write in Special Notes' })}
+                    </Text>
                   </TouchableOpacity>
 
+                  {/* Secondary Dismiss Button */}
                   <TouchableOpacity
-                    style={styles.backHomeBtn}
-                    onPress={() => router.replace('/')}
+                    style={styles.luggageModalSecondaryBtn}
+                    onPress={() => setShowLuggageAlertModal(false)}
+                    activeOpacity={0.7}
                   >
-                    <Text style={styles.backHomeBtnText}>Back to Home</Text>
+                    <Text style={styles.luggageModalSecondaryBtnText}>
+                      {t('common.cancel', { defaultValue: 'Cancel' })}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
-            </View>
-          )}
-
-          {step !== 3 && <View style={{ height: 36 }} />}
-        </ScrollView>
-      </KeyboardAvoidingView>
-
-      <AuthModal
-        visible={authModalVisible}
-        onClose={() => setAuthModalVisible(false)}
-        onSuccess={(loggedInUser) => {
-          setUser(loggedInUser);
-          setPassengerName(loggedInUser.fullName || passengerName || 'Customer');
-          const cleanP = loggedInUser.phone ? loggedInUser.phone.replace(/\D/g, '').slice(-10) : '';
-          setPassengerPhone(cleanP ? `+91 ${cleanP.slice(0, 5)} ${cleanP.slice(5)}` : passengerPhone);
-          setPassengerEmail(loggedInUser.email || passengerEmail);
-          setSameAsAccount(true);
-          setStep(2);
-        }}
-      />
-
-      {/* Luggage Selection Modal */}
-      <Modal
-        visible={showLuggageModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowLuggageModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowLuggageModal(false)}
-        >
-          <View style={styles.luggageModalContent}>
-            <View style={styles.modalHeader}>
-              <Ionicons name="briefcase" size={20} color="#ea580c" />
-              <Text style={styles.modalTitle}>Luggage Details</Text>
-            </View>
-            <Text style={styles.modalSub}>Select estimated luggage for your trip</Text>
-
-            {['No Luggage', 'Normal Luggage', 'Hand Bags Only', 'Heavy Luggage'].map((opt) => (
-              <TouchableOpacity
-                key={opt}
-                style={[
-                  styles.luggageOptionItem,
-                  selectedLuggageSummary.includes(opt) && styles.luggageOptionSelected,
-                ]}
-                onPress={() => {
-                  if (opt === 'No Luggage') handleSelectNoLuggage();
-                  else if (opt === 'Normal Luggage') handleIncrementLuggage('normal');
-                  else if (opt === 'Hand Bags Only') handleIncrementLuggage('handBags');
-                  else handleIncrementLuggage('heavy');
-                  setShowLuggageModal(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.luggageOptionText,
-                    selectedLuggageSummary.includes(opt) && styles.luggageOptionTextSelected,
-                  ]}
-                >
-                  {opt}
-                </Text>
-                {selectedLuggageSummary.includes(opt) && (
-                  <Ionicons name="checkmark-circle" size={18} color="#ea580c" />
-                )}
-              </TouchableOpacity>
-            ))}
-
-            <TouchableOpacity
-              style={styles.modalCancelBtn}
-              onPress={() => setShowLuggageModal(false)}
-            >
-              <Text style={styles.modalCancelBtnText}>Close</Text>
-            </TouchableOpacity>
+            )}
           </View>
-        </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -2695,12 +4265,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   headerSubtitle: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     marginTop: 1,
   },
   stepperContainer: {
@@ -2727,13 +4297,13 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   stepCircleActive: {
-    backgroundColor: '#ea580c',
-    borderColor: '#ea580c',
+    backgroundColor: 'rgb(240, 117, 15)',
+    borderColor: 'rgb(240, 117, 15)',
   },
   stepCircleCurrent: {
-    backgroundColor: '#ea580c',
+    backgroundColor: 'rgb(240, 117, 15)',
     borderColor: '#fed7aa',
-    shadowColor: '#ea580c',
+    shadowColor: 'rgb(240, 117, 15)',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -2749,7 +4319,7 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   stepLabelCurrent: {
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     fontWeight: '800',
   },
   stepLine: {
@@ -2760,18 +4330,18 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   stepLineActive: {
-    backgroundColor: '#ea580c',
+    backgroundColor: 'rgb(240, 117, 15)',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 24,
+    paddingTop: 10,
+    paddingBottom: 16,
   },
   stepSection: {
-    gap: 10,
+    gap: 12,
   },
   authNoticeCard: {
     backgroundColor: '#ffffff',
@@ -2779,7 +4349,7 @@ const styles = StyleSheet.create({
     padding: 18,
     borderWidth: 1.5,
     borderColor: '#fed7aa',
-    shadowColor: '#ea580c',
+    shadowColor: 'rgb(240, 117, 15)',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -2794,7 +4364,7 @@ const styles = StyleSheet.create({
   authNoticeTitle: {
     fontSize: 15,
     fontWeight: '900',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   authNoticeSub: {
     fontSize: 12,
@@ -2847,10 +4417,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   authActionBtn: {
-    backgroundColor: '#ea580c',
+    backgroundColor: 'rgb(240, 117, 15)',
     paddingVertical: 13,
     borderRadius: 14,
     alignItems: 'center',
@@ -2864,13 +4434,13 @@ const styles = StyleSheet.create({
   },
   otpInput: {
     borderWidth: 1.5,
-    borderColor: '#ea580c',
+    borderColor: 'rgb(240, 117, 15)',
     borderRadius: 14,
     backgroundColor: '#fff7ed',
     paddingVertical: 12,
     fontSize: 22,
     fontWeight: '900',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     textAlign: 'center',
     letterSpacing: 10,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
@@ -2897,7 +4467,7 @@ const styles = StyleSheet.create({
   },
   changePhoneText: {
     fontSize: 12,
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     fontWeight: '700',
   },
   verifiedUserCard: {
@@ -2918,7 +4488,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#ea580c',
+    backgroundColor: 'rgb(240, 117, 15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -2936,7 +4506,7 @@ const styles = StyleSheet.create({
   verifiedName: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   greenBadge: {
     backgroundColor: '#dcfce7',
@@ -2966,16 +4536,16 @@ const styles = StyleSheet.create({
   switchAccountText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
   },
   topSummaryCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 0,
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -2987,57 +4557,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   topSummaryVehicleImage: {
-    width: 80,
-    height: 50,
+    width: 96,
+    height: 60,
   },
   topSummaryVehicleDetails: {
     flex: 1,
     paddingHorizontal: 8,
   },
   topSummaryVehicleName: {
-    fontSize: 14.5,
+    fontSize: 16,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
+    letterSpacing: -0.2,
   },
   topSummaryVehicleModels: {
-    fontSize: 10.5,
+    fontSize: 11,
     color: '#64748b',
     marginTop: 1,
   },
   topSummarySpecsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 3,
+    gap: 4.5,
+    marginTop: 3.5,
   },
   topSummarySpecItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2.5,
+    gap: 3,
   },
   topSummarySpecText: {
-    fontSize: 10,
+    fontSize: 11.5,
     color: '#475569',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   topSummarySpecPipe: {
-    fontSize: 9.5,
+    fontSize: 11,
     color: '#cbd5e1',
     marginHorizontal: 1,
   },
   topSummaryChangeVehicleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 3,
+    marginTop: 4,
   },
   topSummaryChangeVehicleText: {
-    fontSize: 10.5,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: '#2563eb',
   },
   topSummaryVerticalLine: {
     width: 1,
-    height: 50,
+    height: 54,
     backgroundColor: '#f1f5f9',
     marginHorizontal: 6,
   },
@@ -3046,17 +4617,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   topSummaryPrice: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '900',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
+    letterSpacing: -0.3,
   },
   topSummaryGst: {
-    fontSize: 9,
+    fontSize: 10,
     color: '#64748b',
-    marginTop: 0.5,
+    marginTop: 1,
+    fontWeight: '500',
   },
   topSummaryLimit: {
-    fontSize: 9.5,
+    fontSize: 10,
     fontWeight: '600',
     color: '#334155',
     marginTop: 1.5,
@@ -3066,60 +4639,64 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
     marginVertical: 8,
   },
-  topSummaryRouteScrollContent: {
+  topSummaryLocationsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    minWidth: '100%',
     justifyContent: 'space-between',
-    paddingVertical: 1,
-  },
-  topSummaryLocationsGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexShrink: 1,
+    width: '100%',
   },
   topSummaryLocationItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexShrink: 1,
+    flex: 1,
   },
   topSummaryLocationName: {
-    fontSize: 10.5,
+    fontSize: 12.5,
     fontWeight: '800',
-    color: '#103A75',
-    maxWidth: 68,
+    color: 'rgb(22, 34, 50)',
   },
   topSummaryLocationSub: {
-    fontSize: 8,
+    fontSize: 9.5,
     color: '#64748b',
-    marginTop: 0.5,
-    fontWeight: '500',
+    marginTop: 1,
+    fontWeight: '600',
   },
   topSummaryArrowContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 2,
+    marginHorizontal: 8,
   },
   topSummaryArrowLine: {
-    fontSize: 8,
+    fontSize: 9,
     color: '#94a3b8',
     letterSpacing: -1,
   },
-  topSummaryRouteDivider: {
-    width: 1,
-    height: 18,
-    backgroundColor: '#e2e8f0',
-    marginHorizontal: 4,
+  topSummaryInnerDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 8,
   },
-  topSummaryDateTimeItem: {
+  topSummaryScheduleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexShrink: 0,
+    justifyContent: 'flex-start',
+    width: '100%',
+  },
+  topSummaryScheduleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  topSummaryRouteDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#e2e8f0',
+    marginHorizontal: 10,
   },
   topSummaryDateTimeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -3131,7 +4708,7 @@ const styles = StyleSheet.create({
   sectionHeaderTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   sectionHeaderSub: {
     fontSize: 12,
@@ -3140,11 +4717,12 @@ const styles = StyleSheet.create({
   },
   leadPassengerCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 10,
-    paddingVertical: 11,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    marginBottom: 0,
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
@@ -3155,17 +4733,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 9,
+    marginBottom: 10,
   },
   leadPassengerLeftTitle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
+    paddingLeft: 4,
   },
   leadPassengerTitle: {
-    fontSize: 13.5,
+    fontSize: 15,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   leadPassengerSub: {
     fontSize: 11,
@@ -3189,8 +4768,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxBoxActive: {
-    backgroundColor: '#ea580c',
-    borderColor: '#ea580c',
+    backgroundColor: 'rgb(240, 117, 15)',
+    borderColor: 'rgb(240, 117, 15)',
   },
   sameAccountText: {
     fontSize: 11,
@@ -3210,29 +4789,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    minHeight: 46,
+    borderRadius: 11,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    minHeight: 50,
   },
   inputCardIcon: {
-    marginRight: 7,
+    marginRight: 8,
   },
   inputCardTextCol: {
     flex: 1,
     justifyContent: 'center',
   },
   inputCardLabel: {
-    fontSize: 9.5,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#64748b',
-    marginBottom: 0,
-    lineHeight: 12,
+    marginBottom: 2,
+    lineHeight: 13,
   },
   inputCardField: {
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     padding: 0,
     paddingVertical: 0,
     margin: 0,
@@ -3266,7 +4845,7 @@ const styles = StyleSheet.create({
   subCardTitle: {
     fontSize: 12.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   subCardOptional: {
     fontSize: 11,
@@ -3288,7 +4867,7 @@ const styles = StyleSheet.create({
   luggageDropdownText: {
     fontSize: 12.5,
     fontWeight: '600',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   specialRequestsInput: {
     backgroundColor: '#ffffff',
@@ -3300,41 +4879,50 @@ const styles = StyleSheet.create({
     minHeight: 42,
     maxHeight: 60,
     fontSize: 11,
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     textAlignVertical: 'top',
+  },
+  stickyBottomBar: {
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 8,
   },
   infoNoticeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#eff6ff',
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#dbeafe',
-    paddingVertical: 9,
-    paddingHorizontal: 11,
-    marginTop: 4,
-    marginBottom: 10,
+    paddingVertical: 5.5,
+    paddingHorizontal: 9,
+    marginBottom: 5,
   },
   infoNoticeIcon: {
-    marginRight: 8,
+    marginRight: 6,
   },
   infoNoticeText: {
     flex: 1,
     fontSize: 10.5,
-    lineHeight: 15,
+    lineHeight: 14,
     color: '#1e40af',
     fontWeight: '500',
   },
   continueToReviewBtn: {
-    backgroundColor: '#EE5C21',
+    backgroundColor: '#16a34a',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 10,
-    paddingVertical: 13,
-    marginTop: 6,
-    marginBottom: 12,
-    shadowColor: '#EE5C21',
+    borderRadius: 12,
+    paddingVertical: 12,
+    shadowColor: '#16a34a',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -3342,7 +4930,7 @@ const styles = StyleSheet.create({
   },
   continueToReviewText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
   },
   modalOverlay: {
@@ -3373,7 +4961,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   modalSub: {
     fontSize: 12,
@@ -3392,7 +4980,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   luggageOptionSelected: {
-    borderColor: '#ea580c',
+    borderColor: 'rgb(240, 117, 15)',
     backgroundColor: '#fff7ed',
   },
   luggageOptionText: {
@@ -3401,7 +4989,7 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   luggageOptionTextSelected: {
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     fontWeight: '700',
   },
   modalCancelBtn: {
@@ -3418,10 +5006,10 @@ const styles = StyleSheet.create({
   passengerSummaryCard: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 10,
+    padding: 8,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    marginTop: 8,
+    marginTop: 0,
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
@@ -3439,23 +5027,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   passengerIconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#ffedd5',
     alignItems: 'center',
     justifyContent: 'center',
   },
   passengerSummaryTitle: {
-    fontSize: 12.5,
+    fontSize: 14.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   passengerSummarySub: {
-    fontSize: 9.5,
+    fontSize: 11,
     fontWeight: '600',
     color: '#64748b',
-    marginTop: 0.5,
+    marginTop: 1,
   },
   editPassengerBtn: {
     flexDirection: 'row',
@@ -3463,15 +5047,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff7ed',
     borderWidth: 1,
     borderColor: '#fed7aa',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    gap: 3,
+    borderRadius: 7,
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    gap: 4,
   },
   editPassengerBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
   },
   passengerGridContainer: {
     gap: 6,
@@ -3483,33 +5067,33 @@ const styles = StyleSheet.create({
   passengerGridBox: {
     flex: 1,
     backgroundColor: '#f8fafc',
-    borderRadius: 8,
+    borderRadius: 9,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
   },
   passengerBoxLabel: {
-    fontSize: 9,
+    fontSize: 10.5,
     fontWeight: '700',
     color: '#64748b',
     letterSpacing: 0.3,
   },
   passengerBoxVal: {
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: '700',
-    color: '#103A75',
-    marginTop: 2,
+    color: 'rgb(22, 34, 50)',
+    marginTop: 3,
   },
 
   // Middle Two-Column Section
   twoColContainer: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 8,
+    marginTop: 0,
   },
   fareBreakdownCol: {
-    flex: 1.15,
+    flex: 1.05,
     backgroundColor: '#ffffff',
     borderRadius: 12,
     borderWidth: 1,
@@ -3522,7 +5106,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   includesExcludesCol: {
-    flex: 0.85,
+    flex: 0.95,
     backgroundColor: '#ffffff',
     borderRadius: 12,
     borderWidth: 1,
@@ -3540,9 +5124,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   colHeaderTitle: {
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   fareLineItem: {
     flexDirection: 'row',
@@ -3551,25 +5135,25 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   fareLineLabel: {
-    fontSize: 10.5,
+    fontSize: 11.5,
     color: '#64748b',
     fontWeight: '500',
     flex: 1,
   },
   fareLineVal: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   fareLineLabelBold: {
-    fontSize: 11,
-    color: '#103A75',
+    fontSize: 12.5,
+    color: 'rgb(22, 34, 50)',
     fontWeight: '800',
   },
   fareLineValBold: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   twoColDivider: {
     height: 1,
@@ -3589,60 +5173,60 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   totalPayableLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     color: '#9a3412',
   },
   totalPayableAmount: {
-    fontSize: 13.5,
+    fontSize: 15,
     fontWeight: '900',
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
   },
   partPaymentPill: {
-    backgroundColor: '#fff7ed',
-    borderRadius: 8,
-    borderWidth: 1.2,
-    borderColor: '#fed7aa',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    marginTop: 5,
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    marginTop: 6,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  badgeDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginTop: 6,
+    marginBottom: 4,
+  },
   petBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    backgroundColor: '#fff7ed',
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: '#fed7aa',
+    gap: 7,
+    paddingHorizontal: 2,
+    paddingVertical: 3,
   },
   petBadgeText: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
+    flex: 1,
+    lineHeight: 16,
   },
   flightBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    backgroundColor: '#f0f9ff',
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: '#bae6fd',
+    gap: 7,
+    paddingHorizontal: 2,
+    paddingVertical: 3,
   },
   flightBadgeText: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '700',
     color: '#0284c7',
+    flex: 1,
+    lineHeight: 16,
   },
   optionalAddonsRow: {
     flexDirection: 'row',
@@ -3653,22 +5237,22 @@ const styles = StyleSheet.create({
   addonPillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4.5,
-    backgroundColor: '#eff6ff',
+    gap: 4,
+    backgroundColor: '#f1f5f9',
     borderWidth: 1,
-    borderColor: '#2563eb',
+    borderColor: '#e2e8f0',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5.5,
   },
   addonPillBtnActive: {
-    backgroundColor: '#dbeafe',
-    borderColor: '#1d4ed8',
+    backgroundColor: '#e2e8f0',
+    borderColor: '#cbd5e1',
   },
   addonPillText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#2563eb',
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgb(22, 34, 50)',
   },
   addonExpandRow: {
     flexDirection: 'row',
@@ -3690,70 +5274,131 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 12.5,
     fontWeight: '600',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   altEmailBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    backgroundColor: '#eff6ff',
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
+    gap: 7,
+    paddingHorizontal: 2,
+    paddingVertical: 3,
   },
   altEmailBadgeText: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '700',
     color: '#2563eb',
+    flex: 1,
+    lineHeight: 16,
   },
   gstBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    backgroundColor: '#eef2ff',
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: '#c7d2fe',
+    gap: 7,
+    paddingHorizontal: 2,
+    paddingVertical: 3,
   },
   gstBadgeText: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '700',
     color: '#4338ca',
+    flex: 1,
+    lineHeight: 16,
   },
   partPaymentPillTitle: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontWeight: '800',
-    color: '#c2410c',
+    color: 'rgb(22, 34, 50)',
   },
   partPaymentPillSub: {
-    fontSize: 8,
-    fontWeight: '600',
-    color: '#9a3412',
-    marginTop: 1,
+    fontSize: 9.5,
+    fontWeight: '500',
+    color: '#64748b',
+    marginTop: 1.5,
   },
   partPaymentPillAmount: {
-    fontSize: 13,
+    fontSize: 15.5,
     fontWeight: '900',
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
   },
   advancePaymentBadge: {
     backgroundColor: '#e6f9f0',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#bbf7d0',
   },
   advancePaymentBadgeText: {
-    fontSize: 9.5,
+    fontSize: 11,
     fontWeight: '800',
     color: '#166534',
+  },
+  paymentChoiceRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  paymentChoiceCard: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  paymentChoiceCardActive: {
+    backgroundColor: '#fff7ed',
+    borderColor: 'rgb(240, 117, 15)',
+  },
+  paymentChoiceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 3,
+  },
+  paymentRadio: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: '#94a3b8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 5,
+  },
+  paymentRadioActive: {
+    borderColor: 'rgb(240, 117, 15)',
+  },
+  paymentRadioInner: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: 'rgb(240, 117, 15)',
+  },
+  paymentChoiceLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  paymentChoiceLabelActive: {
+    color: 'rgb(22, 34, 50)',
+    fontWeight: '800',
+  },
+  paymentChoiceAmount: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: 'rgb(22, 34, 50)',
+    marginBottom: 1,
+  },
+  paymentChoiceAmountActive: {
+    color: 'rgb(240, 117, 15)',
+  },
+  paymentChoiceSubtext: {
+    fontSize: 9.5,
+    fontWeight: '500',
+    color: '#64748b',
+    lineHeight: 12,
   },
 
   // Includes & Excludes
@@ -3763,33 +5408,38 @@ const styles = StyleSheet.create({
   incHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 6,
   },
   incHeaderTitle: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '800',
     color: '#16a34a',
   },
   excHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 6,
   },
   excHeaderTitle: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '800',
     color: '#dc2626',
   },
   bulletItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
+    alignItems: 'flex-start',
+    marginBottom: 5,
+  },
+  bulletIcon: {
+    marginRight: 5,
+    marginTop: 2,
   },
   bulletText: {
-    fontSize: 9.5,
+    fontSize: 11.5,
     color: '#334155',
     fontWeight: '600',
     flex: 1,
+    lineHeight: 16,
   },
 
   // Payment Selection Card
@@ -3814,47 +5464,47 @@ const styles = StyleSheet.create({
   paymentGridItem: {
     flex: 1,
     backgroundColor: '#f8fafc',
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 5,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   paymentGridItemActive: {
     backgroundColor: '#fff7ed',
-    borderColor: '#ea580c',
+    borderColor: 'rgb(240, 117, 15)',
     borderWidth: 1.5,
   },
   selectedBadge: {
     position: 'absolute',
-    top: 3,
-    right: 3,
-    width: 13,
-    height: 13,
-    borderRadius: 6.5,
-    backgroundColor: '#ea580c',
+    top: 4,
+    right: 4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgb(240, 117, 15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   paymentItemTitle: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
     color: '#334155',
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 5,
   },
   paymentItemTitleActive: {
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     fontWeight: '800',
   },
   paymentItemSub: {
-    fontSize: 8,
+    fontSize: 10,
     color: '#64748b',
     textAlign: 'center',
-    marginTop: 1,
+    marginTop: 1.5,
   },
   paymentItemSubActive: {
     color: '#9a3412',
@@ -3881,27 +5531,28 @@ const styles = StyleSheet.create({
   termsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 0,
     paddingHorizontal: 2,
   },
   checkboxSquare: {
-    width: 16,
-    height: 16,
+    width: 18,
+    height: 18,
     borderRadius: 4,
     borderWidth: 1.5,
     borderColor: '#cbd5e1',
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 6,
+    marginRight: 8,
   },
   checkboxSquareActive: {
-    borderColor: '#ea580c',
-    backgroundColor: '#ea580c',
+    borderColor: 'rgb(240, 117, 15)',
+    backgroundColor: 'rgb(240, 117, 15)',
   },
   termsText: {
     flex: 1,
-    fontSize: 10,
+    fontSize: 12.5,
+    lineHeight: 18,
     color: '#475569',
     fontWeight: '500',
   },
@@ -3911,38 +5562,183 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 12,
-    marginBottom: 24,
+    paddingTop: 2,
+    paddingBottom: 2,
   },
-  reviewBackBtn: {
-    width: 76,
+  reviewTermsContainer: {
+    marginTop: 2,
+    marginBottom: 0,
+    paddingHorizontal: 2,
+  },
+  trustBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+    paddingLeft: 2,
+  },
+  trustBadgeText: {
+    fontSize: 12,
+    color: '#2563eb',
+    fontWeight: '600',
+  },
+  stickyBottomWrapper: {
     backgroundColor: '#ffffff',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  stickyTopStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#e6f7f2',
+    paddingVertical: 6.5,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#cbf1e5',
+  },
+  stickyTopStripText: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#065f46',
+    marginRight: 6,
+  },
+  stickyFareBreakupBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  stickyFareBreakupText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0284c7',
+  },
+  stickyBottomBarMmt: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 10,
+    paddingTop: 8,
+  },
+  stickyActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  stickyOptionBtn: {
+    flex: 1,
+    height: 48,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    shadowColor: 'rgb(22, 34, 50)',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  stickyOptionBtnActive: {
+    backgroundColor: '#f1f5f9',
+    borderColor: '#142232',
+    borderWidth: 1.5,
+    shadowColor: '#142232',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.16,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  stickyOptionLabel: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#64748b',
+    marginBottom: 1,
+  },
+  stickyOptionLabelActive: {
+    color: '#142232',
+    fontWeight: '800',
+  },
+  stickyOptionAmount: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: 'rgba(22, 34, 50, 0.65)',
+  },
+  stickyOptionAmountActive: {
+    fontSize: 13.5,
+    fontWeight: '900',
+    color: 'rgb(22, 34, 50)',
+  },
+  stickyPayNowBtn: {
+    flex: 1.3,
+    height: 48,
+    backgroundColor: '#16a34a',
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  stickyPayNowBtnDisabled: {
+    backgroundColor: '#94a3b8',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  stickyPayNowInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stickyPayNowTitle: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  stickyPayNowAmount: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+    marginTop: 1,
+  },
+  reviewBackBtn: {
+    width: 80,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
     alignSelf: 'stretch',
+    minHeight: 48,
   },
   reviewBackBtnText: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '700',
     color: '#334155',
   },
   reviewConfirmPayBtn: {
     flex: 1,
-    backgroundColor: '#EE5C21',
-    borderRadius: 8,
+    backgroundColor: 'rgb(240, 117, 15)',
+    borderRadius: 10,
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#EE5C21',
+    shadowColor: 'rgb(240, 117, 15)',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 3,
+    minHeight: 48,
   },
   reviewConfirmPayInner: {
     flexDirection: 'row',
@@ -3951,18 +5747,18 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   reviewConfirmPayText: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontWeight: '800',
     color: '#ffffff',
   },
   reviewConfirmPaySubtext: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '600',
     color: '#ffedd5',
     marginTop: 1,
   },
   reviewConfirmPayPrice: {
-    fontSize: 13.5,
+    fontSize: 14.5,
     fontWeight: '900',
     color: '#ffffff',
   },
@@ -3979,7 +5775,7 @@ const styles = StyleSheet.create({
   topSummaryAdvanceText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
   },
   successCard: {
     backgroundColor: '#ffffff',
@@ -4031,7 +5827,7 @@ const styles = StyleSheet.create({
   confettiDashTopRight1: {
     top: 4,
     right: 14,
-    backgroundColor: '#ea580c',
+    backgroundColor: 'rgb(240, 117, 15)',
     transform: [{ rotate: '35deg' }],
   },
   confettiDashTopRight2: {
@@ -4094,33 +5890,26 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   pickupOtpBox: {
-    backgroundColor: '#fffdf5',
-    borderRadius: 14,
-    borderWidth: 1.2,
-    borderColor: '#fef08a',
     paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingVertical: 6,
     width: '100%',
     marginBottom: 9,
   },
   otpHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    marginBottom: 7,
+    marginBottom: 8,
   },
   otpKeyBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#fed7aa',
     alignItems: 'center',
     justifyContent: 'center',
   },
   otpHeaderTitle: {
     fontSize: 12.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   otpBoxesRow: {
     flexDirection: 'row',
@@ -4186,7 +5975,7 @@ const styles = StyleSheet.create({
   confirmedValue: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     flex: 1,
     textAlign: 'right',
   },
@@ -4198,44 +5987,40 @@ const styles = StyleSheet.create({
   dispatchNoticeBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fffaf5',
-    borderWidth: 1.2,
-    borderColor: '#fed7aa',
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 12,
     width: '100%',
     marginBottom: 10,
     gap: 10,
   },
   dispatchIconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#ffedd5',
     alignItems: 'center',
     justifyContent: 'center',
   },
   dispatchNoticeTitle: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '800',
-    color: '#9a3412',
+    color: 'rgb(22, 34, 50)',
   },
   dispatchNoticeDesc: {
-    fontSize: 9.5,
-    color: '#92400e',
-    marginTop: 1.5,
-    lineHeight: 13,
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 2,
+    lineHeight: 14,
   },
   viewMyRidesBtn: {
-    backgroundColor: '#EE5C21',
+    backgroundColor: 'rgb(240, 117, 15)',
     paddingVertical: 11,
     borderRadius: 12,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    shadowColor: '#EE5C21',
+    shadowColor: 'rgb(240, 117, 15)',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
@@ -4273,7 +6058,7 @@ const styles = StyleSheet.create({
   cardSectionTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   cardSectionSubtitle: {
     fontSize: 11,
@@ -4327,14 +6112,319 @@ const styles = StyleSheet.create({
   stepperValueText: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(240, 117, 15)',
   },
   luggageSection: {},
+  luggageTopRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  luggageBigIconBox: {
+    width: 48,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  luggageBigIcon: {
+    width: 44,
+    height: 48,
+    resizeMode: 'contain',
+    tintColor: 'rgb(22, 34, 50)',
+  },
+  luggageRightCol: {
+    flex: 1,
+  },
+  luggageHeaderRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
   sectionHeaderRowCompact: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     marginBottom: 10,
+  },
+  luggageDropdownBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    minHeight: 44,
+  },
+  luggageDropdownBarActive: {
+    borderColor: 'rgb(240, 117, 15)',
+  },
+  luggageDropdownBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  luggageDropdownBarIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  luggageDropdownBarCustomIcon: {
+    width: 17,
+    height: 17,
+    resizeMode: 'contain',
+    tintColor: 'rgb(240, 117, 15)',
+  },
+  luggageDropdownBarMainText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: 'rgb(22, 34, 50)',
+  },
+  luggageDropdownBarSubText: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  luggageDropdownListCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginTop: 6,
+    marginBottom: 4,
+    paddingVertical: 3,
+    paddingHorizontal: 4,
+    gap: 0,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  luggageDropdownItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    gap: 10,
+  },
+  luggageDropdownImageTouchable: {
+    width: 60,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  luggageVectorBadge: {
+    width: 60,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  luggageVectorBadgeSelected: {
+    backgroundColor: 'transparent',
+  },
+  luggageBadgeIcon: {
+    width: 56,
+    height: 56,
+  },
+  luggageDropdownDetailsCol: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  luggageDropdownActionRow: {
+    marginTop: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+  },
+  luggageDropdownItemInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  dropdownStepperGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'transparent',
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    width: '100%',
+  },
+  closeLuggageDropdownBtn: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  closeLuggageDropdownBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgb(22, 34, 50)',
+  },
+  selectedLuggageItemsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    paddingVertical: 6,
+    width: '100%',
+  },
+  selectedLuggageItemCol: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+    paddingVertical: 2,
+  },
+  selectedLuggageDivider: {
+    width: 1,
+    height: 46,
+    backgroundColor: '#e2e8f0',
+  },
+  selectedLuggageSquareIcon: {
+    width: 42,
+    height: 42,
+    resizeMode: 'contain',
+  },
+  selectedLuggageSquareLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#334155',
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  selectedLuggageSquareCount: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 1,
+    textAlign: 'center',
+  },
+  selectedLuggageSquareCountNum: {
+    fontWeight: '800',
+    color: 'rgb(240, 117, 15)',
+  },
+  selectedLuggageContainer: {
+    marginTop: 10,
+    gap: 8,
+  },
+  selectedLuggageCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgb(240, 117, 15)',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  selectedLuggageIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedLuggageTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: 'rgb(22, 34, 50)',
+  },
+  selectedLuggageDesc: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  luggageDropdownItemRowSelected: {
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+  },
+  luggageDropdownIconBig: {
+    width: 66,
+    height: 66,
+    resizeMode: 'contain',
+  },
+  luggageDropdownItemIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  luggageDropdownItemIconCircleSelected: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+  },
+  luggageDropdownItemTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: 'rgb(22, 34, 50)',
+  },
+  luggageDropdownItemTitleSelected: {
+    color: 'rgb(22, 34, 50)',
+    fontWeight: '700',
+  },
+  luggageDropdownItemDesc: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 1,
+    lineHeight: 13,
+  },
+  luggageQuantityBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  luggageQuantityTextGroup: {
+    flex: 1,
+  },
+  luggageQuantityTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: 'rgb(22, 34, 50)',
+  },
+  luggageQuantitySub: {
+    fontSize: 10.5,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  stepperQuantityUnit: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    color: '#64748b',
   },
   luggageGrid: {
     flexDirection: 'row',
@@ -4353,14 +6443,24 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   luggageGridItemSelected: {
-    backgroundColor: '#fff7ed',
-    borderColor: '#ea580c',
+    borderColor: 'rgb(240, 117, 15)',
   },
   luggageHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
+  },
+  clearLuggageBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: '#f1f5f9',
+  },
+  clearLuggageBtnText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#64748b',
   },
   luggageTotalBadge: {
     backgroundColor: '#eff6ff',
@@ -4380,7 +6480,7 @@ const styles = StyleSheet.create({
     color: '#1d4ed8',
   },
   luggageTotalBadgeTextMax: {
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
   },
   luggageItemTopRow: {
     flexDirection: 'row',
@@ -4403,7 +6503,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 7,
     borderWidth: 1,
-    borderColor: '#fed7aa',
+    borderColor: '#e2e8f0',
     paddingHorizontal: 3,
     paddingVertical: 2,
     width: '100%',
@@ -4412,7 +6512,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 5,
-    backgroundColor: '#fff7ed',
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -4428,7 +6528,7 @@ const styles = StyleSheet.create({
   stepperMiniCountText: {
     fontSize: 12.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(240, 117, 15)',
   },
   stepperMiniCountUnit: {
     fontSize: 9,
@@ -4439,18 +6539,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    backgroundColor: '#ffffff',
+    gap: 4,
+    backgroundColor: '#f1f5f9',
     borderRadius: 7,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingVertical: 4,
+    paddingVertical: 4.5,
+    paddingHorizontal: 16,
     width: '100%',
+  },
+  addLuggageMiniBtnDisabled: {
+    backgroundColor: '#f8fafc',
+    borderColor: '#e2e8f0',
+    opacity: 0.6,
   },
   addLuggageMiniBtnText: {
     fontSize: 10.5,
     fontWeight: '700',
-    color: '#ea580c',
+    color: 'rgb(22, 34, 50)',
   },
   noLuggageActionRow: {
     marginTop: 6,
@@ -4467,7 +6573,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   noLuggageActionTextActive: {
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     fontWeight: '800',
   },
   luggageIconCircle: {
@@ -4481,8 +6587,13 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   luggageIconCircleSelected: {
-    backgroundColor: '#ffedd5',
-    borderColor: '#fed7aa',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+  },
+  luggageCustomIcon: {
+    width: 17,
+    height: 17,
+    resizeMode: 'contain',
   },
   luggageItemTexts: {
     flex: 1,
@@ -4494,8 +6605,8 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   luggageItemTitleSelected: {
-    color: '#ea580c',
-    fontWeight: '800',
+    color: '#334155',
+    fontWeight: '700',
   },
   luggageItemDesc: {
     fontSize: 8.5,
@@ -4504,7 +6615,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   luggageItemDescSelected: {
-    color: '#9a3412',
+    color: '#64748b',
   },
   checkedBadge: {
     position: 'absolute',
@@ -4542,10 +6653,10 @@ const styles = StyleSheet.create({
   carrierTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   carrierTitleActive: {
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
   },
   carrierAddedBadge: {
     backgroundColor: '#dcfce7',
@@ -4578,6 +6689,156 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
+  travelTogglesSection: {
+    marginTop: 4,
+  },
+  travelToggleItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
+  travelToggleItemInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  travelToggleIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  travelToggleTextGroup: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  travelToggleTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: 'rgb(22, 34, 50)',
+    lineHeight: 18,
+  },
+  travelToggleDesc: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  travelToggleDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginLeft: 54,
+  },
+  petSelectedHeaderBadge: {
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  petSelectedHeaderBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: 'rgb(240, 117, 15)',
+  },
+  petSelectorContainer: {
+    backgroundColor: '#fffaf5',
+    borderWidth: 1,
+    borderColor: '#ffedd5',
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 4,
+    marginBottom: 8,
+    marginLeft: 54,
+  },
+  petSelectorHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  petSelectorHeaderLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
+  },
+  petOptionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  petOptionCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+    position: 'relative',
+  },
+  petOptionCardSelected: {
+    borderColor: 'rgb(240, 117, 15)',
+    backgroundColor: '#fff7ed',
+  },
+  petOptionTopRow: {
+    width: '100%',
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  petOptionIconImage: {
+    width: 34,
+    height: 28,
+    resizeMode: 'contain',
+  },
+  petCheckBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -2,
+  },
+  petOptionName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+    marginTop: 4,
+  },
+  petOptionNameSelected: {
+    color: 'rgb(240, 117, 15)',
+    fontWeight: '800',
+  },
+  travelToggleBadge: {
+    backgroundColor: '#fff7ed',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  travelToggleBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgb(240, 117, 15)',
+  },
   preferencesHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -4608,7 +6869,7 @@ const styles = StyleSheet.create({
   },
   quickTagPillSelected: {
     backgroundColor: '#fff7ed',
-    borderColor: '#ea580c',
+    borderColor: 'rgb(240, 117, 15)',
   },
   quickTagText: {
     fontSize: 11,
@@ -4616,7 +6877,7 @@ const styles = StyleSheet.create({
     color: '#474D5E',
   },
   quickTagTextSelected: {
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     fontWeight: '700',
   },
   notesInput: {
@@ -4628,7 +6889,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     minHeight: 52,
     fontSize: 12,
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     fontWeight: '500',
   },
   notesInputContainer: {
@@ -4649,9 +6910,398 @@ const styles = StyleSheet.create({
   notesInputField: {
     flex: 1,
     fontSize: 11.5,
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     fontWeight: '500',
     padding: 0,
     minHeight: 32,
+  },
+
+  // Additional Requirements Trigger Card
+  requirementsTriggerCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    marginBottom: 0,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  requirementsTriggerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  requirementsIconBox: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 9,
+  },
+  requirementsTriggerTextGroup: {
+    flex: 1,
+  },
+  requirementsTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  requirementsTriggerTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
+    letterSpacing: -0.2,
+  },
+  requirementsTriggerSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2.5,
+    lineHeight: 16,
+  },
+  requirementsEditPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 3,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  requirementsEditText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
+  },
+  requirementsSummaryContainer: {
+    width: '100%',
+    marginTop: 12,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    width: '100%',
+    gap: 10,
+  },
+  summaryChipItem: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    gap: 5,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  summaryChipEmptySlot: {
+    flex: 1,
+  },
+  summaryItemDivider: {
+    width: 0,
+    height: 0,
+  },
+  summaryChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgb(240, 117, 15)',
+    textAlign: 'center',
+    marginTop: 2,
+    letterSpacing: -0.2,
+  },
+
+  // Slide-Up Bottom Sheet Modal
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+  },
+  sheetBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  sheetContainer: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '90%',
+    minHeight: '65%',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  sheetHandleBar: {
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#cbd5e1',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  sheetHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  sheetHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
+    letterSpacing: -0.3,
+  },
+  sheetHeaderSub: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  sheetCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  sheetScrollView: {
+    flexGrow: 0,
+  },
+  sheetScrollContent: {
+    paddingTop: 6,
+    paddingBottom: 24,
+    gap: 12,
+  },
+  sheetCardSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 14,
+  },
+  sheetBottomBar: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    backgroundColor: '#ffffff',
+  },
+  sheetApplyBtn: {
+    backgroundColor: 'rgb(240, 117, 15)',
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    shadowColor: 'rgb(240, 117, 15)',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  sheetApplyBtnText: {
+    color: '#ffffff',
+    fontSize: 15.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  sheetAlertOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    zIndex: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  luggageModalCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 360,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 16,
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  luggageModalIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#fff7ed',
+    borderWidth: 1.5,
+    borderColor: '#fed7aa',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  luggageModalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0f172a',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  luggageModalReasonBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#fff7ed',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    gap: 8,
+    marginBottom: 12,
+    width: '100%',
+  },
+  luggageModalReasonText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#c2410c',
+    lineHeight: 16,
+  },
+  luggageModalPrompt: {
+    fontSize: 12.5,
+    color: '#475569',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  luggageModalPrimaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgb(240, 117, 15)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    width: '100%',
+    shadowColor: 'rgb(240, 117, 15)',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  luggageModalPrimaryBtnText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  luggageModalSecondaryBtn: {
+    paddingVertical: 10,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  luggageModalSecondaryBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  notesInputContainerHighlighted: {
+    borderColor: 'rgb(240, 117, 15)',
+    borderWidth: 1.5,
+    backgroundColor: '#fff7ed',
+  },
+  luggageExceededBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7ed',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  luggageExceededBannerTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#c2410c',
+  },
+  luggageExceededBannerText: {
+    fontSize: 10,
+    color: '#9a3412',
+    marginTop: 1,
+    lineHeight: 13,
+  },
+  luggageExceededBannerBtn: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: 'rgb(240, 117, 15)',
+  },
+  fleetApprovalReviewCard: {
+    backgroundColor: '#fffbeb',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#fef3c7',
+    marginBottom: 16,
+  },
+  fleetApprovalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 6,
+  },
+  fleetApprovalIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#ffedd5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fleetApprovalTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#92400e',
+  },
+  fleetApprovalSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#b45309',
+  },
+  fleetApprovalBodyText: {
+    fontSize: 11.5,
+    lineHeight: 17,
+    color: '#78350f',
   },
 });

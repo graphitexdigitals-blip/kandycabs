@@ -66,8 +66,8 @@ export default function DriverEnRouteScreen() {
       }
     });
 
-    // 2.5-second polling sync for instant phone release and customer live location
-    const interval = setInterval(fetchBooking, 2500);
+    // 10-second polling sync for phone release and customer live location
+    const interval = setInterval(fetchBooking, 10000);
     return () => {
       unsubLoc();
       clearInterval(interval);

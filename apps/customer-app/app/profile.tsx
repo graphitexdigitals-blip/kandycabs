@@ -14,26 +14,46 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from 'react-i18next';
 import * as FileSystem from 'expo-file-system';
 import { customerApiClient, customerTokenStorage, formatDisplayPhone } from '../lib/api';
 import { CustomerBottomDock } from '../components/CustomerBottomDock';
 import { AuthModal } from '../components/AuthModal';
 import { CircularImageCropperModal } from '../components/CircularImageCropperModal';
+import { LanguageSelectionModal } from '../components/LanguageSelectionModal';
+import { formatTitleCase } from '../constants/typography';
+
+let ImagePicker: any = null;
+try {
+  ImagePicker = require('expo-image-picker');
+} catch {
+  // Not bundled in native APK
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t, i18n } = useTranslation();
+  const { width } = useWindowDimensions();
+  const isSmallDevice = width < 380;
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
 
   const [user, setUser] = useState<any | null>(customerTokenStorage.getUser());
   const [loading, setLoading] = useState(!customerTokenStorage.getUser());
   const [refreshing, setRefreshing] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isLangModalOpen, setIsLangModalOpen] = useState(false);
+
+  const getCurrentLanguageName = () => {
+    if (i18n.language?.startsWith('kn')) return 'ಕನ್ನಡ (Kannada)';
+    if (i18n.language?.startsWith('hi')) return 'हिन्दी (Hindi)';
+    return 'English';
+  };
 
   // Edit profile state
   const [isEditing, setIsEditing] = useState(false);
@@ -115,6 +135,13 @@ export default function ProfileScreen() {
   };
 
   const handlePickImage = async () => {
+    if (!ImagePicker || !ImagePicker.requestMediaLibraryPermissionsAsync) {
+      Alert.alert(
+        'Photo Upload Unavailable',
+        'Profile photo selection is not enabled in this build.'
+      );
+      return;
+    }
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -259,17 +286,16 @@ export default function ProfileScreen() {
 
   const handleSignOut = () => {
     Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out of your account?',
+      t('profile.signOutConfirmTitle'),
+      t('profile.signOutConfirmMsg'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Sign Out',
+          text: t('profile.signOut'),
           style: 'destructive',
           onPress: () => {
             customerTokenStorage.removeToken();
             setUser(null);
-            Alert.alert('Signed Out', 'You have been signed out.');
             router.replace('/login');
           },
         },
@@ -290,8 +316,8 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { paddingTop: topInset }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
       {/* Screen Header */}
       <View style={styles.header}>
@@ -302,21 +328,25 @@ export default function ProfileScreen() {
         >
           <Ionicons name="chevron-back" size={20} color="#0f172a" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Profile</Text>
+        <Text style={styles.headerTitle}>{t('profile.myProfile')}</Text>
         <View style={styles.headerRightPlaceholder} />
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+          isSmallDevice && { paddingHorizontal: 10 },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#ea580c']} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['rgb(240, 117, 15)']} />
         }
       >
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#ea580c" />
-            <Text style={styles.loadingText}>Loading profile details...</Text>
+            <ActivityIndicator size="small" color="rgb(240, 117, 15)" />
+            <Text style={styles.loadingText}>{t('common.loading')}</Text>
           </View>
         ) : user ? (
           <>
@@ -351,16 +381,10 @@ export default function ProfileScreen() {
               </TouchableOpacity>
 
               <View style={styles.heroDetails}>
-                <View style={styles.heroNameRow}>
-                  <Text style={styles.heroName} numberOfLines={1}>
-                    {user.fullName || 'Valued Customer'}
-                  </Text>
-                  <View style={styles.verifiedBadge}>
-                    <Ionicons name="checkmark-circle" size={12} color="#16a34a" />
-                    <Text style={styles.verifiedText}>Verified</Text>
-                  </View>
-                </View>
-                <Text style={styles.heroPhone}>{formatDisplayPhone(user.phone)}</Text>
+                <Text style={styles.heroName} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
+                  {formatTitleCase(user.fullName) || t('profile.valuedCustomer')}
+                </Text>
+                <Text style={styles.heroPhone} numberOfLines={1} adjustsFontSizeToFit={true}>{formatDisplayPhone(user.phone)}</Text>
               </View>
 
               {!isEditing && (
@@ -369,8 +393,8 @@ export default function ProfileScreen() {
                   onPress={() => setIsEditing(true)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="pencil" size={11} color="#103A75" />
-                  <Text style={styles.editPillText}>Edit</Text>
+                  <Ionicons name="pencil" size={11} color="rgb(22, 34, 50)" />
+                  <Text style={styles.editPillText}>{t('common.edit')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -378,7 +402,7 @@ export default function ProfileScreen() {
             {/* Account Details Section */}
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>ACCOUNT DETAILS</Text>
+                <Text style={styles.sectionTitle}>{t('profile.accountDetails')}</Text>
                 {isEditing && (
                   <TouchableOpacity
                     style={styles.cancelBtn}
@@ -389,7 +413,7 @@ export default function ProfileScreen() {
                     }}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                    <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -398,16 +422,16 @@ export default function ProfileScreen() {
                 <View style={styles.editForm}>
                   {/* Profile Picture Option in Edit Mode */}
                   <View style={styles.editPhotoSection}>
-                    <Text style={styles.inputLabel}>PROFILE PICTURE</Text>
+                    <Text style={styles.inputLabel}>{t('profile.profilePhoto')}</Text>
                     <View style={styles.photoActionRow}>
                       <TouchableOpacity
                         style={styles.changePhotoBtn}
                         onPress={handlePickImage}
                         activeOpacity={0.7}
                       >
-                        <Ionicons name="camera" size={15} color="#103A75" />
+                        <Ionicons name="camera" size={15} color="rgb(22, 34, 50)" />
                         <Text style={styles.changePhotoBtnText}>
-                          {user.profilePhoto ? 'Change Photo' : 'Upload Photo'}
+                          {user.profilePhoto ? t('profile.changePhoto') : t('profile.uploadPhoto')}
                         </Text>
                       </TouchableOpacity>
 
@@ -418,18 +442,18 @@ export default function ProfileScreen() {
                           activeOpacity={0.7}
                         >
                           <Ionicons name="trash-outline" size={14} color="#dc2626" />
-                          <Text style={styles.removePhotoBtnText}>Remove</Text>
+                          <Text style={styles.removePhotoBtnText}>{t('common.remove')}</Text>
                         </TouchableOpacity>
                       )}
                     </View>
                   </View>
 
-                  <Text style={[styles.inputLabel, { marginTop: 10 }]}>FULL NAME</Text>
+                  <Text style={[styles.inputLabel, { marginTop: 10 }]}>{t('profile.fullName')}</Text>
                   <TextInput
                     style={styles.textInput}
                     value={fullName}
                     onChangeText={setFullName}
-                    placeholder="Your Full Name"
+                    placeholder={t('auth.fullNamePlaceholder')}
                     placeholderTextColor="#94a3b8"
                   />
 
@@ -452,7 +476,7 @@ export default function ProfileScreen() {
                     {saving ? (
                       <ActivityIndicator size="small" color="#ffffff" />
                     ) : (
-                      <Text style={styles.saveButtonText}>Save Changes</Text>
+                      <Text style={styles.saveButtonText}>{t('common.saveChanges')}</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -461,11 +485,11 @@ export default function ProfileScreen() {
                   {/* Full Name Row */}
                   <View style={styles.detailRow}>
                     <View style={styles.detailIconBox}>
-                      <Ionicons name="person-outline" size={17} color="#ee5c21" />
+                      <Ionicons name="person-outline" size={21} color="rgb(240, 117, 15)" />
                     </View>
                     <View style={styles.detailContent}>
-                      <Text style={styles.detailLabel}>Full Name</Text>
-                      <Text style={styles.detailValue}>{user.fullName || 'Not provided'}</Text>
+                      <Text style={styles.detailLabel}>{t('profile.fullName')}</Text>
+                      <Text style={styles.detailValue}>{formatTitleCase(user.fullName) || t('profile.notProvided')}</Text>
                     </View>
                   </View>
 
@@ -474,10 +498,10 @@ export default function ProfileScreen() {
                   {/* Mobile Row */}
                   <View style={styles.detailRow}>
                     <View style={styles.detailIconBox}>
-                      <Ionicons name="call-outline" size={17} color="#ee5c21" />
+                      <Ionicons name="call-outline" size={21} color="rgb(240, 117, 15)" />
                     </View>
                     <View style={styles.detailContent}>
-                      <Text style={styles.detailLabel}>Registered Mobile</Text>
+                      <Text style={styles.detailLabel}>{t('profile.registeredMobile')}</Text>
                       <Text style={styles.detailValue}>{formatDisplayPhone(user.phone)}</Text>
                     </View>
                   </View>
@@ -487,11 +511,11 @@ export default function ProfileScreen() {
                   {/* Email Row */}
                   <View style={styles.detailRow}>
                     <View style={styles.detailIconBox}>
-                      <Ionicons name="mail-outline" size={17} color="#ee5c21" />
+                      <Ionicons name="mail-outline" size={21} color="rgb(240, 117, 15)" />
                     </View>
                     <View style={styles.detailContent}>
-                      <Text style={styles.detailLabel}>Email Address</Text>
-                      <Text style={styles.detailValue}>{user.email || 'None added (used for tax receipts)'}</Text>
+                      <Text style={styles.detailLabel}>{t('profile.emailAddress')}</Text>
+                      <Text style={styles.detailValue}>{user.email || t('profile.emailPlaceholder')}</Text>
                     </View>
                   </View>
                 </View>
@@ -500,7 +524,7 @@ export default function ProfileScreen() {
 
             {/* Quick Actions Section */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>QUICK ACTIONS</Text>
+              <Text style={styles.sectionTitle}>{t('profile.quickActions')}</Text>
 
               {/* My Bookings */}
               <TouchableOpacity
@@ -510,14 +534,14 @@ export default function ProfileScreen() {
               >
                 <View style={styles.actionItemLeft}>
                   <View style={styles.actionIconBox}>
-                    <Ionicons name="receipt-outline" size={17} color="#ee5c21" />
+                    <Ionicons name="receipt-outline" size={21} color="rgb(240, 117, 15)" />
                   </View>
                   <View style={styles.actionTextCol}>
-                    <Text style={styles.actionItemTitle}>My Bookings & Invoices</Text>
-                    <Text style={styles.actionItemSubtitle}>View active rides, driver tracking & history</Text>
+                    <Text style={styles.actionItemTitle}>{t('profile.myBookings')}</Text>
+                    <Text style={styles.actionItemSubtitle}>{t('profile.myBookingsSub')}</Text>
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+                <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
               </TouchableOpacity>
 
               <View style={styles.actionDivider} />
@@ -530,26 +554,71 @@ export default function ProfileScreen() {
               >
                 <View style={styles.actionItemLeft}>
                   <View style={styles.actionIconBox}>
-                    <Ionicons name="car-sport-outline" size={17} color="#ee5c21" />
+                    <Ionicons name="car-sport-outline" size={21} color="rgb(240, 117, 15)" />
                   </View>
                   <View style={styles.actionTextCol}>
-                    <Text style={styles.actionItemTitle}>Book a New Cab</Text>
-                    <Text style={styles.actionItemSubtitle}>One-way, round trip, airport & rentals</Text>
+                    <Text style={styles.actionItemTitle}>{t('profile.bookNewCab')}</Text>
+                    <Text style={styles.actionItemSubtitle}>{t('profile.bookNewCabSub')}</Text>
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+                <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
+              </TouchableOpacity>
+
+              <View style={styles.actionDivider} />
+
+              {/* App Language */}
+              <TouchableOpacity
+                style={styles.actionItem}
+                onPress={() => setIsLangModalOpen(true)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.actionItemLeft}>
+                  <View style={styles.actionIconBox}>
+                    <Ionicons name="globe-outline" size={21} color="rgb(240, 117, 15)" />
+                  </View>
+                  <View style={styles.actionTextCol}>
+                    <Text style={styles.actionItemTitle}>{t('profile.appLanguage')}</Text>
+                    <Text style={styles.actionItemSubtitle}>{getCurrentLanguageName()}</Text>
+                  </View>
+                </View>
+                <View style={styles.langBadge}>
+                  <Text style={styles.langBadgeText}>
+                    {i18n.language?.startsWith('kn') ? 'ಕನ್ನಡ' : i18n.language?.startsWith('hi') ? 'हिन्दी' : 'English'}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={15} color="rgb(240, 117, 15)" />
+                </View>
+              </TouchableOpacity>
+
+              <View style={styles.actionDivider} />
+
+              {/* Terms & Conditions */}
+              <TouchableOpacity
+                style={styles.actionItem}
+                onPress={() => router.push('/terms')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.actionItemLeft}>
+                  <View style={styles.actionIconBox}>
+                    <Ionicons name="document-text-outline" size={21} color="rgb(240, 117, 15)" />
+                  </View>
+                  <View style={styles.actionTextCol}>
+                    <Text style={styles.actionItemTitle}>{t('profile.terms')}</Text>
+                    <Text style={styles.supportNumberText}>{t('profile.termsSub')}</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
               </TouchableOpacity>
             </View>
 
             {/* Support & Helpline Section */}
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>24/7 SUPPORT & ASSISTANCE</Text>
+                <Text style={styles.sectionTitle}>{t('profile.support')}</Text>
                 <TouchableOpacity
                   onPress={() => router.push('/support')}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.viewSupportLink}>View Desk ›</Text>
+                  <Text style={styles.viewSupportLink}>{t('profile.viewDesk')}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -561,14 +630,14 @@ export default function ProfileScreen() {
               >
                 <View style={styles.actionItemLeft}>
                   <View style={styles.actionIconBox}>
-                    <Ionicons name="call-outline" size={17} color="#ee5c21" />
+                    <Ionicons name="call-outline" size={21} color="rgb(240, 117, 15)" />
                   </View>
                   <View style={styles.actionTextCol}>
-                    <Text style={styles.actionItemTitle}>24/7 Customer Helpline</Text>
-                    <Text style={styles.supportNumberText}>+91 99008 87777 (Toll Free)</Text>
+                    <Text style={styles.actionItemTitle}>{t('profile.callSupport')}</Text>
+                    <Text style={styles.supportNumberText}>+91 99008 87777 ({t('profile.tollFree', { defaultValue: 'Toll Free' })})</Text>
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+                <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
               </TouchableOpacity>
 
               <View style={styles.actionDivider} />
@@ -581,14 +650,14 @@ export default function ProfileScreen() {
               >
                 <View style={styles.actionItemLeft}>
                   <View style={styles.actionIconBox}>
-                    <Ionicons name="logo-whatsapp" size={17} color="#ee5c21" />
+                    <Ionicons name="logo-whatsapp" size={21} color="rgb(240, 117, 15)" />
                   </View>
                   <View style={styles.actionTextCol}>
-                    <Text style={styles.actionItemTitle}>WhatsApp Support Desk</Text>
-                    <Text style={styles.supportNumberText}>+91 90088 90090 (Instant Chat)</Text>
+                    <Text style={styles.actionItemTitle}>{t('profile.whatsappSupport')}</Text>
+                    <Text style={styles.supportNumberText}>+91 90088 90090 ({t('profile.instantChat', { defaultValue: 'Instant Chat' })})</Text>
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+                <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
               </TouchableOpacity>
 
               <View style={styles.actionDivider} />
@@ -601,14 +670,14 @@ export default function ProfileScreen() {
               >
                 <View style={styles.actionItemLeft}>
                   <View style={styles.actionIconBox}>
-                    <Ionicons name="phone-portrait-outline" size={17} color="#ee5c21" />
+                    <Ionicons name="phone-portrait-outline" size={21} color="rgb(240, 117, 15)" />
                   </View>
                   <View style={styles.actionTextCol}>
-                    <Text style={styles.actionItemTitle}>App Support Helpline</Text>
-                    <Text style={styles.supportNumberText}>+91 91873 36058 (Technical Help)</Text>
+                    <Text style={styles.actionItemTitle}>{t('profile.appSupportHelpline', { defaultValue: 'App Support Helpline' })}</Text>
+                    <Text style={styles.supportNumberText}>+91 91873 36058 ({t('profile.technicalHelp', { defaultValue: 'Technical Help' })})</Text>
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+                <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
               </TouchableOpacity>
             </View>
 
@@ -618,8 +687,8 @@ export default function ProfileScreen() {
               onPress={handleSignOut}
               activeOpacity={0.7}
             >
-              <Ionicons name="log-out-outline" size={16} color="#dc2626" />
-              <Text style={styles.signOutButtonText}>Sign Out from Device</Text>
+              <Ionicons name="log-out-outline" size={18} color="#dc2626" />
+              <Text style={styles.signOutButtonText} numberOfLines={1} adjustsFontSizeToFit={true}>{t('profile.signOut')}</Text>
             </TouchableOpacity>
           </>
         ) : (
@@ -628,9 +697,9 @@ export default function ProfileScreen() {
             <View style={styles.guestAvatar}>
               <Ionicons name="person" size={36} color="#94a3b8" />
             </View>
-            <Text style={styles.guestTitle}>You are not signed in</Text>
+            <Text style={styles.guestTitle}>{t('profile.notSignedIn')}</Text>
             <Text style={styles.guestSubtitle}>
-              Sign in with your mobile number to view your bookings, trip receipts, and live driver tracking.
+              {t('profile.notSignedInSub')}
             </Text>
             <TouchableOpacity
               style={styles.signInButton}
@@ -638,7 +707,20 @@ export default function ProfileScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="log-in-outline" size={18} color="#ffffff" style={{ marginRight: 6 }} />
-              <Text style={styles.signInButtonText}>Sign In / Register</Text>
+              <Text style={styles.signInButtonText} numberOfLines={1} adjustsFontSizeToFit={true}>{t('profile.signInRegister')}</Text>
+            </TouchableOpacity>
+
+            {/* Guest Language Selector Button */}
+            <TouchableOpacity
+              style={styles.guestLangButton}
+              onPress={() => setIsLangModalOpen(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="globe-outline" size={17} color="rgb(22, 34, 50)" />
+              <Text style={styles.guestLangButtonText}>
+                {t('profile.appLanguage')}: <Text style={{ color: 'rgb(240, 117, 15)', fontWeight: '800' }}>{getCurrentLanguageName()}</Text>
+              </Text>
+              <Ionicons name="chevron-forward" size={15} color="#94a3b8" />
             </TouchableOpacity>
           </View>
         )}
@@ -674,6 +756,12 @@ export default function ProfileScreen() {
         onSave={handleSaveCroppedPhoto}
         onChangeImage={handlePickImage}
       />
+
+      {/* Language Selection Modal */}
+      <LanguageSelectionModal
+        visible={isLangModalOpen}
+        onClose={() => setIsLangModalOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -704,9 +792,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: -0.3,
   },
   headerRightPlaceholder: {
@@ -728,7 +816,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    fontSize: 13,
+    fontSize: 14,
     color: '#64748b',
     fontWeight: '600',
   },
@@ -740,8 +828,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 14,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderWidth: 1.2,
+    borderColor: '#e2e8f0',
     gap: 12,
     ...Platform.select({
       ios: {
@@ -768,7 +856,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#ee5c21',
+    backgroundColor: 'rgb(240, 117, 15)',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -792,7 +880,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#103A75',
+    backgroundColor: 'rgb(22, 34, 50)',
     borderWidth: 1.5,
     borderColor: '#ffffff',
     alignItems: 'center',
@@ -812,14 +900,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   heroName: {
-    fontSize: 16,
+    fontSize: 18.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: -0.2,
-    maxWidth: 160,
   },
   heroPhone: {
-    fontSize: 12.5,
+    fontSize: 14.5,
     fontWeight: '600',
     color: '#64748b',
     marginTop: 2,
@@ -827,16 +914,12 @@ const styles = StyleSheet.create({
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0fdf4',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 10,
-    gap: 3,
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    gap: 4,
   },
   verifiedText: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontWeight: '700',
     color: '#15803d',
   },
@@ -844,27 +927,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
-    borderRadius: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 12,
     backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
   editPillText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
 
   // Section Card
   sectionCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderWidth: 1.2,
+    borderColor: '#e2e8f0',
     ...Platform.select({
       ios: {
         shadowColor: '#0f172a',
@@ -890,22 +973,22 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '800',
-    color: '#103A75',
-    letterSpacing: 0.6,
+    color: 'rgb(22, 34, 50)',
+    letterSpacing: 0.5,
   },
   viewSupportLink: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontWeight: '700',
-    color: '#ee5c21',
+    color: 'rgb(240, 117, 15)',
   },
   cancelBtn: {
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
   cancelBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: '#64748b',
   },
@@ -938,9 +1021,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   changePhotoBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   removePhotoBtn: {
     flexDirection: 'row',
@@ -954,15 +1037,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   removePhotoBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#dc2626',
   },
   inputLabel: {
-    fontSize: 10,
+    fontSize: 11.5,
     fontWeight: '800',
     color: '#64748b',
-    marginBottom: 4,
+    marginBottom: 5,
     letterSpacing: 0.4,
   },
   textInput: {
@@ -970,22 +1053,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#cbd5e1',
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 13,
-    color: '#103A75',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 14.5,
+    color: 'rgb(22, 34, 50)',
     fontWeight: '600',
   },
   saveButton: {
-    backgroundColor: '#ee5c21',
+    backgroundColor: 'rgb(240, 117, 15)',
     borderRadius: 8,
-    paddingVertical: 10,
+    paddingVertical: 11,
     alignItems: 'center',
     marginTop: 12,
   },
   saveButtonText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 14.5,
     fontWeight: '800',
   },
 
@@ -996,13 +1079,10 @@ const styles = StyleSheet.create({
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 5,
+    paddingVertical: 7,
   },
   detailIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#fff7ed',
+    width: 26,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1011,21 +1091,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   detailLabel: {
-    fontSize: 10.5,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
     color: '#64748b',
   },
   detailValue: {
-    fontSize: 13,
+    fontSize: 14.5,
     fontWeight: '700',
-    color: '#103A75',
-    marginTop: 1.5,
+    color: 'rgb(22, 34, 50)',
+    marginTop: 2,
   },
   detailDivider: {
     height: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f1f5f9',
     marginVertical: 3,
-    marginLeft: 48,
+    marginLeft: 38,
   },
 
   // Action Items
@@ -1033,7 +1113,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 7,
+    paddingVertical: 8.5,
   },
   actionItemLeft: {
     flexDirection: 'row',
@@ -1041,10 +1121,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#fff7ed',
+    width: 26,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1053,27 +1130,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionItemTitle: {
-    fontSize: 13,
+    fontSize: 14.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   actionItemSubtitle: {
-    fontSize: 10.5,
+    fontSize: 12,
     color: '#64748b',
-    marginTop: 1.5,
+    marginTop: 2,
     fontWeight: '500',
   },
   supportNumberText: {
-    fontSize: 11,
-    color: '#103A75',
-    marginTop: 1.5,
+    fontSize: 13.5,
+    color: 'rgb(22, 34, 50)',
+    marginTop: 2,
     fontWeight: '700',
   },
   actionDivider: {
     height: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f1f5f9',
     marginVertical: 3,
-    marginLeft: 48,
+    marginLeft: 38,
   },
 
   // Sign Out Button
@@ -1085,12 +1162,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#fee2e2',
     borderRadius: 14,
-    paddingVertical: 12,
-    gap: 6,
+    paddingVertical: 13,
+    gap: 7,
     marginTop: 4,
   },
   signOutButtonText: {
-    fontSize: 13,
+    fontSize: 14.5,
     fontWeight: '700',
     color: '#dc2626',
   },
@@ -1117,7 +1194,7 @@ const styles = StyleSheet.create({
   guestTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginBottom: 6,
   },
   guestSubtitle: {
@@ -1132,7 +1209,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#103A75',
+    backgroundColor: 'rgb(22, 34, 50)',
     borderRadius: 10,
     paddingHorizontal: 20,
     paddingVertical: 11,
@@ -1142,5 +1219,41 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '800',
+  },
+  langBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+  },
+  langBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgb(240, 117, 15)',
+  },
+  guestLangButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    width: '100%',
+    marginTop: 12,
+  },
+  guestLangButtonText: {
+    fontSize: 13,
+    color: 'rgb(22, 34, 50)',
+    fontWeight: '600',
+    flex: 1,
+    marginLeft: 8,
   },
 });

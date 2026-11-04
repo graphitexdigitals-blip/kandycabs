@@ -14,7 +14,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { formatDisplayPhone } from '../lib/api';
+import { formatTitleCase } from '../constants/typography';
 
 interface HamburgerDrawerProps {
   visible: boolean;
@@ -33,6 +35,7 @@ export function HamburgerDrawer({
   onLogout,
   onNavigateSection,
 }: HamburgerDrawerProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
@@ -67,7 +70,7 @@ export function HamburgerDrawer({
                     )}
                   </View>
                   <View>
-                    <Text style={styles.userName}>{user.fullName || 'Customer'}</Text>
+                    <Text style={styles.userName}>{formatTitleCase(user.fullName) || 'Customer'}</Text>
                     <Text style={styles.userPhone}>{formatDisplayPhone(user.phone)}</Text>
                   </View>
                 </TouchableOpacity>
@@ -96,11 +99,11 @@ export function HamburgerDrawer({
                 }}
               >
                 <View style={styles.myBookingsLeft}>
-                  <Ionicons name="person-circle-outline" size={20} color="#ea580c" />
-                  <Text style={styles.myBookingsText}>My Profile</Text>
+                  <Ionicons name="person-circle-outline" size={20} color="rgb(240, 117, 15)" />
+                  <Text style={styles.myBookingsText}>{t('profile.myProfile', { defaultValue: 'My Profile' })}</Text>
                 </View>
                 <View style={styles.ridesBadge}>
-                  <Text style={styles.ridesBadgeText}>View Details →</Text>
+                  <Text style={styles.ridesBadgeText}>{t('common.viewDetails', { defaultValue: 'View Details' })} →</Text>
                 </View>
               </TouchableOpacity>
             )}
@@ -116,7 +119,7 @@ export function HamburgerDrawer({
               >
                 <View style={styles.myBookingsLeft}>
                   <Ionicons name="receipt-outline" size={18} color="#0284c7" />
-                  <Text style={[styles.myBookingsText, { color: '#0369a1' }]}>My Bookings & Invoices</Text>
+                  <Text style={[styles.myBookingsText, { color: '#0369a1' }]}>{t('profile.myBookings', { defaultValue: 'My Bookings & Invoices' })}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
               </TouchableOpacity>
@@ -130,7 +133,7 @@ export function HamburgerDrawer({
                 onNavigateSection('BOOKING');
               }}
             >
-              <Text style={styles.highlightBtnText}>Book Cab Online</Text>
+              <Text style={styles.highlightBtnText}>{t('modals.drawer.bookRide', { defaultValue: 'Book Cab Online' })}</Text>
               <View style={styles.instantBadge}>
                 <Text style={styles.instantBadgeText}>Instant</Text>
               </View>
@@ -144,7 +147,7 @@ export function HamburgerDrawer({
                 onNavigateSection('FLEET');
               }}
             >
-              <Text style={styles.menuItemText}>Fleet & Rates</Text>
+              <Text style={styles.menuItemText}>{t('modals.drawer.viewFleet', { defaultValue: 'Fleet & Rates' })}</Text>
               <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
             </TouchableOpacity>
 
@@ -156,7 +159,7 @@ export function HamburgerDrawer({
                 onNavigateSection('WHY_US');
               }}
             >
-              <Text style={styles.menuItemText}>Why Choose Us</Text>
+              <Text style={styles.menuItemText}>{t('modals.drawer.whyKandy', { defaultValue: 'Why Choose Us' })}</Text>
               <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
             </TouchableOpacity>
 
@@ -168,7 +171,7 @@ export function HamburgerDrawer({
                 onNavigateSection('HOW_IT_WORKS');
               }}
             >
-              <Text style={styles.menuItemText}>How It Works</Text>
+              <Text style={styles.menuItemText}>{t('modals.drawer.howItWorks', { defaultValue: 'How It Works' })}</Text>
               <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
             </TouchableOpacity>
 
@@ -218,7 +221,7 @@ export function HamburgerDrawer({
                   onOpenAuth();
                 }}
               >
-                <Ionicons name="log-in-outline" size={18} color="#ea580c" />
+                <Ionicons name="log-in-outline" size={18} color="rgb(240, 117, 15)" />
                 <Text style={styles.signInText}>Sign In / Register</Text>
               </TouchableOpacity>
             )}
@@ -263,7 +266,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#ea580c',
+    backgroundColor: 'rgb(240, 117, 15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
@@ -282,7 +285,7 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   userPhone: {
     fontSize: 11,
@@ -292,7 +295,7 @@ const styles = StyleSheet.create({
   menuTitle: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     letterSpacing: 0.5,
   },
   drawerLogo: {
@@ -343,10 +346,10 @@ const styles = StyleSheet.create({
   myBookingsText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
   },
   ridesBadge: {
-    backgroundColor: '#ea580c',
+    backgroundColor: 'rgb(240, 117, 15)',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
@@ -360,7 +363,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#ea580c',
+    backgroundColor: 'rgb(240, 117, 15)',
     paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: 12,
@@ -393,7 +396,7 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   divider: {
     height: 1,
@@ -441,7 +444,7 @@ const styles = StyleSheet.create({
   supportPhone: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginTop: 1,
   },
   signInBtn: {
@@ -456,7 +459,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   signInText: {
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     fontSize: 12,
     fontWeight: '800',
   },

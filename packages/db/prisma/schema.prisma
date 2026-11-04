@@ -108,6 +108,18 @@ model Driver {
   adminNotes         String?
   onlineStatus       Boolean                  @default(false)
 
+  // Payout & Bank Account Details (RazorpayX compatible)
+  payoutMethod          String?                  @default("BANK") // 'BANK' or 'UPI'
+  bankAccountHolderName String?
+  bankAccountNumber     String?
+  bankIfsc              String?
+  bankName              String?
+  payoutUpiId           String?
+  payoutPhone           String?
+  payoutEmail           String?
+  payoutStatus          String?                  @default("PENDING") // 'PENDING' or 'VERIFIED'
+  fundAccountId         String?
+
   // Flow A (driver -> admin) live position fields
   currentLat Float?
   currentLng Float?
@@ -416,6 +428,12 @@ model AnalyticsEvent {
   @@index([eventType, createdAt])
   @@index([category])
   @@index([createdAt])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
 }
 
 

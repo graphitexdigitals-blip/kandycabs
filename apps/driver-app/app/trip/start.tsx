@@ -13,6 +13,7 @@ import {
   Platform,
   StatusBar,
   Image,
+  Keyboard,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,19 +21,36 @@ import * as ImagePicker from 'expo-image-picker';
 import { locationTracker } from '../../lib/location-tracker';
 import { reverseGeocodeAddress } from '../../lib/reverse-geocoding';
 import { driverApiClient } from '../../lib/api';
-import { setTripInProcess } from '../../lib/tripState';
+import {
+  setTripInProcess,
+  getVerifiedPickupOtp,
+  setVerifiedPickupOtp,
+  clearVerifiedPickupOtp,
+  getVerifiedSelfie,
+  setVerifiedSelfie,
+  clearVerifiedSelfie,
+  setTripStartDraft,
+  getTripStartDraft,
+  clearTripStartDraft,
+} from '../../lib/tripState';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 
 const ODOMETER_SAMPLE = require('../../assets/images/inspection/odometer_sample.jpg');
+const DRIVER_SELFIE_SAMPLE = require('../../assets/images/driver-selfie-reference.jpg');
 
 export default function DriverTripStartScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
 
   const [booking, setBooking] = useState<any>(null);
   const [pickupOtp, setPickupOtp] = useState('');
+  const [isOtpVerified, setIsOtpVerified] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [startingOdometer, setStartingOdometer] = useState('');
   const [odometerPhotoAttached, setOdometerPhotoAttached] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -58,6 +76,49 @@ export default function DriverTripStartScreen() {
     return () => unsub();
   }, [bookingId]);
 
+  // Restore previously verified OTP, selfie, odometer, and photos if driver navigated away and came back
+  useEffect(() => {
+    if (!bookingId) return;
+    const draft = getTripStartDraft(bookingId);
+    if (draft) {
+      if (draft.startingOdometer) {
+        setStartingOdometer(draft.startingOdometer);
+      }
+      if (draft.odometerImageUri) {
+        setOdometerImageUri(draft.odometerImageUri);
+        setOdometerPhotoAttached(true);
+      }
+      if (draft.photoLocation) {
+        setPhotoLocation(draft.photoLocation);
+      }
+      if (draft.ocrResultText) {
+        setOcrResultText(draft.ocrResultText);
+      }
+      if (draft.pickupOtp) {
+        setPickupOtp(draft.pickupOtp);
+      }
+      if (draft.inspectionPhotos) {
+        setInspectionPhotos(draft.inspectionPhotos);
+      }
+    }
+
+    getVerifiedPickupOtp(bookingId).then((savedOtp) => {
+      if (savedOtp) {
+        setPickupOtp(savedOtp);
+        setIsOtpVerified(true);
+      }
+    });
+    getVerifiedSelfie(bookingId).then((savedSelfie) => {
+      if (savedSelfie && savedSelfie.uri) {
+        setDriverSelfieUri(savedSelfie.uri);
+        if (savedSelfie.location) {
+          setSelfieLocation(savedSelfie.location);
+        }
+        setVerificationStep('odometer');
+      }
+    });
+  }, [bookingId]);
+
   const checkStatus = useCallback(async () => {
     try {
       const res = await driverApiClient.fetch('/api/driver/status');
@@ -65,6 +126,15 @@ export default function DriverTripStartScreen() {
         setBooking(res.activeBooking);
         if (res.activeBooking.status === 'TRIP_STARTED') {
           setIsAdminAuthorized(true);
+        }
+        if (res.activeBooking.isOtpVerified) {
+          setIsOtpVerified(true);
+          if (res.activeBooking.verifiedPickupOtp) {
+            setPickupOtp(res.activeBooking.verifiedPickupOtp);
+            if (bookingId) {
+              setVerifiedPickupOtp(bookingId, res.activeBooking.verifiedPickupOtp);
+            }
+          }
         }
         if (Array.isArray(res.activeBooking.vehicleInspectionPhotos) && res.activeBooking.vehicleInspectionPhotos.length > 0) {
           setInspectionPhotos([
@@ -78,15 +148,23 @@ export default function DriverTripStartScreen() {
     } catch (_) {
       // Ignore polling errors
     }
-  }, []);
+  }, [bookingId]);
 
   useEffect(() => {
     checkStatus();
-    const interval = setInterval(checkStatus, 3000);
+    // 12-second status check (avoids overwhelming connection queue)
+    const interval = setInterval(() => {
+      if (!isAdminAuthorized || !isOtpVerified) {
+        checkStatus();
+      }
+    }, 12000);
     return () => clearInterval(interval);
-  }, [checkStatus]);
+  }, [checkStatus, isAdminAuthorized, isOtpVerified]);
 
   const [odometerImageUri, setOdometerImageUri] = useState<string | null>(null);
+  const [driverSelfieUri, setDriverSelfieUri] = useState<string | null>(null);
+  const [selfieLocation, setSelfieLocation] = useState<{ lat: number; lng: number; time: string } | null>(null);
+  const [verificationStep, setVerificationStep] = useState<'selfie' | 'odometer'>('selfie');
 
   // 4 Core Vehicle Inspection Angles: [Front, Back/Rear, Side, Inside]
   const inspectionAngles = [
@@ -128,6 +206,9 @@ export default function DriverTripStartScreen() {
         setInspectionPhotos((prev) => {
           const next = [...prev];
           next[index] = dataUri;
+          if (bookingId) {
+            setTripStartDraft(bookingId, { inspectionPhotos: next });
+          }
           return next;
         });
       }
@@ -169,11 +250,18 @@ export default function DriverTripStartScreen() {
       });
       if (res && res.success && res.reading) {
         setStartingOdometer(String(res.reading));
-        setOcrResultText({
-          status: 'success',
+        const successOcr = {
+          status: 'success' as const,
           reading: res.reading,
           message: `Auto-detected ${res.reading} KM from odometer photo`,
-        });
+        };
+        setOcrResultText(successOcr);
+        if (bookingId) {
+          setTripStartDraft(bookingId, {
+            startingOdometer: String(res.reading),
+            ocrResultText: successOcr,
+          });
+        }
       } else {
         setOcrResultText({
           status: 'failed',
@@ -212,11 +300,19 @@ export default function DriverTripStartScreen() {
         runOdometerOcr(dataUri);
         // Lock location at the exact moment of photo capture
         const latest = locationTracker.getCurrentCoordinates();
+        let locStamp: { lat: number; lng: number; time: string } | null = null;
         if (latest.lat != null && latest.lng != null) {
-          setPhotoLocation({
+          locStamp = {
             lat: latest.lat,
             lng: latest.lng,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          };
+          setPhotoLocation(locStamp);
+        }
+        if (bookingId) {
+          setTripStartDraft(bookingId, {
+            odometerImageUri: dataUri,
+            photoLocation: locStamp,
           });
         }
       }
@@ -225,10 +321,105 @@ export default function DriverTripStartScreen() {
     }
   };
 
+  const handleOpenSelfieCamera = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Camera permission is required to capture driver selfie.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.35,
+        base64: true,
+        cameraType: ImagePicker.CameraType.front,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        setDriverSelfieUri(dataUri);
+        const latest = locationTracker.getCurrentCoordinates();
+        let locStamp: { lat: number; lng: number; time: string } | null = null;
+        if (latest.lat != null && latest.lng != null) {
+          locStamp = {
+            lat: latest.lat,
+            lng: latest.lng,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          };
+          setSelfieLocation(locStamp);
+        }
+        setVerificationStep('odometer');
+        if (bookingId) {
+          setVerifiedSelfie(bookingId, dataUri, locStamp);
+        }
+      }
+    } catch (err: any) {
+      Alert.alert('Camera Error', err.message || 'Failed to open front camera');
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (pickupOtp.length < 4) {
+      setError('Please enter all 4 digits of customer pickup OTP.');
+      Alert.alert('Incomplete OTP', 'Please enter all 4 digits of customer pickup OTP.');
+      return;
+    }
+    setError('');
+    setIsVerifyingOtp(true);
+    try {
+      const res = await driverApiClient.fetch('/api/driver/trip/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({
+          bookingId,
+          pickupOtp: pickupOtp.trim(),
+        }),
+      });
+      if (res.success && res.verified) {
+        setIsOtpVerified(true);
+        if (bookingId) {
+          await setVerifiedPickupOtp(bookingId, pickupOtp.trim());
+        }
+        Keyboard.dismiss();
+        Alert.alert('OTP Verified', 'Customer pickup OTP verified successfully!');
+      } else {
+        setIsOtpVerified(false);
+        setError(res.message || 'Incorrect pickup OTP. Please verify with customer.');
+        Alert.alert('Invalid OTP', res.message || 'The OTP entered is incorrect. Please recheck with customer.');
+      }
+    } catch (err: any) {
+      setIsOtpVerified(false);
+      setError(err.message || 'Failed to verify OTP. Please try again.');
+      Alert.alert('Verification Error', err.message || 'Failed to verify OTP');
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
   const handleStartTrip = async () => {
     if (!isAdminAuthorized && pickupOtp.length < 4) {
       setError('Please enter the 4-digit pickup OTP from the customer');
       return;
+    }
+    if (!isAdminAuthorized && !isOtpVerified) {
+      // Auto verify OTP before starting trip if driver didn't click verify button yet
+      try {
+        const vRes = await driverApiClient.fetch('/api/driver/trip/verify-otp', {
+          method: 'POST',
+          body: JSON.stringify({ bookingId, pickupOtp: pickupOtp.trim() }),
+        });
+        if (!vRes.success || !vRes.verified) {
+          setError(vRes.message || 'Incorrect pickup OTP. Please verify with customer.');
+          Alert.alert('Invalid OTP', vRes.message || 'The OTP entered is incorrect. Please recheck with customer.');
+          return;
+        }
+        setIsOtpVerified(true);
+      } catch (err: any) {
+        setError(err.message || 'Failed to verify OTP');
+        return;
+      }
     }
     if (!startingOdometer) {
       setError('Please enter the starting odometer reading');
@@ -241,6 +432,18 @@ export default function DriverTripStartScreen() {
         'You must capture a clear photo of the vehicle starting odometer before starting the trip.',
         [
           { text: '📷 Capture Odometer Photo', onPress: handleOpenCamera },
+          { text: 'OK' },
+        ]
+      );
+      return;
+    }
+    if (!driverSelfieUri) {
+      setError('Driver selfie is mandatory. Please take a selfie before starting the trip.');
+      Alert.alert(
+        'Driver Selfie Required',
+        'Please capture a clear front-camera selfie of yourself before starting the trip.',
+        [
+          { text: '📷 Take Driver Selfie', onPress: handleOpenSelfieCamera },
           { text: 'OK' },
         ]
       );
@@ -263,22 +466,27 @@ export default function DriverTripStartScreen() {
 
       const res = await driverApiClient.fetch('/api/driver/trip/start', {
         method: 'POST',
+        timeoutMs: 35000,
         body: JSON.stringify({
           bookingId,
           pickupOtp: isAdminAuthorized ? 'OVERRIDE' : pickupOtp,
           startingOdometer: parseFloat(startingOdometer),
           startingOdometerImagePath: odometerImageUri,
+          driverSelfie: driverSelfieUri,
           vehicleInspectionPhotos: inspectionPhotos.filter(Boolean),
           actualPickupLat: actualLat,
           actualPickupLng: actualLng,
           actualPickupAddress: actualAddress,
         }),
-      });
+      } as any);
 
       if (res.success) {
         // Start background GPS tracking immediately
         if (bookingId) {
           await setTripInProcess(bookingId, true);
+          await clearVerifiedPickupOtp(bookingId);
+          await clearVerifiedSelfie(bookingId);
+          clearTripStartDraft(bookingId);
           locationTracker.startActiveTripTracking(bookingId);
         }
         router.replace({
@@ -387,7 +595,7 @@ export default function DriverTripStartScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
       {/* Top Header Bar */}
-      <View style={[styles.topHeaderBar, { paddingTop: topInset + 6 }]}>
+      <View style={[styles.topHeaderBar, { paddingTop: Platform.OS === 'android' ? 10 : topInset + 6 }]}>
         <View style={styles.headerLeftGroup}>
           <TouchableOpacity
             style={styles.headerBackBtn}
@@ -397,14 +605,12 @@ export default function DriverTripStartScreen() {
             <Ionicons name="arrow-back" size={20} color="#0f172a" />
           </TouchableOpacity>
 
-          <View style={styles.headerDividerV} />
-
           <View style={styles.headerTextCol}>
             <View style={styles.headerStepBadgeRow}>
               <View style={styles.headerLiveDot} />
-              <Text style={styles.headerLiveRadarText}>START VERIFICATION</Text>
+              <Text style={styles.headerLiveRadarText}>{t('trip_flow.start_verification')}</Text>
             </View>
-            <Text style={styles.headerMainTitle}>Verify & Vehicle Inspection</Text>
+            <Text style={styles.headerMainTitle}>{t('trip_flow.verify_inspection')}</Text>
           </View>
         </View>
 
@@ -413,8 +619,8 @@ export default function DriverTripStartScreen() {
           onPress={handleNotReached}
           activeOpacity={0.8}
         >
-          <Ionicons name="close-circle-outline" size={14} color="#dc2626" />
-          <Text style={styles.headerHomeText}>Not Reached</Text>
+          <Ionicons name="close-circle" size={14} color="#dc2626" />
+          <Text style={styles.headerHomeText}>{t('trip_flow.not_reached')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -423,10 +629,25 @@ export default function DriverTripStartScreen() {
         <TouchableOpacity
           style={styles.ribbonHomeBtn}
           onPress={handleNotReached}
-          activeOpacity={0.8}
+          activeOpacity={0.82}
         >
-          <Ionicons name="close-circle-outline" size={16} color="#ffffff" />
-          <Text style={styles.ribbonHomeText}>Not Reached</Text>
+          <View style={styles.ribbonHomeGradient}>
+            <View style={styles.ribbonRedHalo}>
+              <LinearGradient
+                colors={['#ff1722', '#c90410']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.ribbonRedCircle}
+              >
+                <Ionicons name="close" size={13} color="#ffffff" />
+              </LinearGradient>
+            </View>
+            <Text style={styles.ribbonHomeText} numberOfLines={1}>{t('trip_flow.not_reached')}</Text>
+            <View style={styles.ribbonRightGroup}>
+              <View style={styles.ribbonDividerRed} />
+              <Ionicons name="chevron-forward" size={14} color="#881337" />
+            </View>
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -434,8 +655,26 @@ export default function DriverTripStartScreen() {
           onPress={openPickupNavigation}
           activeOpacity={0.85}
         >
-          <Ionicons name="navigate" size={15} color="#ffffff" />
-          <Text style={styles.ribbonNavText}>Pickup Navigate</Text>
+          <LinearGradient
+            colors={['#10356c', '#082758', '#021a3f']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.ribbonNavGradient}
+          >
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.18)', 'rgba(255, 255, 255, 0.05)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.ribbonNavBadge}
+            >
+              <Ionicons name="navigate" size={15} color="#ffffff" />
+            </LinearGradient>
+            <Text style={styles.ribbonNavText} numberOfLines={1}>{t('trip_flow.pickup_navigate')}</Text>
+            <View style={styles.ribbonRightGroup}>
+              <View style={styles.ribbonDividerNavy} />
+              <Ionicons name="chevron-forward" size={14} color="#ffffff" />
+            </View>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
 
@@ -455,52 +694,41 @@ export default function DriverTripStartScreen() {
         {/* Passenger Information Card */}
         {booking && (
           <View style={styles.passengerCard}>
-            <View style={styles.passengerHeaderRow}>
-              <Text style={styles.passengerHeaderTitle}>PASSENGER DETAILS</Text>
-              {booking.customerPhoneReleased ? (
-                <View style={styles.releasedBadge}>
-                  <Ionicons name="lock-open" size={11} color="#34d399" />
-                  <Text style={styles.releasedBadgeText}>Phone Released</Text>
-                </View>
-              ) : (
-                <View style={styles.lockedBadge}>
-                  <Ionicons name="lock-closed" size={11} color="#94a3b8" />
-                  <Text style={styles.lockedBadgeText}>Phone Protected</Text>
-                </View>
-              )}
+            <View style={styles.passengerHeaderTopRow}>
+              <Ionicons name="information-circle-outline" size={14} color="#64748b" />
+              <Text style={styles.passengerSubtitleTop}>{t('trip_flow.confirm_passenger_info')}</Text>
             </View>
 
             <View style={styles.passengerMainRow}>
-              <View style={styles.passengerAvatarCircle}>
-                <Ionicons name="person" size={20} color="#38bdf8" />
+              <View style={styles.passengerLeftContent}>
+                <View style={styles.passengerAvatarSolid}>
+                  <Ionicons name="person" size={20} color="#ffffff" />
+                </View>
+                <View style={styles.passengerInfoCol}>
+                  <Text style={styles.passengerName} numberOfLines={1}>
+                    {booking.customer?.user?.fullName || 'Customer'}
+                  </Text>
+                  <Text style={styles.passengerSubtitle}>{t('trip_flow.confirmed_passenger')}</Text>
+                </View>
               </View>
-              <View style={styles.passengerInfoCol}>
-                <Text style={styles.passengerName}>
-                  {booking.customer?.user?.fullName || 'Customer'}
-                </Text>
-                <Text style={styles.passengerSubtitle}>Confirmed Passenger</Text>
-              </View>
+
+              {booking.customerPhoneReleased && booking.customer?.user?.phone ? (
+                <TouchableOpacity
+                  style={styles.callNowBtnWhite}
+                  activeOpacity={0.8}
+                  onPress={() => Linking.openURL(`tel:${booking.customer.user.phone}`)}
+                >
+                  <Ionicons name="call" size={15} color="#16a34a" />
+                  <Text style={styles.callNowBtnText}>{t('trip_flow.call_now')}</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
 
-            {booking.customerPhoneReleased && booking.customer?.user?.phone ? (
-              <TouchableOpacity
-                style={styles.callButton}
-                activeOpacity={0.85}
-                onPress={() => Linking.openURL(`tel:${booking.customer.user.phone}`)}
-              >
-                <View style={styles.callBtnLeft}>
-                  <Ionicons name="call" size={16} color="#ffffff" />
-                  <Text style={styles.callButtonText}>
-                    Call Customer ({booking.customer.user.phone})
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.8)" />
-              </TouchableOpacity>
-            ) : (
+            {!booking.customerPhoneReleased && (
               <View style={styles.phoneProtectedBox}>
                 <Ionicons name="shield-checkmark" size={14} color="#64748b" />
                 <Text style={styles.phoneProtectedText}>
-                  Customer phone locked by admin privacy policy.
+                  {t('trip_flow.phone_locked_policy')}
                 </Text>
               </View>
             )}
@@ -512,25 +740,27 @@ export default function DriverTripStartScreen() {
           <View style={styles.authorizedBox}>
             <View style={styles.authorizedHeader}>
               <Ionicons name="checkmark-circle" size={18} color="#34d399" />
-              <Text style={styles.authorizedTitle}>Admin Authorized Trip Start</Text>
+              <Text style={styles.authorizedTitle}>{t('trip_flow.admin_auth_title')}</Text>
             </View>
             <Text style={styles.authorizedSubtitle}>
-              Admin dispatch has authorized this ride. Customer OTP is waived. Enter starting odometer and start trip.
+              {t('trip_flow.admin_auth_subtitle')}
             </Text>
           </View>
         ) : (
           /* 1. Customer OTP Entry */
           <View style={styles.card}>
-            <View style={styles.stepHeaderRow}>
-              <View style={styles.stepCircle}>
-                <Text style={styles.stepCircleText}>1</Text>
+            <View style={styles.cardHeaderRow}>
+              <View style={styles.otpHeaderBadge}>
+                <Ionicons name="shield-checkmark" size={24} color="#ea580c" />
               </View>
-              <Text style={styles.sectionTitle}>Customer Pickup OTP *</Text>
+              <View style={styles.otpHeaderDivider} />
+              <View style={styles.cardHeaderTextCol}>
+                <Text style={styles.cardHeaderTitle}>
+                  {t('trip_flow.customer_pickup_otp')} <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
+                <Text style={styles.cardHeaderSubtitle}>{t('trip_flow.enter_otp_shared')}</Text>
+              </View>
             </View>
-
-            <Text style={styles.hint}>
-              Ask the customer for their 4-digit start OTP shown on their booking screen:
-            </Text>
 
             {/* Visual 4-Digit Box Container */}
             <View style={styles.otpRowContainer}>
@@ -544,50 +774,71 @@ export default function DriverTripStartScreen() {
                       key={idx}
                       style={[
                         styles.otpBox,
-                        isFilled && styles.otpBoxFilled,
                         isFocused && styles.otpBoxActive,
+                        isFilled && styles.otpBoxFilled,
                       ]}
                     >
-                      <Text style={[styles.otpDigit, isFilled && styles.otpDigitFilled]}>
-                        {digit}
-                      </Text>
+                      {isFocused && !digit && !isOtpVerified ? (
+                        <View style={styles.otpCursor} />
+                      ) : (
+                        <Text style={styles.otpDigit}>
+                          {digit}
+                        </Text>
+                      )}
                     </View>
                   );
                 })}
-              </View>
 
-              {/* Right Shield Graphic with progress indicator dots */}
-              <View style={styles.shieldBadgeBox}>
-                <Ionicons
-                  name={pickupOtp.length === 4 ? 'shield-checkmark' : 'shield-outline'}
-                  size={20}
-                  color={pickupOtp.length === 4 ? '#10b981' : '#38bdf8'}
+                {/* Invisible Overlay Input to handle touch and keyboard only over the 4 boxes */}
+                <TextInput
+                  style={styles.hiddenOtpInput}
+                  value={pickupOtp}
+                  onChangeText={(val) => {
+                    const clean = val.replace(/\D/g, '').slice(0, 4);
+                    setPickupOtp(clean);
+                    if (isOtpVerified) setIsOtpVerified(false);
+                    setError('');
+                  }}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  caretHidden={true}
+                  editable={!isOtpVerified}
                 />
-                <View style={styles.shieldDotsRow}>
-                  {[0, 1, 2, 3].map((i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.shieldDot,
-                        pickupOtp.length > i && styles.shieldDotActive,
-                      ]}
-                    />
-                  ))}
-                </View>
               </View>
 
-              {/* Invisible Overlay Input to handle touch and keyboard */}
-              <TextInput
-                style={styles.hiddenOtpInput}
-                value={pickupOtp}
-                onChangeText={setPickupOtp}
-                keyboardType="number-pad"
-                maxLength={4}
-                caretHidden={true}
-              />
+              {/* Verify OTP Button matching reference design */}
+              <TouchableOpacity
+                style={[
+                  styles.verifyOtpBtn,
+                  isOtpVerified && styles.verifyOtpBtnVerified,
+                ]}
+                onPress={handleVerifyOtp}
+                disabled={pickupOtp.length < 4 || isVerifyingOtp || isOtpVerified}
+                activeOpacity={0.85}
+              >
+                {isVerifyingOtp ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : isOtpVerified ? (
+                  <View style={styles.verifyOtpContentRow}>
+                    <Ionicons name="checkmark-circle" size={17} color="#10b981" />
+                    <Text style={styles.verifyOtpTextVerified}>{t('trip_flow.otp_verified')}</Text>
+                  </View>
+                ) : (
+                  <View style={styles.verifyOtpContentRow}>
+                    <Ionicons
+                      name="checkmark-circle-outline"
+                      size={16}
+                      color="#ffffff"
+                    />
+                    <Text style={styles.verifyOtpText}>
+                      {t('trip_flow.verify_otp')}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
 
-            {/* Admin Override Banner */}
+            {/* Admin Override / Info Banner matching reference */}
             <TouchableOpacity
               style={styles.overrideLinkBanner}
               onPress={handleRequestAdminOverride}
@@ -595,307 +846,283 @@ export default function DriverTripStartScreen() {
               activeOpacity={0.8}
             >
               <View style={styles.overrideBannerLeft}>
-                <Ionicons name="warning" size={15} color="#f59e0b" />
-                <Text style={styles.overrideLinkText}>
+                <Ionicons name="information-circle-outline" size={17} color="#2563eb" />
+                <View style={styles.overrideDividerBlue} />
+                <Text style={styles.overrideLinkText} numberOfLines={1}>
                   {overrideRequesting
-                    ? 'Requesting Override...'
+                    ? t('trip_flow.requesting_override')
                     : overrideRequested
-                    ? 'Override Requested — Waiting Approval'
-                    : 'Customer Phone Unreachable? Request Admin Override'}
+                    ? t('trip_flow.override_requested')
+                    : t('trip_flow.verify_before_starting')}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={14} color="#f59e0b" />
+              <Ionicons name="chevron-forward" size={16} color="#2563eb" />
             </TouchableOpacity>
           </View>
         )}
 
-        {/* 2. Starting Odometer Reading & Camera Photo */}
-        <View style={styles.card}>
-          <View style={styles.stepHeaderRow}>
-            <View style={styles.stepCircle}>
-              <Text style={styles.stepCircleText}>2</Text>
+        {/* 2. Step 1: Driver Selfie Verification Card */}
+        {verificationStep === 'selfie' && (
+          <View style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <View style={[styles.cardHeaderIconCircle, { backgroundColor: '#0284c7' }]}>
+                <Ionicons name="person" size={16} color="#ffffff" />
+              </View>
+              <View style={styles.cardHeaderTextCol}>
+                <Text style={styles.cardHeaderTitle}>{t('trip_flow.step1_title')} *</Text>
+                <Text style={styles.cardHeaderSubtitle}>{t('trip_flow.step1_desc')}</Text>
+              </View>
             </View>
-            <Text style={styles.sectionTitle}>Starting Odometer Reading *</Text>
+
+            {/* Selfie Photo Preview Box */}
+            <TouchableOpacity
+              style={styles.selfiePhotoContainer}
+              onPress={handleOpenSelfieCamera}
+              activeOpacity={0.9}
+            >
+              <Image
+                source={driverSelfieUri ? { uri: driverSelfieUri } : DRIVER_SELFIE_SAMPLE}
+                style={styles.selfiePhotoImage}
+                resizeMode="cover"
+              />
+
+              {driverSelfieUri ? (
+                <>
+                  <View style={styles.selfieVerifiedBadge}>
+                    <Ionicons name="checkmark-circle" size={13} color="#ffffff" />
+                    <Text style={styles.selfieVerifiedBadgeText}>{t('trip_flow.selfie_verified')}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.vehiclePhotoRetakeOverlay}
+                    onPress={handleOpenSelfieCamera}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.vehiclePhotoRetakeText}>{t('trip_flow.retake')}</Text>
+                  </TouchableOpacity>
+
+                  {selfieLocation && (
+                    <View style={styles.gpsWatermarkOverlay}>
+                      <View style={styles.gpsWatermarkHeader}>
+                        <View style={styles.gpsWatermarkDot} />
+                        <Text style={styles.gpsWatermarkTitle}>📍 {t('trip_flow.gps_location_stamp')}</Text>
+                      </View>
+                      <Text style={styles.gpsWatermarkCoords}>
+                        {`${selfieLocation.lat.toFixed(5)}° N, ${selfieLocation.lng.toFixed(5)}° E`}
+                      </Text>
+                      <Text style={styles.gpsWatermarkTime}>
+                        ⏱️ {selfieLocation.time} • {t('trip_flow.verified_driver_identity')}
+                      </Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.vehiclePhotoRetakeOverlay}
+                    onPress={handleOpenSelfieCamera}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.vehiclePhotoRetakeText}>{t('trip_flow.capture')}</Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.sampleGuideOverlay}>
+                    <Ionicons name="eye-outline" size={13} color="#ffffff" />
+                    <Text style={styles.sampleGuideOverlayText}>{t('trip_flow.reference_guide')}</Text>
+                  </View>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {driverSelfieUri ? (
+              <TouchableOpacity
+                style={styles.nextStepHintBtn}
+                onPress={() => setVerificationStep('odometer')}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.nextStepHintText}>{t('trip_flow.proceed_to_odometer')}</Text>
+                <Ionicons name="arrow-forward" size={14} color="#2563eb" />
+              </TouchableOpacity>
+            ) : null}
           </View>
+        )}
 
-          <Text style={styles.hint}>
-            Enter current car dashboard reading & take mandatory photo:
-          </Text>
-
-          {/* Odometer Input with Speedometer Icon */}
-          <View style={styles.odometerInputContainer}>
-            <Ionicons name="speedometer-outline" size={20} color="#38bdf8" style={styles.odometerIcon} />
-            <TextInput
-              style={styles.odometerTextInput}
-              value={startingOdometer}
-              onChangeText={setStartingOdometer}
-              keyboardType="decimal-pad"
-              placeholder="e.g. 45210.5"
-              placeholderTextColor="#64748b"
-            />
-            <View style={styles.odometerKmBadge}>
-              <Text style={styles.odometerKmText}>KM</Text>
+        {/* 3. Step 2: Starting Odometer Reading & Vehicle Photo */}
+        {verificationStep === 'odometer' && (
+          <View style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <View style={[styles.cardHeaderIconCircle, { backgroundColor: '#6366f1' }]}>
+                <Ionicons name="speedometer" size={16} color="#ffffff" />
+              </View>
+              <View style={styles.cardHeaderTextCol}>
+                <Text style={styles.cardHeaderTitle}>{t('trip_flow.step2_title')} *</Text>
+                <Text style={styles.cardHeaderSubtitle}>{t('trip_flow.step2_desc')}</Text>
+              </View>
             </View>
-          </View>
 
-          {/* OCR Auto-Read Feedback Banner */}
-          {ocrScanning ? (
-            <View style={styles.ocrScanningBanner}>
-              <ActivityIndicator size="small" color="#0284c7" />
-              <Text style={styles.ocrScanningText}>⚡ Auto-reading odometer numbers from photo...</Text>
+            {/* Odometer Input with Speedometer Icon */}
+            <View style={styles.odometerInputContainer}>
+              <Ionicons name="speedometer-outline" size={20} color="#6366f1" style={styles.odometerIcon} />
+              <TextInput
+                style={styles.odometerTextInput}
+                value={startingOdometer}
+                onChangeText={(val) => {
+                  setStartingOdometer(val);
+                  if (bookingId) setTripStartDraft(bookingId, { startingOdometer: val });
+                }}
+                keyboardType="decimal-pad"
+                placeholder={t('trip_flow.odometer_placeholder')}
+                placeholderTextColor="#94a3b8"
+              />
+              <View style={styles.odometerKmBadge}>
+                <Text style={styles.odometerKmText}>KM</Text>
+              </View>
             </View>
-          ) : ocrResultText.status === 'success' ? (
-            <View style={styles.ocrSuccessBanner}>
-              <Ionicons name="checkmark-circle" size={15} color="#16a34a" />
-              <Text style={styles.ocrSuccessText}>
-                ✨ {ocrResultText.message || `Auto-detected ${ocrResultText.reading} KM`}
+
+            {/* Info Banner matching reference */}
+            <View style={styles.odometerInfoNotice}>
+              <Ionicons name="information-circle" size={16} color="#3b82f6" />
+              <Text style={styles.odometerInfoNoticeText}>
+                {t('trip_flow.odometer_photo_hint')}
               </Text>
             </View>
-          ) : ocrResultText.status === 'failed' ? (
-            <View style={styles.ocrFailedBanner}>
-              <Ionicons name="information-circle-outline" size={15} color="#d97706" />
-              <Text style={styles.ocrFailedText}>
-                {ocrResultText.message || 'Please check and type odometer reading manually'}
-              </Text>
-            </View>
-          ) : null}
 
-          {odometerImageUri ? (
-            <View style={styles.previewContainer}>
-              <View style={styles.imageWrapper}>
-                <Image
-                  source={{ uri: odometerImageUri }}
-                  style={styles.odometerPreviewImage}
-                  resizeMode="cover"
-                />
+            {/* OCR Auto-Read Feedback Banner */}
+            {ocrScanning ? (
+              <View style={styles.ocrScanningBanner}>
+                <ActivityIndicator size="small" color="#0284c7" />
+                <Text style={styles.ocrScanningText}>⚡ {t('trip_flow.auto_reading_odometer')}</Text>
+              </View>
+            ) : ocrResultText.status === 'success' ? (
+              <View style={styles.ocrSuccessBanner}>
+                <Ionicons name="checkmark-circle" size={15} color="#16a34a" />
+                <Text style={styles.ocrSuccessText}>
+                  ✨ {ocrResultText.message || `Auto-detected ${ocrResultText.reading} KM`}
+                </Text>
+              </View>
+            ) : ocrResultText.status === 'failed' ? (
+              <View style={styles.ocrFailedBanner}>
+                <Ionicons name="information-circle-outline" size={15} color="#d97706" />
+                <Text style={styles.ocrFailedText}>
+                  {ocrResultText.message || t('trip_flow.type_odometer_manually')}
+                </Text>
+              </View>
+            ) : null}
 
-                {/* GPS Location Stamp Overlay at Bottom of Captured Photo */}
+            {/* Vehicle / Odometer Photo inside the same card */}
+            <TouchableOpacity
+              style={styles.vehiclePhotoContainer}
+              onPress={handleOpenCamera}
+              activeOpacity={0.9}
+            >
+              <Image
+                source={odometerImageUri ? { uri: odometerImageUri } : ODOMETER_SAMPLE}
+                style={styles.vehiclePhotoImage}
+                resizeMode="cover"
+              />
+              <TouchableOpacity
+                style={styles.vehiclePhotoRetakeOverlay}
+                onPress={handleOpenCamera}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.vehiclePhotoRetakeText}>
+                  {odometerImageUri ? t('trip_flow.retake') : t('trip_flow.capture')}
+                </Text>
+              </TouchableOpacity>
+
+              {!odometerImageUri && (
+                <View style={styles.sampleGuideOverlay}>
+                  <Ionicons name="eye-outline" size={13} color="#ffffff" />
+                  <Text style={styles.sampleGuideOverlayText}>{t('trip_flow.reference_guide')}</Text>
+                </View>
+              )}
+
+              {/* GPS Watermark if photo captured */}
+              {odometerImageUri && photoLocation && (
                 <View style={styles.gpsWatermarkOverlay}>
                   <View style={styles.gpsWatermarkHeader}>
                     <View style={styles.gpsWatermarkDot} />
-                    <Text style={styles.gpsWatermarkTitle}>📍 GPS LOCATION STAMP</Text>
+                    <Text style={styles.gpsWatermarkTitle}>📍 {t('trip_flow.gps_location_stamp')}</Text>
                   </View>
                   <Text style={styles.gpsWatermarkCoords}>
-                    {photoLocation
-                      ? `${photoLocation.lat.toFixed(5)}° N, ${photoLocation.lng.toFixed(5)}° E`
-                      : currentCoords
-                      ? `${currentCoords.lat.toFixed(5)}° N, ${currentCoords.lng.toFixed(5)}° E`
-                      : 'Acquiring GPS...'}
+                    {`${photoLocation.lat.toFixed(5)}° N, ${photoLocation.lng.toFixed(5)}° E`}
                   </Text>
                   <Text style={styles.gpsWatermarkTime}>
-                    ⏱️ Captured: {photoLocation?.time || 'Just now'} • Verified Odometer Evidence
+                    ⏱️ {photoLocation.time} • {t('trip_flow.verified_evidence')}
                   </Text>
                 </View>
-              </View>
+              )}
+            </TouchableOpacity>
 
-              {/* Location Details Card at Bottom of Photo */}
-              <View style={styles.photoLocationCard}>
-                <View style={styles.photoLocationRow}>
-                  <Text style={styles.photoLocationLabel}>Latitude:</Text>
-                  <Text style={styles.photoLocationVal}>
-                    {photoLocation ? `${photoLocation.lat.toFixed(6)}°` : currentCoords ? `${currentCoords.lat.toFixed(6)}°` : 'Acquiring...'}
-                  </Text>
-                </View>
-                <View style={styles.photoLocationRow}>
-                  <Text style={styles.photoLocationLabel}>Longitude:</Text>
-                  <Text style={styles.photoLocationVal}>
-                    {photoLocation ? `${photoLocation.lng.toFixed(6)}°` : currentCoords ? `${currentCoords.lng.toFixed(6)}°` : 'Acquiring...'}
-                  </Text>
-                </View>
-                <View style={styles.photoLocationRow}>
-                  <Text style={styles.photoLocationLabel}>Time of Capture:</Text>
-                  <Text style={styles.photoLocationVal}>{photoLocation?.time || 'Just now'}</Text>
-                </View>
-              </View>
-
-              <TouchableOpacity style={styles.retakeBtn} onPress={handleOpenCamera} activeOpacity={0.85}>
-                <Ionicons name="camera-reverse" size={15} color="#ffffff" />
-                <Text style={styles.retakeBtnText}>Retake Camera Photo</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.odometerSampleContainer}>
-              <View style={styles.sampleGuideHeader}>
-                <Ionicons name="information-circle" size={14} color="#0284c7" />
-                <Text style={styles.sampleGuideHeaderText}>Reference: Take a clear photo of your car odometer gauge</Text>
-              </View>
-
-              {/* Sample Reference Image with Center Camera Overlay */}
-              <TouchableOpacity
-                style={styles.odometerSampleImageBox}
-                onPress={handleOpenCamera}
-                activeOpacity={0.88}
-              >
-                <Image
-                  source={ODOMETER_SAMPLE}
-                  style={styles.odometerSampleImage}
-                  resizeMode="cover"
-                />
-                <View style={styles.sampleBadgeOverlay}>
-                  <Text style={styles.sampleBadgeText}>📷 Reference Sample Photo</Text>
-                </View>
-                <View style={styles.centerCameraCircleOverlay}>
-                  <Ionicons name="camera" size={24} color="#ffffff" />
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.cameraPrimaryBtn}
-                onPress={handleOpenCamera}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="camera" size={18} color="#ffffff" />
-                <Text style={styles.cameraPrimaryBtnText}>Open Camera & Capture Odometer</Text>
-              </TouchableOpacity>
-
-              {/* Pre-capture Current Location Indicator Pill */}
-              <View style={styles.preCaptureGpsRow}>
-                <View style={styles.gpsLeftGroup}>
-                  <Ionicons name="location" size={14} color="#10b981" />
-                  <Text style={styles.preCaptureGpsText}>
-                    {currentCoords
-                      ? `GPS: ${currentCoords.lat.toFixed(5)}, ${currentCoords.lng.toFixed(5)}`
-                      : 'Acquiring GPS position...'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* 3. Vehicle Inspection Photos (Front, Back/Rear, Side, Inside) */}
-        <View style={styles.card}>
-          <View style={styles.stepHeaderRow}>
-            <View style={styles.stepCircle}>
-              <Text style={styles.stepCircleText}>3</Text>
-            </View>
-            <View style={{ flex: 1, paddingRight: 4 }}>
-              <Text style={styles.sectionTitle}>Vehicle Inspection Photos *</Text>
-              <Text style={styles.sectionSubTitle}>Front, Rear, Side & Inside Views</Text>
-            </View>
             <TouchableOpacity
-              style={styles.demoFillMiniBtn}
-              onPress={handleFillDemoInspectionPhotos}
-              activeOpacity={0.7}
+              style={styles.backStepHintBtn}
+              onPress={() => setVerificationStep('selfie')}
+              activeOpacity={0.8}
             >
-              <Text style={styles.demoFillMiniBtnText}>⚡ Demo</Text>
+              <Ionicons name="arrow-back" size={13} color="#64748b" />
+              <Text style={styles.backStepHintText}>{t('trip_flow.back_to_selfie')}</Text>
             </TouchableOpacity>
           </View>
-
-          <Text style={styles.hint}>
-            Capture mandatory condition photos of your cab before starting the trip:
-          </Text>
-
-          {/* 2x2 Grid of Inspection Angles */}
-          <View style={styles.inspectionGrid}>
-            {inspectionAngles.map((angle, idx) => {
-              const photo = inspectionPhotos[idx];
-              return (
-                <View key={angle.id} style={styles.inspectionCard}>
-                  <View style={styles.inspectionCardHeader}>
-                    <View style={styles.inspectionCardTitleRow}>
-                      <Ionicons name={angle.icon} size={13} color="#0284c7" />
-                      <Text style={styles.inspectionCardTitle} numberOfLines={1}>{angle.title}</Text>
-                    </View>
-                    <View style={[styles.inspectionBadge, photo ? styles.badgeGreen : styles.badgeAmber]}>
-                      <Text style={photo ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                        {photo ? '✓ Done' : 'Req'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <Text style={styles.inspectionCardDesc} numberOfLines={1}>{angle.desc}</Text>
-
-                  {photo ? (
-                    <View style={styles.inspectionPreviewWrapper}>
-                      <Image
-                        source={{ uri: photo }}
-                        style={styles.inspectionThumbnail}
-                        resizeMode="cover"
-                      />
-                      <TouchableOpacity
-                        style={styles.inspectionRetakeBtn}
-                        onPress={() => handleInspectionOptions(idx)}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name="camera-reverse" size={11} color="#ffffff" />
-                        <Text style={styles.inspectionRetakeText}>Retake</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.inspectionPlaceholder}
-                      onPress={() => handleInspectionOptions(idx)}
-                      activeOpacity={0.8}
-                    >
-                      <View style={styles.inspectionCameraCircle}>
-                        <Ionicons name="camera" size={16} color="#0284c7" />
-                      </View>
-                      <Text style={styles.inspectionPlaceholderText}>Tap to Capture</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              );
-            })}
-          </View>
-        </View>
+        )}
       </ScrollView>
 
-      {/* Pinned Bottom Action Bar for Exact 100vh Fit */}
+      {/* Pinned Bottom Action Bar matching reference design */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <TouchableOpacity
           style={[
-            styles.startButton,
-            odometerImageUri && startingOdometer && (isAdminAuthorized || pickupOtp.length === 4)
-              ? styles.startButtonReady
-              : styles.startButtonLocked,
+            styles.yellowPrimaryButton,
+            Boolean(isOtpVerified && startingOdometer && odometerImageUri && driverSelfieUri && verificationStep === 'odometer') && styles.yellowPrimaryButtonReady,
             loading && styles.startButtonDisabled,
           ]}
-          onPress={
-            !isAdminAuthorized && pickupOtp.length < 4
-              ? () => setError('Please enter the 4-digit pickup OTP')
-              : !startingOdometer
-              ? () => setError('Please enter the starting odometer reading')
-              : !odometerImageUri
-              ? handleOpenCamera
-              : handleStartTrip
-          }
+          onPress={() => {
+            if (!isAdminAuthorized && pickupOtp.length < 4) {
+              setError('Please enter the 4-digit pickup OTP');
+              return;
+            }
+            if (verificationStep === 'selfie') {
+              if (!driverSelfieUri) {
+                handleOpenSelfieCamera();
+                return;
+              }
+              setVerificationStep('odometer');
+              if (!odometerImageUri) {
+                handleOpenCamera();
+              }
+              return;
+            }
+
+            // verificationStep === 'odometer'
+            if (!odometerImageUri) {
+              handleOpenCamera();
+              return;
+            }
+            if (!startingOdometer) {
+              setError('Please enter the starting odometer reading');
+              return;
+            }
+            if (!driverSelfieUri) {
+              setVerificationStep('selfie');
+              return;
+            }
+
+            handleStartTrip();
+          }}
           disabled={loading}
           activeOpacity={0.88}
         >
           {loading ? (
-            <ActivityIndicator color="#ffffff" size="small" />
-          ) : !odometerImageUri ? (
-            <>
-              <View style={styles.ctaIconCircleAmber}>
-                <Ionicons name="camera" size={16} color="#d97706" />
-              </View>
-              <Text style={styles.startButtonText}>ATTACH STARTING ODOMETER PHOTO</Text>
-              <Ionicons name="camera-outline" size={18} color="#ffffff" />
-            </>
-          ) : !startingOdometer ? (
-            <>
-              <View style={styles.ctaIconCircleAmber}>
-                <Ionicons name="speedometer" size={16} color="#d97706" />
-              </View>
-              <Text style={styles.startButtonText}>ENTER STARTING ODOMETER READING</Text>
-              <Ionicons name="arrow-forward" size={18} color="#ffffff" />
-            </>
-          ) : !isAdminAuthorized && pickupOtp.length < 4 ? (
-            <>
-              <View style={styles.ctaIconCircleAmber}>
-                <Ionicons name="key" size={16} color="#d97706" />
-              </View>
-              <Text style={styles.startButtonText}>ENTER 4-DIGIT PICKUP OTP</Text>
-              <Ionicons name="arrow-forward" size={18} color="#ffffff" />
-            </>
+            <ActivityIndicator color="#0f172a" size="small" />
           ) : (
             <>
-              <View style={styles.ctaIconCircleWhite}>
-                <Ionicons name="checkmark-sharp" size={16} color="#059669" />
-              </View>
-              <Text style={styles.startButtonText}>VERIFY & START TRIP</Text>
-              <Ionicons name="arrow-forward" size={18} color="#ffffff" />
+              <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
+                {verificationStep === 'selfie'
+                  ? !driverSelfieUri
+                    ? t('trip_flow.take_selfie_btn')
+                    : t('trip_flow.next_capture_odometer')
+                  : !odometerImageUri
+                  ? t('trip_flow.open_camera_odometer')
+                  : t('trip_flow.start_trip_btn')}
+              </Text>
+              <Ionicons name="arrow-forward" size={20} color="#0f172a" />
             </>
           )}
         </TouchableOpacity>
@@ -988,62 +1215,121 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: '#f8fafc',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#f1f5f9',
     gap: 8,
   },
   ribbonHomeBtn: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ef4444',
-    borderRadius: 10,
-    paddingVertical: 9,
-    paddingHorizontal: 8,
-    gap: 5,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
     shadowColor: '#ef4444',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
     elevation: 2,
   },
+  ribbonHomeGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#fda4af',
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+  },
+  ribbonRedHalo: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#ffd0d6',
+    borderWidth: 1,
+    borderColor: '#ffbec7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ribbonRedCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#b91c1c',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 1,
+  },
   ribbonHomeText: {
-    fontSize: 12,
+    flex: 1,
+    fontSize: 12.5,
     fontWeight: '800',
-    color: '#ffffff',
+    color: '#881337',
+    textAlign: 'center',
+    paddingHorizontal: 2,
   },
   ribbonNavBtn: {
     flex: 1,
+    borderRadius: 999,
+    shadowColor: '#07265c',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.32,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  ribbonNavGradient: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+  },
+  ribbonNavBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2563eb',
-    borderRadius: 10,
-    paddingVertical: 9,
-    paddingHorizontal: 8,
-    gap: 5,
-    elevation: 2,
-    shadowColor: '#2563eb',
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
   },
   ribbonNavText: {
-    fontSize: 12,
+    flex: 1,
+    fontSize: 12.5,
     fontWeight: '800',
     color: '#ffffff',
+    textAlign: 'center',
     letterSpacing: 0.2,
+    paddingHorizontal: 2,
+  },
+  ribbonRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingRight: 4,
+  },
+  ribbonDividerRed: {
+    width: 1,
+    height: 14,
+    backgroundColor: '#fca5a5',
+  },
+  ribbonDividerNavy: {
+    width: 1,
+    height: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
   scrollArea: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 14,
-    paddingTop: 10,
+    paddingHorizontal: 12,
+    paddingTop: 6,
     paddingBottom: 8,
   },
   errorContainer: {
@@ -1067,44 +1353,67 @@ const styles = StyleSheet.create({
   passengerCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#0f172a',
+    borderColor: '#f1f5f9',
+    shadowColor: '#64748b',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 2,
+  },
+  passengerHeaderTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  passengerSubtitleTop: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '600',
   },
   passengerHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
+    paddingHorizontal: 2,
+  },
+  passengerHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  orangeAccentBar: {
+    width: 3.5,
+    height: 14,
+    borderRadius: 2,
+    backgroundColor: '#ea580c',
+    marginRight: 6,
   },
   passengerHeaderTitle: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
-    color: '#64748b',
+    color: '#475569',
     letterSpacing: 0.6,
   },
   releasedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ecfdf5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#86efac',
     gap: 4,
   },
   releasedBadgeText: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '800',
-    color: '#059669',
+    color: '#15803d',
   },
   lockedBadge: {
     flexDirection: 'row',
@@ -1125,24 +1434,30 @@ const styles = StyleSheet.create({
   passengerMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 2,
+    paddingTop: 2,
   },
-  passengerAvatarCircle: {
+  passengerLeftContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  passengerAvatarSolid: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#0052cc',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.2,
-    borderColor: '#bfdbfe',
   },
   passengerInfoCol: {
     flex: 1,
   },
   passengerName: {
-    fontSize: 15.5,
+    fontSize: 15,
     fontWeight: '800',
     color: '#0f172a',
   },
@@ -1152,29 +1467,26 @@ const styles = StyleSheet.create({
     marginTop: 1,
     fontWeight: '500',
   },
-  callButton: {
-    backgroundColor: '#059669',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  callBtnLeft: {
+  callNowBtnWhite: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: '#ffffff',
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  callButtonText: {
-    color: '#ffffff',
+  callNowBtnText: {
     fontSize: 12.5,
     fontWeight: '800',
+    color: '#0f172a',
     letterSpacing: 0.2,
   },
   phoneProtectedBox: {
@@ -1221,16 +1533,59 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#0f172a',
+    borderColor: '#f1f5f9',
+    shadowColor: '#64748b',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 2,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  otpHeaderBadge: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingRight: 2,
+  },
+  otpHeaderDivider: {
+    width: 1.5,
+    height: 28,
+    backgroundColor: '#d8dae6',
+    marginHorizontal: 4,
+  },
+  requiredAsterisk: {
+    color: '#ef4444',
+    fontWeight: '800',
+  },
+  cardHeaderIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardHeaderTextCol: {
+    flex: 1,
+  },
+  cardHeaderTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.2,
+  },
+  cardHeaderSubtitle: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 0.5,
+    fontWeight: '500',
   },
   stepHeaderRow: {
     flexDirection: 'row',
@@ -1239,91 +1594,124 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   stepCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#2563eb',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#ea580c',
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepCircleText: {
     color: '#ffffff',
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '900',
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     color: '#0f172a',
   },
   hint: {
-    fontSize: 10.5,
+    fontSize: 11,
     color: '#64748b',
-    marginBottom: 8,
-    lineHeight: 14,
+    marginTop: 2,
+    marginBottom: 10,
+    lineHeight: 15,
   },
   otpRowContainer: {
     position: 'relative',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 10,
+    marginTop: 4,
   },
   otpBoxesWrapper: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 7,
     flex: 1,
   },
   otpBox: {
     flex: 1,
-    height: 46,
-    borderRadius: 10,
-    backgroundColor: '#f8fafc',
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#ffffff',
     borderWidth: 1.2,
-    borderColor: '#cbd5e1',
+    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   otpBoxActive: {
-    borderColor: '#2563eb',
-    backgroundColor: '#eff6ff',
+    borderColor: '#0c2253',
+    borderWidth: 2,
+    backgroundColor: '#ffffff',
   },
   otpBoxFilled: {
-    borderColor: '#059669',
-    backgroundColor: '#f0fdf4',
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff',
+  },
+  otpCursor: {
+    width: 2,
+    height: 24,
+    backgroundColor: '#2563eb',
+    borderRadius: 1,
   },
   otpDigit: {
     fontSize: 20,
-    fontWeight: '900',
-    color: '#64748b',
-  },
-  otpDigitFilled: {
+    fontWeight: '800',
     color: '#0f172a',
   },
-  shieldBadgeBox: {
-    width: 42,
-    height: 46,
-    borderRadius: 10,
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
+  otpBoxVerified: {
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+  },
+  otpDigitVerified: {
+    color: '#0f172a',
+  },
+  verifyOtpBtn: {
+    height: 48,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: '#0c2253',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
-    gap: 3,
+    elevation: 3,
+    shadowColor: '#0c2253',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
-  shieldDotsRow: {
+  verifyOtpBtnActive: {
+    backgroundColor: '#0c2253',
+    borderColor: '#0c2253',
+  },
+  verifyOtpBtnVerified: {
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1.2,
+    borderColor: '#a7f3d0',
+    shadowColor: '#10b981',
+    shadowOpacity: 0.15,
+  },
+  verifyOtpContentRow: {
     flexDirection: 'row',
-    gap: 2.5,
+    alignItems: 'center',
+    gap: 6,
   },
-  shieldDot: {
-    width: 3.5,
-    height: 3.5,
-    borderRadius: 2,
-    backgroundColor: '#cbd5e1',
+  verifyOtpText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.2,
   },
-  shieldDotActive: {
-    backgroundColor: '#10b981',
+  verifyOtpTextActive: {
+    color: '#ffffff',
+    fontWeight: '800',
+  },
+  verifyOtpTextVerified: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#10b981',
   },
   hiddenOtpInput: {
     position: 'absolute',
@@ -1337,23 +1725,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fffbeb',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1,
-    borderColor: '#fcd34d',
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
     marginTop: 2,
   },
   overrideBannerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
     flex: 1,
   },
+  overrideDividerBlue: {
+    width: 1.5,
+    height: 16,
+    backgroundColor: '#cbd5e1',
+    marginHorizontal: 8,
+  },
   overrideLinkText: {
-    color: '#b45309',
-    fontSize: 10.5,
+    color: '#1e3a8a',
+    fontSize: 12.5,
     fontWeight: '700',
     flex: 1,
   },
@@ -1411,13 +1804,13 @@ const styles = StyleSheet.create({
   odometerInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
     borderRadius: 10,
     borderWidth: 1.2,
-    borderColor: '#cbd5e1',
+    borderColor: '#e2e8f0',
     paddingHorizontal: 12,
     height: 44,
-    marginBottom: 8,
+    marginBottom: 7,
   },
   odometerIcon: {
     marginRight: 8,
@@ -1425,22 +1818,67 @@ const styles = StyleSheet.create({
   odometerTextInput: {
     flex: 1,
     color: '#0f172a',
-    fontSize: 14.5,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   odometerKmBadge: {
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   odometerKmText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#2563eb',
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#64748b',
+  },
+  odometerInfoNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: '#eff6ff',
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 7,
+  },
+  odometerInfoNoticeText: {
+    fontSize: 11.5,
+    color: '#1d4ed8',
+    fontWeight: '600',
+    flex: 1,
+  },
+  vehiclePhotoContainer: {
+    width: '100%',
+    height: 140,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  vehiclePhotoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  vehiclePhotoRetakeOverlay: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    zIndex: 10,
+  },
+  vehiclePhotoRetakeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
   },
   odometerSampleContainer: {
     width: '100%',
@@ -1449,80 +1887,63 @@ const styles = StyleSheet.create({
   sampleGuideHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
     backgroundColor: '#f0f9ff',
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#bae6fd',
+    marginBottom: 4,
   },
   sampleGuideHeaderText: {
-    fontSize: 10.5,
+    fontSize: 11,
     color: '#0369a1',
     fontWeight: '700',
     flex: 1,
   },
   odometerSampleImageBox: {
     width: '100%',
-    height: 135,
-    borderRadius: 10,
+    height: 140,
+    borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
     backgroundColor: '#0f172a',
-    borderWidth: 1.5,
-    borderColor: '#3b82f6',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   odometerSampleImage: {
     width: '100%',
     height: '100%',
-    opacity: 0.85,
+    opacity: 0.95,
   },
   sampleBadgeOverlay: {
     position: 'absolute',
     top: 8,
     left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(15, 23, 42, 0.85)',
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   sampleBadgeText: {
     color: '#ffffff',
-    fontSize: 9.5,
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  centerCameraCircleOverlay: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -24 }, { translateY: -24 }],
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(37, 99, 235, 0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#ffffff',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 4,
+    letterSpacing: 0.2,
   },
   cameraPrimaryBtn: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#142232',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 11,
-    borderRadius: 10,
-    gap: 6,
-    shadowColor: '#2563eb',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 6,
+    shadowColor: '#142232',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -1530,8 +1951,8 @@ const styles = StyleSheet.create({
   },
   cameraPrimaryBtnText: {
     color: '#ffffff',
-    fontSize: 12.5,
-    fontWeight: '900',
+    fontSize: 13,
+    fontWeight: '800',
     letterSpacing: 0.2,
   },
   preCaptureGpsRow: {
@@ -1539,12 +1960,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    backgroundColor: '#f8fafc',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    backgroundColor: '#e2e8f0',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   gpsLeftGroup: {
     flexDirection: 'row',
@@ -1553,8 +1972,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   preCaptureGpsText: {
-    fontSize: 10,
-    color: '#64748b',
+    fontSize: 11,
+    color: '#334155',
+    fontWeight: '700',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   previewContainer: {
@@ -1662,9 +2082,45 @@ const styles = StyleSheet.create({
   bottomBar: {
     backgroundColor: '#ffffff',
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: '#f1f5f9',
+  },
+  yellowPrimaryButton: {
+    backgroundColor: '#fbbf24',
+    borderRadius: 30,
+    height: 54,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#d97706',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  yellowPrimaryButtonReady: {
+    backgroundColor: '#fbbf24',
+  },
+  btnLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  btnDividerDark: {
+    width: 1.5,
+    height: 20,
+    backgroundColor: 'rgba(15, 23, 42, 0.25)',
+    marginHorizontal: 12,
+  },
+  yellowPrimaryButtonText: {
+    color: '#0f172a',
+    fontSize: 14.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    flex: 1,
   },
   sectionSubTitle: {
     fontSize: 10.5,
@@ -1675,13 +2131,16 @@ const styles = StyleSheet.create({
   demoFillMiniBtn: {
     backgroundColor: '#fff7ed',
     borderWidth: 1,
-    borderColor: '#ea580c',
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 6,
+    borderColor: '#fdba74',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   demoFillMiniBtnText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     color: '#ea580c',
   },
@@ -1805,12 +2264,11 @@ const styles = StyleSheet.create({
   },
   startButton: {
     borderRadius: 30,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
     elevation: 6,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 10,
@@ -1821,37 +2279,160 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
   },
   startButtonLocked: {
-    backgroundColor: '#1e293b',
-    shadowColor: '#0f172a',
+    backgroundColor: '#142232',
+    shadowColor: '#142232',
     shadowOpacity: 0.25,
   },
   startButtonDisabled: {
     opacity: 0.6,
   },
   ctaIconCircleWhite: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaIconCircleAmber: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#fff7ed',
+  ctaIconCircleOrange: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ea580c',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#fed7aa',
+  },
+  ctaIconCircleAmber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ea580c',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   startButtonText: {
     color: '#ffffff',
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '900',
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
     textAlign: 'center',
+    flex: 1,
+  },
+  selfiePhotoContainer: {
+    width: '100%',
+    height: 220,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+    position: 'relative',
+    marginTop: 10,
+  },
+  selfiePhotoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  selfieVerifiedBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(5, 150, 105, 0.95)',
+    paddingVertical: 3.5,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    zIndex: 10,
+  },
+  selfieVerifiedBadgeText: {
+    color: '#ffffff',
+    fontSize: 9.5,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  selfiePlaceholder: {
+    flex: 1,
+    backgroundColor: '#1e293b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  selfieCameraCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  selfiePlaceholderTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  selfiePlaceholderSub: {
+    color: '#94a3b8',
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  nextStepHintBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginTop: 10,
+  },
+  nextStepHintText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1d4ed8',
+  },
+  backStepHintBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  backStepHintText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  sampleGuideOverlay: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  sampleGuideOverlayText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });
 

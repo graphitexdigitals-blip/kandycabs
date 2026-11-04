@@ -32,6 +32,7 @@ export function BookingDetailDrawer({
   const [driverPayeeVal, setDriverPayeeVal] = useState<string>('0');
   const [driverPayStatus, setDriverPayStatus] = useState<string>('PENDING');
   const [savingDriverPay, setSavingDriverPay] = useState<boolean>(false);
+  const [approvingFleet, setApprovingFleet] = useState<boolean>(false);
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
 
   const fetchDetail = async (id: string) => {
@@ -88,6 +89,31 @@ export function BookingDetailDrawer({
       console.error('Failed to update driver payment details:', err);
     } finally {
       setSavingDriverPay(false);
+    }
+  };
+
+  const handleApproveFleet = async () => {
+    if (!booking) return;
+    if (!window.confirm(`Approve fleet availability for booking ${booking.humanReadableRef}? Customer will be notified to pay their advance.`)) {
+      return;
+    }
+    setApprovingFleet(true);
+    try {
+      const res = await fetch(`/api/admin/bookings/${booking.id}/approve-fleet`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || 'Fleet availability approved successfully!');
+        fetchDetail(booking.id);
+        onRefresh();
+      } else {
+        alert(data.message || 'Failed to approve fleet availability');
+      }
+    } catch (e: any) {
+      alert(e.message || 'Network error');
+    } finally {
+      setApprovingFleet(false);
     }
   };
 
@@ -267,7 +293,45 @@ export function BookingDetailDrawer({
                     🔑 Admin OTP Override
                   </button>
                 )}
+
+              {booking.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVAL_REQUESTED' || e.payloadJson?.requiresFleetApproval) &&
+                !booking.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVED') && (
+                  <button
+                    type="button"
+                    disabled={approvingFleet}
+                    onClick={handleApproveFleet}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5"
+                  >
+                    <span>✓</span> {approvingFleet ? 'Approving...' : 'Approve Fleet'}
+                  </button>
+                )}
             </div>
+
+            {/* Fleet Availability Verification Alert Box */}
+            {booking.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVAL_REQUESTED' || e.payloadJson?.requiresFleetApproval) &&
+              !booking.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVED') && (
+                <div className="p-4 bg-amber-50 border-2 border-amber-400 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xl">🚍</span>
+                      <span className="font-black text-xs text-amber-900 uppercase tracking-wide">
+                        Fleet Availability Verification Required
+                      </span>
+                    </div>
+                    <p className="text-xs text-amber-800 mt-1 max-w-xl">
+                      This is a large group vehicle booking (Tempo Traveller / Force Urbania). Please verify fleet availability with your operations manager. Once approved, the customer will be enabled to pay their advance from My Bookings.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={approvingFleet}
+                    onClick={handleApproveFleet}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs whitespace-nowrap"
+                  >
+                    {approvingFleet ? 'Approving...' : '✓ Approve Fleet Availability'}
+                  </button>
+                </div>
+              )}
 
             {/* Pending Driver Override Alert Box */}
             {booking.tripEvents?.some((e: any) => e.type === 'OVERRIDE_REQUESTED') &&
@@ -393,7 +457,7 @@ export function BookingDetailDrawer({
                       {meta.hasPet && (
                         <span className="text-[10px] bg-amber-100 text-amber-900 font-extrabold px-2 py-0.5 rounded-md border border-amber-300 flex items-center gap-1">
                           <span>🐾</span>
-                          <span>Pet Friendly (+₹{meta.petFee || 500})</span>
+                          <span>Pet Friendly{meta.petType ? ` (${meta.petType.charAt(0).toUpperCase() + meta.petType.slice(1).toLowerCase()})` : ''} (+₹{meta.petFee || 500})</span>
                         </span>
                       )}
                       {meta.flightNumber && (
@@ -436,9 +500,11 @@ export function BookingDetailDrawer({
                     <div className="p-2.5 bg-amber-50/90 border border-amber-300 rounded-lg text-xs text-amber-950 flex items-start gap-2 shadow-2xs">
                       <span className="text-base">🐾</span>
                       <div>
-                        <span className="font-extrabold block text-amber-900">Pet-Friendly Trip:</span>
+                        <span className="font-extrabold block text-amber-900">
+                          Pet-Friendly Trip{meta.petType ? ` (${meta.petType.charAt(0).toUpperCase() + meta.petType.slice(1).toLowerCase()})` : ''}:
+                        </span>
                         <span className="text-[11px] text-amber-800">
-                          Customer is travelling with a pet (+₹{meta.petFee || 500} pet sanitization & convenience fee applied). Please ensure the assigned vehicle is pet-friendly and inform driver.
+                          Customer is travelling with a {meta.petType ? meta.petType.toLowerCase() : 'pet'} (+₹{meta.petFee || 500} pet sanitization & convenience fee applied). Please ensure the assigned vehicle is pet-friendly and inform driver.
                         </span>
                       </div>
                     </div>
@@ -542,7 +608,7 @@ export function BookingDetailDrawer({
                       {meta.hasPet ? (
                         <div className="bg-amber-50/90 p-2.5 rounded-lg border border-amber-300">
                           <span className="text-[10px] text-amber-800 block font-bold">🐾 Pet Friendly</span>
-                          <span className="font-black text-amber-950">✓ Yes (+₹{meta.petFee || 500})</span>
+                          <span className="font-black text-amber-950">✓ {meta.petType ? meta.petType.charAt(0).toUpperCase() + meta.petType.slice(1).toLowerCase() : 'Yes'} (+₹{meta.petFee || 500})</span>
                         </div>
                       ) : null}
                       {meta.flightNumber ? (
@@ -843,7 +909,7 @@ export function BookingDetailDrawer({
                   </div>
                   {fMeta.hasPet && (
                     <div className="flex justify-between text-amber-800">
-                      <span>🐾 Pet Convenience Fee:</span>
+                      <span>🐾 Pet Convenience Fee{fMeta.petType ? ` (${fMeta.petType.charAt(0).toUpperCase() + fMeta.petType.slice(1).toLowerCase()})` : ''}:</span>
                       <span className="font-bold">+₹{(fMeta.petFee || 500).toFixed(2)} (Included in Total)</span>
                     </div>
                   )}
@@ -875,6 +941,34 @@ export function BookingDetailDrawer({
                       </div>
                     </div>
                   )}
+
+                  {/* Trip Completion Payment Method Badge (Admin UPI QR vs Cash Collected) */}
+                  {(() => {
+                    const completeEvent = booking.tripEvents?.find((e: any) => e.type === 'TRIP_COMPLETED');
+                    const balancePayment = booking.payments?.find((p: any) => p.type === 'BALANCE');
+                    const method = balancePayment?.paymentMethod || completeEvent?.payloadJson?.paymentMethod;
+                    if (!method) return null;
+                    const isUpi = method === 'UPI_QR';
+                    return (
+                      <div className={`mt-2.5 p-2.5 rounded-lg border flex items-center justify-between text-xs font-bold ${
+                        isUpi
+                          ? 'bg-sky-50 text-sky-950 border-sky-200'
+                          : 'bg-emerald-50 text-emerald-950 border-emerald-200'
+                      }`}>
+                        <span className="flex items-center gap-1.5">
+                          <span>{isUpi ? '📱' : '💵'}</span>
+                          <span>Balance Collection:</span>
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-md border text-[10.5px] font-black uppercase tracking-wide ${
+                          isUpi
+                            ? 'bg-sky-100 text-sky-900 border-sky-300'
+                            : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                        }`}>
+                          {isUpi ? 'Admin UPI QR (Direct)' : 'Cash Collected by Driver'}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}

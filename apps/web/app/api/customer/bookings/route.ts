@@ -160,6 +160,7 @@ export async function POST(req: NextRequest) {
       (typeof notes === 'string' && /pet\s*friendly/i.test(notes)) ||
       (typeof body.specialRequirements === 'string' && /pet\s*friendly/i.test(body.specialRequirements))
     );
+    const petType = body.petType ? String(body.petType).toLowerCase() : 'dog';
     const petFee = hasPet ? (Number(body.petFee) || 500) : 0;
 
     const pricing = calculateFare({
@@ -176,9 +177,11 @@ export async function POST(req: NextRequest) {
     });
 
     const isPayOnDrop = paymentMode === 'PAY_ON_DROP' || paymentMode === 'CASH';
-    const advanceAmount = isPayOnDrop ? 0 : pricing.advanceAmount;
-    const advancePaymentStatus = isPayOnDrop ? PaymentStatus.PENDING : PaymentStatus.PAID;
-    const balanceAmount = isPayOnDrop ? pricing.totalFare : pricing.balanceAmount;
+    const isPayOnApproval = Boolean(paymentMode === 'PAY_ON_APPROVAL' || body.isFleetApprovalRequired || category === VehicleCategory.TEMPO_TRAVELER || category === 'TEMPO_TRAVELER' || category === 'URBANIA');
+    const isFullPayment = paymentMode === 'FULL';
+    const advanceAmount = isPayOnDrop ? 0 : isFullPayment ? pricing.totalFare : pricing.advanceAmount;
+    const advancePaymentStatus = (isPayOnDrop || isPayOnApproval) ? PaymentStatus.PENDING : PaymentStatus.PAID;
+    const balanceAmount = isPayOnDrop ? pricing.totalFare : isFullPayment ? 0 : pricing.balanceAmount;
 
     const humanReadableRef = generateBookingReference();
     const pickupOtp = generateOtp(4);
@@ -220,9 +223,9 @@ export async function POST(req: NextRequest) {
           type: PaymentType.ADVANCE,
           amount: advanceAmount,
           razorpayOrderId: orderRef,
-          razorpayPaymentId: razorpayPaymentId || (isPayOnDrop ? `pay_cash_${Date.now()}` : `pay_mock_${Date.now()}`),
+          razorpayPaymentId: razorpayPaymentId || (isPayOnDrop ? `pay_cash_${Date.now()}` : isPayOnApproval ? `pay_pending_approval_${Date.now()}` : `pay_mock_${Date.now()}`),
           status: advancePaymentStatus,
-          verifiedAt: isPayOnDrop ? null : new Date(),
+          verifiedAt: (isPayOnDrop || isPayOnApproval) ? null : new Date(),
         },
       });
 
@@ -247,10 +250,14 @@ export async function POST(req: NextRequest) {
             flightNumber,
             hasPet,
             isPetFriendly: hasPet,
+            petType,
             petFee,
+            requiresFleetApproval: isPayOnApproval,
+            fleetApprovalStatus: isPayOnApproval ? 'PENDING_APPROVAL' : 'NOT_REQUIRED',
             specialRequirements: specialReqs,
             notes: specialReqs,
-            advancePaid: pricing.advanceAmount,
+            advancePaid: isPayOnApproval ? 0 : pricing.advanceAmount,
+            advanceDue: pricing.advanceAmount,
             balanceDue: pricing.balanceAmount,
             razorpayOrderId: orderRef,
             passengerName: passengerName ? String(passengerName).trim() : undefined,
@@ -262,6 +269,21 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      if (isPayOnApproval) {
+        await tx.tripEvent.create({
+          data: {
+            bookingId: booking.id,
+            type: 'FLEET_APPROVAL_REQUESTED',
+            payloadJson: {
+              category,
+              requiresFleetApproval: true,
+              advanceAmount: pricing.advanceAmount,
+              message: 'Large fleet availability check requested for Tempo Traveller / Force Urbania. Payment deferred until Admin approval.',
+            },
+          },
+        });
+      }
+
       // 4. Create AuditLog
       await tx.auditLog.create({
         data: {
@@ -269,7 +291,9 @@ export async function POST(req: NextRequest) {
           action: 'CREATE_BOOKING',
           entityType: 'Booking',
           entityId: booking.id,
-          reason: `Customer booked ${category} (${tripType}${flightNumber ? `, Flight ${flightNumber}` : ''}) for ${passengerCount} passengers (${luggageDetails}) with ₹${pricing.advanceAmount} advance paid.`,
+          reason: isPayOnApproval
+            ? `Customer requested booking for ${category} (${tripType}${flightNumber ? `, Flight ${flightNumber}` : ''}) for ${passengerCount} travellers. Fleet availability verification required; ₹${pricing.advanceAmount} advance payment deferred until Admin approval.`
+            : `Customer booked ${category} (${tripType}${flightNumber ? `, Flight ${flightNumber}` : ''}) for ${passengerCount} passengers (${luggageDetails}) with ₹${pricing.advanceAmount} advance paid.`,
         },
       });
 

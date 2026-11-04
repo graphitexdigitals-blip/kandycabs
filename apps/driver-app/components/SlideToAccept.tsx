@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface SlideToAcceptProps {
   onAccept: () => void;
@@ -25,11 +26,11 @@ export function SlideToAccept({
   onAccept,
   isAccepting = false,
   disabled = false,
-  title = 'SLIDE TO ACCEPT RIDE',
+  title = 'SLIDE RIGHT TO ACCEPT',
   acceptingTitle = 'ACCEPTING RIDE...',
 }: SlideToAcceptProps) {
   const [trackWidth, setTrackWidth] = useState(300);
-  const knobWidth = 50;
+  const knobWidth = 48;
   const padding = 4;
   const maxSlide = Math.max(0, trackWidth - knobWidth - padding * 2);
 
@@ -44,12 +45,12 @@ export function SlideToAccept({
         Animated.timing(shimmerAnim, {
           toValue: 1,
           duration: 1200,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(shimmerAnim, {
           toValue: 0,
           duration: 1200,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ])
     );
@@ -167,43 +168,57 @@ export function SlideToAccept({
           </View>
         </TouchableOpacity>
       ) : (
-        /* Track Background */
-        <View style={[styles.track, isAccepting && styles.trackAccepting]}>
-          {/* Animated Center Text & Chevrons */}
-          <Animated.View style={[styles.textWrapper, { opacity: isAccepting ? 0.3 : textOpacity }]}>
-            <Text style={styles.trackText}>{isAccepting ? acceptingTitle : title}</Text>
-            {!isAccepting && (
-              <Animated.View
-                style={[
-                  styles.chevronsRow,
-                  { transform: [{ translateX: shimmerTranslate }] },
-                ]}
-              >
-                <Ionicons name="chevron-forward" size={15} color="#ffffff" style={{ opacity: 0.5 }} />
-                <Ionicons name="chevron-forward" size={15} color="#ffffff" style={{ opacity: 0.8, marginLeft: -6 }} />
-                <Ionicons name="chevron-forward" size={15} color="#ffffff" style={{ marginLeft: -6 }} />
-              </Animated.View>
-            )}
-          </Animated.View>
-
-          {/* Sliding Knob (Incoming Call / Accept Slider Button) */}
-          <Animated.View
-            style={[
-              styles.knob,
-              {
-                transform: [{ translateX: pan }],
-              },
-            ]}
-            {...panResponder.panHandlers}
+        /* Gradient Pill Track */
+        <View style={styles.trackShadowContainer}>
+          <LinearGradient
+            colors={
+              isAccepting
+                ? ['#059669', '#047857', '#065f46']
+                : ['#42df6a', '#10b981', '#058d3c', '#027a28']
+            }
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={styles.trackGradient}
           >
-            {isAccepting ? (
-              <ActivityIndicator size="small" color="#059669" />
-            ) : (
-              <View style={styles.knobInner}>
-                <Ionicons name="arrow-forward" size={24} color="#059669" />
-              </View>
-            )}
-          </Animated.View>
+            {/* Top Gloss Highlight Edge */}
+            <View style={styles.topGlossHighlight} />
+
+            {/* Animated Center Text & Chevrons */}
+            <Animated.View style={[styles.textWrapper, { opacity: isAccepting ? 0.3 : textOpacity }]}>
+              <Text style={styles.trackText}>{isAccepting ? acceptingTitle : title}</Text>
+              {!isAccepting && (
+                <Animated.View
+                  style={[
+                    styles.chevronsRow,
+                    { transform: [{ translateX: shimmerTranslate }] },
+                  ]}
+                >
+                  <Ionicons name="chevron-forward" size={17} color="#a7f3d0" style={{ opacity: 0.55 }} />
+                  <Ionicons name="chevron-forward" size={17} color="#d1fae5" style={{ opacity: 0.8, marginLeft: -7 }} />
+                  <Ionicons name="chevron-forward" size={17} color="#ffffff" style={{ marginLeft: -7 }} />
+                </Animated.View>
+              )}
+            </Animated.View>
+
+            {/* Sliding White Circular Knob with Green Arrow */}
+            <Animated.View
+              style={[
+                styles.knob,
+                {
+                  transform: [{ translateX: pan }],
+                },
+              ]}
+              {...panResponder.panHandlers}
+            >
+              {isAccepting ? (
+                <ActivityIndicator size="small" color="#0c9035" />
+              ) : (
+                <View style={styles.knobInner}>
+                  <Ionicons name="arrow-forward" size={26} color="#0c9035" />
+                </View>
+              )}
+            </Animated.View>
+          </LinearGradient>
         </View>
       )}
     </View>
@@ -215,11 +230,41 @@ const styles = StyleSheet.create({
     width: '100%',
     marginVertical: 4,
   },
+  trackShadowContainer: {
+    width: '100%',
+    borderRadius: 29,
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  trackGradient: {
+    height: 56,
+    borderRadius: 28,
+    padding: 4,
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    borderTopWidth: 1.5,
+    borderTopColor: 'rgba(255, 255, 255, 0.45)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.2)',
+  },
+  topGlossHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 24,
+    right: 24,
+    height: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    borderRadius: 1,
+  },
   track: {
     height: 56,
-    backgroundColor: '#059669', // Emerald Green Call Acceptance Background
+    backgroundColor: '#059669',
     borderRadius: 28,
-    padding: 3,
+    padding: 4,
     justifyContent: 'center',
     position: 'relative',
     overflow: 'hidden',
@@ -248,14 +293,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingLeft: 40,
-    gap: 6,
+    paddingLeft: 42,
+    gap: 8,
   },
   trackText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
+    textShadowColor: 'rgba(0, 0, 0, 0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   trackTextDisabled: {
     color: '#f1f5f9',
@@ -268,17 +316,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   knob: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.28,
+    shadowRadius: 5,
+    elevation: 6,
     zIndex: 10,
   },
   knobDisabled: {

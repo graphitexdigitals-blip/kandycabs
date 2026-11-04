@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 interface FleetCardItemProps {
   item: {
@@ -24,11 +25,12 @@ export const FleetCardItem = memo(function FleetCardItem({
   item,
   onBook,
 }: FleetCardItemProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
         <View style={styles.choiceBadge}>
-          <Ionicons name="shield-checkmark" size={12} color="#103A75" />
+          <Ionicons name="shield-checkmark" size={12} color="rgb(22, 34, 50)" />
           <Text style={styles.choiceBadgeText}>
             {item.badge}
           </Text>
@@ -36,7 +38,7 @@ export const FleetCardItem = memo(function FleetCardItem({
         <View style={styles.rateContainer}>
           <Text style={styles.rateNumber}>₹{item.ratePerKm}/km</Text>
           <View style={styles.rateTag}>
-            <Text style={styles.rateTagText}>BASE OUTSTATION RATE</Text>
+            <Text style={styles.rateTagText}>{t('selectCab.baseRate', { defaultValue: 'BASE OUTSTATION RATE' }).toUpperCase()}</Text>
           </View>
         </View>
       </View>
@@ -51,7 +53,7 @@ export const FleetCardItem = memo(function FleetCardItem({
 
       <View style={styles.vehicleTitleRow}>
         <View style={styles.vehicleIconBox}>
-          <Ionicons name="car-outline" size={20} color="#ea580c" />
+          <Ionicons name="car-outline" size={20} color="rgb(240, 117, 15)" />
         </View>
         <View style={styles.vehicleTitleTextContainer}>
           <Text style={styles.vehicleName}>{item.name}</Text>
@@ -66,7 +68,7 @@ export const FleetCardItem = memo(function FleetCardItem({
       <View style={styles.featureList}>
         {item.features.map((feature, idx) => (
           <View key={idx} style={styles.featureItem}>
-            <Ionicons name="checkmark" size={16} color="#ea580c" />
+            <Ionicons name="checkmark" size={16} color="rgb(240, 117, 15)" />
             <Text style={styles.featureItemText}>{feature}</Text>
           </View>
         ))}
@@ -77,7 +79,9 @@ export const FleetCardItem = memo(function FleetCardItem({
         onPress={() => onBook(item)}
         activeOpacity={0.85}
       >
-        <Text style={styles.bookCarBtnText}>Book {item.name} →</Text>
+        <Text style={styles.bookCarBtnText}>
+          {t('selectCab.bookCab', { name: item.name, defaultValue: `Book ${item.name} →` })}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -116,7 +120,7 @@ const styles = StyleSheet.create({
   choiceBadgeText: {
     fontSize: 10,
     fontWeight: '900',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: 0.6,
   },
   rateContainer: {
@@ -125,7 +129,7 @@ const styles = StyleSheet.create({
   rateNumber: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   rateTag: {
     backgroundColor: '#fff7ed',
@@ -170,7 +174,7 @@ const styles = StyleSheet.create({
   vehicleName: {
     fontSize: 17,
     fontWeight: '900',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   vehicleModels: {
     fontSize: 12,
@@ -205,7 +209,7 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   bookCarBtn: {
-    backgroundColor: '#103A75',
+    backgroundColor: 'rgb(22, 34, 50)',
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: 'center',

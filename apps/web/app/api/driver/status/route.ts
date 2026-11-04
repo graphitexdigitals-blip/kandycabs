@@ -88,6 +88,25 @@ export async function GET(req: NextRequest) {
       ? assignedBookings.filter((b) => b.id !== activeBooking.id)
       : [];
 
+    let activeBookingWithOtp: any = activeBooking;
+    if (activeBooking) {
+      const otpEvent = await prisma.tripEvent.findFirst({
+        where: {
+          bookingId: activeBooking.id,
+          type: 'OTP_VERIFIED',
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (otpEvent) {
+        const payload: any = otpEvent.payloadJson || {};
+        activeBookingWithOtp = {
+          ...activeBooking,
+          isOtpVerified: true,
+          verifiedPickupOtp: payload.otp || activeBooking.pickupOtp || '',
+        };
+      }
+    }
+
     const response = NextResponse.json(
       {
         success: true,
@@ -102,12 +121,21 @@ export async function GET(req: NextRequest) {
           insuranceDocUrl: session.driver.insuranceDocUrl,
           verificationStatus: session.driver.verificationStatus,
           onlineStatus: session.driver.onlineStatus,
+          payoutMethod: session.driver.payoutMethod,
+          bankAccountHolderName: session.driver.bankAccountHolderName,
+          bankAccountNumber: session.driver.bankAccountNumber,
+          bankIfsc: session.driver.bankIfsc,
+          bankName: session.driver.bankName,
+          payoutUpiId: session.driver.payoutUpiId,
+          payoutPhone: session.driver.payoutPhone,
+          payoutEmail: session.driver.payoutEmail,
+          payoutStatus: session.driver.payoutStatus,
           currentLat: session.driver.currentLat,
           currentLng: session.driver.currentLng,
           lastPingAt: session.driver.lastPingAt,
           vehicle: session.driver.vehicles[0] || null,
         },
-        activeBooking: activeBooking || null,
+        activeBooking: activeBookingWithOtp || null,
         upcomingBookings: upcomingBookings || [],
       },
       { status: 200 }

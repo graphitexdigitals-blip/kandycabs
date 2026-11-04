@@ -16,16 +16,30 @@ config.resolver.nodeModulesPaths = [
 ];
 
 config.resolver.blockList = [
-  /.*\/dist\/.*/,
+  /.*\/apps\/customer-app\/dist\/.*/,
   /.*\/android\/app\/build\/.*/,
   /.*\/android\/\.gradle\/.*/,
   /.*\/apps\/web\/\.next\/.*/,
   /.*\/apps\/admin\/\.next\/.*/,
 ];
 
+const projectReact = path.resolve(projectRoot, 'node_modules/react');
+
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === 'react') {
+    return context.resolveRequest(context, projectReact, platform);
+  }
+  if (moduleName.startsWith('react/')) {
+    return context.resolveRequest(context, path.join(projectReact, moduleName.slice(6)), platform);
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 config.resolver.extraNodeModules = {
   ...(config.resolver.extraNodeModules || {}),
   '@kandy-cabs/shared': path.resolve(monorepoRoot, 'packages/shared'),
+  react: projectReact,
+  'react-native': path.resolve(monorepoRoot, 'node_modules/react-native'),
 };
 
 module.exports = config;

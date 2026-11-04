@@ -16,7 +16,7 @@ config.resolver.nodeModulesPaths = [
 ];
 
 config.resolver.blockList = [
-  /.*\/dist\/.*/,
+  /.*\/apps\/driver-app\/dist\/.*/,
   /.*\/android\/app\/build\/.*/,
   /.*\/android\/\.gradle\/.*/,
   /.*\/apps\/web\/\.next\/.*/,

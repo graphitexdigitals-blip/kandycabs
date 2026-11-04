@@ -41,7 +41,8 @@ export default function DriverVehicleInspectionScreen() {
     {
       id: 0,
       title: 'Front Angle',
-      desc: 'Front bumper & number plate visible',
+      shortTitle: 'Front',
+      desc: 'Front bumper & number plate clearly visible',
       icon: 'car-outline' as const,
       iconBg: '#e0f2fe',
       iconColor: '#0284c7',
@@ -50,7 +51,8 @@ export default function DriverVehicleInspectionScreen() {
     {
       id: 1,
       title: 'Back / Rear Angle',
-      desc: 'Rear bumper, tail lights & boot visible',
+      shortTitle: 'Rear',
+      desc: 'Rear bumper, tail lights & boot clearly visible',
       icon: 'car-sport-outline' as const,
       iconBg: '#f3e8ff',
       iconColor: '#9333ea',
@@ -59,7 +61,8 @@ export default function DriverVehicleInspectionScreen() {
     {
       id: 2,
       title: 'Side Profile',
-      desc: 'Full side profile & door panels visible',
+      shortTitle: 'Side',
+      desc: 'Full side profile & doors clearly visible',
       icon: 'car-outline' as const,
       iconBg: '#dcfce7',
       iconColor: '#16a34a',
@@ -68,6 +71,7 @@ export default function DriverVehicleInspectionScreen() {
     {
       id: 3,
       title: 'Inside / Back Seat',
+      shortTitle: 'Inside',
       desc: 'Clean passenger seats & floor mats',
       icon: 'people-outline' as const,
       iconBg: '#fce7f3',
@@ -77,6 +81,7 @@ export default function DriverVehicleInspectionScreen() {
   ];
 
   const [photos, setPhotos] = useState<(string | null)[]>([null, null, null, null]);
+  const [currentAngleIndex, setCurrentAngleIndex] = useState(0);
 
   // Live GPS
   useEffect(() => {
@@ -103,6 +108,10 @@ export default function DriverVehicleInspectionScreen() {
               b.vehicleInspectionPhotos[3] || null,
             ];
             setPhotos(initialPhotos);
+            const firstUnattached = initialPhotos.findIndex((p) => !p);
+            if (firstUnattached !== -1) {
+              setCurrentAngleIndex(firstUnattached);
+            }
           }
         }
       }
@@ -142,6 +151,11 @@ export default function DriverVehicleInspectionScreen() {
           next[index] = dataUri;
           return next;
         });
+
+        // "after attaching one. next one to next one."
+        if (index < 3) {
+          setCurrentAngleIndex(index + 1);
+        }
       }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to capture photo');
@@ -155,11 +169,29 @@ export default function DriverVehicleInspectionScreen() {
       'http://10.0.2.2:3000/inspection/side.jpg',
       'http://10.0.2.2:3000/inspection/inside.jpg',
     ]);
+    setCurrentAngleIndex(3);
     Alert.alert('Demo Photos Loaded', '4 consistent vehicle inspection angles loaded! You can now tap Save & Unlock Start Trip.');
   };
 
   const attachedCount = photos.filter(Boolean).length;
   const isAllAttached = attachedCount === 4;
+
+  const handleBottomBarPress = () => {
+    if (isAllAttached) {
+      handleSaveInspection();
+    } else if (!photos[currentAngleIndex]) {
+      handleCapturePhoto(currentAngleIndex);
+    } else if (currentAngleIndex < 3) {
+      setCurrentAngleIndex(currentAngleIndex + 1);
+    } else {
+      const firstMissing = photos.findIndex((p) => !p);
+      if (firstMissing !== -1) {
+        setCurrentAngleIndex(firstMissing);
+      } else {
+        handleSaveInspection();
+      }
+    }
+  };
 
   const handleSaveInspection = async () => {
     if (!isAllAttached) {
@@ -283,17 +315,13 @@ export default function DriverVehicleInspectionScreen() {
       >
         {/* Notice Card */}
         <View style={styles.noticeCard}>
-          <View style={styles.noticeTopRow}>
-            <View style={styles.shieldIconWrapper}>
-              <Ionicons name="shield-checkmark" size={24} color="#2563eb" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.noticeTitle}>Mandatory Vehicle Condition Check</Text>
-              <Text style={styles.noticeSub}>
-                Upload all 4 exterior & interior cab photos before starting this trip ({booking?.humanReadableRef || 'KC-2026-984985'}).
-              </Text>
-            </View>
+          <View style={styles.noticeHeaderRow}>
+            <Ionicons name="shield-checkmark" size={20} color="#2563eb" />
+            <Text style={styles.noticeTitle}>Mandatory Vehicle Condition Check</Text>
           </View>
+          <Text style={styles.noticeSub}>
+            Upload all 4 exterior & interior cab photos before starting this trip ({booking?.humanReadableRef || 'KC-2026-984985'}).
+          </Text>
 
           {/* Progress Bar Indicator */}
           <View style={styles.progressContainer}>
@@ -313,83 +341,138 @@ export default function DriverVehicleInspectionScreen() {
           </View>
         </View>
 
-        {/* Section Header */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionHeaderTitle}>REQUIRED VEHICLE ANGLES</Text>
-          <View style={styles.photoCountBadge}>
-            <Ionicons name="camera" size={13} color="#0284c7" />
-            <Text style={styles.photoCountBadgeText}>4 Photos</Text>
-          </View>
-        </View>
+        {/* Focused Hero Angle Card (One by One) */}
+        {(() => {
+          const currentAngle = inspectionAngleConfigs[currentAngleIndex];
+          const isCurrentAttached = Boolean(photos[currentAngleIndex]);
+          const currentPhotoUri = photos[currentAngleIndex];
 
-        {/* 2x2 Grid of Angles with Sample Reference Images */}
-        <View style={styles.gridContainer}>
-          {inspectionAngleConfigs.map((angle, idx) => {
-            const photoUrl = photos[idx];
-            return (
-              <View key={angle.id} style={styles.angleCard}>
-                {/* Angle Header */}
-                <View style={styles.angleHeaderRow}>
-                  <Text style={styles.angleTitleText} numberOfLines={1}>{angle.title}</Text>
-                  <View style={[styles.angleStatusBadge, photoUrl ? styles.badgeGreen : styles.badgeAmber]}>
-                    <Text style={photoUrl ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                      {photoUrl ? '✓ Done' : 'Required'}
+          return (
+            <View style={styles.heroAngleCard}>
+              {/* Header */}
+              <View style={styles.heroCardHeader}>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.stepTagRow}>
+                    <Text style={styles.stepTagText}>
+                      STEP {currentAngleIndex + 1} OF 4
                     </Text>
+                    <View
+                      style={[
+                        styles.angleStatusBadge,
+                        isCurrentAttached ? styles.badgeGreen : styles.badgeAmber,
+                      ]}
+                    >
+                      <Text
+                        style={
+                          isCurrentAttached
+                            ? styles.badgeTextGreen
+                            : styles.badgeTextAmber
+                        }
+                      >
+                        {isCurrentAttached ? '✓ Photo Attached' : 'Required'}
+                      </Text>
+                    </View>
                   </View>
+                  <Text style={styles.heroCardTitle}>{currentAngle.title}</Text>
+                  <Text style={styles.heroCardDesc}>{currentAngle.desc}</Text>
                 </View>
+              </View>
 
-                {/* Sample Reference Image / Uploaded Preview Box */}
+              {/* Viewfinder Image Preview */}
+              <TouchableOpacity
+                style={styles.heroImageBox}
+                onPress={() => handleCapturePhoto(currentAngleIndex)}
+                activeOpacity={0.88}
+              >
+                <Image
+                  source={
+                    isCurrentAttached
+                      ? { uri: currentPhotoUri! }
+                      : currentAngle.sampleSource
+                  }
+                  style={styles.heroImage}
+                  resizeMode="cover"
+                />
+
+                {isCurrentAttached ? (
+                  <>
+                    <View style={styles.heroAttachedRibbon}>
+                      <Ionicons name="checkmark-circle" size={15} color="#ffffff" />
+                      <Text style={styles.heroAttachedRibbonText}>✓ PHOTO ATTACHED</Text>
+                    </View>
+                    <View style={styles.heroRetakeOverlayBtn}>
+                      <Ionicons name="camera-reverse" size={13} color="#ffffff" />
+                      <Text style={styles.heroRetakeOverlayText}>Tap to Retake</Text>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.heroCenterCameraCircle}>
+                      <Ionicons name="camera" size={26} color="#ffffff" />
+                    </View>
+                    <View style={styles.sampleGuideOverlay}>
+                      <Ionicons name="eye-outline" size={13} color="#ffffff" />
+                      <Text style={styles.sampleGuideOverlayText}>
+                        Reference Guide • Tap to capture
+                      </Text>
+                    </View>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          );
+        })()}
+
+        {/* 4-Angle Thumbnail Strip for Quick Navigation */}
+        <View style={styles.stripSection}>
+          <View style={styles.stripHeaderRow}>
+            <Text style={styles.stripSectionTitle}>ALL 4 ANGLES REVIEW</Text>
+            <Text style={styles.stripSubTitle}>Tap any angle to jump</Text>
+          </View>
+          <View style={styles.stripRow}>
+            {inspectionAngleConfigs.map((angle, idx) => {
+              const photoUrl = photos[idx];
+              const isSelected = idx === currentAngleIndex;
+              return (
                 <TouchableOpacity
-                  style={styles.imageBoxTouchable}
-                  onPress={() => handleCapturePhoto(idx)}
-                  activeOpacity={0.85}
+                  key={angle.id}
+                  style={[
+                    styles.stripCard,
+                    isSelected && styles.stripCardSelected,
+                  ]}
+                  onPress={() => setCurrentAngleIndex(idx)}
+                  activeOpacity={0.8}
                 >
                   <Image
                     source={photoUrl ? { uri: photoUrl } : angle.sampleSource}
-                    style={styles.referenceImage}
+                    style={styles.stripThumb}
                     resizeMode="cover"
                   />
-                  {/* Center Camera Overlay Circle */}
-                  <View style={[styles.centerCameraCircle, photoUrl ? styles.centerCameraCircleDone : undefined]}>
+                  <View
+                    style={[
+                      styles.stripBadge,
+                      photoUrl ? styles.stripBadgeDone : styles.stripBadgePending,
+                    ]}
+                  >
                     <Ionicons
-                      name={photoUrl ? 'checkmark-sharp' : 'camera'}
-                      size={18}
+                      name={photoUrl ? 'checkmark' : 'camera'}
+                      size={10}
                       color="#ffffff"
                     />
                   </View>
-                  {photoUrl ? (
-                    <View style={styles.attachedRibbon}>
-                      <Text style={styles.attachedRibbonText}>✓ PHOTO ATTACHED</Text>
-                    </View>
-                  ) : null}
-                </TouchableOpacity>
-
-                {/* Bottom Action Pill Button */}
-                <TouchableOpacity
-                  style={[styles.tapToCaptureBtn, photoUrl ? styles.tapToCaptureBtnDone : undefined]}
-                  onPress={() => handleCapturePhoto(idx)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons
-                    name={photoUrl ? 'camera-reverse' : 'camera'}
-                    size={14}
-                    color={photoUrl ? '#059669' : '#1e75eb'}
-                  />
-                  <Text style={[styles.tapToCaptureText, photoUrl ? styles.tapToCaptureTextDone : undefined]}>
-                    {photoUrl ? 'Retake Photo' : 'Tap to Capture'}
+                  <Text
+                    style={[
+                      styles.stripTitle,
+                      isSelected && styles.stripTitleSelected,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {angle.shortTitle}
                   </Text>
                 </TouchableOpacity>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Info Note Banner */}
-        <View style={styles.infoBanner}>
-          <Ionicons name="information-circle-outline" size={18} color="#0284c7" />
-          <Text style={styles.infoBannerText}>
-            Photos are geotagged and securely stored in Supabase for insurance and administrative verification.
-          </Text>
+              );
+            })}
+          </View>
         </View>
       </ScrollView>
 
@@ -398,10 +481,14 @@ export default function DriverVehicleInspectionScreen() {
         <TouchableOpacity
           style={[
             styles.submitButton,
-            isAllAttached ? styles.submitButtonGreen : styles.submitButtonNavy,
+            isAllAttached
+              ? styles.submitButtonGreen
+              : !photos[currentAngleIndex]
+              ? styles.yellowPrimaryButton
+              : styles.submitButtonNavy,
             saving && { opacity: 0.7 },
           ]}
-          onPress={handleSaveInspection}
+          onPress={handleBottomBarPress}
           disabled={saving}
           activeOpacity={0.88}
         >
@@ -415,13 +502,25 @@ export default function DriverVehicleInspectionScreen() {
               <Text style={styles.submitButtonText}>SAVE INSPECTION & UNLOCK START TRIP</Text>
               <Ionicons name="arrow-forward" size={17} color="#ffffff" />
             </>
+          ) : !photos[currentAngleIndex] ? (
+            <>
+              <View style={styles.btnLeftGroup}>
+                <Ionicons name="camera" size={20} color="#0f172a" />
+                <View style={styles.btnDividerDark} />
+                <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
+                  Capture {inspectionAngleConfigs[currentAngleIndex].title}
+                </Text>
+              </View>
+              <Ionicons name="arrow-forward" size={20} color="#0f172a" />
+            </>
           ) : (
             <>
-              <Ionicons name="camera-outline" size={17} color="#ffffff" />
               <Text style={styles.submitButtonText}>
-                ATTACH ALL 4 PHOTOS ({attachedCount}/4)
+                {currentAngleIndex < 3
+                  ? `NEXT: ${inspectionAngleConfigs[currentAngleIndex + 1].shortTitle.toUpperCase()} ANGLE`
+                  : `SAVE INSPECTION (${attachedCount}/4)`}
               </Text>
-              <Ionicons name="arrow-forward" size={17} color="#ffffff" style={{ opacity: 0.7 }} />
+              <Ionicons name="arrow-forward" size={17} color="#ffffff" />
             </>
           )}
         </TouchableOpacity>
@@ -499,21 +598,11 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginBottom: 14,
   },
-  noticeTopRow: {
+  noticeHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 12,
-  },
-  shieldIconWrapper: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#eff6ff',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
+    gap: 8,
+    marginBottom: 6,
   },
   noticeTitle: {
     fontSize: 14,
@@ -523,15 +612,12 @@ const styles = StyleSheet.create({
   noticeSub: {
     fontSize: 11.5,
     color: '#64748b',
-    marginTop: 2,
     lineHeight: 16,
+    marginBottom: 8,
   },
   progressContainer: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    paddingVertical: 2,
+    marginTop: 4,
   },
   progressHeaderRow: {
     flexDirection: 'row',
@@ -590,41 +676,106 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0284c7',
   },
-  gridContainer: {
+  // Step tabs
+  stepTabsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
+    marginBottom: 12,
   },
-  angleCard: {
-    width: '48.5%',
+  stepTab: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 12,
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
-    shadowRadius: 4,
+    shadowRadius: 3,
     elevation: 1,
   },
-  angleHeaderRow: {
+  stepTabActive: {
+    borderColor: '#2563eb',
+    backgroundColor: '#eff6ff',
+  },
+  stepTabDone: {
+    borderColor: '#a7f3d0',
+    backgroundColor: '#ecfdf5',
+  },
+  stepBadgeCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepBadgeCircleActive: {
+    backgroundColor: '#2563eb',
+  },
+  stepBadgeCircleDone: {
+    backgroundColor: '#059669',
+  },
+  stepBadgeNumber: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#64748b',
+  },
+  stepBadgeNumberActive: {
+    color: '#ffffff',
+  },
+  stepTabText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  stepTabTextActive: {
+    color: '#1d4ed8',
+    fontWeight: '800',
+  },
+  stepTabTextDone: {
+    color: '#059669',
+    fontWeight: '800',
+  },
+
+  // Hero Angle Card
+  heroAngleCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 14,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    marginBottom: 14,
+  },
+  heroCardHeader: {
+    marginBottom: 12,
+  },
+  stepTagRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  angleTitleText: {
-    flex: 1,
-    fontSize: 11.5,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginRight: 4,
+  stepTagText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#2563eb',
+    letterSpacing: 0.5,
   },
   angleStatusBadge: {
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   badgeGreen: {
     backgroundColor: '#ecfdf5',
@@ -638,80 +789,257 @@ const styles = StyleSheet.create({
   },
   badgeTextGreen: {
     color: '#059669',
-    fontSize: 8.5,
+    fontSize: 9.5,
     fontWeight: '800',
   },
   badgeTextAmber: {
     color: '#d97706',
-    fontSize: 8.5,
+    fontSize: 9.5,
     fontWeight: '800',
   },
-  imageBoxTouchable: {
+  heroCardTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  heroCardDesc: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  heroImageBox: {
     width: '100%',
-    height: 96,
-    borderRadius: 10,
+    height: 215,
+    borderRadius: 14,
     overflow: 'hidden',
     position: 'relative',
     backgroundColor: '#0f172a',
-    marginBottom: 8,
+    marginBottom: 0,
   },
-  referenceImage: {
+  heroImage: {
     width: '100%',
     height: '100%',
   },
-  centerCameraCircle: {
+  heroCenterCameraCircle: {
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: [{ translateX: -17 }, { translateY: -17 }],
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(15, 30, 60, 0.82)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.7)',
+    transform: [{ translateX: -24 }, { translateY: -24 }],
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(15, 30, 60, 0.85)',
+    borderWidth: 2,
+    borderColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  centerCameraCircleDone: {
-    backgroundColor: 'rgba(5, 150, 105, 0.88)',
-    borderColor: '#ffffff',
-  },
-  attachedRibbon: {
+  sampleGuideOverlay: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(5, 150, 105, 0.92)',
-    paddingVertical: 2.5,
-    alignItems: 'center',
-  },
-  attachedRibbonText: {
-    color: '#ffffff',
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 0.3,
-  },
-  tapToCaptureBtn: {
+    bottom: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#eaf3fe',
+    gap: 6,
+  },
+  sampleGuideOverlayText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  heroAttachedRibbon: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    backgroundColor: 'rgba(5, 150, 105, 0.95)',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  heroAttachedRibbonText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  heroRetakeOverlayBtn: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.82)',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
     borderRadius: 8,
-    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
   },
-  tapToCaptureBtnDone: {
-    backgroundColor: '#ecfdf5',
+  heroRetakeOverlayText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
   },
-  tapToCaptureText: {
-    color: '#1e75eb',
-    fontSize: 10.5,
+  heroCaptureBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    paddingVertical: 12,
+    gap: 8,
+    marginBottom: 10,
+  },
+  heroCaptureBtnPrimary: {
+    backgroundColor: '#142232',
+    shadowColor: '#142232',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  heroCaptureBtnDone: {
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  heroCaptureBtnText: {
+    color: '#ffffff',
+    fontSize: 13.5,
     fontWeight: '800',
   },
-  tapToCaptureTextDone: {
-    color: '#059669',
+  heroCaptureBtnTextDone: {
+    color: '#0f172a',
   },
+  navAngleControlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  navAngleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  navAngleBtnDisabled: {
+    opacity: 0.35,
+  },
+  navAngleBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  navAngleBtnTextDisabled: {
+    color: '#94a3b8',
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dotItem: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#e2e8f0',
+  },
+  dotItemActive: {
+    width: 20,
+    backgroundColor: '#2563eb',
+  },
+  dotItemDone: {
+    backgroundColor: '#10b981',
+  },
+
+  // Review Strip
+  stripSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 12,
+    marginBottom: 12,
+  },
+  stripHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  stripSectionTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#0f172a',
+    letterSpacing: 0.4,
+  },
+  stripSubTitle: {
+    fontSize: 10,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  stripRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  stripCard: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    padding: 4,
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  stripCardSelected: {
+    borderColor: '#2563eb',
+    backgroundColor: '#eff6ff',
+  },
+  stripThumb: {
+    width: '100%',
+    height: 52,
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  stripBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stripBadgeDone: {
+    backgroundColor: '#059669',
+  },
+  stripBadgePending: {
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+  },
+  stripTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  stripTitleSelected: {
+    color: '#1d4ed8',
+    fontWeight: '800',
+  },
+
+  // Info Banner
   infoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -721,7 +1049,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
     gap: 8,
-    marginTop: 14,
+    marginBottom: 10,
   },
   infoBannerText: {
     flex: 1,
@@ -734,7 +1062,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: '#f1f5f9',
   },
   submitButton: {
     borderRadius: 30,
@@ -768,8 +1096,43 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     color: '#ffffff',
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '900',
     letterSpacing: 0.3,
+  },
+
+  // Yellow Primary Button for unattached state
+  yellowPrimaryButton: {
+    backgroundColor: '#fbbf24',
+    borderRadius: 30,
+    height: 54,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#d97706',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  btnLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  btnDividerDark: {
+    width: 1.5,
+    height: 20,
+    backgroundColor: 'rgba(15, 23, 42, 0.25)',
+    marginHorizontal: 12,
+  },
+  yellowPrimaryButtonText: {
+    color: '#0f172a',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    flex: 1,
   },
 });

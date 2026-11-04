@@ -2,14 +2,14 @@
   "expo": {
     "name": "Kandy Cabs Customer",
     "slug": "kandy-cabs-customer",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "jsEngine": "hermes",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
-      "resizeMode": "contain",
+      "resizeMode": "native",
       "backgroundColor": "#ffffff"
     },
     "scheme": "kandycabscustomer",
@@ -32,7 +32,16 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Roboto-Regular.ttf",
+            "./assets/fonts/Roboto-Medium.ttf",
+            "./assets/fonts/Roboto-Bold.ttf"
+          ]
+        }
+      ],
       [
         "expo-location",
         {

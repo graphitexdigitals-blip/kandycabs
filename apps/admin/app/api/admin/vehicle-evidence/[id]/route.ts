@@ -49,6 +49,15 @@ export async function PATCH(
       fuelType,
       carriageCapacity,
       plateNumber,
+      payoutMethod,
+      bankAccountHolderName,
+      bankAccountNumber,
+      bankIfsc,
+      bankName,
+      payoutUpiId,
+      payoutPhone,
+      payoutEmail,
+      payoutStatus,
     } = body;
 
     const driver = await prisma.driver.findUnique({
@@ -101,6 +110,34 @@ export async function PATCH(
         cleaned = cleaned ? `${cleaned} ${carriageTag}` : carriageTag;
       }
       driverData.adminNotes = cleaned;
+    }
+
+    if (payoutMethod !== undefined) {
+      driverData.payoutMethod = payoutMethod === 'UPI' ? 'UPI' : 'BANK';
+    }
+    if (bankAccountHolderName !== undefined) {
+      driverData.bankAccountHolderName = bankAccountHolderName ? bankAccountHolderName.trim() : null;
+    }
+    if (bankAccountNumber !== undefined) {
+      driverData.bankAccountNumber = bankAccountNumber ? bankAccountNumber.trim() : null;
+    }
+    if (bankIfsc !== undefined) {
+      driverData.bankIfsc = bankIfsc ? bankIfsc.trim().toUpperCase() : null;
+    }
+    if (bankName !== undefined) {
+      driverData.bankName = bankName ? bankName.trim() : null;
+    }
+    if (payoutUpiId !== undefined) {
+      driverData.payoutUpiId = payoutUpiId ? payoutUpiId.trim() : null;
+    }
+    if (payoutPhone !== undefined) {
+      driverData.payoutPhone = payoutPhone ? String(payoutPhone).trim() : null;
+    }
+    if (payoutEmail !== undefined) {
+      driverData.payoutEmail = payoutEmail ? String(payoutEmail).trim() : null;
+    }
+    if (payoutStatus !== undefined) {
+      driverData.payoutStatus = payoutStatus === 'VERIFIED' ? 'VERIFIED' : 'PENDING';
     }
 
     if (Object.keys(driverData).length > 0) {
@@ -182,6 +219,15 @@ export async function PATCH(
         verificationStatus: updated!.verificationStatus,
         adminNotes: updated!.adminNotes,
         onlineStatus: updated!.onlineStatus,
+        payoutMethod: updated!.payoutMethod || 'BANK',
+        bankAccountHolderName: updated!.bankAccountHolderName || null,
+        bankAccountNumber: updated!.bankAccountNumber || null,
+        bankIfsc: updated!.bankIfsc || null,
+        bankName: updated!.bankName || null,
+        payoutUpiId: updated!.payoutUpiId || null,
+        payoutPhone: updated!.payoutPhone || null,
+        payoutEmail: updated!.payoutEmail || null,
+        payoutStatus: updated!.payoutStatus || 'PENDING',
         vehicle: updated!.vehicles[0] || null,
         createdAt: updated!.user.createdAt.toISOString(),
       },

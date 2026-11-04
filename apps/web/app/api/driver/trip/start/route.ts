@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       pickupOtp,
       startingOdometer,
       startingOdometerImagePath,
+      driverSelfie,
       vehicleInspectionPhotos = [],
       actualPickupLat,
       actualPickupLng,
@@ -82,9 +83,22 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    let storedDriverSelfie: string | null = null;
+    if (driverSelfie) {
+      storedDriverSelfie = await uploadTripPhoto({
+        bookingId,
+        category: 'start',
+        imageBase64OrUri: driverSelfie,
+        customName: 'driver_selfie',
+      });
+    }
+
     let storedInspectionPhotos: string[] = [];
     if (Array.isArray(vehicleInspectionPhotos) && vehicleInspectionPhotos.length > 0) {
       storedInspectionPhotos = await uploadInspectionPhotos(bookingId, vehicleInspectionPhotos);
+    }
+    if (storedDriverSelfie && !storedInspectionPhotos.includes(storedDriverSelfie)) {
+      storedInspectionPhotos.unshift(storedDriverSelfie);
     }
 
     // If trip was already authorized/started by Admin override
@@ -126,8 +140,14 @@ export async function POST(req: NextRequest) {
       return setCorsHeaders(res);
     }
 
-    // Verify OTP
-    const isOtpValid = verifyOtp(pickupOtp.trim(), booking.pickupOtp || '');
+    // Verify OTP (or check if already verified earlier)
+    const hasOtpVerifiedEvent = await prisma.tripEvent.findFirst({
+      where: {
+        bookingId,
+        type: 'OTP_VERIFIED',
+      },
+    });
+    const isOtpValid = Boolean(hasOtpVerifiedEvent) || verifyOtp(pickupOtp.trim(), booking.pickupOtp || '');
     if (!isOtpValid) {
       const res = NextResponse.json(
         { success: false, message: 'Incorrect 4-digit pickup OTP. Please verify with customer or request admin override.' },

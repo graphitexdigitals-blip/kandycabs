@@ -9,6 +9,9 @@ export interface DriverSession {
   user: any;
 }
 
+// In-memory short-lived session cache (15s TTL) to prevent hammering Supabase on rapid pings/polls
+const sessionCache = new Map<string, { session: DriverSession | null; expiresAt: number }>();
+
 export async function getDriverSession(req: NextRequest): Promise<DriverSession | null> {
   let token = req.cookies.get('kandy_session')?.value;
   if (!token) {
@@ -20,8 +23,17 @@ export async function getDriverSession(req: NextRequest): Promise<DriverSession 
 
   if (!token) return null;
 
+  const now = Date.now();
+  const cached = sessionCache.get(token);
+  if (cached && now < cached.expiresAt) {
+    return cached.session;
+  }
+
   const payload = await verifyAuthToken(token);
-  if (!payload || !payload.userId) return null;
+  if (!payload || !payload.userId) {
+    sessionCache.set(token, { session: null, expiresAt: now + 10000 });
+    return null;
+  }
 
   const user = await prisma.user.findUnique({
     where: { id: payload.userId, deletedAt: null },
@@ -35,13 +47,17 @@ export async function getDriverSession(req: NextRequest): Promise<DriverSession 
   });
 
   if (!user || !user.driver || user.driver.deletedAt) {
+    sessionCache.set(token, { session: null, expiresAt: now + 10000 });
     return null;
   }
 
-  return {
+  const session: DriverSession = {
     userId: user.id,
     driverId: user.driver.id,
     driver: user.driver,
     user,
   };
+
+  sessionCache.set(token, { session, expiresAt: now + 15000 });
+  return session;
 }

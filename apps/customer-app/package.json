@@ -12,6 +12,7 @@
     "postinstall": "node scripts/patch-screens.js"
   },
   "dependencies": {
+    "@expo-google-fonts/roboto": "^0.4.3",
     "@expo/vector-icons": "^14.1.0",
     "@kandy-cabs/shared": "*",
     "expo": "~51.0.0",
@@ -21,6 +22,7 @@
     "expo-image-manipulator": "~12.0.5",
     "expo-linear-gradient": "~13.0.2",
     "expo-linking": "~6.3.1",
+    "expo-localization": "~15.0.3",
     "expo-location": "~17.0.1",
     "expo-router": "~3.5.0",
     "expo-secure-store": "~13.0.2",
@@ -28,8 +30,10 @@
     "expo-status-bar": "~1.12.1",
     "expo-system-ui": "~3.0.7",
     "fast-text-encoding": "^1.0.6",
+    "i18next": "^26.5.11",
     "jsc-android": "^250230.2.1",
-    "react": "18.2.0",
+    "react": "^18.3.1",
+    "react-i18next": "^17.1.9",
     "react-native": "0.74.5",
     "react-native-safe-area-context": "4.10.5",
     "react-native-screens": "3.31.1"

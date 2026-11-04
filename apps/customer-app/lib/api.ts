@@ -93,6 +93,28 @@ class MobileTokenStorage implements TokenStorage {
     return this.user;
   }
 
+  async getUserAsync(): Promise<any | null> {
+    if (this.user) return this.user;
+    try {
+      if (Platform.OS === 'web') {
+        const raw = typeof window !== 'undefined' && window.localStorage ? localStorage.getItem(SECURE_USER_KEY) : null;
+        if (raw) {
+          this.user = JSON.parse(raw);
+          return this.user;
+        }
+        return null;
+      }
+      const stored = await SecureStore.getItemAsync(SECURE_USER_KEY);
+      if (stored) {
+        this.user = JSON.parse(stored);
+        return this.user;
+      }
+      return null;
+    } catch {
+      return this.user;
+    }
+  }
+
   setUser(user: any | null): void {
     this.user = user;
     this.notify();
@@ -135,13 +157,13 @@ export const customerTokenStorage = new MobileTokenStorage();
 import Constants from 'expo-constants';
 
 export function getDynamicBaseUrl(): string {
+  if (process.env.EXPO_PUBLIC_API_URL && !process.env.EXPO_PUBLIC_API_URL.includes('kandycabs.vercel.app')) {
+    return process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
+  }
   if (__DEV__) {
     return Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
   }
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
-  }
-  return 'https://web-rgwp.vercel.app';
+  return 'http://192.168.1.5:3000';
 }
 
 export const customerApiClient = new KandyApiClient({

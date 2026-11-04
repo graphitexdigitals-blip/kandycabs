@@ -5,15 +5,15 @@ async function main() {
   const categories = [
     {
       category: "HATCHBACK",
-      name: "WagonR or equivalent",
-      description: "WagonR, Swift, Tiago, Celerio",
+      name: "Swift or equivalent",
+      description: "Swift, WagonR, Tiago, Celerio",
       seatCount: 4,
       luggageCount: 2,
       cngEnabled: true,
       petrolEnabled: true,
       dieselEnabled: false,
       hasCarrier: true,
-      carrierCapacityText: "Roof Carrier on WagonR/Swift (Up to 45 kg space)",
+      carrierCapacityText: "Roof Carrier on Swift/WagonR (Up to 45 kg space)",
       carrierExcludedCars: "Tata Tiago (No Roof Carrier - Boot space only)",
       carrierExcludedReason: null,
       isActive: true,

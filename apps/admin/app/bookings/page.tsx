@@ -224,6 +224,26 @@ export default function AdminBookingsPage() {
     setOtpModalOpen(true);
   };
 
+  const handleApproveFleet = async (id: string, ref: string) => {
+    if (!window.confirm(`Are you sure you want to approve fleet availability for booking ${ref}? The customer will be notified to pay their advance.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/bookings/${id}/approve-fleet`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || 'Fleet availability approved successfully!');
+        fetchBookings();
+      } else {
+        alert(data.message || 'Failed to approve fleet availability');
+      }
+    } catch (e: any) {
+      alert(e.message || 'Network error');
+    }
+  };
+
   const getStatusBadgeClass = (status: BookingStatus) => {
     switch (status) {
       case BookingStatus.PENDING_ADMIN:
@@ -408,6 +428,9 @@ export default function AdminBookingsPage() {
                   </tr>
                 ) : (
                   displayedBookings.map((b) => {
+                    const meta = getBookingMetadata(b);
+                    const petTypeStr = meta.petType ? String(meta.petType) : '';
+                    const petLabel = petTypeStr ? (petTypeStr.charAt(0).toUpperCase() + petTypeStr.slice(1).toLowerCase()) : '';
                     const hasOverrideRequest =
                       b.tripEvents?.some((e: any) => e.type === 'OVERRIDE_REQUESTED') &&
                       (b.status === BookingStatus.DRIVER_ACCEPTED || b.status === BookingStatus.DRIVER_EN_ROUTE);
@@ -430,14 +453,14 @@ export default function AdminBookingsPage() {
                         <span className="text-[11px] text-slate-500 font-mono">
                           {b.customerPhoneReleased ? b.customer?.user?.phone : '🔒 Phone Hidden'}
                         </span>
-                        {getBookingMetadata(b).alternateEmail && (
+                        {meta.alternateEmail && (
                           <span className="text-[10px] text-sky-700 block truncate font-medium">
-                            ✉️ {getBookingMetadata(b).alternateEmail}
+                            ✉️ {meta.alternateEmail}
                           </span>
                         )}
-                        {getBookingMetadata(b).gstin && (
+                        {meta.gstin && (
                           <span className="text-[10px] text-indigo-700 block font-mono font-semibold">
-                            🏢 GST: {getBookingMetadata(b).gstin}
+                            🏢 GST: {meta.gstin}
                           </span>
                         )}
                       </td>
@@ -521,22 +544,22 @@ export default function AdminBookingsPage() {
                               <span>{parseIntermediateStops(b).length} Via Drops</span>
                             </span>
                           )}
-                          {getBookingMetadata(b).hasCarrier && (
+                          {meta.hasCarrier && (
                             <span className="text-[10px] text-emerald-900 font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-300 flex items-center gap-1">
                               <span>📦</span>
                               <span>Roof Carrier</span>
                             </span>
                           )}
-                          {getBookingMetadata(b).hasPet && (
+                          {meta.hasPet && (
                             <span className="text-[10px] text-amber-900 font-extrabold px-1.5 py-0.5 rounded bg-amber-50 border border-amber-300 flex items-center gap-1">
                               <span>🐾</span>
-                              <span>Pet Friendly (+₹{getBookingMetadata(b).petFee || 500})</span>
+                              <span>Pet Friendly{petLabel ? ` (${petLabel})` : ''} (+₹{meta.petFee || 500})</span>
                             </span>
                           )}
-                          {getBookingMetadata(b).flightNumber && (
+                          {meta.flightNumber && (
                             <span className="text-[10px] text-sky-900 font-extrabold px-1.5 py-0.5 rounded bg-sky-50 border border-sky-300 flex items-center gap-1">
                               <span>✈️</span>
-                              <span>{getBookingMetadata(b).flightNumber}</span>
+                              <span>{meta.flightNumber}</span>
                             </span>
                           )}
                           {getBookingMetadata(b).gstin && (
@@ -556,6 +579,16 @@ export default function AdminBookingsPage() {
                         >
                           {getStatusLabel(b.status)}
                         </span>
+                        {b.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVAL_REQUESTED' || e.payloadJson?.requiresFleetApproval) && !b.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVED') && (
+                          <span className="block mt-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse text-center">
+                            ⏳ FLEET CHECK REQ
+                          </span>
+                        )}
+                        {b.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVED') && b.advancePaymentStatus === 'PENDING' && (
+                          <span className="block mt-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-900 border border-emerald-300 text-center">
+                            ✓ FLEET APPROVED
+                          </span>
+                        )}
                         {hasOverrideRequest && (
                           <span className="block mt-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse text-center">
                             ⚠️ OVERRIDE REQ
@@ -595,18 +628,44 @@ export default function AdminBookingsPage() {
                         <span className="font-bold text-slate-900 block">
                           ₹{Number(b.estimatedFare).toFixed(2)}
                         </span>
-                        <span className="text-[10px] text-emerald-600 font-semibold block">
-                          Adv: ₹{Number(b.advanceAmount).toFixed(2)} (PAID)
+                        <span className={`text-[10px] font-semibold block ${b.advancePaymentStatus === 'PAID' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          Adv: ₹{Number(b.advanceAmount).toFixed(2)} ({b.advancePaymentStatus})
                         </span>
-                        {getBookingMetadata(b).hasPet && (
+                        {meta.hasPet && (
                           <span className="text-[10px] text-amber-700 font-bold flex items-center gap-0.5 mt-0.5">
                             <span>🐾</span>
-                            <span>Incl. ₹{getBookingMetadata(b).petFee || 500} Pet Fee</span>
+                            <span>Incl. ₹{meta.petFee || 500} Pet Fee{petLabel ? ` (${petLabel})` : ''}</span>
                           </span>
                         )}
+                        {(() => {
+                          const completeEvt = b.tripEvents?.find((e: any) => e.type === 'TRIP_COMPLETED');
+                          const method = completeEvt?.payloadJson?.paymentMethod;
+                          if (!method && b.status !== BookingStatus.TRIP_COMPLETED) return null;
+                          const isUpi = method === 'UPI_QR';
+                          return (
+                            <span className={`inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[9.5px] font-black border uppercase tracking-tight ${
+                              isUpi
+                                ? 'bg-sky-50 text-sky-800 border-sky-300'
+                                : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                            }`}>
+                              <span>{isUpi ? '📱' : '💵'}</span>
+                              <span>{isUpi ? 'Admin UPI QR' : 'Cash Collected'}</span>
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       <td className="px-5 py-4 whitespace-nowrap text-right space-x-1.5">
+                        {b.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVAL_REQUESTED' || e.payloadJson?.requiresFleetApproval) && !b.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVED') && (
+                          <button
+                            type="button"
+                            onClick={() => handleApproveFleet(b.id, b.humanReadableRef)}
+                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[11px] shadow-xs"
+                            title="Verify fleet availability and approve for customer payment"
+                          >
+                            ✓ Approve Fleet
+                          </button>
+                        )}
                         {hasOverrideRequest && (
                           <button
                             type="button"

@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+// Refreshed DatePicker
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
-  Text,
+  Text as RNText,
   View,
   ScrollView,
   TouchableOpacity,
@@ -17,26 +18,39 @@ import {
   NativeScrollEvent,
   RefreshControl,
   Linking,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { AuthModal } from '../components/AuthModal';
 import { CustomerBottomDock } from '../components/CustomerBottomDock';
 import { LocationPickerModal } from '../components/LocationPickerModal';
 import { DatePickerModal } from '../components/DatePickerModal';
 import { TimePickerModal } from '../components/TimePickerModal';
-import { PlaceLocation } from '../lib/locations';
+import { PlaceLocation, isLocalDistanceRoute, isSameLocation } from '../lib/locations';
 import { customerApiClient, customerTokenStorage, getDynamicBaseUrl } from '../lib/api';
 import { safeNavigate } from '../lib/safeNav';
+import { LanguageSelectionModal } from '../components/LanguageSelectionModal';
+import { isNewUserLangPromptNeeded, markNewUserLangPromptDone, clearNewUserFlag } from '../lib/i18n';
+import { APP_FONT, resolveRobotoStyle, formatTitleCase } from '../constants/typography';
+
+// Roboto Typography Configuration (Universal Clean Sans-Serif)
+const ROBOTO_FONT = APP_FONT;
+
+// Home Screen Roboto Text Wrapper - ensures exact Roboto font variant is applied
+const Text = React.forwardRef<any, React.ComponentProps<typeof RNText>>(({ style, ...props }, ref) => {
+  const robotoOverride = resolveRobotoStyle(style);
+  return <RNText ref={ref} style={robotoOverride ? [style, robotoOverride] : style} {...props} />;
+});
 
 const { width, height } = Dimensions.get('window');
 const isSmallScreen = height < 700 || width < 380;
 const isMediumScreen = height >= 700 && height < 820;
 
-const BANNER_CARD_GAP = 12;
-const BANNER_CARD_WIDTH = Math.round(width * 0.82);
-const BANNER_CARD_HEIGHT = isSmallScreen ? 130 : 148;
+const BANNER_CARD_WIDTH = Math.round(width - 32); // Full width slider card (16px screen padding on sides)
+const BANNER_CARD_HEIGHT = 155; // Fixed slider height across all mobile devices
 
 interface ServiceCategory {
   id: string;
@@ -69,42 +83,84 @@ interface CarouselItem {
 
 const CAROUSEL_DATA: CarouselItem[] = [
   {
+    id: 'deepawali',
+    badge: '',
+    tagline: '',
+    subTagline: '',
+    image: require('../assets/images/banner-deepawali.jpg'),
+    btnText: '',
+    showTextOverlay: false,
+    showCtaButton: false,
+  },
+  {
+    id: 'christmas',
+    badge: '',
+    tagline: '',
+    subTagline: '',
+    image: require('../assets/images/banner-christmas.jpg'),
+    btnText: '',
+    showTextOverlay: false,
+    showCtaButton: false,
+  },
+  {
+    id: 'ev-cab',
+    badge: '',
+    tagline: '',
+    subTagline: '',
+    image: require('../assets/images/banner-ev-cab.jpg'),
+    btnText: '',
+    showTextOverlay: false,
+    showCtaButton: false,
+  },
+  {
     id: '1',
-    badge: 'INTERCITY CABS',
-    tagline: 'Safe • Reliable • Transparent',
-    subTagline: 'ಕನ್ನಡ ನಾಡಿನ ನಂಬಿಕಸ್ಥ ಕ್ಯಾಬ್ ಸೇವೆ',
-    image: require('../assets/images/banner-coastal-highway.jpg'),
-    btnText: 'Book Outstation',
+    badge: '',
+    tagline: '',
+    subTagline: '',
+    image: require('../assets/images/banner-coorg.jpg'),
+    btnText: '',
+    showTextOverlay: false,
+    showCtaButton: false,
   },
   {
     id: '2',
-    badge: 'AIRPORT TRANSFERS',
-    tagline: 'Mangaluru & Bengaluru Airports',
-    subTagline: 'Zero Surge • 24/7 Guaranteed Pickup',
+    badge: '',
+    tagline: '',
+    subTagline: '',
     image: require('../assets/images/banner-airport.jpg'),
-    btnText: 'Book Airport Cab',
-  },
-  {
-    id: '3',
-    badge: 'PILGRIMAGE & TOURS',
-    tagline: 'Coastal Karnataka Temple Tours',
-    subTagline: 'Dharmasthala • Udupi • Murudeshwar',
-    image: require('../assets/images/banner-pilgrimage.jpg'),
-    btnText: 'Explore Tours',
+    btnText: '',
+    showTextOverlay: false,
+    showCtaButton: false,
   },
 ];
 
 const LOCAL_BANNER_ASSETS: Record<string, any> = {
-  '/images/banner-coastal-highway.jpg': require('../assets/images/banner-coastal-highway.jpg'),
+  '/images/banner-deepawali.jpg': require('../assets/images/banner-deepawali.jpg'),
+  'banner-deepawali.jpg': require('../assets/images/banner-deepawali.jpg'),
+  'banner-deepawali': require('../assets/images/banner-deepawali.jpg'),
+  'deepawali': require('../assets/images/banner-deepawali.jpg'),
+  '/images/banner-christmas.jpg': require('../assets/images/banner-christmas.jpg'),
+  'banner-christmas.jpg': require('../assets/images/banner-christmas.jpg'),
+  'banner-christmas': require('../assets/images/banner-christmas.jpg'),
+  'christmas': require('../assets/images/banner-christmas.jpg'),
+  '/images/banner-ev-cab.jpg': require('../assets/images/banner-ev-cab.jpg'),
+  'banner-ev-cab.jpg': require('../assets/images/banner-ev-cab.jpg'),
+  'banner-ev-cab': require('../assets/images/banner-ev-cab.jpg'),
+  'ev-cab': require('../assets/images/banner-ev-cab.jpg'),
+  '/images/banner-coorg.jpg': require('../assets/images/banner-coorg.jpg'),
+  'banner-coorg.jpg': require('../assets/images/banner-coorg.jpg'),
   '/images/banner-airport.jpg': require('../assets/images/banner-airport.jpg'),
-  '/images/banner-pilgrimage.jpg': require('../assets/images/banner-pilgrimage.jpg'),
-  'banner-coastal-highway.jpg': require('../assets/images/banner-coastal-highway.jpg'),
   'banner-airport.jpg': require('../assets/images/banner-airport.jpg'),
+  '/images/banner-coastal-highway.jpg': require('../assets/images/banner-coastal-highway.jpg'),
+  'banner-coastal-highway.jpg': require('../assets/images/banner-coastal-highway.jpg'),
+  '/images/banner-airport-transfers.jpg': require('../assets/images/banner-airport-transfers.jpg'),
+  'banner-airport-transfers.jpg': require('../assets/images/banner-airport-transfers.jpg'),
+  '/images/banner-pilgrimage.jpg': require('../assets/images/banner-pilgrimage.jpg'),
   'banner-pilgrimage.jpg': require('../assets/images/banner-pilgrimage.jpg'),
-  'banner-1': require('../assets/images/banner-coastal-highway.jpg'),
+  'banner-1': require('../assets/images/banner-coorg.jpg'),
   'banner-2': require('../assets/images/banner-airport.jpg'),
   'banner-3': require('../assets/images/banner-pilgrimage.jpg'),
-  '1': require('../assets/images/banner-coastal-highway.jpg'),
+  '1': require('../assets/images/banner-coorg.jpg'),
   '2': require('../assets/images/banner-airport.jpg'),
   '3': require('../assets/images/banner-pilgrimage.jpg'),
 };
@@ -130,6 +186,15 @@ function resolveBannerImage(image: any, fallbackId?: string): any {
     if (LOCAL_BANNER_ASSETS[str]) return LOCAL_BANNER_ASSETS[str];
     if (LOCAL_BANNER_ASSETS[cleaned]) return LOCAL_BANNER_ASSETS[cleaned];
 
+    if (cleaned.includes('deepawali') || cleaned.includes('diwali') || cleaned.includes('festival') || cleaned.includes('kcd500')) {
+      return LOCAL_BANNER_ASSETS['banner-deepawali.jpg'];
+    }
+    if (cleaned.includes('christmas') || cleaned.includes('xmas') || cleaned.includes('kcmc25') || cleaned.includes('merry')) {
+      return LOCAL_BANNER_ASSETS['banner-christmas.jpg'];
+    }
+    if (cleaned.includes('ev') || cleaned.includes('electric') || cleaned.includes('smart rides') || cleaned.includes('ev cab')) {
+      return LOCAL_BANNER_ASSETS['banner-ev-cab.jpg'];
+    }
     if (cleaned.includes('highway') || cleaned.includes('coastal') || cleaned.includes('intercity')) {
       return LOCAL_BANNER_ASSETS['banner-coastal-highway.jpg'];
     }
@@ -198,7 +263,7 @@ const VEHICLE_FLEET: VehicleFleetItem[] = [
   {
     id: 'ertiga',
     name: 'Ertiga',
-    subtitle: 'Maruti Ertiga 6-Seater',
+    subtitle: 'Ertiga 6-Seater',
     pax: '6 + 1',
     bags: '3',
     image: require('../assets/images/fleet-4-ertiga.png'),
@@ -208,7 +273,7 @@ const VEHICLE_FLEET: VehicleFleetItem[] = [
   {
     id: 'innova',
     name: 'Innova',
-    subtitle: 'Toyota Innova 7-Seater',
+    subtitle: 'Innova 7-Seater',
     pax: '7 + 1',
     bags: '4',
     image: require('../assets/images/fleet-4-innova.png'),
@@ -345,41 +410,251 @@ const DEFAULT_DROP_LOCATION: PlaceLocation = {
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  console.log('[DIMENSIONS]', { windowWidth, windowHeight, isSmallDevice: windowHeight < 720 || windowWidth < 380 });
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
+  const bottomInset = insets.bottom || 0;
+  const screenDimensions = Dimensions.get('screen');
+  const screenHeight = Math.max(screenDimensions.height, windowHeight);
+  const isLargeScreen = screenHeight >= 830 || windowHeight >= 780;
+  const isMediumScreen = !isLargeScreen && (screenHeight >= 720 || windowHeight >= 700);
+  const isSmallDevice = windowHeight < 700 || windowWidth < 380;
+
+  const [bookingCardHeight, setBookingCardHeight] = useState(0);
+  const [servicesHeight, setServicesHeight] = useState(0);
+
+  // Dynamic responsive sizing for home components across all mobile screen sizes (100vh locked)
+  const responsiveSizes = useMemo(() => {
+    if (isLargeScreen) {
+      // Large screens (Pixel 7/8/9, OnePlus 11/12/13, Galaxy S21/S22/S23+, iPhone 14/15/16 Pro Max, 830dp+)
+      return {
+        headerPaddingVertical: 9,
+        headerLogoWidth: 98,
+        headerLogoHeight: 31,
+        headerGreetingSize: 15.5,
+        headerSubtextSize: 11,
+        headerNotifIconSize: 19,
+        topSpacing: 8,
+        bottomSpacing: 6,
+        bottomGroupGap: 9,
+        cardToIconsGap: 12,
+        searchCardMaxHeight: 385,
+        bannerHeight: 165,
+        sectionGap: 9,
+        cardPadding: 13,
+        cardMarginHorizontal: 13,
+        tabPaddingVertical: 7.5,
+        tabTitleSize: 15,
+        tabSubSize: 11.2,
+        tabIconSize: 19,
+        locationsMarginTop: 8,
+        locationsGap: 6.5,
+        locationPaddingVertical: 7.5,
+        locationIconSize: 20,
+        locationLabelSize: 11,
+        locationValueSize: 14.2,
+        swapButtonSize: 31,
+        swapIconSize: 16,
+        addStopPaddingVertical: 3.2,
+        addStopTextSize: 12,
+        addStopIconSize: 15,
+        dateTimePaddingVertical: 7,
+        dateTimeMinHeight: 46,
+        dateTimeMarginTop: 8,
+        dateTimeIconSize: 18,
+        dateTimeLabelSize: 11,
+        dateTimeValueSize: 14.2,
+        bookBtnPaddingVertical: 10.5,
+        bookBtnMarginTop: 9.5,
+        bookBtnTextSize: 16,
+        serviceCardPaddingVertical: 8,
+        serviceIconCircleSize: 40,
+        serviceIconSize: 25,
+        serviceTitleSize: 11.5,
+        serviceTitleMinHeight: 26,
+        helpPaddingVertical: 8.5,
+        helpIconSize: 20,
+        helpIconCircleSize: 32,
+        helpTitleSize: 13,
+        helpSubtitleSize: 10.5,
+      };
+    } else if (isMediumScreen) {
+      // Standard / Medium screens (iPhone 13/14/15/16 standard, Pixel 6a/7a, 720-830dp)
+      return {
+        headerPaddingVertical: 7.5,
+        headerLogoWidth: 90,
+        headerLogoHeight: 27,
+        headerGreetingSize: 14,
+        headerSubtextSize: 10,
+        headerNotifIconSize: 17,
+        topSpacing: 7,
+        bottomSpacing: 5,
+        bottomGroupGap: 7.5,
+        cardToIconsGap: 9.5,
+        searchCardMaxHeight: 345,
+        bannerHeight: 146,
+        sectionGap: 7.5,
+        cardPadding: 10,
+        cardMarginHorizontal: 11,
+        tabPaddingVertical: 5.8,
+        tabTitleSize: 14,
+        tabSubSize: 10.5,
+        tabIconSize: 17,
+        locationsMarginTop: 6,
+        locationsGap: 5,
+        locationPaddingVertical: 5.8,
+        locationIconSize: 18,
+        locationLabelSize: 10.5,
+        locationValueSize: 13.5,
+        swapButtonSize: 28,
+        swapIconSize: 15,
+        addStopPaddingVertical: 2.8,
+        addStopTextSize: 11.5,
+        addStopIconSize: 14,
+        dateTimePaddingVertical: 5.5,
+        dateTimeMinHeight: 39,
+        dateTimeMarginTop: 6,
+        dateTimeIconSize: 17,
+        dateTimeLabelSize: 10.5,
+        dateTimeValueSize: 13.5,
+        bookBtnPaddingVertical: 8.5,
+        bookBtnMarginTop: 7.5,
+        bookBtnTextSize: 15,
+        serviceCardPaddingVertical: 6.5,
+        serviceIconCircleSize: 34,
+        serviceIconSize: 21,
+        serviceTitleSize: 10.8,
+        serviceTitleMinHeight: 22,
+        helpPaddingVertical: 6.5,
+        helpIconSize: 18,
+        helpIconCircleSize: 29,
+        helpTitleSize: 11.8,
+        helpSubtitleSize: 9.5,
+      };
+    } else {
+      // Compact / Small screens (<720dp, e.g. 720x1280 physical / 360x640 dp, iPhone SE)
+      return {
+        headerPaddingVertical: 4,
+        headerLogoWidth: 76,
+        headerLogoHeight: 22,
+        headerGreetingSize: 12.2,
+        headerSubtextSize: 8.8,
+        headerNotifIconSize: 15,
+        topSpacing: 4,
+        bottomSpacing: 4,
+        bottomGroupGap: 5,
+        cardToIconsGap: 6,
+        searchCardMaxHeight: 310,
+        bannerHeight: 136,
+        sectionGap: 5,
+        cardPadding: 6,
+        cardMarginHorizontal: 8,
+        tabPaddingVertical: 3.5,
+        tabTitleSize: 12.2,
+        tabSubSize: 8.8,
+        tabIconSize: 14,
+        locationsMarginTop: 3.5,
+        locationsGap: 2.5,
+        locationPaddingVertical: 3.2,
+        locationIconSize: 15,
+        locationLabelSize: 9,
+        locationValueSize: 11.8,
+        swapButtonSize: 24,
+        swapIconSize: 12,
+        addStopPaddingVertical: 1.8,
+        addStopTextSize: 10,
+        addStopIconSize: 12,
+        dateTimePaddingVertical: 3,
+        dateTimeMinHeight: 30,
+        dateTimeMarginTop: 3.2,
+        dateTimeIconSize: 14,
+        dateTimeLabelSize: 9,
+        dateTimeValueSize: 11.8,
+        bookBtnPaddingVertical: 5.5,
+        bookBtnMarginTop: 4,
+        bookBtnTextSize: 13,
+        serviceCardPaddingVertical: 3.8,
+        serviceIconCircleSize: 26,
+        serviceIconSize: 16,
+        serviceTitleSize: 9,
+        serviceTitleMinHeight: 16,
+        helpPaddingVertical: 4,
+        helpIconSize: 15,
+        helpIconCircleSize: 24,
+        helpTitleSize: 10.5,
+        helpSubtitleSize: 8.5,
+      };
+    }
+  }, [windowHeight, isLargeScreen, isMediumScreen]);
+
+  const headerInnerHeight = (responsiveSizes.headerPaddingVertical * 2) + responsiveSizes.headerLogoHeight;
+  const totalHeaderHeight = headerInnerHeight + topInset;
+  const dockHeight = Math.max(50, 44 + bottomInset);
+  const availableBodyHeight = Math.max(380, Math.floor(windowHeight - totalHeaderHeight - dockHeight));
 
   const [carouselList, setCarouselList] = useState<CarouselItem[]>(CAROUSEL_DATA);
-  const [activeCarouselIndex, setActiveCarouselIndex] = useState(0);
   const carouselRef = useRef<FlatList>(null);
 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('sedan');
 
+  const [isAuthChecking, setIsAuthChecking] = useState(() => !customerTokenStorage.getToken());
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isLangPromptModalOpen, setIsLangPromptModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<any | null>(customerTokenStorage.getUser());
-  const [userName, setUserName] = useState<string>(customerTokenStorage.getUser()?.fullName || '');
+  const [userName, setUserName] = useState<string>(formatTitleCase(customerTokenStorage.getUser()?.fullName) || '');
   const [userPhone, setUserPhone] = useState<string>(customerTokenStorage.getUser()?.phone || '');
 
   const [refreshing, setRefreshing] = useState(false);
 
   // Quick Booking State (One Way / Round Trip Card)
   const [selectedTripType, setSelectedTripType] = useState<'ONEWAY' | 'ROUND'>('ONEWAY');
-  const [pickupLocation, setPickupLocation] = useState<PlaceLocation | null>(DEFAULT_PICKUP_LOCATION);
-  const [dropLocation, setDropLocation] = useState<PlaceLocation | null>(DEFAULT_DROP_LOCATION);
+  const [pickupLocation, setPickupLocation] = useState<PlaceLocation | null>(null);
+  const [dropLocation, setDropLocation] = useState<PlaceLocation | null>(null);
   const [viaStops, setViaStops] = useState<PlaceLocation[]>([]);
-  const [isStopModalOpen, setIsStopModalOpen] = useState(false);
-  const [pickupDate, setPickupDate] = useState<string>(() => {
-    const today = new Date();
-    const day = String(today.getDate()).padStart(2, '0');
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const year = today.getFullYear();
-    return `${day}-${month}-${year}`;
-  });
+  const [pickupDate, setPickupDate] = useState<string>('');
   const [pickupDateDisplay, setPickupDateDisplay] = useState<string>('');
-  const [pickupTime, setPickupTime] = useState<string>('07:00');
+  const [pickupTime, setPickupTime] = useState<string>('');
+  const [returnDate, setReturnDate] = useState<string>('');
+  const [returnDateDisplay, setReturnDateDisplay] = useState<string>('');
 
-  const [isPickupModalOpen, setIsPickupModalOpen] = useState(false);
-  const [isDropModalOpen, setIsDropModalOpen] = useState(false);
+  // Exact 16:9 widescreen ratio (1792 × 1024 / 1.75 : 1) so full banner graphic is viewable without cropping
+  const idealBannerWidth = Math.round(windowWidth - 24);
+  const idealBannerHeight = Math.round(idealBannerWidth * (1024 / 1792));
+
+  // Dynamically calculate available space so entire 100vh fits comfortably without scrolling
+  const estimatedCard1Height =
+    (responsiveSizes.cardPadding * 2) +
+    (responsiveSizes.tabPaddingVertical * 2 + 28) +
+    (responsiveSizes.locationsMarginTop + (responsiveSizes.locationPaddingVertical * 2 + 30) * 2 + responsiveSizes.locationsGap) +
+    (viaStops.length > 0 ? Math.min(viaStops.length * 40, 80) : 0) +
+    (viaStops.length < 12 ? 26 : 0) +
+    (responsiveSizes.dateTimeMarginTop + responsiveSizes.dateTimeMinHeight) +
+    (responsiveSizes.bookBtnMarginTop + responsiveSizes.bookBtnPaddingVertical * 2 + 26);
+
+  const estimatedCard2Height =
+    (responsiveSizes.serviceCardPaddingVertical * 2) +
+    responsiveSizes.serviceIconCircleSize +
+    responsiveSizes.serviceTitleMinHeight + 10;
+
+  const estimatedCard4Height = (responsiveSizes.helpPaddingVertical * 2) + 38;
+
+  const dynamicBannerHeight = responsiveSizes.bannerHeight;
+  const bannerCardWidth = Math.round(windowWidth - (responsiveSizes.cardMarginHorizontal * 2));
+
+  const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
+  const [routeModalTarget, setRouteModalTarget] = useState<'PICKUP' | 'STOP' | 'DROP'>('PICKUP');
+  const [routeModalStopIndex, setRouteModalStopIndex] = useState<number>(0);
+
+  const openLocationModal = (target: 'PICKUP' | 'STOP' | 'DROP', stopIdx: number = 0) => {
+    setRouteModalTarget(target);
+    setRouteModalStopIndex(stopIdx);
+    setIsRouteModalOpen(true);
+  };
+
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
+  const [isReturnDateModalOpen, setIsReturnDateModalOpen] = useState(false);
 
   // Load dynamic promotional banners from Admin / Backend
   const loadDynamicBanners = useCallback(async () => {
@@ -393,9 +668,16 @@ export default function HomeScreen() {
         () => fetch('http://10.0.2.2:3000/api/banners').then((r) => r.json()),
       ];
 
+      const fetchWithTimeout = async (fn: () => Promise<any>) => {
+        return Promise.race([
+          fn(),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+        ]);
+      };
+
       for (const fn of endpoints) {
         try {
-          const res = await fn();
+          const res = await fetchWithTimeout(fn);
           if (res && Array.isArray(res.banners) && res.banners.length > 0) {
             bannersData = res.banners;
             break;
@@ -420,7 +702,7 @@ export default function HomeScreen() {
             showTextOverlay:
               b.showTextOverlay !== undefined
                 ? b.showTextOverlay
-                : b.bannerType !== 'PROMO_GRAPHIC' && Boolean(b.tagline),
+                : false,
             showCtaButton:
               b.showCtaButton !== undefined
                 ? b.showCtaButton
@@ -439,8 +721,6 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadDynamicBanners();
-    const interval = setInterval(loadDynamicBanners, 8000);
-    return () => clearInterval(interval);
   }, [loadDynamicBanners]);
 
   useFocusEffect(
@@ -467,17 +747,18 @@ export default function HomeScreen() {
       router.replace('/login');
       return;
     }
+    setIsAuthChecking(false);
 
     const cached = customerTokenStorage.getUser();
     if (cached) {
       setCurrentUser(cached);
-      setUserName(cached.fullName || 'Valued Customer');
+      setUserName(formatTitleCase(cached.fullName) || 'Valued Customer');
       setUserPhone(cached.phone || '');
     }
 
     try {
       const res = await customerApiClient.fetch('/api/auth/me');
-      const cleanName = (res.user.fullName === 'Kandy Customer' ? '' : (res.user.fullName || '')).trim();
+      const cleanName = formatTitleCase(res.user.fullName === 'Kandy Customer' ? '' : (res.user.fullName || ''));
       customerTokenStorage.setUser({ ...res.user, fullName: cleanName });
       setCurrentUser({ ...res.user, fullName: cleanName });
       setUserName(cleanName);
@@ -492,11 +773,42 @@ export default function HomeScreen() {
     const unsub = customerTokenStorage.subscribe(() => {
       const u = customerTokenStorage.getUser();
       setCurrentUser(u);
-      setUserName(u?.fullName || '');
+      setUserName(formatTitleCase(u?.fullName) || '');
       setUserPhone(u?.phone || '');
     });
     return () => unsub();
   }, [syncAuth]);
+
+  // Check if initial language selection popup is needed ONLY for new user (shown once after registration)
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      const checkLangPrompt = async () => {
+        try {
+          const token = customerTokenStorage.getToken() || (await customerTokenStorage.getTokenAsync());
+          if (!token) return;
+
+          const activeUser = customerTokenStorage.getUser() || currentUser;
+          const needed = await isNewUserLangPromptNeeded(activeUser);
+          if (needed && active) {
+            // Delay briefly to allow home screen layout and transitions to finish smoothly
+            setTimeout(() => {
+              if (active) {
+                setIsLangPromptModalOpen(true);
+              }
+            }, 300);
+          }
+        } catch (err) {
+          console.warn('Language prompt check error:', err);
+        }
+      };
+
+      checkLangPrompt();
+      return () => {
+        active = false;
+      };
+    }, [currentUser])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -510,24 +822,19 @@ export default function HomeScreen() {
   const slideTimerRef = useRef<NodeJS.Timeout | null>(null);
   const resumeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    activeIndexRef.current = activeCarouselIndex;
-  }, [activeCarouselIndex]);
-
   const advanceSlide = useCallback(() => {
     if (carouselList.length <= 1 || isInteractingRef.current) return;
     const nextIndex = (activeIndexRef.current + 1) % carouselList.length;
     activeIndexRef.current = nextIndex;
-    setActiveCarouselIndex(nextIndex);
     try {
       carouselRef.current?.scrollToOffset({
-        offset: nextIndex * (BANNER_CARD_WIDTH + BANNER_CARD_GAP),
+        offset: nextIndex * windowWidth,
         animated: true,
       });
     } catch {
       // fallback
     }
-  }, [carouselList.length]);
+  }, [carouselList.length, windowWidth]);
 
   const startAutoSlide = useCallback(() => {
     if (slideTimerRef.current) {
@@ -575,10 +882,9 @@ export default function HomeScreen() {
 
   const handleCarouselScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
-    const index = Math.round(scrollPosition / (BANNER_CARD_WIDTH + BANNER_CARD_GAP));
+    const index = Math.round(scrollPosition / windowWidth);
     if (index >= 0 && index < carouselList.length) {
       activeIndexRef.current = index;
-      setActiveCarouselIndex(index);
     }
   };
 
@@ -624,8 +930,8 @@ export default function HomeScreen() {
   };
 
   const formatTime12Display = (timeStr?: string) => {
-    if (!timeStr) return '07:00 AM';
-    if (timeStr.includes('AM') || timeStr.includes('PM')) return timeStr;
+    if (!timeStr) return '';
+    if (timeStr.includes('AM') || timeStr.includes('PM')) return timeStr.replace(/ /g, '\u00A0');
     if (!timeStr.includes(':')) return timeStr;
     const [hourStr, minStr] = timeStr.split(':');
     const hourNum = parseInt(hourStr, 10);
@@ -633,18 +939,19 @@ export default function HomeScreen() {
     const ampm = hourNum >= 12 ? 'PM' : 'AM';
     const displayHour = hourNum % 12 === 0 ? 12 : hourNum % 12;
     const padHour = String(displayHour).padStart(2, '0');
-    return `${padHour}:${minStr} ${ampm}`;
+    return `${padHour}:${minStr}\u00A0${ampm}`;
   };
 
-  const formatDateDisplay = (dateStr?: string) => {
+  const formatDateDisplay = (dateStr?: string, compact?: boolean) => {
     if (!dateStr) {
-      const today = new Date();
-      const day = String(today.getDate()).padStart(2, '0');
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return `${day} ${months[today.getMonth()]} ${today.getFullYear()}`;
+      return '';
     }
     if (/[a-zA-Z]/.test(dateStr) && dateStr.includes(' ')) {
-      return dateStr;
+      const parts = dateStr.trim().split(/\s+/);
+      if (compact && parts.length >= 2) {
+        return `${parts[0]}\u00A0${parts[1]}`;
+      }
+      return dateStr.replace(/ /g, '\u00A0');
     }
     if (dateStr.includes('-')) {
       const parts = dateStr.split('-');
@@ -653,13 +960,17 @@ export default function HomeScreen() {
         // YYYY-MM-DD
         const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
         if (!isNaN(d.getTime())) {
-          return `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
+          return compact
+            ? `${String(d.getDate()).padStart(2, '0')}\u00A0${months[d.getMonth()]}`
+            : `${String(d.getDate()).padStart(2, '0')}\u00A0${months[d.getMonth()]}\u00A0${d.getFullYear()}`;
         }
       } else {
         // DD-MM-YYYY
         const d = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
         if (!isNaN(d.getTime())) {
-          return `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
+          return compact
+            ? `${String(d.getDate()).padStart(2, '0')}\u00A0${months[d.getMonth()]}`
+            : `${String(d.getDate()).padStart(2, '0')}\u00A0${months[d.getMonth()]}\u00A0${d.getFullYear()}`;
         }
       }
     }
@@ -676,10 +987,70 @@ export default function HomeScreen() {
   };
 
   const handleExploreCabs = () => {
-    const activePickup = pickupLocation || DEFAULT_PICKUP_LOCATION;
-    const activeDrop = dropLocation || DEFAULT_DROP_LOCATION;
+    if (!pickupLocation) {
+      openLocationModal('PICKUP');
+      return;
+    }
+    if (!dropLocation) {
+      openLocationModal('DROP');
+      return;
+    }
+
+    if (isSameLocation(pickupLocation, dropLocation)) {
+      Alert.alert(
+        t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+        t('modals.locationPicker.sameLocationMsg', { defaultValue: 'Pickup and drop location cannot be the same. Please choose a different destination.' })
+      );
+      openLocationModal('DROP');
+      return;
+    }
+
+    if (isLocalDistanceRoute(pickupLocation, dropLocation, viaStops)) {
+      Alert.alert(
+        'Local Rental Switched',
+        "Since your pickup and drop location is same city we've switched to local rental",
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              safeNavigate(() => {
+                router.push({
+                  pathname: '/trip-details',
+                  params: {
+                    tripType: 'LOCAL',
+                    category: 'LOCAL',
+                    pickup: pickupLocation.label,
+                    pickupJson: JSON.stringify(pickupLocation),
+                    pickupDate: pickupDate || '',
+                    pickupTime: pickupTime || '',
+                  },
+                });
+              });
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    if (!pickupDate) {
+      setIsDateModalOpen(true);
+      return;
+    }
+    if (!pickupTime) {
+      setIsTimeModalOpen(true);
+      return;
+    }
+    if (selectedTripType === 'ROUND' && !returnDate) {
+      setIsReturnDateModalOpen(true);
+      return;
+    }
+
+    const activePickup = pickupLocation;
+    const activeDrop = dropLocation;
     const activeDate = pickupDateDisplay || formatDateDisplay(pickupDate);
-    const activeTime = pickupTime || '07:00';
+    const activeTime = pickupTime;
+    const activeReturnDate = returnDateDisplay || (returnDate ? formatDateDisplay(returnDate) : undefined);
 
     safeNavigate(() => {
       router.push({
@@ -698,6 +1069,7 @@ export default function HomeScreen() {
           viaStops: JSON.stringify(viaStops),
           date: activeDate,
           time: activeTime,
+          returnDate: activeReturnDate,
         },
       });
     });
@@ -705,11 +1077,48 @@ export default function HomeScreen() {
 
   const handleSearchCabs = () => {
     if (!pickupLocation) {
-      setIsPickupModalOpen(true);
+      openLocationModal('PICKUP');
       return;
     }
     if (!dropLocation) {
-      setIsDropModalOpen(true);
+      openLocationModal('DROP');
+      return;
+    }
+
+    if (isSameLocation(pickupLocation, dropLocation)) {
+      Alert.alert(
+        t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+        t('modals.locationPicker.sameLocationMsg', { defaultValue: 'Pickup and drop location cannot be the same. Please choose a different destination.' })
+      );
+      openLocationModal('DROP');
+      return;
+    }
+
+    if (isLocalDistanceRoute(pickupLocation, dropLocation, viaStops)) {
+      Alert.alert(
+        'Local Rental Switched',
+        "Since your pickup and drop location is same city we've switched to local rental",
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              safeNavigate(() => {
+                router.push({
+                  pathname: '/trip-details',
+                  params: {
+                    tripType: 'LOCAL',
+                    category: 'LOCAL',
+                    pickup: pickupLocation.label,
+                    pickupJson: JSON.stringify(pickupLocation),
+                    pickupDate: pickupDate || '',
+                    pickupTime: pickupTime || '',
+                  },
+                });
+              });
+            },
+          },
+        ]
+      );
       return;
     }
 
@@ -717,13 +1126,14 @@ export default function HomeScreen() {
       router.push({
         pathname: '/trip-details',
         params: {
-          tripType: 'ONEWAY',
+          tripType: selectedTripType || 'ONEWAY',
           pickup: pickupLocation.label,
           drop: dropLocation.label,
           pickupJson: JSON.stringify(pickupLocation),
           dropJson: JSON.stringify(dropLocation),
           pickupDate: pickupDate || '',
           pickupTime: pickupTime || '',
+          returnDate: returnDate || '',
         },
       });
     });
@@ -768,89 +1178,114 @@ export default function HomeScreen() {
   };
 
   const handleNotificationPress = () => {
-    Alert.alert(
-      'Kandy Cabs Notifications',
-      '🎉 Welcome to Kandy Cabs! Book your outstation and airport rides with transparent pricing and top-rated chauffeurs.'
-    );
+    router.push('/notifications');
   };
 
+  if (isAuthChecking) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      </View>
+    );
+  }
+
   return (
-    <SafeAreaView style={[styles.safeArea, { paddingTop: topInset }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+    <View style={styles.screenWrapper}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
 
-      {/* Top Header */}
-      <View style={styles.header}>
-        {/* Left: Brand Logo */}
-        <Image
-          source={require('../assets/images/logo.png')}
-          style={styles.headerLogo}
-          resizeMode="contain"
-        />
+      {/* Top Header (Dark Blue) */}
+      <View style={[styles.headerWrapper, { paddingTop: topInset }]}>
+        <View style={[styles.header, { paddingVertical: responsiveSizes.headerPaddingVertical }]}>
+          {/* Left: Brand Logo (White version for dark blue background) */}
+          <Image
+            source={require('../assets/images/logo-white.png')}
+            style={[
+              styles.headerLogo,
+              {
+                width: responsiveSizes.headerLogoWidth,
+                height: responsiveSizes.headerLogoHeight,
+              },
+            ]}
+            resizeMode="contain"
+          />
 
-        {/* Center: Greeting & User Name (Exactly Centered in Middle of Screen) */}
-        <View style={styles.headerCenterAbsolute} pointerEvents="box-none">
+          {/* Center: Greeting & User Name (Exactly Centered in Middle of Screen) */}
+          <View style={styles.headerCenterAbsolute} pointerEvents="box-none">
+            <TouchableOpacity
+              style={styles.greetingContainer}
+              activeOpacity={0.7}
+              onPress={() => {
+                safeNavigate(() => {
+                  if (userName || currentUser) {
+                    router.push('/profile');
+                  } else {
+                    setIsAuthModalOpen(true);
+                  }
+                });
+              }}
+            >
+              {userName ? (
+                <>
+                  <Text style={[styles.greetingSubtext, { fontSize: responsiveSizes.headerSubtextSize }]}>{greeting}</Text>
+                  <Text
+                    style={[styles.greetingName, { fontSize: responsiveSizes.headerGreetingSize }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.75}
+                  >
+                    {formatTitleCase(userName)}
+                  </Text>
+                </>
+              ) : (
+                <Text style={[styles.greetingOnlyText, { fontSize: responsiveSizes.headerGreetingSize }]}>{greeting}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Right: Notification Bell */}
           <TouchableOpacity
-            style={styles.greetingContainer}
+            style={styles.notificationButton}
+            onPress={handleNotificationPress}
             activeOpacity={0.7}
-            onPress={() => {
-              safeNavigate(() => {
-                if (userName || currentUser) {
-                  router.push('/profile');
-                } else {
-                  setIsAuthModalOpen(true);
-                }
-              });
-            }}
           >
-            {userName ? (
-              <>
-                <Text style={styles.greetingSubtext}>{greeting}</Text>
-                <Text style={styles.greetingName} numberOfLines={1}>
-                  {userName}
-                </Text>
-              </>
-            ) : (
-              <Text style={styles.greetingOnlyText}>{greeting}</Text>
-            )}
+            <Ionicons name="notifications" size={responsiveSizes.headerNotifIconSize} color="#ffffff" />
+            <View style={styles.notificationDot} />
           </TouchableOpacity>
         </View>
-
-        {/* Right: Notification Bell */}
-        <TouchableOpacity
-          style={styles.notificationButton}
-          onPress={handleNotificationPress}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="notifications" size={18} color="#103A75" />
-          <View style={styles.notificationDot} />
-        </TouchableOpacity>
       </View>
 
-      {/* Main Content */}
+      {/* Main Content - Normal Clean Natural Flow */}
       <ScrollView
         style={styles.mainContainer}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: 8,
+            paddingBottom: 16,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         bounces={true}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#EE5C21']}
-            tintColor="#EE5C21"
-          />
-        }
       >
-        {/* Main Body */}
-        <View style={styles.homeBodyCard}>
-          {/* 1. Quick Trip Search Card (ONE WAY / ROUND TRIP) */}
-          <View style={styles.quickSearchCard}>
+        {/* 1. Quick Trip Search Card (ONE WAY / ROUND TRIP) */}
+        <View
+          style={[
+            styles.quickSearchCard,
+            {
+              marginHorizontal: responsiveSizes.cardMarginHorizontal,
+              padding: responsiveSizes.cardPadding,
+              marginBottom: 10,
+            },
+          ]}
+        >
             {/* Top Toggle Tabs: ONE WAY / ROUND TRIP */}
             <View style={styles.tripTypeTabsRow}>
               {/* One Way Tab */}
               <TouchableOpacity
                 style={[
                   styles.tripTypeTab,
+                  { paddingVertical: responsiveSizes.tabPaddingVertical },
                   selectedTripType === 'ONEWAY' ? styles.tripTypeTabActive : styles.tripTypeTabInactive,
                 ]}
                 onPress={() => setSelectedTripType('ONEWAY')}
@@ -859,26 +1294,34 @@ export default function HomeScreen() {
                 <View style={styles.tripTypeIconWrapper}>
                   <Ionicons
                     name="arrow-forward"
-                    size={22}
-                    color={selectedTripType === 'ONEWAY' ? '#ffffff' : '#0f294a'}
+                    size={responsiveSizes.tabIconSize}
+                    color={selectedTripType === 'ONEWAY' ? '#ffffff' : 'rgb(22, 34, 50)'}
                   />
                 </View>
                 <View style={styles.tripTypeTextCol}>
                   <Text
                     style={[
                       styles.tripTypeTabTitle,
+                      { fontSize: responsiveSizes.tabTitleSize },
                       selectedTripType === 'ONEWAY' ? styles.tripTypeTabTitleActive : styles.tripTypeTabTitleInactive,
                     ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.65}
                   >
-                    ONE WAY
+                    {t('home.oneWay')}
                   </Text>
                   <Text
                     style={[
                       styles.tripTypeTabSub,
+                      { fontSize: responsiveSizes.tabSubSize },
                       selectedTripType === 'ONEWAY' ? styles.tripTypeTabSubActive : styles.tripTypeTabSubInactive,
                     ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.65}
                   >
-                    Drop-off only
+                    {t('home.oneWaySub')}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -887,87 +1330,148 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={[
                   styles.tripTypeTab,
+                  { paddingVertical: responsiveSizes.tabPaddingVertical },
                   selectedTripType === 'ROUND' ? styles.tripTypeTabActive : styles.tripTypeTabInactive,
                 ]}
-                onPress={() => setSelectedTripType('ROUND')}
+                onPress={() => {
+                  setSelectedTripType('ROUND');
+                  if (pickupDate && pickupTime && !returnDate) {
+                    setTimeout(() => {
+                      setIsReturnDateModalOpen(true);
+                    }, 300);
+                  }
+                }}
                 activeOpacity={0.8}
               >
                 <View style={styles.tripTypeIconWrapper}>
                   <Ionicons
                     name="sync"
-                    size={22}
-                    color={selectedTripType === 'ROUND' ? '#ffffff' : '#0f294a'}
+                    size={responsiveSizes.tabIconSize}
+                    color={selectedTripType === 'ROUND' ? '#ffffff' : 'rgb(22, 34, 50)'}
                   />
                 </View>
                 <View style={styles.tripTypeTextCol}>
                   <Text
                     style={[
                       styles.tripTypeTabTitle,
+                      { fontSize: responsiveSizes.tabTitleSize },
                       selectedTripType === 'ROUND' ? styles.tripTypeTabTitleActive : styles.tripTypeTabTitleInactive,
                     ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.65}
                   >
-                    ROUND TRIP
+                    {t('home.roundTrip')}
                   </Text>
                   <Text
                     style={[
                       styles.tripTypeTabSub,
+                      { fontSize: responsiveSizes.tabSubSize },
                       selectedTripType === 'ROUND' ? styles.tripTypeTabSubActive : styles.tripTypeTabSubInactive,
                     ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.65}
                   >
-                    Return with same cab
+                    {t('home.roundTripSub')}
                   </Text>
                 </View>
               </TouchableOpacity>
             </View>
 
             {/* Locations Box Container (Pickup, Drop & Floating Swap) */}
-            <View style={styles.locationsContainer}>
+            <View style={[styles.locationsContainer, { marginTop: responsiveSizes.locationsMarginTop, gap: responsiveSizes.locationsGap }]}>
               {/* Pickup Location Box */}
               <TouchableOpacity
-                style={styles.locationInputBox}
-                onPress={() => setIsPickupModalOpen(true)}
+                style={[styles.locationInputBox, { paddingVertical: responsiveSizes.locationPaddingVertical }]}
+                onPress={() => openLocationModal('PICKUP')}
                 activeOpacity={0.75}
               >
-                <Ionicons name="location-sharp" size={24} color="#ff5400" style={styles.locationPinIcon} />
+                <Ionicons name="location-sharp" size={responsiveSizes.locationIconSize} color="#16a34a" style={styles.locationPinIcon} />
                 <View style={styles.locationInfoCol}>
-                  <Text style={styles.locationFieldLabel}>PICKUP LOCATION</Text>
-                  <Text style={styles.locationFieldValue} numberOfLines={1}>
-                    {pickupLocation?.label || DEFAULT_PICKUP_LOCATION.label}
+                  <Text style={[styles.locationFieldLabel, { fontSize: responsiveSizes.locationLabelSize }]}>{t('home.pickupLocation')}</Text>
+                  <Text
+                    style={[
+                      styles.locationFieldValue,
+                      { fontSize: responsiveSizes.locationValueSize },
+                      !pickupLocation && styles.locationFieldPlaceholder,
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.8}
+                  >
+                    {pickupLocation?.label || t('home.pickupPlaceholder')}
                   </Text>
                 </View>
               </TouchableOpacity>
 
-              {/* Via Stops (if any) */}
-              {viaStops.map((stop, index) => (
-                <View key={`stop-${index}`} style={styles.viaStopBox}>
-                  <Ionicons name="radio-button-on" size={18} color="#f97316" style={styles.locationPinIcon} />
-                  <View style={styles.locationInfoCol}>
-                    <Text style={styles.locationFieldLabel}>STOP {index + 1}</Text>
-                    <Text style={styles.locationFieldValue} numberOfLines={1}>
-                      {stop.label}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setViaStops((prev) => prev.filter((_, i) => i !== index))}
-                    style={styles.removeStopBtn}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons name="close-circle" size={18} color="#94a3b8" />
-                  </TouchableOpacity>
-                </View>
-              ))}
+              {/* Via Stops (if any, supporting up to 12 stops) */}
+              {viaStops.length > 0 && (
+                <ScrollView
+                  style={[styles.viaStopsScroll, isSmallDevice && { maxHeight: 75 }]}
+                  nestedScrollEnabled={true}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={viaStops.length > 2}
+                >
+                  {viaStops.map((stop, index) => (
+                    <TouchableOpacity
+                      key={`stop-${index}`}
+                      style={[styles.viaStopBox, { paddingVertical: responsiveSizes.locationPaddingVertical }]}
+                      onPress={() => openLocationModal('STOP', index)}
+                      activeOpacity={0.75}
+                    >
+                      <View style={styles.stopCircleBadge}>
+                        <Text style={styles.stopCircleText}>{index + 1}</Text>
+                      </View>
+                      <View style={styles.locationInfoCol}>
+                        <Text style={[styles.locationFieldLabel, { fontSize: responsiveSizes.locationLabelSize }]}>
+                          {t('home.stopN', { defaultValue: `STOP ${index + 1}`, index: index + 1 })}
+                        </Text>
+                        <Text
+                          style={[styles.locationFieldValue, { fontSize: responsiveSizes.locationValueSize }]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.8}
+                        >
+                          {stop.label}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setViaStops((prev) => prev.filter((_, i) => i !== index));
+                        }}
+                        style={styles.removeStopBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="close-circle" size={18} color="#94a3b8" />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
 
               {/* Drop Location Box */}
               <TouchableOpacity
-                style={styles.locationInputBox}
-                onPress={() => setIsDropModalOpen(true)}
+                style={[styles.locationInputBox, { paddingVertical: responsiveSizes.locationPaddingVertical }]}
+                onPress={() => openLocationModal('DROP')}
                 activeOpacity={0.75}
               >
-                <Ionicons name="location-sharp" size={24} color="#0284c7" style={styles.locationPinIcon} />
+                <Ionicons name="location-sharp" size={responsiveSizes.locationIconSize} color="#ef4444" style={styles.locationPinIcon} />
                 <View style={styles.locationInfoCol}>
-                  <Text style={styles.locationFieldLabel}>DROP LOCATION</Text>
-                  <Text style={styles.locationFieldValue} numberOfLines={1}>
-                    {dropLocation?.label || DEFAULT_DROP_LOCATION.label}
+                  <Text style={[styles.locationFieldLabel, { fontSize: responsiveSizes.locationLabelSize }]}>{t('home.dropLocation')}</Text>
+                  <Text
+                    style={[
+                      styles.locationFieldValue,
+                      { fontSize: responsiveSizes.locationValueSize },
+                      !dropLocation && styles.locationFieldPlaceholder,
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.8}
+                  >
+                    {dropLocation?.label || t('home.dropPlaceholder')}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -975,101 +1479,318 @@ export default function HomeScreen() {
               {/* Floating Swap Button */}
               {viaStops.length === 0 && (
                 <TouchableOpacity
-                  style={styles.swapButton}
+                  style={[
+                    styles.swapButton,
+                    {
+                      width: responsiveSizes.swapButtonSize,
+                      height: responsiveSizes.swapButtonSize,
+                      borderRadius: responsiveSizes.swapButtonSize / 2,
+                      marginTop: -(responsiveSizes.swapButtonSize / 2),
+                    },
+                  ]}
                   onPress={handleSwapLocations}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="swap-vertical" size={20} color="#0f294a" />
+                  <Ionicons name="swap-vertical" size={responsiveSizes.swapIconSize} color="rgb(22, 34, 50)" />
                 </TouchableOpacity>
               )}
             </View>
 
-            {/* Add a Stop Pill Button */}
-            {viaStops.length < 3 && (
+            {/* Add a Stop Pill Button (up to 12 stops) */}
+            {viaStops.length < 12 && (
               <TouchableOpacity
-                style={styles.addStopPill}
-                onPress={() => setIsStopModalOpen(true)}
+                style={[styles.addStopPill, { paddingVertical: responsiveSizes.addStopPaddingVertical }]}
+                onPress={() => openLocationModal('STOP', viaStops.length)}
                 activeOpacity={0.75}
               >
-                <Text style={styles.addStopPillText}>+ Add a Stop</Text>
+                <Ionicons name="add" size={responsiveSizes.addStopIconSize} color="rgb(22, 34, 50)" />
+                <Text style={[styles.addStopPillText, { fontSize: responsiveSizes.addStopTextSize }]}>
+                  {viaStops.length === 0 ? t('home.addAStop') : t('home.addStopN', { num: viaStops.length + 1 })}
+                </Text>
               </TouchableOpacity>
             )}
 
             {/* Date & Time Row */}
-            <View style={styles.dateTimeRow}>
+            <View style={[
+              styles.dateTimeRow,
+              {
+                marginTop: responsiveSizes.dateTimeMarginTop,
+                paddingVertical: responsiveSizes.dateTimePaddingVertical,
+                minHeight: responsiveSizes.dateTimeMinHeight,
+              },
+              selectedTripType === 'ROUND' && styles.dateTimeRow3Col,
+            ]}>
               {/* Trip Start Date */}
               <TouchableOpacity
-                style={styles.dateTimeCol}
+                style={[styles.dateTimeCol, selectedTripType === 'ROUND' && styles.dateTimeCol1_3Col]}
                 onPress={() => setIsDateModalOpen(true)}
                 activeOpacity={0.75}
               >
-                <Ionicons name="calendar-outline" size={22} color="#0f294a" style={styles.dateTimeIcon} />
-                <View style={styles.dateTimeTextCol}>
-                  <Text style={styles.dateTimeLabel}>TRIP START DATE</Text>
-                  <Text style={styles.dateTimeValue}>
-                    {formatDateDisplay(pickupDate)}
-                  </Text>
-                </View>
+                {selectedTripType === 'ONEWAY' ? (
+                  <>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={responsiveSizes.dateTimeIconSize}
+                      color="rgb(22, 34, 50)"
+                      style={styles.dateTimeIcon}
+                    />
+                    <View style={styles.dateTimeTextCol}>
+                      <Text
+                        style={[styles.dateTimeLabel, { fontSize: responsiveSizes.dateTimeLabelSize }]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {t('home.tripStartDate')}
+                      </Text>
+                      <Text
+                        style={[styles.dateTimeValue, { fontSize: responsiveSizes.dateTimeValueSize }, !pickupDate && styles.dateTimePlaceholder]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {pickupDate ? formatDateDisplay(pickupDate) : t('home.selectDate')}
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={Math.max(13, responsiveSizes.dateTimeIconSize - 2)}
+                      color="rgb(22, 34, 50)"
+                      style={styles.dateTimeIcon3Col}
+                    />
+                    <View style={styles.dateTimeTextCol}>
+                      <Text
+                        style={[styles.dateTimeLabel3Col, { fontSize: Math.min(responsiveSizes.dateTimeLabelSize, 9.5) }]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {t('home.startDate')}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.dateTimeValue3Col,
+                          { fontSize: Math.min(responsiveSizes.dateTimeValueSize, 12) },
+                          !pickupDate && styles.dateTimePlaceholder,
+                        ]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {pickupDate ? formatDateDisplay(pickupDate, true) : t('home.selectDate')}
+                      </Text>
+                    </View>
+                  </>
+                )}
               </TouchableOpacity>
 
               {/* Divider */}
-              <View style={styles.dateTimeDivider} />
+              <View style={[styles.dateTimeDivider, selectedTripType === 'ROUND' && styles.dateTimeDivider3Col]} />
 
               {/* Pickup Time */}
               <TouchableOpacity
-                style={styles.dateTimeCol}
-                onPress={() => setIsTimeModalOpen(true)}
+                style={[styles.dateTimeCol, selectedTripType === 'ROUND' && styles.dateTimeCol2_3Col]}
+                onPress={() => {
+                  if (!pickupDate) {
+                    setIsDateModalOpen(true);
+                  } else {
+                    setIsTimeModalOpen(true);
+                  }
+                }}
                 activeOpacity={0.75}
               >
-                <Ionicons name="time-outline" size={22} color="#0f294a" style={styles.dateTimeIcon} />
-                <View style={styles.dateTimeTextCol}>
-                  <Text style={styles.dateTimeLabel}>PICKUP TIME</Text>
-                  <Text style={styles.dateTimeValue}>
-                    {formatTime12Display(pickupTime)}
-                  </Text>
-                </View>
+                {selectedTripType === 'ONEWAY' ? (
+                  <>
+                    <Ionicons
+                      name="time-outline"
+                      size={responsiveSizes.dateTimeIconSize}
+                      color="rgb(22, 34, 50)"
+                      style={styles.dateTimeIcon}
+                    />
+                    <View style={styles.dateTimeTextCol}>
+                      <Text
+                        style={[styles.dateTimeLabel, { fontSize: responsiveSizes.dateTimeLabelSize }]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {t('home.pickupTime')}
+                      </Text>
+                      <Text
+                        style={[styles.dateTimeValue, { fontSize: responsiveSizes.dateTimeValueSize }, !pickupTime && styles.dateTimePlaceholder]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {pickupTime ? formatTime12Display(pickupTime) : t('home.selectTime')}
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons
+                      name="time-outline"
+                      size={Math.max(13, responsiveSizes.dateTimeIconSize - 2)}
+                      color="rgb(22, 34, 50)"
+                      style={styles.dateTimeIcon3Col}
+                    />
+                    <View style={styles.dateTimeTextCol}>
+                      <Text
+                        style={[styles.dateTimeLabel3Col, { fontSize: Math.min(responsiveSizes.dateTimeLabelSize, 9.5) }]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {t('home.pickupTime')}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.dateTimeValue3Col,
+                          { fontSize: Math.min(responsiveSizes.dateTimeValueSize, 12) },
+                          !pickupTime && styles.dateTimePlaceholder,
+                        ]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {pickupTime ? formatTime12Display(pickupTime) : t('home.selectTime')}
+                      </Text>
+                    </View>
+                  </>
+                )}
               </TouchableOpacity>
+
+              {/* Return Date (Round Trip Only) */}
+              {selectedTripType === 'ROUND' && (
+                <>
+                  <View style={[styles.dateTimeDivider, styles.dateTimeDivider3Col]} />
+                  <TouchableOpacity
+                    style={[styles.dateTimeCol, styles.dateTimeCol3_3Col]}
+                    onPress={() => {
+                      if (!pickupDate) {
+                        setIsDateModalOpen(true);
+                      } else if (!pickupTime) {
+                        setIsTimeModalOpen(true);
+                      } else {
+                        setIsReturnDateModalOpen(true);
+                      }
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons
+                      name="calendar-outline"
+                      size={Math.max(13, responsiveSizes.dateTimeIconSize - 2)}
+                      color="rgb(22, 34, 50)"
+                      style={styles.dateTimeIcon3Col}
+                    />
+                    <View style={styles.dateTimeTextCol}>
+                      <Text
+                        style={[styles.dateTimeLabel3Col, { fontSize: Math.min(responsiveSizes.dateTimeLabelSize, 9.5) }]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {t('home.returnDate')}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.dateTimeValue3Col,
+                          { fontSize: Math.min(responsiveSizes.dateTimeValueSize, 12) },
+                          !returnDate && styles.dateTimePlaceholder,
+                        ]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit={true}
+                        minimumFontScale={0.8}
+                      >
+                        {returnDate ? formatDateDisplay(returnDate, true) : t('home.selectDate')}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
 
-            {/* CTA Button: EXPLORE CABS ➔ */}
+            {/* CTA Button: BOOK YOUR RIDE ➔ */}
             <TouchableOpacity
-              style={styles.exploreCabsBtn}
+              style={[
+                styles.exploreCabsBtn,
+                {
+                  marginTop: responsiveSizes.bookBtnMarginTop,
+                  paddingVertical: responsiveSizes.bookBtnPaddingVertical,
+                },
+              ]}
               onPress={handleExploreCabs}
               activeOpacity={0.85}
             >
-              <Text style={styles.exploreCabsBtnText}>EXPLORE CABS</Text>
-              <Ionicons name="arrow-forward" size={20} color="#ffffff" style={styles.exploreCabsArrow} />
+              <Text style={[styles.exploreCabsBtnText, { fontSize: responsiveSizes.bookBtnTextSize }]}>{t('home.bookYourRide')}</Text>
+              <Ionicons name="arrow-forward" size={18} color="#ffffff" style={styles.exploreCabsArrow} />
             </TouchableOpacity>
           </View>
 
           {/* 2. Specialized Travel Services in 1 Single Row */}
-          <View style={styles.servicesSection}>
+          <View style={[styles.servicesSection, { paddingHorizontal: responsiveSizes.cardMarginHorizontal, marginBottom: 10 }]}>
             <View style={styles.servicesSingleRow}>
-              {SERVICE_CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={styles.serviceRowCard}
-                  onPress={() => handleSelectCategory(cat)}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.serviceRowIconCircle}>
-                    {cat.iconFamily === 'MaterialCommunityIcons' ? (
-                      <MaterialCommunityIcons name={cat.iconName as any} size={isSmallScreen ? 19 : 22} color="#EE5C21" />
-                    ) : (
-                      <Ionicons name={cat.iconName as any} size={isSmallScreen ? 18 : 21} color="#EE5C21" />
-                    )}
-                  </View>
-                  <Text style={styles.serviceRowCardTitle} numberOfLines={2}>
-                    {cat.title}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {SERVICE_CATEGORIES.map((cat) => {
+                const localizedTitle =
+                  cat.category === 'AIRPORT'
+                    ? t('home.airportTransfer', { defaultValue: cat.title })
+                    : cat.category === 'LOCAL'
+                    ? t('home.localRental', { defaultValue: cat.title })
+                    : cat.category === 'CORPORATE'
+                    ? t('home.corporateTravel', { defaultValue: cat.title })
+                    : cat.category === 'TOUR'
+                    ? t('home.tourPilgrimage', { defaultValue: cat.title })
+                    : cat.title;
+
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[
+                      styles.serviceRowCard,
+                      { paddingVertical: responsiveSizes.serviceCardPaddingVertical },
+                    ]}
+                    onPress={() => handleSelectCategory(cat)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[
+                      styles.serviceRowIconCircle,
+                      {
+                        width: responsiveSizes.serviceIconCircleSize,
+                        height: responsiveSizes.serviceIconCircleSize,
+                      },
+                    ]}>
+                      {cat.iconFamily === 'MaterialCommunityIcons' ? (
+                        <MaterialCommunityIcons name={cat.iconName as any} size={responsiveSizes.serviceIconSize} color="rgb(240, 117, 15)" />
+                      ) : (
+                        <Ionicons name={cat.iconName as any} size={responsiveSizes.serviceIconSize} color="rgb(240, 117, 15)" />
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        styles.serviceRowCardTitle,
+                        {
+                          fontSize: responsiveSizes.serviceTitleSize,
+                          minHeight: responsiveSizes.serviceTitleMinHeight,
+                        },
+                      ]}
+                      numberOfLines={2}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.8}
+                    >
+                      {localizedTitle}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
-          {/* 3. Promotional Banner Carousel Slider (Above Our Vehicles) */}
+          {/* 3. Promotional Banner Carousel Slider */}
           <View
-            style={styles.promoSliderSection}
+            style={[styles.promoSliderSection, { marginBottom: 10 }]}
             onTouchStart={pauseAutoSlide}
             onTouchEnd={() => scheduleResumeAutoSlide(4000)}
             onTouchCancel={() => scheduleResumeAutoSlide(4000)}
@@ -1079,11 +1800,18 @@ export default function HomeScreen() {
               data={carouselList}
               keyExtractor={(item) => item.id}
               horizontal
+              pagingEnabled={true}
+              nestedScrollEnabled={true}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.promoSliderContent}
-              snapToInterval={BANNER_CARD_WIDTH + BANNER_CARD_GAP}
+              snapToInterval={windowWidth}
               decelerationRate="fast"
-              snapToAlignment="start"
+              snapToAlignment="center"
+              getItemLayout={(_, index) => ({
+                length: windowWidth,
+                offset: windowWidth * index,
+                index,
+              })}
               onScroll={handleCarouselScroll}
               scrollEventThrottle={16}
               onTouchStart={pauseAutoSlide}
@@ -1096,9 +1824,6 @@ export default function HomeScreen() {
                 scheduleResumeAutoSlide(4000);
               }}
               renderItem={({ item }) => {
-                const isPosterMode = item.showTextOverlay === false;
-                const shouldShowCta = item.showCtaButton !== false && Boolean(item.btnText && item.btnText.trim());
-
                 const handleBannerPress = () => {
                   if (item.linkUrl && item.linkUrl.trim()) {
                     let url = item.linkUrl.trim();
@@ -1125,190 +1850,65 @@ export default function HomeScreen() {
                 };
 
                 return (
-                  <TouchableOpacity
-                    style={styles.promoCardContainer}
-                    activeOpacity={0.9}
-                    onPress={handleBannerPress}
-                  >
-                    <ImageBackground
-                      source={resolveBannerImage(item.image, item.id)}
-                      style={styles.promoCardBackground}
-                      imageStyle={styles.promoCardImageStyle}
-                      resizeMode="cover"
+                  <View style={[styles.promoSlidePage, { width: windowWidth }]}>
+                    <TouchableOpacity
+                      style={[
+                        styles.promoCardContainer,
+                        { width: bannerCardWidth, height: dynamicBannerHeight },
+                      ]}
+                      activeOpacity={0.9}
+                      onPress={handleBannerPress}
                     >
-                      {isPosterMode ? (
-                        shouldShowCta ? (
-                          <View style={styles.posterCtaContainer}>
-                            <View style={styles.promoCardCtaBtn}>
-                              <Text style={styles.promoCardCtaText}>{item.btnText}</Text>
-                            </View>
-                          </View>
-                        ) : null
-                      ) : (
-                        <View style={styles.promoCardOverlay}>
-                          <View style={styles.promoCardTextGroup}>
-                            {item.badge ? (
-                              <View style={styles.promoCardTopBadge}>
-                                <Text style={styles.promoCardBadgeText}>{item.badge}</Text>
-                              </View>
-                            ) : null}
-                            {item.tagline ? (
-                              <Text style={styles.promoCardTagline} numberOfLines={1}>{item.tagline}</Text>
-                            ) : null}
-                            {item.subTagline ? (
-                              <Text style={styles.promoCardSubTagline} numberOfLines={1}>{item.subTagline}</Text>
-                            ) : null}
-                          </View>
-                          {shouldShowCta ? (
-                            <View style={styles.promoCardCtaRow}>
-                              <View style={styles.promoCardCtaBtn}>
-                                <Text style={styles.promoCardCtaText}>{item.btnText}</Text>
-                              </View>
-                            </View>
-                          ) : null}
-                        </View>
-                      )}
-                    </ImageBackground>
-                  </TouchableOpacity>
+                      <Image
+                        source={resolveBannerImage(item.image, item.id)}
+                        style={styles.promoCardBackground}
+                        resizeMode="cover"
+                      />
+                    </TouchableOpacity>
+                  </View>
                 );
               }}
             />
           </View>
 
-          {/* 4. Upgraded Fleet Showcase */}
-          <View style={styles.fleetSection}>
-            <View style={styles.fleetHeaderRow}>
-              <View style={styles.fleetHeaderTitleCol}>
-                <Text style={styles.fleetSectionTitle}>Our Vehicles</Text>
-                <Text style={styles.fleetSectionSubtitle}>Choose the right vehicle for your journey</Text>
+          {/* 4. Quick Help & Support Bar */}
+          <TouchableOpacity
+            style={[
+              styles.helpSupportCard,
+              {
+                marginHorizontal: responsiveSizes.cardMarginHorizontal,
+                paddingVertical: responsiveSizes.helpPaddingVertical,
+                marginBottom: 4,
+              },
+            ]}
+            onPress={() => {
+              safeNavigate(() => {
+                router.push('/support');
+              });
+            }}
+            activeOpacity={0.85}
+          >
+            <View style={styles.helpSupportLeftCol}>
+              <View style={[styles.helpSupportIconCircle, { width: responsiveSizes.helpIconCircleSize, height: responsiveSizes.helpIconCircleSize, borderRadius: responsiveSizes.helpIconCircleSize / 2 }]}>
+                <Ionicons name="call" size={responsiveSizes.helpIconSize} color="#16a34a" />
               </View>
-              <View style={styles.fleetAllAcBadge}>
-                <Ionicons name="snow" size={11} color="#0284c7" style={{ marginRight: 3 }} />
-                <Text style={styles.fleetAllAcText}>All Cabs 100% A/C</Text>
+              <View style={styles.helpSupportTextCol}>
+                <Text style={[styles.helpSupportTitle, { fontSize: responsiveSizes.helpTitleSize }]}>24/7 Help & Support</Text>
+                <Text style={[styles.helpSupportSubtitle, { fontSize: responsiveSizes.helpSubtitleSize }]}>Need assistance with your ride?</Text>
               </View>
             </View>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.fleetScrollContainer}
-            >
-              {VEHICLE_FLEET.map((item) => {
-                const isSelected = selectedVehicleId === item.id;
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={[styles.modernFleetCard, isSelected && styles.modernFleetCardSelected]}
-                    activeOpacity={0.85}
-                    onPress={() => {
-                      setSelectedVehicleId(item.id);
-                      handleBookVehicle(item.id);
-                    }}
-                  >
-                    {item.badge ? (
-                      <View style={styles.modernFleetBadge}>
-                        <Text style={styles.modernFleetBadgeText}>{item.badge}</Text>
-                      </View>
-                    ) : null}
-
-                    <View style={styles.modernFleetImageWrapper}>
-                      <Image
-                        source={item.image}
-                        style={styles.modernFleetCardImage}
-                        resizeMode="contain"
-                      />
-                    </View>
-
-                    <Text style={styles.modernFleetName} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    <Text style={styles.modernFleetSubtitle} numberOfLines={1}>
-                      {item.subtitle}
-                    </Text>
-
-                    <View style={styles.modernFleetSpecsRow}>
-                      <View style={styles.modernFleetSpecPill}>
-                        <Ionicons name="people" size={10} color="#475569" style={{ marginRight: 2 }} />
-                        <Text style={styles.modernFleetSpecText}>{item.pax}</Text>
-                      </View>
-                      <View style={styles.modernFleetSpecPill}>
-                        <Ionicons name="briefcase" size={10} color="#475569" style={{ marginRight: 2 }} />
-                        <Text style={styles.modernFleetSpecText}>{item.bags} Bags</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.modernFleetFooter}>
-                      <Text style={styles.modernFleetFare}>{item.startingFare}</Text>
-                      <View style={styles.modernFleetSelectPill}>
-                        <Text style={styles.modernFleetSelectText}>Select</Text>
-                        <Ionicons name="chevron-forward" size={11} color="#EE5C21" />
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {/* 4. The Kandy Cabs Promise (Trust & Quality) */}
-          <View style={styles.trustSection}>
-            <View style={styles.trustHeaderRow}>
-              <Text style={styles.trustSectionTitle}>The Kandy Cabs Promise</Text>
-              <Text style={styles.trustSectionSubtitle}>Trusted by 50,000+ travelers across Karnataka</Text>
+            <View style={styles.helpSupportPill}>
+              <Text style={styles.helpSupportPillText}>Get Help</Text>
+              <Ionicons name="chevron-forward" size={12} color="#ffffff" />
             </View>
-
-            <View style={styles.trustGrid}>
-              <View style={styles.trustCard}>
-                <View style={[styles.trustIconWrap, { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }]}>
-                  <Ionicons name="shield-checkmark" size={16} color="#2563eb" />
-                </View>
-                <View style={styles.trustTextCol}>
-                  <Text style={styles.trustCardTitle}>Zero Surge Pricing</Text>
-                  <Text style={styles.trustCardDesc}>Fixed upfront pricing with no sudden surge spikes.</Text>
-                </View>
-              </View>
-
-              <View style={styles.trustCard}>
-                <View style={[styles.trustIconWrap, { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }]}>
-                  <Ionicons name="ribbon" size={16} color="#16a34a" />
-                </View>
-                <View style={styles.trustTextCol}>
-                  <Text style={styles.trustCardTitle}>Verified Drivers</Text>
-                  <Text style={styles.trustCardDesc}>Background-checked, polite Kannada & English chauffeurs.</Text>
-                </View>
-              </View>
-
-              <View style={styles.trustCard}>
-                <View style={[styles.trustIconWrap, { backgroundColor: '#fff7ed', borderColor: '#fed7aa' }]}>
-                  <Ionicons name="time" size={16} color="#EE5C21" />
-                </View>
-                <View style={styles.trustTextCol}>
-                  <Text style={styles.trustCardTitle}>Guaranteed On-Time</Text>
-                  <Text style={styles.trustCardDesc}>Cab arrives 15 mins early for airport & outstation rides.</Text>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={styles.trustCard}
-                onPress={() => safeNavigate(() => router.push('/support'))}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.trustIconWrap, { backgroundColor: '#faf5ff', borderColor: '#e9d5ff' }]}>
-                  <Ionicons name="headset" size={16} color="#9333ea" />
-                </View>
-                <View style={styles.trustTextCol}>
-                  <Text style={styles.trustCardTitle}>24/7 Live Support</Text>
-                  <Text style={styles.trustCardDesc}>Direct customer care and WhatsApp roadside assistance.</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+          </TouchableOpacity>
       </ScrollView>
 
-      {/* Persistent Bottom Navigation Dock */}
+      {/* Persistent Bottom Navigation Dock (In-flow flex layout to guarantee 0% overlap with Help & Support) */}
       <CustomerBottomDock
         activeTab="HOME"
+        isAbsolute={false}
         onPressProfile={() => {
           if (userName || currentUser) {
             router.push('/profile');
@@ -1335,40 +1935,82 @@ export default function HomeScreen() {
         }}
       />
 
-      {/* Quick Booking Modals */}
+      {/* Unified Route Location Picker Modal */}
       <LocationPickerModal
-        visible={isPickupModalOpen}
-        onClose={() => setIsPickupModalOpen(false)}
-        onSelect={(loc) => {
-          setPickupLocation(loc);
-          setIsPickupModalOpen(false);
-        }}
-        title="Select Pickup Location"
-        currentValue={pickupLocation?.label}
-        isPickup={true}
-      />
+        visible={isRouteModalOpen}
+        onClose={() => setIsRouteModalOpen(false)}
+        title="Select Location"
+        initialTarget={routeModalTarget}
+        initialStopIndex={routeModalStopIndex}
+        pickupValue={pickupLocation?.label}
+        dropValue={dropLocation?.label}
+        pickupLocation={pickupLocation}
+        dropLocation={dropLocation}
+        viaStops={viaStops}
+        onSelectPickup={(loc) => setPickupLocation(loc)}
+        onSelectDrop={(loc) => setDropLocation(loc)}
+        onConfirmRoute={({ pickup, drop, stops }) => {
+          if (pickup && drop && isSameLocation(pickup, drop)) {
+            Alert.alert(
+              t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+              t('modals.locationPicker.sameLocationMsg', { defaultValue: 'Pickup and drop location cannot be the same. Please choose a different destination.' })
+            );
+            return;
+          }
+          if (pickup) setPickupLocation(pickup);
+          if (drop) setDropLocation(drop);
+          setViaStops(stops);
+          setIsRouteModalOpen(false);
 
-      <LocationPickerModal
-        visible={isDropModalOpen}
-        onClose={() => setIsDropModalOpen(false)}
-        onSelect={(loc) => {
-          setDropLocation(loc);
-          setIsDropModalOpen(false);
-        }}
-        title="Select Drop Location"
-        currentValue={dropLocation?.label}
-        isPickup={false}
-      />
+          if (pickup && drop && isLocalDistanceRoute(pickup, drop, stops)) {
+            setDropLocation(null);
+            setViaStops([]);
+            setTimeout(() => {
+              Alert.alert(
+                'Local Rental Switched',
+                "Since your pickup and drop location is same city we've switched to local rental",
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      safeNavigate(() => {
+                        router.push({
+                          pathname: '/trip-details',
+                          params: {
+                            tripType: 'LOCAL',
+                            category: 'LOCAL',
+                            pickup: pickup.label,
+                            pickupJson: JSON.stringify(pickup),
+                            pickupDate: pickupDate || '',
+                            pickupTime: pickupTime || '',
+                          },
+                        });
+                      });
+                    },
+                  },
+                ]
+              );
+            }, 300);
+            return;
+          }
 
-      <LocationPickerModal
-        visible={isStopModalOpen}
-        onClose={() => setIsStopModalOpen(false)}
-        onSelect={(loc) => {
-          setViaStops((prev) => [...prev, loc]);
-          setIsStopModalOpen(false);
+          // Auto open date/time if not selected after route is picked
+          if (pickup && drop) {
+            if (!pickupDate) {
+              setTimeout(() => {
+                setIsDateModalOpen(true);
+              }, 350);
+            } else if (!pickupTime) {
+              setTimeout(() => {
+                setIsTimeModalOpen(true);
+              }, 350);
+            } else if (selectedTripType === 'ROUND' && !returnDate) {
+              setTimeout(() => {
+                setIsReturnDateModalOpen(true);
+              }, 350);
+            }
+          }
         }}
-        title="Add Intermediate Stop"
-        isPickup={false}
       />
 
       <DatePickerModal
@@ -1378,8 +2020,31 @@ export default function HomeScreen() {
           setPickupDate(displayFormatted);
           setPickupDateDisplay(displayFormatted);
           setIsDateModalOpen(false);
+
+          if (!pickupTime) {
+            setTimeout(() => {
+              setIsTimeModalOpen(true);
+            }, 300);
+          } else if (selectedTripType === 'ROUND' && !returnDate) {
+            setTimeout(() => {
+              setIsReturnDateModalOpen(true);
+            }, 300);
+          }
         }}
         currentDate={pickupDate}
+      />
+
+      <DatePickerModal
+        visible={isReturnDateModalOpen}
+        onClose={() => setIsReturnDateModalOpen(false)}
+        onSelect={(dateKey, displayFormatted) => {
+          setReturnDate(displayFormatted);
+          setReturnDateDisplay(displayFormatted);
+          setIsReturnDateModalOpen(false);
+        }}
+        currentDate={returnDate}
+        minDate={pickupDate || undefined}
+        title={t('modals.datePicker.selectReturnDate', { defaultValue: 'Select Return Date' })}
       />
 
       <TimePickerModal
@@ -1388,29 +2053,55 @@ export default function HomeScreen() {
         onSelect={(timeStr) => {
           setPickupTime(timeStr);
           setIsTimeModalOpen(false);
+          if (selectedTripType === 'ROUND' && !returnDate) {
+            setTimeout(() => {
+              setIsReturnDateModalOpen(true);
+            }, 300);
+          }
         }}
         currentTime={pickupTime}
         selectedDate={pickupDate}
-        title="Select Pickup Time"
+        title={t('modals.timePicker.title', { defaultValue: 'Select Pickup Time' })}
       />
-    </SafeAreaView>
+
+      {/* New User Initial Language Selection Modal (Shown Once) */}
+      <LanguageSelectionModal
+        visible={isLangPromptModalOpen}
+        onClose={() => {
+          const activeUser = customerTokenStorage.getUser() || currentUser;
+          markNewUserLangPromptDone(activeUser?.id);
+          setIsLangPromptModalOpen(false);
+        }}
+        onLanguageSelected={() => {
+          const activeUser = customerTokenStorage.getUser() || currentUser;
+          markNewUserLangPromptDone(activeUser?.id);
+          setIsLangPromptModalOpen(false);
+        }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screenWrapper: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
   safeArea: {
     flex: 1,
     backgroundColor: '#ffffff',
+  },
+  headerWrapper: {
+    backgroundColor: 'rgb(22, 34, 50)', // Deep Navy Container
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 6,
-    backgroundColor: '#ffffff',
+    backgroundColor: 'rgb(22, 34, 50)', // Deep Navy
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#101925',
     position: 'relative',
   },
   headerLogo: {
@@ -1428,51 +2119,53 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   greetingContainer: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'center',
-    maxWidth: '52%',
+    maxWidth: '56%',
   },
   greetingOnlyText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#103A75',
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#ffffff',
     letterSpacing: -0.2,
     textAlign: 'center',
   },
   greetingSubtext: {
-    fontSize: 10.5,
-    color: '#64748b',
-    fontWeight: '500',
-    textAlign: 'center',
+    fontSize: 12.5,
+    color: '#ffffff', // Crisp White
+    fontWeight: '700',
+    textAlign: 'left',
+    marginBottom: 1,
   },
   greetingName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#103A75',
-    textAlign: 'center',
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#ffffff', // Crisp White
+    textAlign: 'left',
+    letterSpacing: -0.3,
   },
   notificationButton: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#ffffff',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     zIndex: 2,
   },
   notificationDot: {
     position: 'absolute',
-    top: 5,
-    right: 5,
+    top: 4,
+    right: 4,
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: '#EE5C21',
+    backgroundColor: 'rgb(240, 117, 15)',
     borderWidth: 1.5,
-    borderColor: '#ffffff',
+    borderColor: 'rgb(22, 34, 50)',
   },
   mainContainer: {
     flex: 1,
@@ -1481,21 +2174,26 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     backgroundColor: '#ffffff',
-    paddingBottom: 105,
+    paddingBottom: 0,
   },
   promoSliderSection: {
-    marginVertical: 14,
+    marginTop: 0,
+    marginBottom: 0,
     width: '100%',
   },
   promoSliderContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
+  promoSlidePage: {
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   promoCardContainer: {
     width: BANNER_CARD_WIDTH,
     height: BANNER_CARD_HEIGHT,
-    marginRight: BANNER_CARD_GAP,
-    borderRadius: 18,
+    borderRadius: 14,
     overflow: 'hidden',
     backgroundColor: '#0f172a',
     ...Platform.select({
@@ -1521,28 +2219,28 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   promoCardImageStyle: {
-    borderRadius: 18,
+    borderRadius: 14,
   },
   promoCardOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.25)',
-    paddingTop: 10,
-    paddingLeft: 12,
-    paddingRight: 12,
-    paddingBottom: 10,
+    paddingTop: 12,
+    paddingLeft: 14,
+    paddingRight: 14,
+    paddingBottom: 12,
     justifyContent: 'space-between',
   },
   posterCtaContainer: {
     flex: 1,
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
-    paddingHorizontal: 12,
-    paddingBottom: 10,
+    paddingHorizontal: 14,
+    paddingBottom: 12,
   },
   promoCardTextGroup: {
     backgroundColor: 'rgba(15, 23, 42, 0.65)',
-    paddingVertical: 5,
-    paddingHorizontal: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     borderRadius: 8,
     gap: 2,
     alignSelf: 'flex-start',
@@ -1550,34 +2248,34 @@ const styles = StyleSheet.create({
   },
   promoCardTopBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#EE5C21',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginBottom: 2,
+    backgroundColor: 'rgb(240, 117, 15)',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 5,
+    marginBottom: 3,
   },
   promoCardBadgeText: {
     color: '#ffffff',
-    fontSize: 8.5,
+    fontSize: 9.5,
     fontWeight: '800',
     letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
   promoCardTagline: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '800',
     color: '#ffffff',
     letterSpacing: 0.1,
-    lineHeight: 18,
+    lineHeight: 20,
     textShadowColor: 'rgba(0, 0, 0, 0.85)',
     textShadowOffset: { width: 0, height: 1.5 },
     textShadowRadius: 4,
   },
   promoCardSubTagline: {
-    fontSize: 10,
+    fontSize: 11.5,
     color: '#f8fafc',
     fontWeight: '600',
-    marginTop: 1,
+    marginTop: 2,
     textShadowColor: 'rgba(0, 0, 0, 0.85)',
     textShadowOffset: { width: 0, height: 1.5 },
     textShadowRadius: 4,
@@ -1586,10 +2284,10 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   promoCardCtaBtn: {
-    backgroundColor: '#EE5C21',
-    paddingHorizontal: 10,
-    paddingVertical: 4.5,
-    borderRadius: 6,
+    backgroundColor: 'rgb(240, 117, 15)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 8,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1604,24 +2302,98 @@ const styles = StyleSheet.create({
   },
   promoCardCtaText: {
     color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  helpSupportCard: {
+    marginHorizontal: 12,
+    marginTop: 0,
+    marginBottom: 0,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+      default: {
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+      },
+    }),
+  },
+  helpSupportLeftCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  helpSupportIconCircle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 9,
+  },
+  helpSupportTextCol: {
+    flex: 1,
+  },
+  helpSupportTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
+    letterSpacing: -0.1,
+  },
+  helpSupportSubtitle: {
+    fontSize: 11.2,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 1,
+  },
+  helpSupportPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgb(22, 34, 50)',
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+    borderRadius: 8,
+    gap: 3.5,
+  },
+  helpSupportPillText: {
+    color: '#ffffff',
+    fontSize: 12.5,
+    fontWeight: '800',
   },
   homeBodyCard: {
     flex: 1,
     backgroundColor: '#ffffff',
+    justifyContent: 'space-between',
     marginTop: 0,
-    paddingTop: 4,
+    paddingTop: 0,
     paddingBottom: 0,
     zIndex: 10,
   },
+  bottomSectionsGroup: {
+    width: '100%',
+  },
   quickSearchCard: {
     marginHorizontal: 12,
-    marginTop: 10,
-    marginBottom: 16,
+    marginTop: 0,
+    marginBottom: 0,
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     ...Platform.select({
@@ -1651,12 +2423,12 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
     borderRadius: 12,
   },
   tripTypeTabActive: {
-    backgroundColor: '#ff5400',
+    backgroundColor: 'rgb(240, 117, 15)',
   },
   tripTypeTabInactive: {
     backgroundColor: '#f1f5f9',
@@ -1670,31 +2442,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tripTypeTabTitle: {
-    fontSize: 14,
+    fontSize: isSmallScreen ? 14.5 : 16,
     fontWeight: '800',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   tripTypeTabTitleActive: {
     color: '#ffffff',
   },
   tripTypeTabTitleInactive: {
-    color: '#0f294a',
+    color: 'rgb(22, 34, 50)',
   },
   tripTypeTabSub: {
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: isSmallScreen ? 11 : 12,
+    fontWeight: '600',
     marginTop: 1,
   },
   tripTypeTabSubActive: {
     color: 'rgba(255, 255, 255, 0.9)',
   },
   tripTypeTabSubInactive: {
-    color: '#64748b',
+    color: 'rgb(22, 34, 50)',
+    opacity: 0.8,
   },
   locationsContainer: {
     position: 'relative',
-    marginTop: 12,
-    gap: 8,
+    marginTop: 6,
+    gap: 4.5,
   },
   locationInputBox: {
     flexDirection: 'row',
@@ -1702,51 +2475,78 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
+    borderRadius: 11,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+  },
+  viaStopsScroll: {
+    maxHeight: 185,
   },
   viaStopBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff7ed',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#fed7aa',
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    borderColor: '#e2e8f0',
+    borderRadius: 11,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    marginBottom: 5,
+  },
+  stopCircleBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#475569',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    marginLeft: 2,
+  },
+  stopCircleText: {
+    color: '#ffffff',
+    fontSize: 9.5,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   removeStopBtn: {
-    padding: 4,
-    marginLeft: 6,
+    padding: 3,
+    marginLeft: 5,
   },
   locationPinIcon: {
-    marginRight: 10,
+    marginRight: 8,
   },
   locationInfoCol: {
     flex: 1,
-    paddingRight: 36,
+    paddingRight: 34,
   },
   locationFieldLabel: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: '#64748b',
-    letterSpacing: 0.5,
-    marginBottom: 2,
+    fontSize: 11.2,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
+    letterSpacing: 0.3,
+    marginBottom: 1,
   },
   locationFieldValue: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#0f294a',
+    fontSize: 14.8,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
+  },
+  locationFieldPlaceholder: {
+    color: 'rgb(22, 34, 50)',
+    opacity: 0.75,
+    fontWeight: '600',
   },
   swapButton: {
     position: 'absolute',
     right: 12,
     top: '50%',
-    marginTop: -18,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    marginTop: -16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#cbd5e1',
@@ -1772,30 +2572,34 @@ const styles = StyleSheet.create({
     }),
   },
   addStopPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'flex-start',
-    marginTop: 10,
-    borderWidth: 1.5,
-    borderColor: '#ff5400',
-    borderRadius: 8,
+    marginTop: 5,
+    paddingVertical: 3.5,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
     backgroundColor: '#ffffff',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    gap: 3,
   },
   addStopPillText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#ff5400',
+    color: 'rgb(22, 34, 50)',
+    fontSize: 12,
+    fontWeight: '800',
   },
   dateTimeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
-    marginTop: 10,
-    paddingVertical: 9,
-    paddingHorizontal: 10,
+    borderRadius: 11,
+    marginTop: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    minHeight: 38,
   },
   dateTimeCol: {
     flex: 1,
@@ -1803,60 +2607,115 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dateTimeIcon: {
-    marginRight: 8,
+    marginRight: 7,
   },
   dateTimeTextCol: {
     flex: 1,
   },
   dateTimeLabel: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: '#64748b',
-    letterSpacing: 0.5,
-    marginBottom: 2,
+    fontSize: 11.2,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
+    letterSpacing: 0.3,
+    marginBottom: 1,
   },
   dateTimeValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0f294a',
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
+  },
+  dateTimePlaceholder: {
+    color: 'rgb(22, 34, 50)',
+    opacity: 0.75,
+    fontWeight: '600',
   },
   dateTimeDivider: {
     width: 1,
-    height: 28,
+    height: 26,
     backgroundColor: '#e2e8f0',
-    marginHorizontal: 8,
+    marginHorizontal: 6,
+  },
+  dateTimeRow3Col: {
+    minHeight: 46,
+    paddingLeft: 6,
+    paddingRight: 6,
+    paddingVertical: 5,
+    borderRadius: 11,
+  },
+  dateTimeCol1_3Col: {
+    flex: 1,
+    paddingHorizontal: 2,
+  },
+  dateTimeCol2_3Col: {
+    flex: 1,
+    paddingHorizontal: 2,
+  },
+  dateTimeCol3_3Col: {
+    flex: 1,
+    paddingHorizontal: 2,
+    paddingLeft: 2,
+  },
+  dateTimeCol3ColInner: {
+    width: '100%',
+    justifyContent: 'center',
+  },
+  dateTimeHeaderRow3Col: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 1,
+  },
+  dateTimeIcon3Col: {
+    marginRight: 4,
+  },
+  dateTimeLabel3Col: {
+    fontSize: isSmallScreen ? 9.5 : 10,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
+    letterSpacing: 0.2,
+    marginBottom: 1,
+  },
+  dateTimeValue3Col: {
+    fontSize: isSmallScreen ? 12.5 : 13.5,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
+    letterSpacing: -0.2,
+  },
+  dateTimeDivider3Col: {
+    marginHorizontal: 2,
+    height: 26,
+    backgroundColor: '#e2e8f0',
   },
   exploreCabsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ff5400',
-    borderRadius: 12,
-    marginTop: 12,
-    paddingVertical: 14,
+    backgroundColor: 'rgb(240, 117, 15)',
+    borderRadius: 11,
+    marginTop: 6,
+    paddingVertical: 8,
     ...Platform.select({
       ios: {
-        shadowColor: '#ff5400',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
+        shadowColor: 'rgb(240, 117, 15)',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
       },
       android: {
         elevation: 3,
       },
       default: {
-        shadowColor: '#ff5400',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
+        shadowColor: 'rgb(240, 117, 15)',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
       },
     }),
   },
   exploreCabsBtnText: {
     fontSize: 15.5,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#ffffff',
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   exploreCabsArrow: {
     marginLeft: 8,
@@ -1864,19 +2723,19 @@ const styles = StyleSheet.create({
   servicesSection: {
     paddingHorizontal: 12,
     marginTop: 0,
-    marginBottom: 14,
+    marginBottom: 0,
   },
   servicesSingleRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    gap: 8,
+    gap: 6,
   },
   serviceRowCard: {
     flex: 1,
     backgroundColor: '#ffffff',
-    borderRadius: 14,
-    paddingVertical: isSmallScreen ? 10 : 12,
-    paddingHorizontal: 4,
+    borderRadius: 13,
+    paddingVertical: 6,
+    paddingHorizontal: 3,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -1900,27 +2759,25 @@ const styles = StyleSheet.create({
     }),
   },
   serviceRowIconCircle: {
-    width: isSmallScreen ? 38 : 42,
-    height: isSmallScreen ? 38 : 42,
-    borderRadius: isSmallScreen ? 19 : 21,
-    backgroundColor: '#FFF4EE',
+    width: isSmallScreen ? 34 : 38,
+    height: isSmallScreen ? 34 : 38,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 2.5,
   },
   serviceRowCardTitle: {
-    fontSize: isSmallScreen ? 10 : 11,
-    fontWeight: '700',
-    color: '#103A75',
+    fontSize: isSmallScreen ? 10.5 : 11.2,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
     textAlign: 'center',
-    lineHeight: isSmallScreen ? 13 : 14,
-    minHeight: isSmallScreen ? 26 : 28,
+    lineHeight: 14.5,
+    minHeight: isSmallScreen ? 23 : 26,
   },
   servicePopularBadge: {
     position: 'absolute',
     top: -5,
     right: 4,
-    backgroundColor: '#EE5C21',
+    backgroundColor: 'rgb(240, 117, 15)',
     paddingHorizontal: 5,
     paddingVertical: 1.5,
     borderRadius: 6,
@@ -1952,7 +2809,7 @@ const styles = StyleSheet.create({
   serviceCardTitle: {
     fontSize: isSmallScreen ? 10.8 : 11.8,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     textAlign: 'center',
     lineHeight: isSmallScreen ? 13 : 14.5,
   },
@@ -1995,7 +2852,7 @@ const styles = StyleSheet.create({
   quickBookingTitle: {
     fontSize: isSmallScreen ? 14 : 15,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: -0.3,
   },
   quickBookingSubtitle: {
@@ -2085,7 +2942,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   routeInputValueActive: {
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     fontWeight: '700',
   },
   routeInputSeparator: {
@@ -2123,7 +2980,7 @@ const styles = StyleSheet.create({
   quickDestChipText: {
     fontSize: 10.5,
     fontWeight: '700',
-    color: '#EE5C21',
+    color: 'rgb(240, 117, 15)',
   },
 
   // Date & Time Row
@@ -2165,21 +3022,21 @@ const styles = StyleSheet.create({
   scheduleValue: {
     fontSize: isSmallScreen ? 11 : 12,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginTop: 1,
   },
 
   // Search Cabs Primary Button
   searchCabsBtn: {
     flexDirection: 'row',
-    backgroundColor: '#EE5C21',
+    backgroundColor: 'rgb(240, 117, 15)',
     borderRadius: 12,
     paddingVertical: isSmallScreen ? 11 : 12,
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: '#EE5C21',
+        shadowColor: 'rgb(240, 117, 15)',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.32,
         shadowRadius: 7,
@@ -2188,7 +3045,7 @@ const styles = StyleSheet.create({
         elevation: 3,
       },
       default: {
-        shadowColor: '#EE5C21',
+        shadowColor: 'rgb(240, 117, 15)',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.32,
         shadowRadius: 7,
@@ -2217,7 +3074,7 @@ const styles = StyleSheet.create({
   popularRoutesTitle: {
     fontSize: isSmallScreen ? 14 : 15,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: -0.3,
   },
   popularRoutesSubtitle: {
@@ -2284,7 +3141,7 @@ const styles = StyleSheet.create({
   popularRouteTagText: {
     fontSize: 7.8,
     fontWeight: '800',
-    color: '#EE5C21',
+    color: 'rgb(240, 117, 15)',
     letterSpacing: 0.2,
   },
   popularRouteDistance: {
@@ -2300,7 +3157,7 @@ const styles = StyleSheet.create({
   popularRouteCity: {
     fontSize: 12.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     flexShrink: 1,
   },
   popularRouteBottomRow: {
@@ -2319,12 +3176,12 @@ const styles = StyleSheet.create({
   popularRoutePrice: {
     fontSize: 13.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   popularRouteBookBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EE5C21',
+    backgroundColor: 'rgb(240, 117, 15)',
     paddingHorizontal: 8,
     paddingVertical: 4.5,
     borderRadius: 8,
@@ -2354,7 +3211,7 @@ const styles = StyleSheet.create({
   fleetSectionTitle: {
     fontSize: isSmallScreen ? 14 : 15,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: -0.3,
   },
   fleetSectionSubtitle: {
@@ -2405,14 +3262,14 @@ const styles = StyleSheet.create({
     }),
   },
   modernFleetCardSelected: {
-    borderColor: '#EE5C21',
+    borderColor: 'rgb(240, 117, 15)',
     backgroundColor: '#fffdfa',
   },
   modernFleetBadge: {
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: '#EE5C21',
+    backgroundColor: 'rgb(240, 117, 15)',
     paddingHorizontal: 5,
     paddingVertical: 1.5,
     borderRadius: 6,
@@ -2438,7 +3295,7 @@ const styles = StyleSheet.create({
   modernFleetName: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: -0.2,
   },
   modernFleetSubtitle: {
@@ -2480,7 +3337,7 @@ const styles = StyleSheet.create({
   modernFleetFare: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#EE5C21',
+    color: 'rgb(240, 117, 15)',
   },
   modernFleetSelectPill: {
     flexDirection: 'row',
@@ -2496,7 +3353,7 @@ const styles = StyleSheet.create({
   modernFleetSelectText: {
     fontSize: 9.5,
     fontWeight: '700',
-    color: '#EE5C21',
+    color: 'rgb(240, 117, 15)',
   },
 
   // Trust & Safety Section
@@ -2516,7 +3373,7 @@ const styles = StyleSheet.create({
   trustSectionTitle: {
     fontSize: isSmallScreen ? 13.5 : 14.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: -0.2,
     textAlign: 'center',
   },
@@ -2570,7 +3427,7 @@ const styles = StyleSheet.create({
   trustCardTitle: {
     fontSize: 10.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginBottom: 2,
     lineHeight: 13.5,
   },

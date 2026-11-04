@@ -15,12 +15,16 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import { driverApiClient } from '../../lib/api';
 import { locationTracker } from '../../lib/location-tracker';
+import { reverseGeocodeAddress } from '../../lib/reverse-geocoding';
 
 export default function DriverTripActiveScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const [booking, setBooking] = useState<any>(null);
@@ -79,20 +83,74 @@ export default function DriverTripActiveScreen() {
   const handleProceedToComplete = () => {
     const dropLoc = booking?.dropAddress || 'Destination Drop Location';
     Alert.alert(
-      'Confirm Destination Reached 📍',
-      `Please confirm that you have reached the drop-off location:\n\n📍 ${dropLoc}`,
+      t('active_trip.confirm_destination_title'),
+      t('active_trip.confirm_destination_msg', { dropLoc }),
       [
         {
-          text: 'Cancel',
+          text: t('active_trip.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Confirm & Complete',
+          text: t('active_trip.confirm_and_complete'),
           onPress: () => {
             router.push({
               pathname: '/trip/complete',
-              params: { bookingId },
+              params: { bookingId: bookingId || booking?.id },
             });
+          },
+        },
+      ]
+    );
+  };
+
+  const handleCallKandyCabs = () => {
+    Linking.openURL('tel:+919900887777');
+  };
+
+  const handleVehicleBreakdown = () => {
+    Alert.alert(
+      t('active_trip.emergency_report_title'),
+      t('active_trip.emergency_report_msg'),
+      [
+        { text: t('active_trip.cancel'), style: 'cancel' },
+        {
+          text: t('active_trip.report_and_call'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const coords = locationTracker.getCurrentCoordinates();
+              const lat = coords.lat ?? 0;
+              const lng = coords.lng ?? 0;
+              let landmark = 'Live Highway GPS Location';
+              try {
+                if (lat && lng) {
+                  const addr = await reverseGeocodeAddress(lat, lng);
+                  if (addr) landmark = addr;
+                }
+              } catch (e) {
+                // ignore
+              }
+
+              // 1. Send live GPS breakdown incident to backend -> triggers Admin Siren & Modal
+              await driverApiClient.fetch('/api/driver/trip/breakdown', {
+                method: 'POST',
+                body: JSON.stringify({
+                  bookingId,
+                  latitude: lat,
+                  longitude: lng,
+                  landmark,
+                  issueType: 'VEHICLE_BREAKDOWN',
+                  notes: 'Driver reported vehicle breakdown from active trip screen.',
+                }),
+              });
+
+              // 2. Immediately trigger direct normal phone call to Admin Helpline
+              Linking.openURL('tel:+919900887777');
+            } catch (err: any) {
+              console.error('Breakdown report error:', err);
+              // Fallback to direct call on any network issue
+              Linking.openURL('tel:+919900887777');
+            }
           },
         },
       ]
@@ -127,9 +185,9 @@ export default function DriverTripActiveScreen() {
           <View style={styles.headerTextCol}>
             <View style={styles.headerStepBadgeRow}>
               <View style={styles.headerLiveDot} />
-              <Text style={styles.headerLiveRadarText}>TRIP IN PROGRESS</Text>
+              <Text style={styles.headerLiveRadarText}>{t('active_trip.trip_in_progress_caps')}</Text>
             </View>
-            <Text style={styles.headerMainTitle}>Trip In Progress</Text>
+            <Text style={styles.headerMainTitle}>{t('active_trip.trip_in_progress')}</Text>
           </View>
         </View>
 
@@ -148,7 +206,7 @@ export default function DriverTripActiveScreen() {
         <View style={styles.dropCard}>
           <View style={styles.dropHeaderRow}>
             <Ionicons name="location-sharp" size={16} color="#059669" />
-            <Text style={styles.dropCardLabel}>DESTINATION DROP POINT</Text>
+            <Text style={styles.dropCardLabel}>{t('active_trip.destination_drop_point')}</Text>
           </View>
           
           <Text style={styles.dropAddressText} numberOfLines={2}>
@@ -160,23 +218,85 @@ export default function DriverTripActiveScreen() {
               <Ionicons name="navigate" size={14} color="#ffffff" />
             </View>
             <Text style={styles.dropInstructionNote}>
-              Drive towards <Text style={styles.highlightBlack}>{booking.dropAddress || 'Destination'}</Text>. After reaching the drop-off location, click <Text style={styles.highlightGreenInline}>REACHED DESTINATION</Text> below.
+              {t('active_trip.drive_towards')} <Text style={styles.highlightBlack}>{booking.dropAddress || 'Destination'}</Text>. {t('active_trip.after_reaching')} <Text style={styles.highlightGreenInline}>{t('active_trip.reached_destination_btn')}</Text> {t('active_trip.below')}
             </Text>
           </View>
 
+          {/* Main Navigation Button with Blue Gradient & Divider */}
           <TouchableOpacity
-            style={styles.navButton}
+            style={styles.navButtonWrap}
             onPress={openDropNavigation}
             activeOpacity={0.85}
           >
-            <View style={styles.navBtnLeft}>
-              <View style={styles.navIconCircle}>
-                <Ionicons name="navigate" size={18} color="#ffffff" />
+            <LinearGradient
+              colors={['#2563eb', '#1d4ed8', '#1e40af']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.navButtonGradient}
+            >
+              <View style={styles.navIconSection}>
+                <Ionicons name="navigate" size={20} color="#ffffff" />
               </View>
-              <Text style={styles.navButtonText}>Navigate to Drop Location</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#ffffff" />
+              <View style={styles.navDividerV} />
+              <Text style={styles.navButtonText}>{t('active_trip.navigate_to_drop')}</Text>
+              <Ionicons name="chevron-forward" size={19} color="#ffffff" />
+            </LinearGradient>
           </TouchableOpacity>
+
+          {/* Quick Actions Row: Vehicle Breakdown & Call Kandy Cabs */}
+          <View style={styles.emergencyActionsRow}>
+            {/* Vehicle Breakdown Button */}
+            <TouchableOpacity
+              style={styles.breakdownPillButton}
+              onPress={handleVehicleBreakdown}
+              activeOpacity={0.82}
+            >
+              <LinearGradient
+                colors={['#ffffff', '#ffffff', '#fee2e2']}
+                locations={[0, 0.52, 1]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.breakdownGradient}
+              >
+                <Ionicons name="warning" size={18} color="#e11d48" />
+                <View style={styles.breakdownDividerV} />
+                <Text
+                  style={styles.breakdownPillText}
+                  numberOfLines={1}
+                >
+                  {t('trip_flow.emergency')}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#be123c" />
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Call Kandy Cabs Helpline Button */}
+            <TouchableOpacity
+              style={styles.callSupportPillButton}
+              onPress={handleCallKandyCabs}
+              activeOpacity={0.82}
+            >
+              <LinearGradient
+                colors={['#ffffff', '#ffffff', '#dcfce7']}
+                locations={[0, 0.52, 1]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.callSupportGradient}
+              >
+                <Ionicons name="call" size={18} color="#059669" />
+                <View style={styles.callSupportDividerV} />
+                <Text
+                  style={styles.callSupportPillText}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.85}
+                >
+                  {t('active_trip.call_kandy_cabs')}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#047857" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Trip Meta & Locations Card */}
@@ -187,7 +307,7 @@ export default function DriverTripActiveScreen() {
               <View style={styles.metaIconCircle}>
                 <Ionicons name="person" size={18} color="#1d63ed" />
               </View>
-              <Text style={styles.metaLabel}>Passenger</Text>
+              <Text style={styles.metaLabel}>{t('active_trip.passenger')}</Text>
             </View>
             <View style={styles.passengerRightCol}>
               <Text style={styles.passengerNameText}>
@@ -207,7 +327,7 @@ export default function DriverTripActiveScreen() {
               ) : (
                 <View style={styles.passengerLockedPill}>
                   <Ionicons name="lock-closed" size={10} color="#64748b" />
-                  <Text style={styles.passengerLockedText}>Phone Protected</Text>
+                  <Text style={styles.passengerLockedText}>{t('active_trip.phone_protected')}</Text>
                 </View>
               )}
             </View>
@@ -221,10 +341,12 @@ export default function DriverTripActiveScreen() {
               <View style={styles.metaIconCircle}>
                 <Ionicons name="car" size={18} color="#1d63ed" />
               </View>
-              <Text style={styles.metaLabel}>Trip Type</Text>
+              <Text style={styles.metaLabel}>{t('active_trip.trip_type')}</Text>
             </View>
             <Text style={styles.tripTypeVal}>
-              {booking.tripType?.toUpperCase() || 'ONEWAY'}  ({booking.distanceKm || '367.8'} km)
+              {(booking.tripType?.toUpperCase() === 'ROUND' || booking.tripType?.toUpperCase() === 'ROUNDTRIP'
+                ? t('active_trip.round')
+                : t('active_trip.oneway'))}  ({booking.distanceKm || '367.8'} km)
             </Text>
           </View>
 
@@ -236,7 +358,7 @@ export default function DriverTripActiveScreen() {
               <View style={styles.metaIconCircle}>
                 <Ionicons name="location-sharp" size={18} color="#1d63ed" />
               </View>
-              <Text style={styles.metaLabel}>Pickup Location</Text>
+              <Text style={styles.metaLabel}>{t('active_trip.pickup_location')}</Text>
             </View>
             <View style={styles.pickupRightCol}>
               <Text style={styles.pickupLocationVal} numberOfLines={1}>
@@ -254,7 +376,7 @@ export default function DriverTripActiveScreen() {
               <View style={styles.metaIconCircle}>
                 <Ionicons name="speedometer" size={18} color="#1d63ed" />
               </View>
-              <Text style={styles.metaLabel}>Starting Odometer</Text>
+              <Text style={styles.metaLabel}>{t('active_trip.starting_odometer')}</Text>
             </View>
             <Text style={styles.odometerVal}>
               {booking.startingOdometer || '12345'}{' '}
@@ -266,27 +388,33 @@ export default function DriverTripActiveScreen() {
 
       {/* Pinned Bottom Complete CTA Bar */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        {/* Clear Guidance Banner with Green Accent & Divider */}
-        <View style={styles.destinationGuidanceBox}>
+        {/* Clean Guidance Banner with Green Accent & Divider - borderless */}
+        <View style={styles.destinationGuidanceRow}>
           <View style={styles.guidanceIconCircleGreen}>
             <Ionicons name="information" size={16} color="#ffffff" />
           </View>
           <View style={styles.guidanceDividerV} />
           <Text style={styles.destinationGuidanceText}>
-            Drive to <Text style={styles.highlightBlack}>{booking.dropAddress || 'Destination'}</Text>. After reaching the drop-off location, click <Text style={styles.highlightGreenInline}>REACHED DESTINATION</Text> below.
+            {t('active_trip.drive_towards')} <Text style={styles.highlightBlack}>{booking.dropAddress || 'Destination'}</Text>. {t('active_trip.after_reaching')} <Text style={styles.highlightGreenInline}>{t('active_trip.reached_destination_btn')}</Text> {t('active_trip.below')}
           </Text>
         </View>
 
         <TouchableOpacity
-          style={styles.completeButton}
+          style={styles.completeButtonWrap}
           onPress={handleProceedToComplete}
           activeOpacity={0.88}
         >
-          <View style={styles.ctaIconCircleWhite}>
-            <Ionicons name="location-sharp" size={16} color="#059669" />
-          </View>
-          <Text style={styles.completeButtonText}>REACHED DESTINATION</Text>
-          <Ionicons name="arrow-forward" size={18} color="#ffffff" />
+          <LinearGradient
+            colors={['#059669', '#047857']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.completeButtonGradient}
+          >
+            <Ionicons name="location-sharp" size={20} color="#ffffff" />
+            <View style={styles.completeDividerV} />
+            <Text style={styles.completeButtonText}>{t('active_trip.reached_destination')}</Text>
+            <Ionicons name="arrow-forward" size={20} color="#ffffff" />
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </View>
@@ -397,15 +525,11 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   telemetryIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#eff6ff',
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: '#dbeafe',
+    marginRight: 10,
   },
   telemetryTextCol: {
     flex: 1,
@@ -461,8 +585,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f0f7ff',
-    borderWidth: 1,
-    borderColor: '#bae6fd',
     borderRadius: 14,
     padding: 12,
     marginBottom: 12,
@@ -506,19 +628,114 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  navIconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  navButtonWrap: {
+    borderRadius: 25,
+    backgroundColor: '#1d4ed8',
+    shadowColor: '#1d4ed8',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  navButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    height: 48,
+    borderRadius: 25,
+  },
+  navIconSection: {
+    width: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  navDividerV: {
+    width: 1.2,
+    height: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    marginHorizontal: 10,
+  },
   navButtonText: {
     color: '#ffffff',
-    fontSize: 14.5,
+    fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.1,
+    flex: 1,
+  },
+  emergencyActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+  },
+  breakdownPillButton: {
+    flex: 1,
+    borderRadius: 24,
+    backgroundColor: '#ffffff',
+    shadowColor: '#e11d48',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  breakdownGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingLeft: 12,
+    paddingRight: 10,
+    borderRadius: 24,
+    borderWidth: 1.2,
+    borderColor: '#fecdd3',
+    height: 46,
+  },
+  breakdownDividerV: {
+    width: 1.2,
+    height: 18,
+    backgroundColor: '#fca5a5',
+    marginHorizontal: 8,
+  },
+  breakdownPillText: {
+    fontSize: 12.5,
+    fontWeight: '900',
+    color: '#881337',
+    letterSpacing: -0.2,
+    flex: 1,
+  },
+  callSupportPillButton: {
+    flex: 1,
+    borderRadius: 24,
+    backgroundColor: '#ffffff',
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  callSupportGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingLeft: 12,
+    paddingRight: 10,
+    borderRadius: 24,
+    borderWidth: 1.2,
+    borderColor: '#bbf7d0',
+    height: 46,
+  },
+  callSupportDividerV: {
+    width: 1.2,
+    height: 18,
+    backgroundColor: '#86efac',
+    marginHorizontal: 8,
+  },
+  callSupportPillText: {
+    fontSize: 12.5,
+    fontWeight: '900',
+    color: '#064e3b',
+    letterSpacing: -0.2,
+    flex: 1,
   },
   metaCard: {
     backgroundColor: '#ffffff',
@@ -550,12 +767,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   metaIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#dbeafe',
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -636,37 +849,31 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
   },
-  destinationGuidanceBox: {
+  destinationGuidanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0fdf9',
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-    borderLeftWidth: 4,
-    borderLeftColor: '#059669',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
     marginBottom: 12,
   },
   guidanceIconCircleGreen: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center',
   },
   guidanceDividerV: {
-    width: 1,
-    height: 22,
-    backgroundColor: '#a7f3d0',
+    width: 1.2,
+    height: 20,
+    backgroundColor: '#10b981',
     marginHorizontal: 10,
   },
   destinationGuidanceText: {
-    fontSize: 11.5,
-    color: '#1e3a8a',
-    lineHeight: 16,
+    fontSize: 12,
+    color: '#334155',
+    lineHeight: 17,
     flex: 1,
     fontWeight: '500',
   },
@@ -678,34 +885,35 @@ const styles = StyleSheet.create({
     color: '#059669',
     fontWeight: '900',
   },
-  completeButton: {
+  completeButtonWrap: {
+    borderRadius: 28,
     backgroundColor: '#059669',
-    borderRadius: 30,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
     shadowColor: '#059669',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 6,
   },
-  ctaIconCircleWhite: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#ffffff',
+  completeButtonGradient: {
+    height: 50,
+    borderRadius: 28,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  completeDividerV: {
+    width: 1.2,
+    height: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    marginHorizontal: 12,
+  },
   completeButtonText: {
     color: '#ffffff',
-    fontSize: 13.5,
+    fontSize: 15,
     fontWeight: '900',
-    letterSpacing: 0.4,
-    textAlign: 'center',
+    letterSpacing: 0.5,
+    flex: 1,
+    textAlign: 'left',
   },
 });

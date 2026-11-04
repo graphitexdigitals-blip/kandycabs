@@ -22,6 +22,8 @@ dist
 web-build/
 android/
 ios/
+dist_bundle/
+apps/*/dist_bundle/
 
 # Prisma
 packages/db/src/generated
@@ -58,5 +60,20 @@ apps/*/.banners_store.json
 emulator_screen.png
 emulator_screen_*.png
 screen_*.png
+emulator_*.png
+crop_*.png
+clean_*.png
+preview_*.png
+out_*.png
+dzire_*.png
+ertiga_*.png
+etios_*
+glanza_*.png
+banner-coorg.jpg
+apps_customer-app_assets_*
+extracted_apk_*
+*.bak
+*.idsig
+*.4bd1a3
 *.log
 apps/web/public/uploads/

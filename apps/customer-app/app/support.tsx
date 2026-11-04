@@ -15,10 +15,12 @@ import {
   Linking,
   Image,
   KeyboardAvoidingView,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { CustomerBottomDock } from '../components/CustomerBottomDock';
 import { safeNavigate } from '../lib/safeNav';
 import { customerTokenStorage, getDynamicBaseUrl } from '../lib/api';
@@ -30,11 +32,12 @@ import {
   FAQItem,
 } from '../constants/supportConfig';
 
-const SEDAN_IMAGE = require('../assets/images/fleet-4-sedan.png');
-
 export default function SupportScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isSmallDevice = width < 380;
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -180,8 +183,8 @@ export default function SupportScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
-      {/* 1. COMPACT TOP HEADER INSPIRED BY IMAGE 2 */}
-      <View style={[styles.headerContainer, { paddingTop: topInset + 4 }]}>
+      {/* 1. COMPACT TOP HEADER */}
+      <View style={styles.headerContainer}>
         <View style={styles.headerLeftCol}>
           <View style={styles.headerTitleRow}>
             {router.canGoBack() && (
@@ -194,35 +197,29 @@ export default function SupportScreen() {
               </TouchableOpacity>
             )}
             <View>
-              <Text style={styles.headerTitle}>Help & Support</Text>
-              <Text style={styles.headerSubtitle}>We're here to assist you</Text>
+              <Text style={styles.headerTitle}>{t('support.title', { defaultValue: 'Help & Support' })}</Text>
+              <Text style={styles.headerSubtitle}>{t('support.subtitle', { defaultValue: "We're here to assist you" })}</Text>
             </View>
           </View>
-        </View>
-
-        {/* White Sedan Cab Asset from Image 2 */}
-        <View style={styles.headerCarContainer}>
-          <Image
-            source={SEDAN_IMAGE}
-            style={styles.headerCarImage}
-            resizeMode="contain"
-          />
         </View>
       </View>
 
       <ScrollView
         ref={scrollRef}
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {/* 2. SEARCHABLE HELP CENTER INPUT */}
         <View style={styles.searchBarContainer}>
-          <Ionicons name="search-outline" size={18} color="#64748b" style={styles.searchIcon} />
+          <Ionicons name="search-outline" size={20} color="#64748b" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search help topics (e.g. booking, payment, cancellation)"
+            placeholder={t('support.searchFaqs', { defaultValue: 'Search help topics (e.g. booking, payment, cancellation)' })}
             placeholderTextColor="#94a3b8"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -235,7 +232,7 @@ export default function SupportScreen() {
               style={styles.clearSearchBtn}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close-circle" size={17} color="#94a3b8" />
+              <Ionicons name="close-circle" size={18} color="#94a3b8" />
             </TouchableOpacity>
           )}
         </View>
@@ -259,12 +256,12 @@ export default function SupportScreen() {
                   <View style={[styles.categoryIconWrap, isActive && styles.categoryIconWrapActive]}>
                     <Ionicons
                       name={cat.icon as any}
-                      size={17}
-                      color={isActive ? '#ffffff' : '#103A75'}
+                      size={15}
+                      color={isActive ? '#ffffff' : 'rgb(22, 34, 50)'}
                     />
                   </View>
                   <Text style={[styles.categoryTabText, isActive && styles.categoryTabTextActive]}>
-                    {cat.label}
+                    {t(`support.categories.${cat.id}`, { defaultValue: cat.label })}
                   </Text>
                 </TouchableOpacity>
               );
@@ -276,8 +273,8 @@ export default function SupportScreen() {
         <View style={styles.faqSection}>
           <View style={styles.sectionHeaderRow}>
             <View>
-              <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
-              <Text style={styles.sectionSubtitle}>Find answers to common questions</Text>
+              <Text style={styles.sectionTitle}>{t('support.faqsTitle', { defaultValue: 'Frequently Asked Questions' })}</Text>
+              <Text style={styles.sectionSubtitle}>{t('support.faqsSubtitle', { defaultValue: 'Find answers to common questions' })}</Text>
             </View>
 
             {filteredFaqs.length > 5 && searchQuery.trim().length === 0 && (
@@ -286,11 +283,11 @@ export default function SupportScreen() {
                 style={styles.viewAllBtn}
                 activeOpacity={0.7}
               >
-                <Text style={styles.viewAllText}>{showAllFaqs ? 'View Less' : 'View All'}</Text>
+                <Text style={styles.viewAllText}>{showAllFaqs ? t('support.viewLess', { defaultValue: 'View Less' }) : t('support.viewAll', { defaultValue: 'View All' })}</Text>
                 <Ionicons
                   name={showAllFaqs ? 'chevron-up' : 'chevron-forward'}
-                  size={14}
-                  color="#ee5c21"
+                  size={16}
+                  color="rgb(240, 117, 15)"
                 />
               </TouchableOpacity>
             )}
@@ -309,19 +306,21 @@ export default function SupportScreen() {
                       activeOpacity={0.7}
                     >
                       <Text style={[styles.faqQuestionText, isExpanded && styles.faqQuestionTextActive]}>
-                        {faq.question}
+                        {t(`support.faqs.${faq.id}.q`, { defaultValue: faq.question })}
                       </Text>
                       <Ionicons
                         name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                        size={17}
-                        color={isExpanded ? '#ee5c21' : '#64748b'}
+                        size={20}
+                        color={isExpanded ? 'rgb(240, 117, 15)' : '#64748b'}
                       />
                     </TouchableOpacity>
 
                     {isExpanded && (
                       <View style={styles.faqAnswerContainer}>
                         <View style={styles.faqDivider} />
-                        <Text style={styles.faqAnswerText}>{faq.answer}</Text>
+                        <Text style={styles.faqAnswerText}>
+                          {t(`support.faqs.${faq.id}.a`, { defaultValue: faq.answer })}
+                        </Text>
                       </View>
                     )}
                   </View>
@@ -351,93 +350,99 @@ export default function SupportScreen() {
 
         {/* 5. NEED FURTHER ASSISTANCE? - CONTACT OPTIONS GRID */}
         <View style={styles.contactSection}>
-          <Text style={styles.sectionTitle}>Need Further Assistance?</Text>
-          <Text style={styles.sectionSubtitle}>Get in touch with our support team</Text>
+          <View style={styles.contactHeaderRow}>
+            <Text style={styles.sectionTitle}>{t('support.needAssistance', { defaultValue: 'Need Further Assistance?' })}</Text>
+            <Text style={styles.sectionSubtitle}>{t('support.getInTouch', { defaultValue: 'Get in touch with our support team' })}</Text>
+          </View>
 
-          {/* 4 Contact Cards in 1 Row matching Target Reference Image */}
-          <View style={styles.contactGrid}>
+          {/* Contact Options in One Card Section with Divider Lines */}
+          <View style={styles.contactUnifiedCard}>
             {/* 1. Call Us */}
             <TouchableOpacity
-              style={styles.contactCard}
+              style={styles.contactItemCol}
               onPress={handleCallSupport}
               activeOpacity={0.7}
             >
               <View style={[styles.solidIconBadge, { backgroundColor: '#f95700' }]}>
-                <Ionicons name="call" size={17} color="#ffffff" />
+                <Ionicons name="call" size={18} color="#ffffff" />
               </View>
-              <Text style={styles.contactCardTitle} numberOfLines={1}>Call Us</Text>
-              <Text style={styles.contactCardValue} numberOfLines={1}>9900887777</Text>
-              <Text style={styles.contactCardSubtext} numberOfLines={1}>6 AM – 10 PM</Text>
+              <Text style={styles.contactCardTitle} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.75}>{t('support.callUs', { defaultValue: 'Call Us' })}</Text>
+              <Text style={styles.contactCardValue} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.75}>9900887777</Text>
             </TouchableOpacity>
+
+            {/* Small Divider Line */}
+            <View style={styles.contactDividerLine} />
 
             {/* 2. WhatsApp */}
             <TouchableOpacity
-              style={styles.contactCard}
+              style={styles.contactItemCol}
               onPress={handleWhatsApp}
               activeOpacity={0.7}
             >
               <View style={[styles.solidIconBadge, { backgroundColor: '#25D366' }]}>
-                <Ionicons name="logo-whatsapp" size={18} color="#ffffff" />
+                <Ionicons name="logo-whatsapp" size={19} color="#ffffff" />
               </View>
-              <Text style={styles.contactCardTitle} numberOfLines={1}>WhatsApp</Text>
-              <Text style={styles.contactCardValue} numberOfLines={1}>9008890090</Text>
-              <Text style={styles.contactCardSubtext} numberOfLines={1}>Instant Chat</Text>
+              <Text style={styles.contactCardTitle} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.75}>{t('support.whatsapp', { defaultValue: 'WhatsApp' })}</Text>
+              <Text style={styles.contactCardValue} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.75}>9008890090</Text>
             </TouchableOpacity>
+
+            {/* Small Divider Line */}
+            <View style={styles.contactDividerLine} />
 
             {/* 3. Email Us */}
             <TouchableOpacity
-              style={styles.contactCard}
+              style={styles.contactItemCol}
               onPress={handleEmailSupport}
               activeOpacity={0.7}
             >
               <View style={[styles.solidIconBadge, { backgroundColor: '#f95700' }]}>
-                <Ionicons name="mail" size={17} color="#ffffff" />
+                <Ionicons name="mail" size={18} color="#ffffff" />
               </View>
-              <Text style={styles.contactCardTitle} numberOfLines={1}>Email Us</Text>
+              <Text style={styles.contactCardTitle} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.75}>{t('support.emailUs', { defaultValue: 'Email Us' })}</Text>
               <Text
                 style={[styles.contactCardValue, styles.emailValueText]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
-                minimumFontScale={0.75}
+                minimumFontScale={0.7}
               >
                 support@kandycabs.com
               </Text>
-              <Text style={styles.contactCardSubtext} numberOfLines={1}>Reply in 2 hrs</Text>
             </TouchableOpacity>
+
+            {/* Small Divider Line */}
+            <View style={styles.contactDividerLine} />
 
             {/* 4. App Support */}
             <TouchableOpacity
-              style={styles.contactCard}
+              style={styles.contactItemCol}
               onPress={handleAppSupportPhone}
               onLongPress={() => setAppSupportModalVisible(true)}
               activeOpacity={0.7}
             >
-              <View style={[styles.solidIconBadge, { backgroundColor: '#103A75' }]}>
-                <Ionicons name="phone-portrait" size={17} color="#ffffff" />
+              <View style={[styles.solidIconBadge, { backgroundColor: 'rgb(22, 34, 50)' }]}>
+                <Ionicons name="phone-portrait" size={18} color="#ffffff" />
               </View>
-              <Text style={styles.contactCardTitle} numberOfLines={1}>App Support</Text>
-              <Text style={styles.contactCardValue} numberOfLines={1}>9187336058</Text>
-              <Text style={styles.contactCardSubtext} numberOfLines={1}>Tech Help</Text>
+              <Text style={styles.contactCardTitle} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.75}>{t('support.appSupport', { defaultValue: 'App Support' })}</Text>
+              <Text style={styles.contactCardValue} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.75}>9187336058</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* 6. EMERGENCY SOS BAR INSPIRED BY IMAGE 2 */}
+        {/* 6. EMERGENCY SOS BAR */}
         <View style={styles.emergencyCard}>
           <View style={styles.emergencyIconContainer}>
-            <Ionicons name="headset" size={24} color="#dc2626" />
+            <Ionicons name="headset" size={23} color="#dc2626" />
           </View>
           <View style={styles.emergencyTextCol}>
-            <Text style={styles.emergencyTitle}>Emergency SOS</Text>
-            <Text style={styles.emergencySubtitle}>For urgent assistance during your trip</Text>
+            <Text style={styles.emergencyTitle} numberOfLines={1} adjustsFontSizeToFit={true}>Emergency SOS</Text>
           </View>
           <TouchableOpacity
             style={styles.emergencyBtn}
             onPress={() => setEmergencyModalVisible(true)}
             activeOpacity={0.8}
           >
-            <Ionicons name="call" size={13} color="#ffffff" style={{ marginRight: 4 }} />
-            <Text style={styles.emergencyBtnText}>Emergency Contacts</Text>
+            <Ionicons name="call" size={14} color="#ffffff" style={{ marginRight: 5 }} />
+            <Text style={styles.emergencyBtnText} numberOfLines={1} adjustsFontSizeToFit={true}>Emergency Contacts</Text>
           </TouchableOpacity>
         </View>
 
@@ -450,13 +455,13 @@ export default function SupportScreen() {
           >
             <View style={styles.safetyHeaderLeft}>
               <View style={styles.safetyShieldBadge}>
-                <Ionicons name="shield-checkmark" size={15} color="#ee5c21" />
+                <Ionicons name="shield-checkmark" size={20} color="rgb(240, 117, 15)" />
               </View>
               <Text style={styles.safetyHeaderTitle}>Ride Safety Tips & Guidelines</Text>
             </View>
             <Ionicons
               name={showSafetyTips ? 'chevron-up' : 'chevron-down'}
-              size={17}
+              size={20}
               color="#64748b"
             />
           </TouchableOpacity>
@@ -466,7 +471,7 @@ export default function SupportScreen() {
               {SAFETY_TIPS.map((tip) => (
                 <View key={tip.id} style={styles.safetyTipRow}>
                   <View style={styles.safetyTipIconBox}>
-                    <Ionicons name={tip.icon as any} size={15} color="#103A75" />
+                    <Ionicons name={tip.icon as any} size={18} color="rgb(22, 34, 50)" />
                   </View>
                   <View style={styles.safetyTipTextCol}>
                     <Text style={styles.safetyTipTitle}>{tip.title}</Text>
@@ -494,9 +499,6 @@ export default function SupportScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.emergencyModalTitle}>Emergency Assistance</Text>
-                <Text style={styles.emergencyModalSubtitle}>
-                  Connect directly with response services for immediate safety needs.
-                </Text>
               </View>
               <TouchableOpacity
                 onPress={() => setEmergencyModalVisible(false)}
@@ -506,13 +508,14 @@ export default function SupportScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Separator only in header */}
+            <View style={styles.emergencyHeaderDivider} />
+
             <View style={styles.emergencyModalActions}>
-              {/* Police 112 */}
+              {/* Police, Fire, Ambulance (112) */}
               <View style={styles.emergencyActionCard}>
                 <View style={styles.emergencyActionTextCol}>
-                  <Text style={styles.emergencyActionTitle}>Police Emergency Services</Text>
-                  <Text style={styles.emergencyActionSubtitle}>Direct national helpline across India</Text>
-                  <Text style={styles.emergencyNumberHighlight}>Dial 112</Text>
+                  <Text style={styles.emergencyActionTitle}>Police, Fire, Ambulance</Text>
                 </View>
                 <TouchableOpacity
                   style={[styles.emergencyCallBtn, { backgroundColor: '#dc2626' }]}
@@ -526,15 +529,13 @@ export default function SupportScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Kandy Cabs 24x7 Safety Desk */}
+              {/* Kandy Cabs 24x7 Helpline */}
               <View style={styles.emergencyActionCard}>
                 <View style={styles.emergencyActionTextCol}>
-                  <Text style={styles.emergencyActionTitle}>KANDY CABS Safety Helpline</Text>
-                  <Text style={styles.emergencyActionSubtitle}>On-trip dispatch and chauffeur coordination</Text>
-                  <Text style={styles.emergencyNumberHighlight}>{SUPPORT_CONFIG.phoneDisplay}</Text>
+                  <Text style={styles.emergencyActionTitle}>Kandy Cabs Helpline</Text>
                 </View>
                 <TouchableOpacity
-                  style={[styles.emergencyCallBtn, { backgroundColor: '#103A75' }]}
+                  style={[styles.emergencyCallBtn, { backgroundColor: 'rgb(22, 34, 50)' }]}
                   onPress={() => {
                     setEmergencyModalVisible(false);
                     handleCallSupport();
@@ -542,6 +543,23 @@ export default function SupportScreen() {
                 >
                   <Ionicons name="call" size={14} color="#ffffff" />
                   <Text style={styles.emergencyCallBtnText}>Call Support</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* App Support */}
+              <View style={styles.emergencyActionCard}>
+                <View style={styles.emergencyActionTextCol}>
+                  <Text style={styles.emergencyActionTitle}>App Support</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.emergencyCallBtn, { backgroundColor: 'rgb(240, 117, 15)' }]}
+                  onPress={() => {
+                    setEmergencyModalVisible(false);
+                    handleAppSupportPhone();
+                  }}
+                >
+                  <Ionicons name="call" size={14} color="#ffffff" />
+                  <Text style={styles.emergencyCallBtnText}>App Support</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -573,7 +591,7 @@ export default function SupportScreen() {
           <View style={styles.appSupportModalCard}>
             <View style={styles.emergencyModalHeader}>
               <View style={[styles.emergencyModalBadge, { backgroundColor: '#eff6ff' }]}>
-                <Ionicons name="phone-portrait-outline" size={20} color="#103A75" />
+                <Ionicons name="phone-portrait-outline" size={20} color="rgb(22, 34, 50)" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.emergencyModalTitle}>App Technical Support</Text>
@@ -627,11 +645,11 @@ export default function SupportScreen() {
                   onPress={handleAppSupportPhone}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="call" size={14} color="#103A75" />
+                  <Ionicons name="call" size={14} color="rgb(22, 34, 50)" />
                   <Text style={styles.directHelplineText}>
                     Urgent Technical Call: <Text style={{ fontWeight: '800' }}>+91 91873 36058</Text>
                   </Text>
-                  <Ionicons name="chevron-forward" size={14} color="#103A75" />
+                  <Ionicons name="chevron-forward" size={14} color="rgb(22, 34, 50)" />
                 </TouchableOpacity>
 
                 {/* Category Selector */}
@@ -736,6 +754,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
+    paddingTop: 8,
     paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
@@ -757,26 +776,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: -0.4,
   },
   headerSubtitle: {
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontWeight: '500',
     color: '#64748b',
     marginTop: 2,
-  },
-  headerCarContainer: {
-    width: 100,
-    height: 52,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-  },
-  headerCarImage: {
-    width: 95,
-    height: 48,
   },
 
   // 2. Search Bar
@@ -785,12 +794,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
     marginHorizontal: 14,
-    marginTop: 10,
-    marginBottom: 6,
+    marginTop: 8,
+    marginBottom: 4,
     paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+    paddingVertical: Platform.OS === 'ios' ? 9 : 7,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: '#e2e8f0',
     ...Platform.select({
       ios: {
@@ -815,53 +824,47 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
-    color: '#103A75',
+    fontSize: 14,
+    color: 'rgb(22, 34, 50)',
     padding: 0,
   },
   clearSearchBtn: {
-    padding: 2,
+    padding: 3,
   },
 
   // 3. Category Tabs
   categoriesWrapper: {
-    marginVertical: 4,
+    marginVertical: 2,
   },
   categoriesScrollContent: {
     paddingHorizontal: 14,
-    paddingVertical: 6,
-    gap: 8,
+    paddingVertical: 2,
+    gap: 6,
   },
   categoryTab: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    gap: 6,
+    gap: 5,
   },
   categoryTabActive: {
-    backgroundColor: '#ee5c21',
-    borderColor: '#ee5c21',
+    backgroundColor: 'rgb(240, 117, 15)',
+    borderColor: 'rgb(240, 117, 15)',
   },
   categoryIconWrap: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#eff6ff',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  categoryIconWrapActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-  },
+  categoryIconWrapActive: {},
   categoryTabText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   categoryTabTextActive: {
     color: '#ffffff',
@@ -870,22 +873,22 @@ const styles = StyleSheet.create({
   // 4. FAQ Section
   faqSection: {
     marginHorizontal: 14,
-    marginTop: 8,
+    marginTop: 6,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    marginBottom: 8,
+    marginBottom: 6,
+    paddingHorizontal: 14,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 17.5,
     fontWeight: '800',
-    color: '#103A75',
-    letterSpacing: -0.2,
+    color: 'rgb(22, 34, 50)',
   },
   sectionSubtitle: {
-    fontSize: 11.5,
+    fontSize: 12.5,
     fontWeight: '500',
     color: '#64748b',
     marginTop: 1,
@@ -895,20 +898,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
     paddingVertical: 2,
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
   },
   viewAllText: {
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: '700',
-    color: '#ee5c21',
+    color: 'rgb(240, 117, 15)',
   },
   faqListContainer: {
-    gap: 7,
+    gap: 6,
   },
   faqAccordionCard: {
     backgroundColor: '#ffffff',
     borderRadius: 11,
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: '#e2e8f0',
     overflow: 'hidden',
   },
@@ -919,19 +922,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 11,
+    paddingVertical: 9.5,
     paddingHorizontal: 13,
     gap: 10,
   },
   faqQuestionText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14.5,
     fontWeight: '700',
-    color: '#103A75',
-    lineHeight: 18,
+    color: 'rgb(22, 34, 50)',
+    lineHeight: 20,
   },
   faqQuestionTextActive: {
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     fontWeight: '800',
   },
   faqAnswerContainer: {
@@ -944,65 +947,93 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   faqAnswerText: {
-    fontSize: 12,
+    fontSize: 13.5,
     color: '#475569',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   emptyStateCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 14,
+    padding: 24,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: '#e2e8f0',
     marginVertical: 4,
   },
   emptyStateTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#103A75',
-    marginTop: 8,
+    fontSize: 16,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
+    marginTop: 10,
   },
   emptyStateSubtitle: {
-    fontSize: 12,
+    fontSize: 13.5,
     color: '#64748b',
     textAlign: 'center',
-    lineHeight: 17,
+    lineHeight: 19,
     marginTop: 4,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   emptyStateResetBtn: {
     backgroundColor: '#eff6ff',
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    borderRadius: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 10,
   },
   emptyStateResetText: {
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
 
-  // 5. Contact Options Grid - matching Target Reference Image
+  // 5. Contact Options - One Unified Card Section with Small Line Dividers
   contactSection: {
-    marginHorizontal: 12,
-    marginTop: 14,
+    marginHorizontal: 14,
+    marginTop: 12,
   },
-  contactGrid: {
+  contactHeaderRow: {
+    paddingHorizontal: 14,
+    marginBottom: 4,
+  },
+  contactUnifiedCard: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 5,
-    marginTop: 8,
-  },
-  contactCard: {
-    flex: 1,
+    alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 9,
+    borderRadius: 12,
+    borderWidth: 1.2,
+    borderColor: '#e2e8f0',
     paddingVertical: 10,
     paddingHorizontal: 2,
+    marginTop: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 1,
+      },
+      default: {
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 3,
+      },
+    }),
+  },
+  contactItemCol: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 0,
+    paddingHorizontal: 2,
+  },
+  contactDividerLine: {
+    width: 1,
+    height: 38,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 1,
   },
   solidIconBadge: {
     width: 36,
@@ -1010,34 +1041,34 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 5,
   },
   contactCardTitle: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     textAlign: 'center',
   },
   contactCardValue: {
-    fontSize: 9.8,
+    fontSize: 10.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginTop: 2,
     textAlign: 'center',
   },
   emailValueText: {
-    fontSize: 7.6,
+    fontSize: 8.2,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   liveChatValueText: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     fontWeight: '600',
     color: '#475569',
   },
   contactCardSubtext: {
-    fontSize: 7.8,
-    fontWeight: '500',
+    fontSize: 8.5,
+    fontWeight: '600',
     color: '#64748b',
     marginTop: 2,
     textAlign: 'center',
@@ -1047,36 +1078,48 @@ const styles = StyleSheet.create({
   emergencyCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff1f2',
-    borderWidth: 1,
-    borderColor: '#fecdd3',
-    borderRadius: 13,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.2,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
     marginHorizontal: 14,
-    marginTop: 14,
+    marginTop: 12,
     paddingVertical: 10,
     paddingHorizontal: 12,
     gap: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 1,
+      },
+      default: {
+        shadowColor: '#0f172a',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 3,
+      },
+    }),
   },
   emergencyIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#fee2e2',
   },
   emergencyTextCol: {
     flex: 1,
   },
   emergencyTitle: {
-    fontSize: 13,
+    fontSize: 15.5,
     fontWeight: '800',
     color: '#b91c1c',
   },
   emergencySubtitle: {
-    fontSize: 10.5,
+    fontSize: 12,
+    fontWeight: '500',
     color: '#991b1b',
     marginTop: 1,
   },
@@ -1084,12 +1127,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#dc2626',
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 11,
+    borderRadius: 9,
   },
   emergencyBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: '#ffffff',
   },
@@ -1099,8 +1142,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 12,
     marginHorizontal: 14,
-    marginTop: 12,
-    borderWidth: 1,
+    marginTop: 10,
+    borderWidth: 1.2,
     borderColor: '#e2e8f0',
     overflow: 'hidden',
   },
@@ -1108,64 +1151,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 11,
+    paddingVertical: 10,
     paddingHorizontal: 12,
   },
   safetyHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   safetyShieldBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#fff7ed',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#ffedd5',
   },
   safetyHeaderTitle: {
-    fontSize: 12.5,
+    fontSize: 15,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   safetyBody: {
-    paddingHorizontal: 12,
-    paddingBottom: 12,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
-    gap: 8,
+    gap: 10,
   },
   safetyTipRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
-    marginTop: 4,
+    gap: 10,
+    marginTop: 6,
   },
   safetyTipIconBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#f1f5f9',
+    width: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 1,
+    marginTop: 2,
   },
   safetyTipTextCol: {
     flex: 1,
   },
   safetyTipTitle: {
-    fontSize: 11.5,
+    fontSize: 13.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   safetyTipDesc: {
-    fontSize: 10.5,
+    fontSize: 12.5,
     color: '#475569',
-    lineHeight: 15,
-    marginTop: 1,
+    lineHeight: 18,
+    marginTop: 2,
   },
 
   // Modals Styling
@@ -1202,75 +1236,73 @@ const styles = StyleSheet.create({
   },
   emergencyModalHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 10,
+    marginBottom: 12,
+  },
+  emergencyHeaderDivider: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
     marginBottom: 14,
   },
   emergencyModalBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#fee2e2',
     alignItems: 'center',
     justifyContent: 'center',
   },
   emergencyModalTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   emergencyModalSubtitle: {
-    fontSize: 11.5,
+    fontSize: 13,
     color: '#64748b',
     marginTop: 2,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   modalCloseBtn: {
     padding: 4,
   },
   emergencyModalActions: {
-    gap: 10,
+    gap: 14,
   },
   emergencyActionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    paddingVertical: 4,
+    paddingHorizontal: 2,
     gap: 10,
   },
   emergencyActionTextCol: {
     flex: 1,
   },
   emergencyActionTitle: {
-    fontSize: 13,
+    fontSize: 14.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   emergencyActionSubtitle: {
-    fontSize: 10.5,
+    fontSize: 11.5,
     color: '#64748b',
     marginTop: 1,
   },
   emergencyNumberHighlight: {
-    fontSize: 13,
+    fontSize: 14.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginTop: 2,
   },
   emergencyCallBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 12,
     borderRadius: 8,
     gap: 5,
   },
   emergencyCallBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
     color: '#ffffff',
   },
@@ -1280,7 +1312,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   emergencyDismissText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: '#64748b',
   },
@@ -1311,13 +1343,13 @@ const styles = StyleSheet.create({
   },
   directHelplineText: {
     flex: 1,
-    fontSize: 12,
-    color: '#103A75',
+    fontSize: 13,
+    color: 'rgb(22, 34, 50)',
   },
   formFieldLabel: {
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginBottom: 6,
     marginTop: 4,
   },
@@ -1329,18 +1361,18 @@ const styles = StyleSheet.create({
   },
   chipItem: {
     backgroundColor: '#f1f5f9',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
   chipItemActive: {
-    backgroundColor: '#ee5c21',
-    borderColor: '#ee5c21',
+    backgroundColor: 'rgb(240, 117, 15)',
+    borderColor: 'rgb(240, 117, 15)',
   },
   chipText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontWeight: '600',
     color: '#475569',
   },
@@ -1353,9 +1385,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 10,
-    padding: 10,
-    fontSize: 12.5,
-    color: '#103A75',
+    padding: 12,
+    fontSize: 14,
+    color: 'rgb(22, 34, 50)',
     textAlignVertical: 'top',
     minHeight: 80,
     marginBottom: 10,
@@ -1365,18 +1397,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 12.5,
-    color: '#103A75',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: 'rgb(22, 34, 50)',
     marginBottom: 10,
   },
   formSubmitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#103A75',
-    paddingVertical: 12,
+    backgroundColor: 'rgb(22, 34, 50)',
+    paddingVertical: 13,
     borderRadius: 10,
     marginTop: 4,
     marginBottom: 12,
@@ -1385,7 +1417,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   formSubmitBtnText: {
-    fontSize: 13,
+    fontSize: 14.5,
     fontWeight: '800',
     color: '#ffffff',
   },
@@ -1400,12 +1432,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   ticketSuccessTitle: {
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   ticketSuccessText: {
-    fontSize: 12,
+    fontSize: 13.5,
     color: '#64748b',
     textAlign: 'center',
     marginTop: 4,
@@ -1414,32 +1446,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#eff6ff',
     borderWidth: 1,
     borderColor: '#bfdbfe',
-    paddingVertical: 6,
-    paddingHorizontal: 16,
+    paddingVertical: 7,
+    paddingHorizontal: 18,
     borderRadius: 8,
     marginVertical: 10,
   },
   ticketIdText: {
-    fontSize: 15,
+    fontSize: 16.5,
     fontWeight: '900',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: 0.5,
   },
   ticketSuccessNote: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#64748b',
     textAlign: 'center',
-    lineHeight: 16,
+    lineHeight: 17,
     marginBottom: 16,
   },
   ticketDoneBtn: {
-    backgroundColor: '#103A75',
-    paddingVertical: 10,
-    paddingHorizontal: 30,
+    backgroundColor: 'rgb(22, 34, 50)',
+    paddingVertical: 11,
+    paddingHorizontal: 32,
     borderRadius: 8,
   },
   ticketDoneBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: '#ffffff',
   },

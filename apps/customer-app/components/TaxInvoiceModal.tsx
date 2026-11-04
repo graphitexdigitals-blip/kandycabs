@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { customerApiClient } from '../lib/api';
 
 interface TaxInvoiceModalProps {
@@ -24,6 +25,7 @@ export function TaxInvoiceModal({
   isOpen,
   onClose,
 }: TaxInvoiceModalProps) {
+  const { t } = useTranslation();
   const [invoice, setInvoice] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -68,7 +70,7 @@ export function TaxInvoiceModal({
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text style={styles.badgeText}>OFFICIAL TAX INVOICE</Text>
+              <Text style={styles.badgeText}>{t('modals.invoice.title', { defaultValue: 'Official Tax Invoice' }).toUpperCase()}</Text>
               <Text style={styles.companyTitle}>Kandy Cabs Pvt Ltd</Text>
               <Text style={styles.gstText}>GSTIN: 29ABCDE1234F1Z5 • Karnataka</Text>
             </View>
@@ -84,7 +86,7 @@ export function TaxInvoiceModal({
 
           {loading ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator size="large" color="#ea580c" />
+              <ActivityIndicator size="large" color="rgb(240, 117, 15)" />
               <Text style={styles.loadingMessage}>Generating official invoice...</Text>
             </View>
           ) : error ? (
@@ -101,7 +103,7 @@ export function TaxInvoiceModal({
                 </View>
                 <View style={styles.metaCol}>
                   <Text style={styles.metaLabel}>Booking Ref:</Text>
-                  <Text style={[styles.metaVal, { color: '#ea580c' }]}>{invoice.booking.ref}</Text>
+                  <Text style={[styles.metaVal, { color: 'rgb(240, 117, 15)' }]}>{invoice.booking.ref}</Text>
                 </View>
                 <View style={styles.metaCol}>
                   <Text style={styles.metaLabel}>Date:</Text>
@@ -235,13 +237,13 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 10,
     fontWeight: '900',
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     letterSpacing: 1,
   },
   companyTitle: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginTop: 1,
   },
   gstText: {
@@ -308,7 +310,7 @@ const styles = StyleSheet.create({
   metaVal: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginTop: 1,
   },
   sectionCard: {
@@ -334,7 +336,7 @@ const styles = StyleSheet.create({
   },
   bold: {
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   routeMetaRow: {
     flexDirection: 'row',
@@ -360,7 +362,7 @@ const styles = StyleSheet.create({
   rowVal: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   totalRow: {
@@ -372,12 +374,12 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   totalVal: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   paymentStatusCard: {
@@ -401,12 +403,12 @@ const styles = StyleSheet.create({
   dueLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   dueVal: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
   },
   footerNote: {
     fontSize: 9,
@@ -415,7 +417,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   doneBtn: {
-    backgroundColor: '#103A75',
+    backgroundColor: 'rgb(22, 34, 50)',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',

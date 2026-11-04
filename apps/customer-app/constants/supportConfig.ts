@@ -286,12 +286,6 @@ export const SAFETY_TIPS: SafetyTip[] = [
     icon: 'key-outline',
   },
   {
-    id: 's3',
-    title: 'Zero Surge & Transparent Fare',
-    description: 'Review the fixed fare breakdown before starting. No surprise tolls, extra driver charges, or off-meter rates.',
-    icon: 'cash-outline',
-  },
-  {
     id: 's4',
     title: 'Emergency Assistance 112',
     description: 'If you ever feel unsafe or encounter an emergency during your trip, tap Emergency SOS or dial Police Emergency (112).',

@@ -166,53 +166,58 @@ export const DROP_DESTINATIONS: PlaceLocation[] = ALL_LOCATIONS;
 const VEHICLE_TYPES = [
   {
     category: VehicleCategory.HATCHBACK,
-    name: 'WagonR or equivalent',
-    models: 'WagonR, Swift, Tiago, Celerio',
+    name: 'Hatchback',
+    models: 'WagonR, Tiago, Celerio or equivalent',
     rate: '₹11/km',
     capacity: '4 Pax',
     luggage: '2 Bags',
     badge: 'Budget Choice',
     badgeColor: '#10b981',
+    fuelTypes: ['CNG', 'PETROL'],
   },
   {
     category: VehicleCategory.SEDAN,
-    name: 'Dzire or equivalent',
-    models: 'Dzire, Etios, Aura, Amaze',
+    name: 'Swift Dzire',
+    models: 'Maruti Suzuki Dzire or equivalent',
     rate: '₹13/km',
     capacity: '4 Pax',
     luggage: '3 Bags',
     badge: 'Most Popular',
     badgeColor: '#f59e0b',
+    fuelTypes: ['CNG', 'PETROL'],
   },
   {
     category: VehicleCategory.SUV,
-    name: 'Ertiga or equivalent',
-    models: 'Ertiga, Carens, XL6, Triber',
+    name: 'SUVs Ertiga',
+    models: 'Maruti Suzuki Ertiga or equivalent',
     rate: '₹16/km',
     capacity: '6 Pax',
     luggage: '4 Bags',
     badge: 'Family Choice',
     badgeColor: '#3b82f6',
+    fuelTypes: ['CNG', 'PETROL'],
   },
   {
     category: VehicleCategory.SUV_PREMIUM,
-    name: 'Innova Crysta or equivalent',
-    models: 'Innova Crysta, Hycross, Safari',
+    name: 'SUVs Innova Crysta',
+    models: 'Toyota Innova Crysta Diesel Luxury',
     rate: '₹20/km',
     capacity: '7 Pax',
     luggage: '5 Bags',
     badge: 'VIP Luxury',
     badgeColor: '#a855f7',
+    fuelTypes: ['DIESEL'],
   },
   {
     category: VehicleCategory.TEMPO_TRAVELER,
-    name: 'Tempo Traveller or equivalent',
+    name: 'Tempo Traveller',
     models: 'Force 3350 AC (12+1)',
     rate: '₹26/km',
     capacity: '12-14 Pax',
     luggage: 'Roof Carrier',
     badge: 'Group Tour',
-    badgeColor: '#f97316',
+    badgeColor: 'rgb(240, 117, 15)',
+    fuelTypes: ['DIESEL'],
   },
 ];
 
@@ -956,7 +961,7 @@ export default function CustomerDashboardScreen() {
         fetchBookings();
 
         Alert.alert(
-          'Booking Confirmed! 🚕🎉',
+          'Booking Confirmed!',
           `Booking Ref #${bookingRes.booking.humanReadableRef}\nPickup OTP: ${bookingRes.booking.pickupOtp || '----'}\nAdvance Paid: ₹${bookingRes.booking.advanceAmount}\n\nOur driver dispatch network is assigning your vehicle.`
         );
       } else {
@@ -3373,7 +3378,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   rateDriverBtnText: {
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     fontSize: 12,
     fontWeight: '800',
   },

@@ -2,6 +2,7 @@ import 'fast-text-encoding';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ActivityIndicator, Image, TouchableOpacity, StatusBar, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import { driverApiClient } from '../lib/api';
 
 export default function DriverAppIndex() {
@@ -34,23 +35,68 @@ export default function DriverAppIndex() {
         return;
       }
 
-      // 2. Token exists -> Verify token with /api/driver/status (Case 2: Token exists)
-      const statusRes = await driverApiClient.fetch('/api/driver/status');
-      if (statusRes?.success && statusRes?.driver) {
-        router.replace('/dashboard');
-      } else {
-        // Invalid or inactive driver payload -> clear token & go to login
-        await driverApiClient.removeToken();
-        router.replace('/login');
+      // Check if we have cached driver info for instant resilience
+      const cached = await SecureStore.getItemAsync('kandy_cached_driver').catch(() => null);
+
+      // 2. Token exists -> Verify token with /api/driver/status
+      try {
+        const statusRes = await driverApiClient.fetch('/api/driver/status', { timeoutMs: 8000 } as any);
+        if (statusRes?.success && statusRes?.driver) {
+          try {
+            await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(statusRes.driver));
+          } catch (_) {}
+          router.replace('/dashboard');
+          return;
+        } else if (
+          statusRes?.success === false &&
+          (statusRes?.message?.includes('Unauthorized') ||
+            statusRes?.message?.includes('deactivated') ||
+            statusRes?.message?.includes('deleted'))
+        ) {
+          // Token is invalidated on server
+          await driverApiClient.removeToken();
+          await SecureStore.deleteItemAsync('kandy_cached_driver').catch(() => {});
+          router.replace('/login');
+          return;
+        }
+      } catch (fetchErr: any) {
+        // If server explicitly returned 401/403, remove token & go to login
+        if (
+          fetchErr?.status === 401 ||
+          fetchErr?.status === 403 ||
+          fetchErr?.message?.includes('Unauthorized') ||
+          fetchErr?.message?.includes('deactivated')
+        ) {
+          await driverApiClient.removeToken();
+          await SecureStore.deleteItemAsync('kandy_cached_driver').catch(() => {});
+          router.replace('/login');
+          return;
+        }
+
+        // If network/server timed out but we have a valid cached driver session, proceed to dashboard!
+        if (cached) {
+          router.replace('/dashboard');
+          return;
+        }
+
+        // No cache and server failed -> show retry UI
+        setNetworkError(true);
+        return;
       }
+
+      // If statusRes didn't have driver, but we have cached driver, go to dashboard
+      if (cached) {
+        router.replace('/dashboard');
+        return;
+      }
+
+      router.replace('/dashboard');
     } catch (err: any) {
       if (err?.status === 401 || err?.status === 403) {
-        // Expired or invalid token -> clear token & go to login
         await driverApiClient.removeToken();
+        await SecureStore.deleteItemAsync('kandy_cached_driver').catch(() => {});
         router.replace('/login');
       } else {
-        // Temporary network or connection failure:
-        // Do NOT create an infinite redirect loop. Expose retry / login fallback.
         setNetworkError(true);
       }
     }

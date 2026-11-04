@@ -10,6 +10,7 @@ export interface BookingDetailsMetadata {
   luggage?: string;
   hasCarrier: boolean;
   hasPet: boolean;
+  petType?: string;
   petFee: number;
   flightNumber?: string;
   alternateEmail?: string;
@@ -104,6 +105,7 @@ export function getBookingMetadata(booking: any): BookingDetailsMetadata {
     booking?.petFriendly ||
     booking?.isPetFriendly
   );
+  let petType = booking?.petType ? String(booking.petType).trim().toLowerCase() : undefined;
   let petFee = booking?.petFee ? Number(booking.petFee) : 0;
 
   if (Array.isArray(booking?.tripEvents)) {
@@ -117,6 +119,7 @@ export function getBookingMetadata(booking: any): BookingDetailsMetadata {
           hasPet = true;
           if (p.petFee) petFee = Number(p.petFee);
         }
+        if (!petType && p.petType) petType = String(p.petType).trim().toLowerCase();
         if (!specialRequirements && p.specialRequirements) specialRequirements = p.specialRequirements;
         if (!notes && p.notes) notes = p.notes;
         if (!passengers && p.passengers) passengers = p.passengers;
@@ -172,6 +175,16 @@ export function getBookingMetadata(booking: any): BookingDetailsMetadata {
     }
   }
 
+  if (hasPet && !petType) {
+    if (/\b(?:cat|kitten)\b/i.test(combinedText)) {
+      petType = 'cat';
+    } else if (/\b(?:bird|parrot)\b/i.test(combinedText)) {
+      petType = 'bird';
+    } else if (/\b(?:dog|puppy)\b/i.test(combinedText)) {
+      petType = 'dog';
+    }
+  }
+
   return {
     intermediateStops,
     specialRequirements,
@@ -180,6 +193,7 @@ export function getBookingMetadata(booking: any): BookingDetailsMetadata {
     luggage,
     hasCarrier,
     hasPet,
+    petType,
     petFee,
     flightNumber,
     alternateEmail,

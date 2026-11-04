@@ -15,12 +15,13 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { safeNavigate } from '../lib/safeNav';
 import { LocationPickerModal } from '../components/LocationPickerModal';
 import { DatePickerModal } from '../components/DatePickerModal';
 import { TimePickerModal, isDateToday } from '../components/TimePickerModal';
 import BookingFlowHeader from '../components/BookingFlowHeader';
-import { ALL_LOCATIONS, PlaceLocation } from '../lib/locations';
+import { ALL_LOCATIONS, PlaceLocation, isAirportLocation, isSameLocation } from '../lib/locations';
 
 type TripType = 'ONEWAY' | 'ROUND' | 'LOCAL' | 'AIRPORT' | 'CORPORATE' | 'TOUR';
 
@@ -138,6 +139,7 @@ function formatFriendlyDate(str: string): string {
 }
 
 export default function TripDetailsScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
@@ -179,42 +181,35 @@ export default function TripDetailsScreen() {
 
   // Intermediate / Via Stops
   const [viaStops, setViaStops] = useState<PlaceLocation[]>([]);
-  const [activeStopIndex, setActiveStopIndex] = useState<number | null>(null);
-  const [isStopModalOpen, setIsStopModalOpen] = useState(false);
+
+  // Unified Route Location Picker Modal
+  const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
+  const [routeModalTarget, setRouteModalTarget] = useState<'PICKUP' | 'STOP' | 'DROP'>('PICKUP');
+  const [routeModalStopIndex, setRouteModalStopIndex] = useState<number>(0);
+
+  const openRouteModal = (target: 'PICKUP' | 'STOP' | 'DROP', stopIdx: number = 0) => {
+    setRouteModalTarget(target);
+    setRouteModalStopIndex(stopIdx);
+    setIsRouteModalOpen(true);
+  };
 
   const handleAddStop = () => {
-    if (viaStops.length >= 4) {
-      Alert.alert('Maximum Stops', 'You can add up to 4 intermediate stops.');
+    if (viaStops.length >= 12) {
+      Alert.alert('Maximum Stops', 'You can add up to 12 intermediate stops.');
       return;
     }
-    setActiveStopIndex(viaStops.length);
-    setIsStopModalOpen(true);
+    openRouteModal('STOP', viaStops.length);
   };
 
   const handleEditStop = (index: number) => {
-    setActiveStopIndex(index);
-    setIsStopModalOpen(true);
+    openRouteModal('STOP', index);
   };
 
   const handleRemoveStop = (index: number) => {
     setViaStops((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSelectStop = (location: PlaceLocation) => {
-    if (activeStopIndex !== null) {
-      setViaStops((prev) => {
-        const next = [...prev];
-        next[activeStopIndex] = location;
-        return next;
-      });
-    }
-    setIsStopModalOpen(false);
-    setActiveStopIndex(null);
-  };
-
   // Modals
-  const [isPickupModalOpen, setIsPickupModalOpen] = useState(false);
-  const [isDropModalOpen, setIsDropModalOpen] = useState(false);
   const [isReturnDropModalOpen, setIsReturnDropModalOpen] = useState(false);
   const [returnDropLocation, setReturnDropLocation] = useState<PlaceLocation | null>(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -263,8 +258,54 @@ export default function TripDetailsScreen() {
   };
 
   // Airport transfer direction & airport
-  const [airportDirection, setAirportDirection] = useState<'TO_AIRPORT' | 'FROM_AIRPORT'>('TO_AIRPORT');
-  const [selectedAirport, setSelectedAirport] = useState<PlaceLocation | null>(null);
+  const [airportDirection, setAirportDirection] = useState<'TO_AIRPORT' | 'FROM_AIRPORT'>(
+    (params.airportDirection as 'TO_AIRPORT' | 'FROM_AIRPORT') || 'TO_AIRPORT'
+  );
+  const [selectedAirport, setSelectedAirport] = useState<PlaceLocation | null>(() => {
+    const dir = (params.airportDirection as 'TO_AIRPORT' | 'FROM_AIRPORT') || 'TO_AIRPORT';
+    if (initialType === 'AIRPORT') {
+      if (dir === 'TO_AIRPORT') {
+        if (params.dropJson) {
+          try {
+            const parsed = JSON.parse(params.dropJson as string);
+            if (parsed) return parsed;
+          } catch {}
+        }
+        if (params.drop) {
+          const found = ALL_LOCATIONS.find((l) => l.label.toLowerCase().includes((params.drop as string).toLowerCase()));
+          if (found) return found;
+          return { label: params.drop as string, sublabel: 'Airport Terminal', category: 'AIRPORTS', lat: 12.9613, lng: 74.8901 };
+        }
+      } else {
+        if (params.pickupJson) {
+          try {
+            const parsed = JSON.parse(params.pickupJson as string);
+            if (parsed) return parsed;
+          } catch {}
+        }
+        if (params.pickup) {
+          const found = ALL_LOCATIONS.find((l) => l.label.toLowerCase().includes((params.pickup as string).toLowerCase()));
+          if (found) return found;
+          return { label: params.pickup as string, sublabel: 'Airport Terminal', category: 'AIRPORTS', lat: 12.9613, lng: 74.8901 };
+        }
+      }
+    }
+    return null;
+  });
+
+  const handleSetAirportDirection = (dir: 'TO_AIRPORT' | 'FROM_AIRPORT') => {
+    if (dir === airportDirection) return;
+    setAirportDirection(dir);
+    if (dir === 'FROM_AIRPORT') {
+      if (!dropLocation && pickupLocation && !isAirportLocation(pickupLocation)) {
+        setDropLocation(pickupLocation);
+      }
+    } else {
+      if (!pickupLocation && dropLocation && !isAirportLocation(dropLocation)) {
+        setPickupLocation(dropLocation);
+      }
+    }
+  };
   const [flightNumber, setFlightNumber] = useState<string>((params.flightNumber as string) || '');
 
   // Local rental package
@@ -376,7 +417,7 @@ export default function TripDetailsScreen() {
 
   const handleAddPickupTime = () => {
     if (corporatePickupTimes.length >= 4) {
-      Alert.alert('Maximum Pickup Times', 'You can schedule up to 4 pickup times per day.');
+      Alert.alert(t('tripDetails.maxPickupTimes', { defaultValue: 'Maximum Pickup Times' }), t('tripDetails.maxPickupTimesMsg', { defaultValue: 'You can schedule up to 4 pickup times per day.' }));
       return;
     }
     const nextSlot = corporatePickupTimes.length === 1 ? '18:00' : '21:00';
@@ -411,11 +452,11 @@ export default function TripDetailsScreen() {
     if (tripType === 'AIRPORT') {
       if (airportDirection === 'TO_AIRPORT') {
         if (!pickupLocation) {
-          Alert.alert('Pickup Location Required', 'Please select your pickup location.');
+          Alert.alert(t('tripDetails.pickupLocationRequired', { defaultValue: 'Pickup Location Required' }), t('tripDetails.pleaseSelectPickup', { defaultValue: 'Please select your pickup location.' }));
           return;
         }
         if (!selectedAirport) {
-          Alert.alert('Airport Required', 'Please select a destination airport.');
+          Alert.alert(t('tripDetails.airportRequired', { defaultValue: 'Airport Required' }), t('tripDetails.pleaseSelectAirport', { defaultValue: 'Please select a destination airport.' }));
           return;
         }
         finalPickup = pickupLocation.label;
@@ -442,7 +483,7 @@ export default function TripDetailsScreen() {
       }
     } else if (tripType === 'LOCAL') {
       if (!pickupLocation) {
-        Alert.alert('Pickup Location Required', 'Please select your pickup location.');
+        Alert.alert(t('tripDetails.pickupLocationRequired', { defaultValue: 'Pickup Location Required' }), t('tripDetails.pleaseSelectPickup', { defaultValue: 'Please select your pickup location.' }));
         return;
       }
       finalDrop = `${localHours} Hours Package Area`;
@@ -450,7 +491,7 @@ export default function TripDetailsScreen() {
       dLng = pLng + 0.05;
     } else {
       if (!finalPickup) {
-        Alert.alert('Pickup Location Required', 'Please select a pickup location.');
+        Alert.alert(t('tripDetails.pickupLocationRequired', { defaultValue: 'Pickup Location Required' }), t('tripDetails.pleaseSelectPickupAlt', { defaultValue: 'Please select a pickup location.' }));
         return;
       }
       if (!finalDrop) {
@@ -536,16 +577,35 @@ export default function TripDetailsScreen() {
     });
   };
 
+  const getSelectedOptionHeader = () => {
+    switch (tripType) {
+      case 'AIRPORT':
+        return { title: t('tripDetails.airportTransferTitle', { defaultValue: 'Airport Transfer' }), icon: 'airplane' as const };
+      case 'LOCAL':
+        return { title: t('tripDetails.localRentalTitle', { defaultValue: 'Local Rental' }), icon: 'time' as const };
+      case 'CORPORATE':
+        return { title: t('tripDetails.corporateTravelTitle', { defaultValue: 'Corporate Travel' }), icon: 'briefcase' as const };
+      case 'TOUR':
+        return { title: t('tripDetails.tourPilgrimageTitle', { defaultValue: 'Tour & Pilgrimage' }), icon: 'business' as const };
+      case 'ROUND':
+        return { title: t('tripDetails.roundTripTitle', { defaultValue: 'Round Trip' }), icon: 'repeat' as const };
+      case 'ONEWAY':
+      default:
+        return { title: t('tripDetails.oneWayDropTitle', { defaultValue: 'One-Way Drop' }), icon: 'navigate' as const };
+    }
+  };
+  const selectedHeader = getSelectedOptionHeader();
+
   return (
-    <SafeAreaView style={[styles.safeArea, { paddingTop: topInset }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+    <View style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={true} />
 
       {/* Unified 3-Step Funnel Header */}
       <BookingFlowHeader
         currentStep={1}
-        title="Enter Trip Details"
-        subStepLabel="Route & Schedule"
-        topInset={0}
+        title={t('tripDetails.enterTripDetails', { defaultValue: 'Enter Trip Details' })}
+        subStepLabel={t('tripDetails.routeAndSchedule', { defaultValue: 'Route & Schedule' })}
+        topInset={topInset}
         onBack={() => router.back()}
       />
 
@@ -554,46 +614,9 @@ export default function TripDetailsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Field 1: Trip Type Selector */}
-        <View style={styles.formGroup}>
-          <View style={styles.fieldLabelRow}>
-            <Text style={styles.fieldLabel}>TRIP TYPE</Text>
-            <TouchableOpacity
-              onPress={() => setShowTypePickerModal(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.fieldActionText}>Change Type</Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity
-            style={styles.dropdownCard}
-            onPress={() => setShowTypePickerModal(true)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.dropdownLeft}>
-              <View style={styles.typeIconBox}>
-                {activeTypeMeta.iconFamily === 'MaterialCommunityIcons' ? (
-                  <MaterialCommunityIcons name={activeTypeMeta.iconName as any} size={21} color="#EE5C21" />
-                ) : (
-                  <Ionicons name={activeTypeMeta.iconName as any} size={20} color="#EE5C21" />
-                )}
-              </View>
-              <View style={styles.typeTextCol}>
-                <Text style={styles.dropdownText}>{activeTypeMeta.label}</Text>
-                <Text style={styles.dropdownSubtitle}>{activeTypeMeta.subtitle}</Text>
-              </View>
-            </View>
-            <View style={styles.typeChangePill}>
-              <Ionicons name="swap-horizontal" size={13} color="#103A75" />
-              <Text style={styles.typeChangePillText}>Change</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
         {/* Corporate Travel Booking Option: "Book Once" vs "Daily Rides" */}
         {tripType === 'CORPORATE' && (
           <View style={styles.corporateModeGroup}>
-            <Text style={styles.fieldLabel}>Corporate Booking Option</Text>
             <View style={styles.corporateModeRow}>
               <TouchableOpacity
                 style={[
@@ -620,9 +643,9 @@ export default function TripDetailsScreen() {
                       corporateMode === 'ONCE' && styles.corporateModeTitleActive,
                     ]}
                   >
-                    Book Once
+                    {t('tripDetails.bookOnce', { defaultValue: 'Book Once' })}
                   </Text>
-                  <Text style={styles.corporateModeSub}>Single day ride</Text>
+                  <Text style={styles.corporateModeSub}>{t('tripDetails.bookOnceSub', { defaultValue: 'Single day ride' })}</Text>
                 </View>
               </TouchableOpacity>
 
@@ -651,9 +674,9 @@ export default function TripDetailsScreen() {
                       corporateMode === 'DAILY' && styles.corporateModeTitleActive,
                     ]}
                   >
-                    Daily Rides
+                    {t('tripDetails.dailyRides', { defaultValue: 'Daily Rides' })}
                   </Text>
-                  <Text style={styles.corporateModeSub}>Daily commute</Text>
+                  <Text style={styles.corporateModeSub}>{t('tripDetails.dailyRidesSub', { defaultValue: 'Daily commute' })}</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -668,12 +691,12 @@ export default function TripDetailsScreen() {
                 styles.airportToggleBtn,
                 airportDirection === 'TO_AIRPORT' && styles.airportToggleBtnActive,
               ]}
-              onPress={() => setAirportDirection('TO_AIRPORT')}
+              onPress={() => handleSetAirportDirection('TO_AIRPORT')}
               activeOpacity={0.8}
             >
               <Ionicons
                 name="airplane-outline"
-                size={18}
+                size={16}
                 color={airportDirection === 'TO_AIRPORT' ? '#ffffff' : '#475569'}
               />
               <Text
@@ -681,8 +704,11 @@ export default function TripDetailsScreen() {
                   styles.airportToggleText,
                   airportDirection === 'TO_AIRPORT' && styles.airportToggleTextActive,
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.85}
               >
-                Going to Airport
+                {t('tripDetails.goingToAirport', { defaultValue: 'Going to Airport' })}
               </Text>
             </TouchableOpacity>
 
@@ -691,12 +717,12 @@ export default function TripDetailsScreen() {
                 styles.airportToggleBtn,
                 airportDirection === 'FROM_AIRPORT' && styles.airportToggleBtnActive,
               ]}
-              onPress={() => setAirportDirection('FROM_AIRPORT')}
+              onPress={() => handleSetAirportDirection('FROM_AIRPORT')}
               activeOpacity={0.8}
             >
               <Ionicons
                 name="car-outline"
-                size={18}
+                size={16}
                 color={airportDirection === 'FROM_AIRPORT' ? '#ffffff' : '#475569'}
               />
               <Text
@@ -704,8 +730,11 @@ export default function TripDetailsScreen() {
                   styles.airportToggleText,
                   airportDirection === 'FROM_AIRPORT' && styles.airportToggleTextActive,
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.85}
               >
-                Pickup from Airport
+                {t('tripDetails.pickupFromAirport', { defaultValue: 'Pickup from Airport' })}
               </Text>
             </TouchableOpacity>
           </View>
@@ -718,8 +747,8 @@ export default function TripDetailsScreen() {
           {/* Card Header: Route Title + Swap Button */}
           <View style={styles.routeCardHeader}>
             <View style={styles.routeHeaderLeft}>
-              <Ionicons name="navigate" size={17} color="#103A75" />
-              <Text style={styles.routeCardTitle}>Trip Route</Text>
+              <Ionicons name={selectedHeader.icon} size={17} color="rgb(240, 117, 15)" />
+              <Text style={styles.routeCardTitle}>{selectedHeader.title}</Text>
             </View>
 
             {/* Quick Swap Button for inter-city when no intermediate stops exist */}
@@ -729,7 +758,7 @@ export default function TripDetailsScreen() {
                 onPress={handleSwapLocations}
                 activeOpacity={0.7}
               >
-                <Ionicons name="swap-vertical" size={15} color="#103A75" />
+                <Ionicons name="swap-vertical" size={15} color="rgb(22, 34, 50)" />
                 <Text style={styles.swapBadgeText}>Swap</Text>
               </TouchableOpacity>
             )}
@@ -737,36 +766,16 @@ export default function TripDetailsScreen() {
 
           {/* 1. PICKUP LOCATION */}
           <View style={styles.timelineRow}>
-            <View style={styles.timelineTrackCol}>
-              <View style={styles.timelineNodeContainer}>
-                <Ionicons name="radio-button-on" size={17} color="#16a34a" />
-              </View>
-              <View style={styles.timelineLine} />
-              {tripType !== 'AIRPORT' && tripType !== 'LOCAL' && viaStops.length === 0 && (
-                <TouchableOpacity
-                  style={styles.timelineNodeViaPlus}
-                  onPress={handleAddStop}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="add" size={11} color="#64748b" />
-                </TouchableOpacity>
-              )}
-              {tripType !== 'AIRPORT' && tripType !== 'LOCAL' && viaStops.length === 0 && (
-                <View style={styles.timelineLine} />
-              )}
-            </View>
-
             <View style={styles.timelineContentCol}>
-              <Text style={styles.microLabelPickup}>PICKUP LOCATION</Text>
+              <Text style={styles.microLabelPickup}>{t('tripDetails.pickupLocation', { defaultValue: 'PICKUP LOCATION' })}</Text>
               {tripType === 'AIRPORT' && airportDirection === 'FROM_AIRPORT' ? (
                 <TouchableOpacity
                   style={styles.routeInputBox}
-                  onPress={() => setIsPickupModalOpen(true)}
+                  onPress={() => openRouteModal('PICKUP')}
                   activeOpacity={0.7}
                 >
                   <View style={styles.routeInputIconCirclePickup}>
-                    <Ionicons name="airplane" size={16} color="#16a34a" />
+                    <Ionicons name="airplane" size={20} color="#16a34a" />
                   </View>
                   <View style={styles.inputTextContainer}>
                     <Text
@@ -776,11 +785,11 @@ export default function TripDetailsScreen() {
                       ]}
                       numberOfLines={1}
                     >
-                      {selectedAirport ? selectedAirport.label : 'Select pickup airport'}
+                      {selectedAirport ? selectedAirport.label : t('tripDetails.selectPickupAirport', { defaultValue: 'Select pickup airport' })}
                     </Text>
                     {selectedAirport && (
                       <Text style={styles.inputSubtext}>
-                        {selectedAirport.sublabel || 'Terminal pickup point'}
+                        {selectedAirport.sublabel || t('tripDetails.terminalPickup', { defaultValue: 'Terminal pickup point' })}
                       </Text>
                     )}
                   </View>
@@ -789,11 +798,11 @@ export default function TripDetailsScreen() {
               ) : (
                 <TouchableOpacity
                   style={styles.routeInputBox}
-                  onPress={() => setIsPickupModalOpen(true)}
+                  onPress={() => openRouteModal('PICKUP')}
                   activeOpacity={0.7}
                 >
                   <View style={styles.routeInputIconCirclePickup}>
-                    <Ionicons name="location" size={16} color="#16a34a" />
+                    <Ionicons name="location" size={20} color="#16a34a" />
                   </View>
                   <View style={styles.inputTextContainer}>
                     <Text
@@ -803,11 +812,11 @@ export default function TripDetailsScreen() {
                       ]}
                       numberOfLines={1}
                     >
-                      {pickupLocation ? pickupLocation.label : 'Enter pickup location'}
+                      {pickupLocation ? pickupLocation.label : t('tripDetails.enterPickupLocationPlaceholder', { defaultValue: 'Enter pickup location' })}
                     </Text>
                     {pickupLocation && (
                       <Text style={styles.inputSubtext}>
-                        {pickupLocation.sublabel || pickupLocation.category || 'Selected Location'}
+                        {pickupLocation.sublabel || pickupLocation.category || t('tripDetails.selectedLocation', { defaultValue: 'Selected Location' })}
                       </Text>
                     )}
                   </View>
@@ -821,13 +830,6 @@ export default function TripDetailsScreen() {
           {/* 2. DYNAMIC VIA STOPS (IN BETWEEN PICKUP & DESTINATION DROP) */}
           {viaStops.map((stop, index) => (
             <View key={`via-stop-${index}`} style={styles.timelineRow}>
-              <View style={styles.timelineTrackCol}>
-                <View style={styles.timelineNodeContainer}>
-                  <Ionicons name="radio-button-on" size={17} color="#EE5C21" />
-                </View>
-                <View style={styles.timelineLine} />
-              </View>
-
               <View style={styles.timelineContentCol}>
                 <View style={styles.viaHeaderRow}>
                   <Text style={styles.microLabelVia}>STOP {index + 1} (VIA)</Text>
@@ -848,7 +850,7 @@ export default function TripDetailsScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={styles.routeInputIconCircleVia}>
-                    <Ionicons name="pin" size={15} color="#d97706" />
+                    <Ionicons name="pin" size={18} color="rgb(22, 34, 50)" />
                   </View>
                   <View style={styles.inputTextContainer}>
                     <Text
@@ -873,12 +875,6 @@ export default function TripDetailsScreen() {
           {/* 3. DESTINATION DROP (OR LOCAL RENTAL PACKAGES) */}
           {tripType === 'LOCAL' ? (
             <View style={styles.timelineRow}>
-              <View style={styles.timelineTrackCol}>
-                <View style={styles.timelineNodeContainer}>
-                  <Ionicons name="speedometer" size={14} color="#103A75" />
-                </View>
-              </View>
-
               <View style={[styles.timelineContentCol, { paddingBottom: 0 }]}>
                 <Text style={styles.microLabelDrop}>RENTAL DURATION & DISTANCE</Text>
                 <View style={styles.packageRow}>
@@ -910,35 +906,24 @@ export default function TripDetailsScreen() {
           ) : (
             <>
               <View style={styles.timelineRow}>
-              <View style={styles.timelineTrackCol}>
-                <View style={styles.timelineNodeContainer}>
-                  <Ionicons name="location" size={18} color="#EE5C21" />
-                </View>
-                {viaStops.length < 4 ? (
-                  <View style={styles.timelineLineDashed} />
-                ) : tripType === 'ROUND' && pickupLocation && dropLocation ? (
-                  <View style={styles.timelineLine} />
-                ) : null}
-              </View>
-
-              <View style={[
-                styles.timelineContentCol,
-                !(tripType === 'ROUND' && pickupLocation && dropLocation) && { paddingBottom: 0 },
-              ]}>
+                <View style={[
+                  styles.timelineContentCol,
+                  !(tripType === 'ROUND' && pickupLocation && dropLocation) && { paddingBottom: 0 },
+                ]}>
                 <Text style={styles.microLabelDrop}>
                   {tripType === 'AIRPORT' && airportDirection === 'TO_AIRPORT'
-                    ? 'DESTINATION AIRPORT'
-                    : 'DESTINATION DROP'}
+                    ? t('tripDetails.destinationAirport', { defaultValue: 'DESTINATION AIRPORT' })
+                    : t('tripDetails.destinationDrop', { defaultValue: 'DESTINATION DROP' })}
                 </Text>
 
                 {tripType === 'AIRPORT' && airportDirection === 'TO_AIRPORT' ? (
                   <TouchableOpacity
                     style={styles.routeInputBox}
-                    onPress={() => setIsDropModalOpen(true)}
+                    onPress={() => openRouteModal('DROP')}
                     activeOpacity={0.7}
                   >
                     <View style={styles.routeInputIconCircleDrop}>
-                      <Ionicons name="airplane" size={16} color="#EE5C21" />
+                      <Ionicons name="airplane" size={20} color="#ef4444" />
                     </View>
                     <View style={styles.inputTextContainer}>
                       <Text
@@ -948,11 +933,11 @@ export default function TripDetailsScreen() {
                         ]}
                         numberOfLines={1}
                       >
-                        {selectedAirport ? selectedAirport.label : 'Select destination airport'}
+                        {selectedAirport ? selectedAirport.label : t('tripDetails.selectDestAirportPlaceholder', { defaultValue: 'Select destination airport' })}
                       </Text>
                       {selectedAirport && (
                         <Text style={styles.inputSubtext}>
-                          {selectedAirport.sublabel || 'Direct Departure Drop'}
+                          {selectedAirport.sublabel || t('tripDetails.directDepartureDrop', { defaultValue: 'Direct Departure Drop' })}
                         </Text>
                       )}
                     </View>
@@ -961,11 +946,11 @@ export default function TripDetailsScreen() {
                 ) : (
                   <TouchableOpacity
                     style={styles.routeInputBox}
-                    onPress={() => setIsDropModalOpen(true)}
+                    onPress={() => openRouteModal('DROP')}
                     activeOpacity={0.7}
                   >
                     <View style={styles.routeInputIconCircleDrop}>
-                      <Ionicons name="location" size={16} color="#EE5C21" />
+                      <Ionicons name="location" size={20} color="#ef4444" />
                     </View>
                     <View style={styles.inputTextContainer}>
                       <Text
@@ -975,11 +960,11 @@ export default function TripDetailsScreen() {
                         ]}
                         numberOfLines={1}
                       >
-                        {dropLocation ? dropLocation.label : 'Enter destination drop'}
+                        {dropLocation ? dropLocation.label : t('tripDetails.enterDestDropPlaceholder', { defaultValue: 'Enter destination drop' })}
                       </Text>
                       {dropLocation && (
                         <Text style={styles.inputSubtext}>
-                          {dropLocation.sublabel || dropLocation.category || 'Selected Location'}
+                          {dropLocation.sublabel || dropLocation.category || t('tripDetails.selectedLocation', { defaultValue: 'Selected Location' })}
                         </Text>
                       )}
                     </View>
@@ -987,65 +972,67 @@ export default function TripDetailsScreen() {
                   </TouchableOpacity>
                 )}
 
-                {/* 5. ADD VIA STOP BUTTON (ARRANGED FLUSH LEFT WITH CONNECTOR) */}
-                {viaStops.length < 4 && (
-                  <View style={styles.addViaRow}>
-                    <TouchableOpacity
-                      style={styles.addViaPillBtn}
-                      onPress={handleAddStop}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="add" size={14} color="#EE5C21" />
-                      <Text style={styles.addViaPillText}>
-                        {viaStops.length === 0 ? 'Add Stops / Multiple Drops' : 'Add Another Via Stop'}
-                      </Text>
-                    </TouchableOpacity>
+                {/* 5. AIRPORT: Flight Number (first) & Add a Stop (last, in small) in ONE ROW / OTHER TRIPS: Add a Stop */}
+                {tripType === 'AIRPORT' ? (
+                  <View style={styles.flightAndStopRow}>
+                    <View style={styles.flightInputBoxFlex}>
+                      <TextInput
+                        style={styles.flightInputField}
+                        placeholder={t('tripDetails.flightNumberOptional', { defaultValue: 'Flight no. (optional)' })}
+                        placeholderTextColor="#94a3b8"
+                        value={flightNumber}
+                        onChangeText={(text: string) => setFlightNumber(text.toUpperCase())}
+                        autoCapitalize="characters"
+                        autoCorrect={false}
+                      />
+                      {flightNumber.length > 0 && (
+                        <TouchableOpacity
+                          onPress={() => setFlightNumber('')}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="close-circle" size={16} color="#94a3b8" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {viaStops.length < 12 && (
+                      <TouchableOpacity
+                        style={styles.addViaPillBtnSmall}
+                        onPress={handleAddStop}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="add" size={12} color="#ffffff" />
+                        <Text style={styles.addViaPillTextSmall}>
+                          {viaStops.length === 0 ? t('tripDetails.addStop', { defaultValue: 'Add a Stop' }) : t('tripDetails.addStopNum', { defaultValue: `Add Stop ${viaStops.length + 1}`, index: viaStops.length + 1 })}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
+                ) : (
+                  viaStops.length < 12 && (
+                    <View style={styles.addViaRow}>
+                      <TouchableOpacity
+                        style={styles.addViaPillBtn}
+                        onPress={handleAddStop}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="add" size={14} color="#ffffff" />
+                        <Text style={styles.addViaPillText}>
+                          {viaStops.length === 0 ? t('tripDetails.addStop', { defaultValue: 'Add a Stop' }) : t('tripDetails.addStopNum', { defaultValue: `Add Stop ${viaStops.length + 1}`, index: viaStops.length + 1 })}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )
                 )}
               </View>
             </View>
-
-            {/* 4. FLIGHT NUMBER SECTION (AIRPORT TRANSFER ONLY) */}
-            {tripType === 'AIRPORT' && (
-              <View style={styles.flightNumberSection}>
-                <View style={styles.flightInputBox}>
-                  <Ionicons name="airplane" size={18} color="#103A75" style={styles.flightInputIcon} />
-                  <TextInput
-                    style={styles.flightInputField}
-                    placeholder="Flight number (optional)"
-                    placeholderTextColor="#94a3b8"
-                    value={flightNumber}
-                    onChangeText={(text: string) => setFlightNumber(text.toUpperCase())}
-                    autoCapitalize="characters"
-                    autoCorrect={false}
-                  />
-                  {flightNumber.length > 0 && (
-                    <TouchableOpacity
-                      onPress={() => setFlightNumber('')}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="close-circle" size={17} color="#94a3b8" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            )}
           </>
         )}
 
           {/* 5. RETURN DROP (ROUND TRIP ONLY - SHOWN ONCE PICKUP & DROP SELECTED) */}
           {tripType === 'ROUND' && pickupLocation && dropLocation && (
             <View style={styles.timelineRow}>
-              <View style={styles.timelineTrackCol}>
-                <View style={styles.timelineNodeContainer}>
-                  <View style={styles.nodeReturnCircle}>
-                    <Ionicons name="repeat" size={9} color="#ffffff" />
-                  </View>
-                </View>
-                <View style={styles.timelineLine} />
-              </View>
-
               <View style={[styles.timelineContentCol, { paddingBottom: 0 }]}>
                 <View style={styles.viaHeaderRow}>
                   <Text style={styles.microLabelReturn}>
@@ -1062,7 +1049,7 @@ export default function TripDetailsScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={styles.routeInputIconCircleReturn}>
-                    <Ionicons name="arrow-undo" size={15} color="#103A75" />
+                    <Ionicons name="arrow-undo" size={15} color="rgb(22, 34, 50)" />
                   </View>
                   <View style={styles.inputTextContainer}>
                     <Text style={styles.inputText} numberOfLines={1}>
@@ -1087,20 +1074,22 @@ export default function TripDetailsScreen() {
         {tripType === 'CORPORATE' && corporateMode === 'DAILY' ? (
           <View style={styles.scheduleCard}>
             <View style={styles.scheduleCardHeader}>
-              <Ionicons name="calendar-outline" size={18} color="#103A75" />
-              <Text style={styles.scheduleCardTitle}>Daily Rides Schedule</Text>
+              <View style={styles.scheduleHeaderLeft}>
+                <Ionicons name="calendar-outline" size={17} color="rgb(240, 117, 15)" />
+                <Text style={styles.scheduleCardTitle}>{t('tripDetails.dailyRidesSchedule', { defaultValue: 'Daily Rides Schedule' })}</Text>
+              </View>
             </View>
 
             {/* From - To Range Pickers */}
             <View style={styles.dateRangeRow}>
               <View style={styles.dateRangeCol}>
-                <Text style={styles.dateRangeSubLabel}>From Date</Text>
+                <Text style={styles.dateRangeSubLabel}>{t('tripDetails.fromDate', { defaultValue: 'From Date' })}</Text>
                 <TouchableOpacity
                   style={styles.dateRangeCard}
                   onPress={() => setIsCorpStartDatePickerOpen(true)}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="calendar-outline" size={18} color="#103A75" />
+                  <Ionicons name="calendar-outline" size={18} color="rgb(22, 34, 50)" />
                   <Text style={styles.dateRangeCardText} numberOfLines={1}>
                     {corporateStartDate}
                   </Text>
@@ -1112,13 +1101,13 @@ export default function TripDetailsScreen() {
               </View>
 
               <View style={styles.dateRangeCol}>
-                <Text style={styles.dateRangeSubLabel}>To Date</Text>
+                <Text style={styles.dateRangeSubLabel}>{t('tripDetails.toDate', { defaultValue: 'To Date' })}</Text>
                 <TouchableOpacity
                   style={styles.dateRangeCard}
                   onPress={() => setIsCorpEndDatePickerOpen(true)}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="calendar-outline" size={18} color="#103A75" />
+                  <Ionicons name="calendar-outline" size={18} color="rgb(22, 34, 50)" />
                   <Text style={styles.dateRangeCardText} numberOfLines={1}>
                     {corporateEndDate}
                   </Text>
@@ -1130,14 +1119,20 @@ export default function TripDetailsScreen() {
             <View style={styles.dateGridContainer}>
               <View style={styles.dateGridHeader}>
                 <View style={{ flex: 1, paddingRight: 8 }}>
-                  <Text style={styles.dateGridTitle}>Included Dates ({activeDatesCount})</Text>
+                  <Text style={styles.dateGridTitle}>
+                    {t('tripDetails.includedDatesCount', { defaultValue: `Included Dates (${activeDatesCount})`, count: activeDatesCount })}
+                  </Text>
                   <Text style={styles.dateGridSubtitle}>
-                    Tap any date below to exclude it from schedule
+                    {t('tripDetails.tapToExclude', { defaultValue: 'Tap any date below to exclude it from schedule' })}
                   </Text>
                 </View>
                 <View style={styles.dateGridBadge}>
                   <Text style={styles.dateGridBadgeText}>
-                    {activeDatesCount} {activeDatesCount === 1 ? 'Ride' : 'Rides'}
+                    {t('tripDetails.ridesBadge', {
+                      defaultValue: `${activeDatesCount} ${activeDatesCount === 1 ? 'Ride' : 'Rides'}`,
+                      count: activeDatesCount,
+                      unit: activeDatesCount === 1 ? t('tripDetails.rideUnit', { defaultValue: 'Ride' }) : t('tripDetails.ridesUnit', { defaultValue: 'Rides' }),
+                    })}
                   </Text>
                 </View>
               </View>
@@ -1149,9 +1144,11 @@ export default function TripDetailsScreen() {
                   onPress={handleExcludeWeekends}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="calendar-outline" size={13} color="#103A75" />
+                  <Ionicons name="calendar-outline" size={13} color="rgb(22, 34, 50)" />
                   <Text style={styles.quickActionBtnText}>
-                    {hasWeekendExcluded ? 'Include Weekends' : 'Exclude Weekends (Sat/Sun)'}
+                    {hasWeekendExcluded
+                      ? t('tripDetails.includeWeekends', { defaultValue: 'Include Weekends' })
+                      : t('tripDetails.excludeWeekends', { defaultValue: 'Exclude Weekends (Sat/Sun)' })}
                   </Text>
                 </TouchableOpacity>
 
@@ -1162,7 +1159,9 @@ export default function TripDetailsScreen() {
                     activeOpacity={0.7}
                   >
                     <Ionicons name="checkmark-done" size={13} color="#475569" />
-                    <Text style={styles.quickActionBtnTextSecondary}>Include All</Text>
+                    <Text style={styles.quickActionBtnTextSecondary}>
+                      {t('tripDetails.includeAll', { defaultValue: 'Include All' })}
+                    </Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -1222,18 +1221,20 @@ export default function TripDetailsScreen() {
             </View>
 
             {/* Corporate Multiple Pickup Times */}
-            <View style={{ marginTop: 14 }}>
+            <View style={{ marginTop: 6 }}>
               <View style={styles.pickupTimeHeaderRow}>
                 <Text style={styles.dateTimeFieldLabel}>
-                  {`Pickup Time${corporatePickupTimes.length > 1 ? `s (${corporatePickupTimes.length})` : ''}`}
+                  {corporatePickupTimes.length > 1
+                    ? t('tripDetails.pickupTimesCount', { defaultValue: `Pickup Times (${corporatePickupTimes.length})`, count: corporatePickupTimes.length })
+                    : t('tripDetails.addPickupTime', { defaultValue: 'Pickup Time' })}
                 </Text>
                 <TouchableOpacity
                   style={styles.addTimeBtn}
                   onPress={handleAddPickupTime}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="add-circle" size={15} color="#103A75" />
-                  <Text style={styles.addTimeBtnText}>Add Pickup Time (+)</Text>
+                  <Ionicons name="add-circle" size={15} color="rgb(22, 34, 50)" />
+                  <Text style={styles.addTimeBtnText}>{t('tripDetails.addPickupTime', { defaultValue: 'Add Pickup Time' })}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -1248,14 +1249,14 @@ export default function TripDetailsScreen() {
                       }}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="time-outline" size={18} color="#103A75" style={styles.inputIcon} />
+                      <Ionicons name="time-outline" size={18} color="rgb(22, 34, 50)" style={styles.inputIcon} />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.corporateTimeLabel}>
                           {idx === 0
-                            ? 'Morning / Primary Pickup'
+                            ? t('tripDetails.morningPrimaryPickup', { defaultValue: 'Morning / Primary Pickup' })
                             : idx === 1
-                            ? 'Evening / Return Pickup'
-                            : `Pickup Time ${idx + 1}`}
+                            ? t('tripDetails.eveningReturnPickup', { defaultValue: 'Evening / Return Pickup' })
+                            : t('tripDetails.pickupTimeN', { defaultValue: `Pickup Time ${idx + 1}`, n: idx + 1 })}
                         </Text>
                         <Text style={styles.inputText}>{formatTime12Display(time)}</Text>
                       </View>
@@ -1281,12 +1282,14 @@ export default function TripDetailsScreen() {
           /* Corporate "Book Once" */
           <View style={styles.scheduleCard}>
             <View style={styles.scheduleCardHeader}>
-              <Ionicons name="calendar-outline" size={18} color="#103A75" />
-              <Text style={styles.scheduleCardTitle}>Schedule</Text>
+              <View style={styles.scheduleHeaderLeft}>
+                <Ionicons name="calendar-outline" size={17} color="rgb(240, 117, 15)" />
+                <Text style={styles.scheduleCardTitle}>{t('tripDetails.schedule', { defaultValue: 'Schedule' })}</Text>
+              </View>
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.dateTimeFieldLabel}>Pickup Date</Text>
+              <Text style={styles.dateTimeFieldLabel}>{t('tripDetails.pickupDate', { defaultValue: 'Pickup Date' })}</Text>
               <TouchableOpacity
                 style={[
                   styles.dateTimeBox,
@@ -1302,7 +1305,7 @@ export default function TripDetailsScreen() {
                   <Ionicons
                     name="calendar-outline"
                     size={16}
-                    color={pickupDateError ? '#ef4444' : '#103A75'}
+                    color={pickupDateError ? '#ef4444' : 'rgb(22, 34, 50)'}
                   />
                   <Text
                     style={[
@@ -1311,7 +1314,7 @@ export default function TripDetailsScreen() {
                       pickupDateError && styles.dateTimeTextError,
                     ]}
                   >
-                    {pickupDate ? formatFriendlyDate(pickupDate) : 'Select Date'}
+                    {pickupDate ? formatFriendlyDate(pickupDate) : t('tripDetails.selectDate', { defaultValue: 'Select Date' })}
                   </Text>
                 </View>
                 <Ionicons
@@ -1322,18 +1325,20 @@ export default function TripDetailsScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={{ marginTop: 10 }}>
+            <View style={{ marginTop: 4 }}>
               <View style={styles.pickupTimeHeaderRow}>
                 <Text style={styles.dateTimeFieldLabel}>
-                  {`Pickup Time${corporatePickupTimes.length > 1 ? `s (${corporatePickupTimes.length})` : ''}`}
+                  {corporatePickupTimes.length > 1
+                    ? t('tripDetails.pickupTimesCount', { defaultValue: `Pickup Times (${corporatePickupTimes.length})`, count: corporatePickupTimes.length })
+                    : t('tripDetails.addPickupTime', { defaultValue: 'Pickup Time' })}
                 </Text>
                 <TouchableOpacity
                   style={styles.addTimeBtn}
                   onPress={handleAddPickupTime}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="add-circle" size={15} color="#103A75" />
-                  <Text style={styles.addTimeBtnText}>Add Pickup Time (+)</Text>
+                  <Ionicons name="add-circle" size={15} color="rgb(22, 34, 50)" />
+                  <Text style={styles.addTimeBtnText}>{t('tripDetails.addPickupTime', { defaultValue: 'Add Pickup Time' })}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -1348,12 +1353,12 @@ export default function TripDetailsScreen() {
                       }}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="time-outline" size={18} color="#103A75" style={styles.inputIcon} />
+                      <Ionicons name="time-outline" size={18} color="rgb(22, 34, 50)" style={styles.inputIcon} />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.corporateTimeLabel}>
                           {idx === 0
-                            ? 'Primary Pickup'
-                            : `Pickup Time ${idx + 1}`}
+                            ? t('tripDetails.primaryPickup', { defaultValue: 'Primary Pickup' })
+                            : t('tripDetails.pickupTimeN', { defaultValue: `Pickup Time ${idx + 1}`, n: idx + 1 })}
                         </Text>
                         <Text style={styles.inputText}>{formatTime12Display(time)}</Text>
                       </View>
@@ -1380,26 +1385,16 @@ export default function TripDetailsScreen() {
           <View style={styles.scheduleCard}>
             <View style={styles.scheduleCardHeader}>
               <View style={styles.scheduleHeaderLeft}>
-                <Ionicons name="calendar" size={17} color="#103A75" />
-                <Text style={styles.scheduleCardTitle}>Trip Schedule</Text>
+                <Ionicons name="calendar" size={17} color="rgb(240, 117, 15)" />
+                <Text style={styles.scheduleCardTitle}>{t('tripDetails.tripSchedule', { defaultValue: 'Trip Schedule' })}</Text>
               </View>
-              {!pickupTime && (
-                <TouchableOpacity
-                  style={styles.leaveNowChip}
-                  onPress={handleSetLeaveNow}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="flash" size={12} color="#EE5C21" />
-                  <Text style={styles.leaveNowChipText}>Leave Now (+15m)</Text>
-                </TouchableOpacity>
-              )}
             </View>
 
             {/* Departure Date & Time (Side-by-Side 2 Columns) */}
             <View style={styles.dateTimeGridRow}>
               <View style={styles.dateTimeCol}>
                 <Text style={styles.dateTimeFieldLabel}>
-                  {(tripType === 'ROUND' || tripType === 'TOUR') ? 'DEPARTURE DATE' : 'PICKUP DATE'}
+                  {(tripType === 'ROUND' || tripType === 'TOUR') ? t('tripDetails.departureDateLabel', { defaultValue: 'DEPARTURE DATE' }) : t('tripDetails.pickupDateLabel', { defaultValue: 'PICKUP DATE' })}
                 </Text>
                 <TouchableOpacity
                   style={[
@@ -1416,7 +1411,7 @@ export default function TripDetailsScreen() {
                     <Ionicons
                       name="calendar-outline"
                       size={16}
-                      color={pickupDateError ? '#ef4444' : '#EE5C21'}
+                      color={pickupDateError ? '#ef4444' : 'rgb(22, 34, 50)'}
                     />
                     <Text
                       style={[
@@ -1426,7 +1421,7 @@ export default function TripDetailsScreen() {
                       ]}
                       numberOfLines={1}
                     >
-                      {pickupDate ? formatFriendlyDate(pickupDate) : 'Select Date'}
+                      {pickupDate ? formatFriendlyDate(pickupDate) : t('tripDetails.selectDate', { defaultValue: 'Select Date' })}
                     </Text>
                   </View>
                   <Ionicons
@@ -1439,7 +1434,7 @@ export default function TripDetailsScreen() {
 
               <View style={styles.dateTimeCol}>
                 <Text style={styles.dateTimeFieldLabel}>
-                  {(tripType === 'ROUND' || tripType === 'TOUR') ? 'DEPARTURE TIME' : 'PICKUP TIME'}
+                  {(tripType === 'ROUND' || tripType === 'TOUR') ? t('tripDetails.departureTimeLabel', { defaultValue: 'DEPARTURE TIME' }) : t('tripDetails.pickupTimeLabel', { defaultValue: 'PICKUP TIME' })}
                 </Text>
                 <TouchableOpacity
                   style={[
@@ -1456,7 +1451,7 @@ export default function TripDetailsScreen() {
                     <Ionicons
                       name="time-outline"
                       size={16}
-                      color={pickupTimeError ? '#ef4444' : '#EE5C21'}
+                      color={pickupTimeError ? '#ef4444' : 'rgb(22, 34, 50)'}
                     />
                     <Text
                       style={[
@@ -1466,7 +1461,7 @@ export default function TripDetailsScreen() {
                       ]}
                       numberOfLines={1}
                     >
-                      {pickupTime ? formatTime12Display(pickupTime) : 'Select Time'}
+                      {pickupTime ? formatTime12Display(pickupTime) : t('tripDetails.selectTime', { defaultValue: 'Select Time' })}
                     </Text>
                   </View>
                   <Ionicons
@@ -1482,14 +1477,14 @@ export default function TripDetailsScreen() {
             {(tripType === 'ROUND' || tripType === 'TOUR') && (
               <View style={[styles.dateTimeGridRow, { marginTop: 10 }]}>
                 <View style={styles.dateTimeCol}>
-                  <Text style={styles.dateTimeFieldLabel}>RETURN DATE</Text>
+                  <Text style={styles.dateTimeFieldLabel}>{t('tripDetails.returnDateLabel', { defaultValue: 'RETURN DATE' })}</Text>
                   <TouchableOpacity
                     style={styles.dateTimeBox}
                     onPress={() => setIsReturnDatePickerOpen(true)}
                     activeOpacity={0.7}
                   >
                     <View style={styles.dateTimeBoxLeft}>
-                      <Ionicons name="calendar" size={16} color="#EE5C21" />
+                      <Ionicons name="calendar" size={16} color="rgb(22, 34, 50)" />
                       <Text style={styles.dateTimeBoxText} numberOfLines={1}>
                         {formatFriendlyDate(returnDate)}
                       </Text>
@@ -1499,7 +1494,7 @@ export default function TripDetailsScreen() {
                 </View>
 
                 <View style={styles.dateTimeCol}>
-                  <Text style={styles.dateTimeFieldLabel}>RETURN TIME</Text>
+                  <Text style={styles.dateTimeFieldLabel}>{t('tripDetails.returnTimeLabel', { defaultValue: 'RETURN TIME' })}</Text>
                   <TouchableOpacity
                     style={[
                       styles.dateTimeBox,
@@ -1515,7 +1510,7 @@ export default function TripDetailsScreen() {
                       <Ionicons
                         name="time"
                         size={16}
-                        color={returnTimeError ? '#ef4444' : '#EE5C21'}
+                        color={returnTimeError ? '#ef4444' : 'rgb(22, 34, 50)'}
                       />
                       <Text
                         style={[
@@ -1525,7 +1520,7 @@ export default function TripDetailsScreen() {
                         ]}
                         numberOfLines={1}
                       >
-                        {returnTime ? formatTime12Display(returnTime) : 'Select Time'}
+                        {returnTime ? formatTime12Display(returnTime) : t('tripDetails.selectTime', { defaultValue: 'Select Time' })}
                       </Text>
                     </View>
                     <Ionicons
@@ -1557,8 +1552,8 @@ export default function TripDetailsScreen() {
           {/* Row 1: Zero Cancellation + Free 15-Min Wait */}
           <View style={styles.trustTilesRow}>
             <View style={styles.trustTile}>
-              <View style={[styles.trustTileIconBox, { backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#bfdbfe' }]}>
-                <Ionicons name="shield-checkmark-outline" size={16} color="#2563eb" />
+              <View style={styles.trustTileIconBox}>
+                <Ionicons name="shield-checkmark-outline" size={19} color="#2563eb" />
               </View>
               <View style={styles.trustTileTextCol}>
                 <Text style={styles.trustTileTitle} numberOfLines={1}>Zero Cancellation</Text>
@@ -1567,8 +1562,8 @@ export default function TripDetailsScreen() {
             </View>
 
             <View style={styles.trustTile}>
-              <View style={[styles.trustTileIconBox, { backgroundColor: '#faf5ff', borderWidth: 1, borderColor: '#e9d5ff' }]}>
-                <Ionicons name="time-outline" size={16} color="#9333ea" />
+              <View style={styles.trustTileIconBox}>
+                <Ionicons name="time-outline" size={19} color="#9333ea" />
               </View>
               <View style={styles.trustTileTextCol}>
                 <Text style={styles.trustTileTitle} numberOfLines={1}>Free 15-Min Wait</Text>
@@ -1580,8 +1575,8 @@ export default function TripDetailsScreen() {
           {/* Row 2: Commercial Cabs + Transparent Fares */}
           <View style={[styles.trustTilesRow, { marginTop: 8 }]}>
             <View style={styles.trustTile}>
-              <View style={[styles.trustTileIconBox, { backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0' }]}>
-                <Ionicons name="car-sport-outline" size={16} color="#16a34a" />
+              <View style={styles.trustTileIconBox}>
+                <Ionicons name="car-sport-outline" size={19} color="#16a34a" />
               </View>
               <View style={styles.trustTileTextCol}>
                 <Text style={styles.trustTileTitle} numberOfLines={1}>Commercial Cabs</Text>
@@ -1590,8 +1585,8 @@ export default function TripDetailsScreen() {
             </View>
 
             <View style={styles.trustTile}>
-              <View style={[styles.trustTileIconBox, { backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#fed7aa' }]}>
-                <Ionicons name="receipt-outline" size={16} color="#ea580c" />
+              <View style={styles.trustTileIconBox}>
+                <Ionicons name="receipt-outline" size={19} color="rgb(240, 117, 15)" />
               </View>
               <View style={styles.trustTileTextCol}>
                 <Text style={styles.trustTileTitle} numberOfLines={1}>All-Inclusive Fares</Text>
@@ -1609,7 +1604,7 @@ export default function TripDetailsScreen() {
           onPress={handleProceed}
           activeOpacity={0.85}
         >
-          <Text style={styles.nextButtonText}>Next: Select Cab</Text>
+          <Text style={styles.nextButtonText}>{t('tripDetails.selectCabFares', { defaultValue: 'Next: Select Cab' })}</Text>
           <Ionicons name="arrow-forward" size={19} color="#ffffff" />
         </TouchableOpacity>
       </View>
@@ -1636,8 +1631,28 @@ export default function TripDetailsScreen() {
                   key={item.id}
                   style={[styles.typeOptionRow, isSelected && styles.typeOptionRowSelected]}
                   onPress={() => {
-                    setTripType(item.id);
+                    const newType = item.id;
+                    setTripType(newType);
                     setShowTypePickerModal(false);
+                    if (newType === 'AIRPORT') {
+                      if (airportDirection === 'TO_AIRPORT') {
+                        if (!selectedAirport && dropLocation && isAirportLocation(dropLocation)) {
+                          setSelectedAirport(dropLocation);
+                        }
+                      } else {
+                        if (!selectedAirport && pickupLocation && isAirportLocation(pickupLocation)) {
+                          setSelectedAirport(pickupLocation);
+                        }
+                      }
+                    } else if (newType !== 'LOCAL') {
+                      if (selectedAirport) {
+                        if (airportDirection === 'TO_AIRPORT' && !dropLocation) {
+                          setDropLocation(selectedAirport);
+                        } else if (airportDirection === 'FROM_AIRPORT' && !pickupLocation) {
+                          setPickupLocation(selectedAirport);
+                        }
+                      }
+                    }
                   }}
                   activeOpacity={0.7}
                 >
@@ -1662,7 +1677,7 @@ export default function TripDetailsScreen() {
                     </Text>
                     <Text style={styles.typeOptionSubtext}>{item.subtitle}</Text>
                   </View>
-                  {isSelected && <Ionicons name="checkmark-circle" size={22} color="#EE5C21" />}
+                  {isSelected && <Ionicons name="checkmark-circle" size={22} color="rgb(240, 117, 15)" />}
                 </TouchableOpacity>
               );
             })}
@@ -1672,58 +1687,116 @@ export default function TripDetailsScreen() {
 
       {/* Location Picker Modals */}
       <LocationPickerModal
-        visible={isPickupModalOpen}
-        title={tripType === 'AIRPORT' && airportDirection === 'FROM_AIRPORT' ? 'Select Airport' : 'Select Pickup Location'}
-        isPickup={true}
-        onSelect={(loc) => {
+        visible={isRouteModalOpen}
+        onClose={() => setIsRouteModalOpen(false)}
+        title={
+          tripType === 'AIRPORT'
+            ? airportDirection === 'TO_AIRPORT'
+              ? routeModalTarget === 'DROP'
+                ? t('tripDetails.selectDestAirport', { defaultValue: 'Select Destination Airport' })
+                : t('tripDetails.selectPickupLocation', { defaultValue: 'Select Pickup Location' })
+              : routeModalTarget === 'PICKUP'
+              ? t('tripDetails.selectPickupAirport', { defaultValue: 'Select Pickup Airport' })
+              : t('tripDetails.selectDropLocation', { defaultValue: 'Select Drop Location' })
+            : tripType === 'LOCAL'
+            ? t('tripDetails.selectPickupLocation', { defaultValue: 'Select Pickup Location' })
+            : routeModalTarget === 'PICKUP'
+            ? t('tripDetails.selectPickupLocation', { defaultValue: 'Select Pickup Location' })
+            : routeModalTarget === 'DROP'
+            ? t('tripDetails.selectDropLocation', { defaultValue: 'Select Drop Location' })
+            : t('tripDetails.selectStopLocation', { defaultValue: `Select Stop ${routeModalStopIndex + 1}` })
+        }
+        initialTarget={routeModalTarget}
+        initialStopIndex={routeModalStopIndex}
+        isPickup={routeModalTarget === 'PICKUP'}
+        pickupValue={
+          tripType === 'AIRPORT' && airportDirection === 'FROM_AIRPORT'
+            ? selectedAirport?.label
+            : pickupLocation?.label
+        }
+        dropValue={
+          tripType === 'LOCAL'
+            ? undefined
+            : tripType === 'AIRPORT' && airportDirection === 'TO_AIRPORT'
+            ? selectedAirport?.label
+            : dropLocation?.label
+        }
+        pickupLocation={
+          tripType === 'AIRPORT' && airportDirection === 'FROM_AIRPORT'
+            ? selectedAirport
+            : pickupLocation
+        }
+        dropLocation={
+          tripType === 'LOCAL'
+            ? null
+            : tripType === 'AIRPORT' && airportDirection === 'TO_AIRPORT'
+            ? selectedAirport
+            : dropLocation
+        }
+        viaStops={tripType === 'LOCAL' ? [] : viaStops}
+        hideDrop={tripType === 'LOCAL'}
+        hideStops={tripType === 'LOCAL'}
+        singleLocationOnly={tripType === 'LOCAL'}
+        pickupAirportsOnly={tripType === 'AIRPORT' && airportDirection === 'FROM_AIRPORT'}
+        dropAirportsOnly={tripType === 'AIRPORT' && airportDirection === 'TO_AIRPORT'}
+        onSelectPickup={(loc) => {
           if (tripType === 'AIRPORT' && airportDirection === 'FROM_AIRPORT') {
             setSelectedAirport(loc);
           } else {
             setPickupLocation(loc);
           }
-          setIsPickupModalOpen(false);
         }}
-        onClose={() => setIsPickupModalOpen(false)}
-      />
-
-      <LocationPickerModal
-        visible={isDropModalOpen}
-        title={tripType === 'AIRPORT' && airportDirection === 'TO_AIRPORT' ? 'Select Destination Airport' : 'Select Drop Location'}
-        isPickup={false}
-        onSelect={(loc) => {
+        onSelectDrop={(loc) => {
           if (tripType === 'AIRPORT' && airportDirection === 'TO_AIRPORT') {
             setSelectedAirport(loc);
+            setDropLocation(loc);
           } else {
             setDropLocation(loc);
           }
-          setIsDropModalOpen(false);
         }}
-        onClose={() => setIsDropModalOpen(false)}
+        onConfirmRoute={({ pickup, drop, stops }) => {
+          if (pickup && drop && isSameLocation(pickup, drop)) {
+            Alert.alert(
+              t('modals.locationPicker.sameLocationTitle', { defaultValue: 'Same Location Selected' }),
+              t('modals.locationPicker.sameLocationMsg', { defaultValue: 'Pickup and drop location cannot be the same. Please choose a different destination.' })
+            );
+            return;
+          }
+          if (pickup) {
+            if (tripType === 'AIRPORT' && airportDirection === 'FROM_AIRPORT') {
+              setSelectedAirport(pickup);
+            } else {
+              setPickupLocation(pickup);
+            }
+          }
+          if (drop) {
+            if (tripType === 'AIRPORT' && airportDirection === 'TO_AIRPORT') {
+              setSelectedAirport(drop);
+              setDropLocation(drop);
+            } else if (tripType !== 'LOCAL') {
+              setDropLocation(drop);
+            }
+          }
+          if (stops && tripType !== 'LOCAL') {
+            setViaStops(stops);
+          }
+          setIsRouteModalOpen(false);
+        }}
       />
 
       <LocationPickerModal
         visible={isReturnDropModalOpen}
         title="Select Return Drop Location"
         isPickup={false}
+        singleLocationOnly={true}
+        hideDrop={false}
+        hideStops={true}
         currentValue={returnDropLocation ? returnDropLocation.label : pickupLocation ? pickupLocation.label : undefined}
         onSelect={(loc) => {
           setReturnDropLocation(loc);
           setIsReturnDropModalOpen(false);
         }}
         onClose={() => setIsReturnDropModalOpen(false)}
-      />
-
-      <LocationPickerModal
-        visible={isStopModalOpen}
-        title={`Select Stop ${activeStopIndex !== null ? activeStopIndex + 1 : ''} (Via Location)`}
-        isPickup={false}
-        onSelect={(loc) => {
-          handleSelectStop(loc);
-        }}
-        onClose={() => {
-          setIsStopModalOpen(false);
-          setActiveStopIndex(null);
-        }}
       />
 
       {/* Date & Time Modals */}
@@ -1744,7 +1817,7 @@ export default function TripDetailsScreen() {
         visible={isTimePickerOpen}
         currentTime={pickupTime || '09:00'}
         selectedDate={pickupDate}
-        title="Select Pickup Time"
+        title={t('tripDetails.selectPickupTime', { defaultValue: 'Select Pickup Time' })}
         onSelect={(time) => {
           setPickupTime(time);
           setPickupTimeError(false);
@@ -1769,7 +1842,7 @@ export default function TripDetailsScreen() {
         currentTime={returnTime || '18:00'}
         selectedDate={returnDate}
         minTime={returnDate === pickupDate ? (pickupTime || undefined) : undefined}
-        title="Select Return Time"
+        title={t('tripDetails.selectReturnTime', { defaultValue: 'Select Return Time' })}
         onSelect={(time) => {
           setReturnTime(time);
           setReturnTimeError(false);
@@ -1819,7 +1892,9 @@ export default function TripDetailsScreen() {
         visible={isCorpTimePickerOpen}
         currentTime={activeEditingTimeIndex !== null ? corporatePickupTimes[activeEditingTimeIndex] : '09:00'}
         selectedDate={corporateStartDate}
-        title={`Select Pickup Time ${activeEditingTimeIndex !== null ? activeEditingTimeIndex + 1 : ''}`}
+        title={activeEditingTimeIndex !== null 
+          ? t('tripDetails.selectPickupTimeN', { defaultValue: `Select Pickup Time ${activeEditingTimeIndex + 1}`, n: activeEditingTimeIndex + 1 })
+          : t('tripDetails.selectPickupTime', { defaultValue: 'Select Pickup Time' })}
         onSelect={(time) => {
           if (activeEditingTimeIndex !== null) {
             setCorporatePickupTimes((prev) => {
@@ -1836,7 +1911,7 @@ export default function TripDetailsScreen() {
           setActiveEditingTimeIndex(null);
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -1873,7 +1948,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     textAlign: 'center',
     letterSpacing: -0.2,
   },
@@ -1899,7 +1974,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#EE5C21',
+    backgroundColor: 'rgb(240, 117, 15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1911,7 +1986,7 @@ const styles = StyleSheet.create({
   stepNameActive: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   stepDotInactive: {
     width: 18,
@@ -1960,7 +2035,7 @@ const styles = StyleSheet.create({
   fieldActionText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#EE5C21',
+    color: 'rgb(240, 117, 15)',
   },
   dropdownCard: {
     flexDirection: 'row',
@@ -1985,7 +2060,7 @@ const styles = StyleSheet.create({
   dropdownText: {
     fontSize: 14.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   dropdownSubtitle: {
     fontSize: 10.5,
@@ -2005,7 +2080,7 @@ const styles = StyleSheet.create({
   typeChangePillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   typeIconBox: {
     width: 38,
@@ -2019,7 +2094,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   typeIconBoxSelected: {
-    backgroundColor: '#EE5C21',
+    backgroundColor: 'rgb(240, 117, 15)',
   },
   inputCard: {
     flexDirection: 'row',
@@ -2040,7 +2115,7 @@ const styles = StyleSheet.create({
   inputText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   inputSubtext: {
     fontSize: 11.5,
@@ -2089,17 +2164,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 10,
+    paddingHorizontal: 10,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     backgroundColor: '#f8fafc',
   },
   airportToggleBtnActive: {
-    backgroundColor: '#EE5C21',
-    borderColor: '#EE5C21',
+    backgroundColor: 'rgb(240, 117, 15)',
+    borderColor: 'rgb(240, 117, 15)',
   },
   airportToggleText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: '#475569',
   },
@@ -2121,13 +2197,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   packageCardActive: {
-    borderColor: '#103A75',
+    borderColor: 'rgb(22, 34, 50)',
     backgroundColor: '#eaf1f9',
   },
   packageHourText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   packageKmText: {
     fontSize: 11,
@@ -2135,10 +2211,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   packageTextActive: {
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   packageSubtextActive: {
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   bottomBar: {
     backgroundColor: '#ffffff',
@@ -2148,7 +2224,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#f1f5f9',
     ...Platform.select({
       ios: {
-        shadowColor: '#103A75',
+        shadowColor: 'rgb(22, 34, 50)',
         shadowOffset: { width: 0, height: -3 },
         shadowOpacity: 0.06,
         shadowRadius: 6,
@@ -2163,12 +2239,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#EE5C21',
+    backgroundColor: 'rgb(240, 117, 15)',
     paddingVertical: 14,
     borderRadius: 14,
     ...Platform.select({
       ios: {
-        shadowColor: '#EE5C21',
+        shadowColor: 'rgb(240, 117, 15)',
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.25,
         shadowRadius: 6,
@@ -2208,7 +2284,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginBottom: 16,
   },
   typeOptionRow: {
@@ -2225,10 +2301,10 @@ const styles = StyleSheet.create({
   typeOptionText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   typeOptionTextSelected: {
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     fontWeight: '800',
   },
   typeOptionSubtext: {
@@ -2246,7 +2322,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     ...Platform.select({
       ios: {
-        shadowColor: '#103A75',
+        shadowColor: 'rgb(22, 34, 50)',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
         shadowRadius: 5,
@@ -2273,7 +2349,7 @@ const styles = StyleSheet.create({
   routeCardTitle: {
     fontSize: 15.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(240, 117, 15)',
     letterSpacing: -0.2,
   },
   swapBadgeBtn: {
@@ -2290,7 +2366,7 @@ const styles = StyleSheet.create({
   swapBadgeText: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   timelineRow: {
     flexDirection: 'row',
@@ -2322,7 +2398,7 @@ const styles = StyleSheet.create({
     width: 17,
     height: 17,
     borderRadius: 8.5,
-    backgroundColor: '#103A75',
+    backgroundColor: 'rgb(22, 34, 50)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2347,27 +2423,27 @@ const styles = StyleSheet.create({
   microLabelPickup: {
     fontSize: 10.5,
     fontWeight: '800',
-    color: '#16a34a',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   microLabelVia: {
     fontSize: 10.5,
     fontWeight: '800',
-    color: '#EE5C21',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: 0.5,
   },
   microLabelDrop: {
     fontSize: 10.5,
     fontWeight: '800',
-    color: '#EE5C21',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   microLabelReturn: {
     fontSize: 10.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: 0.5,
   },
   viaHeaderRow: {
@@ -2399,7 +2475,7 @@ const styles = StyleSheet.create({
   roundTripPillText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: 0.3,
   },
   routeInputBox: {
@@ -2416,48 +2492,32 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   routeInputIconCirclePickup: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#ecfdf5',
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
+    width: 26,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   routeInputIconCircleDrop: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#fff7ed',
-    borderWidth: 1,
-    borderColor: '#fed7aa',
+    width: 26,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   routeInputIconCircleVia: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#fef3c7',
-    borderWidth: 1,
-    borderColor: '#fde68a',
+    width: 26,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   routeInputIconCircleReturn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#eaf1f9',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
+    width: 26,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   returnInputBox: {
     borderColor: '#cbd5e1',
@@ -2486,30 +2546,60 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     paddingVertical: 0,
   },
   addViaRow: {
-    marginTop: 3,
+    marginTop: 6,
     alignItems: 'flex-start',
   },
   addViaPillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: 4.5,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderStyle: 'dashed',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    gap: 4,
+    backgroundColor: 'rgb(22, 34, 50)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 10,
   },
   addViaPillText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  flightAndStopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  flightInputBoxFlex: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    height: 38,
+  },
+  addViaPillBtnSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgb(22, 34, 50)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 3.5,
+    height: 38,
+    justifyContent: 'center',
+  },
+  addViaPillTextSmall: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#EE5C21',
+    fontWeight: '800',
+    color: '#ffffff',
   },
   quickLocationRow: {
     flexDirection: 'row',
@@ -2531,7 +2621,7 @@ const styles = StyleSheet.create({
   quickLocationText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#EE5C21',
+    color: 'rgb(240, 117, 15)',
   },
 
   // Side-by-Side Schedule Card
@@ -2544,7 +2634,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     ...Platform.select({
       ios: {
-        shadowColor: '#103A75',
+        shadowColor: 'rgb(22, 34, 50)',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
         shadowRadius: 5,
@@ -2571,7 +2661,7 @@ const styles = StyleSheet.create({
   scheduleCardTitle: {
     fontSize: 15.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(240, 117, 15)',
     letterSpacing: -0.2,
   },
   leaveNowChip: {
@@ -2588,7 +2678,7 @@ const styles = StyleSheet.create({
   leaveNowChipText: {
     fontSize: 10.5,
     fontWeight: '700',
-    color: '#EE5C21',
+    color: 'rgb(240, 117, 15)',
   },
   dateTimeGridRow: {
     flexDirection: 'row',
@@ -2601,7 +2691,7 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: '700',
     color: '#64748b',
-    marginBottom: 5,
+    marginBottom: 3,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
@@ -2625,7 +2715,7 @@ const styles = StyleSheet.create({
   dateTimeBoxText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   dateTimePlaceholderText: {
     color: '#94a3b8',
@@ -2673,7 +2763,7 @@ const styles = StyleSheet.create({
     }),
   },
   corporateModeCardActive: {
-    borderColor: '#103A75',
+    borderColor: 'rgb(22, 34, 50)',
     backgroundColor: '#eaf1f9',
   },
   corporateCheckbox: {
@@ -2687,8 +2777,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   corporateCheckboxActive: {
-    borderColor: '#103A75',
-    backgroundColor: '#103A75',
+    borderColor: 'rgb(22, 34, 50)',
+    backgroundColor: 'rgb(22, 34, 50)',
   },
   corporateModeTextCol: {
     flex: 1,
@@ -2696,10 +2786,10 @@ const styles = StyleSheet.create({
   corporateModeTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   corporateModeTitleActive: {
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     fontWeight: '800',
   },
   corporateModeSub: {
@@ -2740,7 +2830,7 @@ const styles = StyleSheet.create({
   dateRangeCardText: {
     fontSize: 13.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     flex: 1,
   },
   dateRangeArrow: {
@@ -2766,7 +2856,7 @@ const styles = StyleSheet.create({
   dateGridTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   dateGridSubtitle: {
     fontSize: 11,
@@ -2774,7 +2864,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   dateGridBadge: {
-    backgroundColor: '#103A75',
+    backgroundColor: 'rgb(22, 34, 50)',
     paddingHorizontal: 8,
     paddingVertical: 3.5,
     borderRadius: 6,
@@ -2805,7 +2895,7 @@ const styles = StyleSheet.create({
   quickActionBtnText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   quickActionBtnSecondary: {
     backgroundColor: '#ebedf2',
@@ -2814,7 +2904,7 @@ const styles = StyleSheet.create({
   quickActionBtnTextSecondary: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   datesGrid: {
     flexDirection: 'row',
@@ -2832,10 +2922,10 @@ const styles = StyleSheet.create({
   },
   corpDateCardActive: {
     backgroundColor: '#ffffff',
-    borderColor: '#103A75',
+    borderColor: 'rgb(22, 34, 50)',
     ...Platform.select({
       ios: {
-        shadowColor: '#103A75',
+        shadowColor: 'rgb(22, 34, 50)',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
         shadowRadius: 2,
@@ -2867,7 +2957,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   corpTextActive: {
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     fontWeight: '800',
   },
   corpTextExcluded: {
@@ -2881,7 +2971,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#103A75',
+    backgroundColor: 'rgb(22, 34, 50)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2904,7 +2994,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   addTimeBtn: {
     flexDirection: 'row',
@@ -2912,39 +3002,39 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#ebedf2',
+    borderColor: '#e2e8f0',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 2.5,
     borderRadius: 8,
   },
   addTimeBtnText: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   corporateTimesList: {
-    gap: 8,
+    gap: 6,
   },
   corporateTimeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   corporateTimeBox: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#ebedf2',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: '#f8fafc',
   },
   corporateTimeLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
-    color: '#7b8196',
+    color: '#64748b',
     marginBottom: 2,
   },
   removeTimeBtn: {
@@ -2978,22 +3068,16 @@ const styles = StyleSheet.create({
   trustCardTitle: {
     fontSize: 12.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: 0.2,
   },
   trustBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#f0fdf4',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
   },
   trustBadgeText: {
-    fontSize: 8.5,
+    fontSize: 9,
     fontWeight: '800',
     color: '#16a34a',
     letterSpacing: 0.3,
@@ -3015,9 +3099,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   trustTileIconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 22,
+    height: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -3028,7 +3111,7 @@ const styles = StyleSheet.create({
   trustTileTitle: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginBottom: 2,
     textAlign: 'left',
   },
@@ -3053,7 +3136,7 @@ const styles = StyleSheet.create({
     gap: 10,
     ...Platform.select({
       ios: {
-        shadowColor: '#EE5C21',
+        shadowColor: 'rgb(240, 117, 15)',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
         shadowRadius: 3,
@@ -3081,7 +3164,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   offerTagBadge: {
-    backgroundColor: '#EE5C21',
+    backgroundColor: 'rgb(240, 117, 15)',
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4,
@@ -3093,7 +3176,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   offerCodeText: {
-    color: '#EE5C21',
+    color: 'rgb(240, 117, 15)',
     fontSize: 9.5,
     fontWeight: '800',
     letterSpacing: 0.3,
@@ -3101,7 +3184,7 @@ const styles = StyleSheet.create({
   offerTitle: {
     fontSize: 12.5,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginBottom: 1,
   },
   offerSub: {

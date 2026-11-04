@@ -13,10 +13,12 @@ import {
   Linking,
   RefreshControl,
   Modal,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { customerApiClient, customerTokenStorage, formatDisplayPhone } from '../lib/api';
 import { customerRealtimeTracker } from '../lib/realtime-client';
 import { reviewManager } from '../lib/reviewManager';
@@ -24,6 +26,7 @@ import { BookingStatus, TripType } from '@kandy-cabs/shared';
 import { TaxInvoiceModal } from '../components/TaxInvoiceModal';
 import { CustomerBottomDock } from '../components/CustomerBottomDock';
 import { AuthModal } from '../components/AuthModal';
+import { formatTitleCase } from '../constants/typography';
 
 const STATUS_FILTERS = [
   { id: 'ALL', label: 'All Rides', icon: 'car' },
@@ -33,8 +36,11 @@ const STATUS_FILTERS = [
 ] as const;
 
 export default function MyBookingsScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isSmallDevice = width < 380;
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
 
   const [user, setUser] = useState<any | null>(customerTokenStorage.getUser());
@@ -44,6 +50,7 @@ export default function MyBookingsScreen() {
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'>('ALL');
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [payingBookingId, setPayingBookingId] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [proximityAlerts, setProximityAlerts] = useState<
     Record<string, { isNear?: boolean; isArrived?: boolean; message?: string; distanceMeters?: number; pickupOtp?: string }>
@@ -84,7 +91,11 @@ export default function MyBookingsScreen() {
         // Pre-hydrate proximity status from server tripEvents if available
         const alertsUpdate: Record<string, any> = {};
         res.bookings.forEach((b: any) => {
-          if (b.tripEvents && Array.isArray(b.tripEvents)) {
+          const isPreTrip =
+            b.status === BookingStatus.DRIVER_ACCEPTED ||
+            b.status === BookingStatus.DRIVER_EN_ROUTE;
+
+          if (isPreTrip && b.tripEvents && Array.isArray(b.tripEvents)) {
             const hasArrived = b.tripEvents.some((e: any) => e.type === 'DRIVER_ARRIVED');
             const hasNear = b.tripEvents.some((e: any) => e.type === 'DRIVER_NEAR_PICKUP');
             if (hasArrived || hasNear) {
@@ -93,15 +104,13 @@ export default function MyBookingsScreen() {
                 isArrived: hasArrived,
                 pickupOtp: b.pickupOtp,
                 message: hasArrived
-                  ? `🔐 Your pickup OTP is ${b.pickupOtp}. Share with your driver.`
-                  : '🚕 Your driver is approaching your pickup point.',
+                  ? `Your pickup OTP is ${b.pickupOtp}. Share with your driver.`
+                  : 'Your driver is approaching your pickup point.',
               };
             }
           }
         });
-        if (Object.keys(alertsUpdate).length > 0) {
-          setProximityAlerts((prev) => ({ ...prev, ...alertsUpdate }));
-        }
+        setProximityAlerts(alertsUpdate);
 
         // Check if there is an active ride to track live via SSE
         const activeRide = res.bookings.find(
@@ -159,6 +168,19 @@ export default function MyBookingsScreen() {
       loadData(true);
       const bId = payload?.id || payload?.bookingId;
       if (
+        payload?.status === BookingStatus.TRIP_STARTED ||
+        payload?.status === BookingStatus.TRIP_COMPLETED ||
+        payload?.status === BookingStatus.CANCELLED
+      ) {
+        if (bId) {
+          setProximityAlerts((prev) => {
+            const next = { ...prev };
+            delete next[bId];
+            return next;
+          });
+        }
+      }
+      if (
         payload?.status === BookingStatus.TRIP_COMPLETED &&
         bId &&
         !reviewManager.isDismissed(bId)
@@ -175,7 +197,7 @@ export default function MyBookingsScreen() {
           [data.bookingId]: {
             ...prev[data.bookingId],
             isNear: true,
-            message: data.message || '🚕 Your driver is nearby. Please be ready.',
+            message: data.message || 'Your driver is nearby. Please be ready.',
             distanceMeters: data.distanceMeters,
           },
         }));
@@ -191,14 +213,14 @@ export default function MyBookingsScreen() {
             ...prev[data.bookingId],
             isNear: true,
             isArrived: true,
-            message: data.message || `🔐 Your pickup OTP is ${data.pickupOtp}. Give this to your driver.`,
+            message: data.message || `Your pickup OTP is ${data.pickupOtp}. Give this to your driver.`,
             pickupOtp: data.pickupOtp,
             distanceMeters: data.distanceMeters,
           },
         }));
         Alert.alert(
-          '🚕 Driver Has Arrived!',
-          `Your driver has reached the pickup location.\n\n🔐 Your Pickup OTP is: ${data.pickupOtp || '----'}\n\nPlease share this OTP with your driver to begin your journey.`,
+          'Driver Has Arrived!',
+          `Your driver has reached the pickup location.\n\nYour Pickup OTP is: ${data.pickupOtp || '----'}\n\nPlease share this OTP with your driver to begin your journey.`,
           [{ text: 'Got It', style: 'default' }]
         );
       }
@@ -210,18 +232,18 @@ export default function MyBookingsScreen() {
         prev.map((b) =>
           b.id === ratingData.bookingId
             ? {
-                ...b,
-                customerRating: {
-                  ...ratingData,
-                  rating: ratingData.driverRating || ratingData.rating,
-                  driverRating: ratingData.driverRating || ratingData.rating,
-                  driverFeedbackTags: ratingData.driverFeedbackTags || ratingData.feedbackTags || [],
-                  kandyRating: ratingData.kandyRating || 5,
-                  kandyFeedbackTags: ratingData.kandyFeedbackTags || [],
-                  comment: ratingData.comment,
-                  ratedAt: new Date().toISOString(),
-                },
-              }
+              ...b,
+              customerRating: {
+                ...ratingData,
+                rating: ratingData.driverRating || ratingData.rating,
+                driverRating: ratingData.driverRating || ratingData.rating,
+                driverFeedbackTags: ratingData.driverFeedbackTags || ratingData.feedbackTags || [],
+                kandyRating: ratingData.kandyRating || 5,
+                kandyFeedbackTags: ratingData.kandyFeedbackTags || [],
+                comment: ratingData.comment,
+                ratedAt: new Date().toISOString(),
+              },
+            }
             : b
         )
       );
@@ -247,12 +269,12 @@ export default function MyBookingsScreen() {
 
   const handleCancelBooking = (bookingId: string, ref: string) => {
     Alert.alert(
-      'Cancel Booking',
-      `Are you sure you want to cancel booking ${ref}?`,
+      t('myBookings.cancelConfirmTitle', { defaultValue: 'Cancel Ride' }),
+      `${t('myBookings.cancelConfirmMsg', { defaultValue: 'Are you sure you want to cancel booking Ref:' })} ${ref}?`,
       [
-        { text: 'No, Keep Booking', style: 'cancel' },
+        { text: t('myBookings.keepBooking', { defaultValue: 'No, Keep Booking' }), style: 'cancel' },
         {
-          text: 'Yes, Cancel Ride',
+          text: t('myBookings.yesCancel', { defaultValue: 'Yes, Cancel Ride' }),
           style: 'destructive',
           onPress: async () => {
             setCancellingId(bookingId);
@@ -278,24 +300,87 @@ export default function MyBookingsScreen() {
     );
   };
 
-  const getStatusBadge = (status: BookingStatus) => {
+  const handlePayAdvance = async (booking: any) => {
+    Alert.alert(
+      'Pay Advance',
+      `Complete advance payment of ₹${Number(booking.advanceAmount).toLocaleString('en-IN')} for ${booking.humanReadableRef}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Pay Now (Instant)',
+          onPress: async () => {
+            setPayingBookingId(booking.id);
+            try {
+              const res = await customerApiClient.fetch(`/api/customer/bookings/${booking.id}/pay-advance`, {
+                method: 'POST',
+                body: JSON.stringify({
+                  paymentMethod: 'UPI',
+                }),
+              });
+              if (res && res.success) {
+                Alert.alert('Payment Successful!', `Advance of ₹${Number(booking.advanceAmount).toLocaleString('en-IN')} received. Your ride is confirmed and being dispatched!`);
+                loadData(true);
+              } else {
+                Alert.alert('Payment Failed', res?.message || 'Could not complete payment.');
+              }
+            } catch (err: any) {
+              Alert.alert('Payment Error', err.message || 'Network error');
+            } finally {
+              setPayingBookingId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const getStatusBadge = (status: BookingStatus, b?: any) => {
+    const isFleetApproval = b?.tripEvents?.some((e: any) =>
+      e.type === 'FLEET_APPROVAL_REQUESTED' ||
+      e.payloadJson?.requiresFleetApproval ||
+      e.payloadJson?.category === 'TEMPO_TRAVELER' ||
+      e.payloadJson?.category === 'URBANIA'
+    );
+    const isFleetApproved = b?.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVED');
+    const isAdvancePending = b?.advancePaymentStatus === 'PENDING' && Number(b?.advanceAmount) > 0;
+
+    if (isFleetApproval && !isFleetApproved && status === BookingStatus.PENDING_ADMIN) {
+      return {
+        label: t('myBookings.status.checkingFleet', { defaultValue: 'Checking Fleet Availability' }),
+        bg: '#fef3c7',
+        text: '#92400e',
+        border: '#fde68a',
+        icon: 'hourglass-outline'
+      };
+    }
+
+    if (isFleetApproval && isFleetApproved && isAdvancePending) {
+      return {
+        label: t('myBookings.status.fleetApprovedPay', { defaultValue: 'Fleet Approved • Ready to Pay' }),
+        bg: '#dcfce7',
+        text: '#15803d',
+        border: '#bbf7d0',
+        icon: 'checkmark-circle'
+      };
+    }
+
     switch (status) {
       case BookingStatus.PENDING_ADMIN:
-        return { label: 'Pending Dispatch', bg: '#fef3c7', text: '#92400e', border: '#fde68a' };
+        return { label: t('myBookings.status.pendingDispatch', { defaultValue: 'Pending Dispatch' }), bg: '#fef3c7', text: '#92400e', border: '#fde68a', icon: 'time-outline' };
       case BookingStatus.DISPATCHED:
-        return { label: 'Finding Driver', bg: '#dbeafe', text: '#1e40af', border: '#bfdbfe' };
+        return { label: t('myBookings.status.findingDriver', { defaultValue: 'Finding Driver' }), bg: '#dbeafe', text: '#1e40af', border: '#bfdbfe', icon: 'search-outline' };
       case BookingStatus.DRIVER_ACCEPTED:
-        return { label: 'Driver Assigned', bg: '#e0e7ff', text: '#3730a3', border: '#c7d2fe' };
+        return { label: t('myBookings.status.driverAssigned', { defaultValue: 'Driver Assigned' }), bg: '#e0e7ff', text: '#3730a3', border: '#c7d2fe', icon: 'person-outline' };
       case BookingStatus.DRIVER_EN_ROUTE:
-        return { label: 'Driver En Route', bg: '#e0f2fe', text: '#0369a1', border: '#bae6fd' };
+        return { label: t('myBookings.status.driverEnRoute', { defaultValue: 'Driver En Route' }), bg: '#e0f2fe', text: '#0369a1', border: '#bae6fd', icon: 'car-outline' };
       case BookingStatus.TRIP_STARTED:
-        return { label: 'Trip in Progress', bg: '#f3e8ff', text: '#6b21a8', border: '#e9d5ff' };
+        return { label: t('myBookings.status.tripInProgress', { defaultValue: 'Trip in Progress' }), bg: '#f3e8ff', text: '#6b21a8', border: '#e9d5ff', icon: 'navigate-outline' };
       case BookingStatus.TRIP_COMPLETED:
-        return { label: 'Completed', bg: '#dcfce7', text: '#166534', border: '#bbf7d0' };
+        return { label: t('myBookings.status.completed', { defaultValue: 'Completed' }), bg: '#e8f8ee', text: '#15803d', border: '#bbf7d0', icon: 'checkmark-circle' };
       case BookingStatus.CANCELLED:
-        return { label: 'Cancelled', bg: '#fee2e2', text: '#991b1b', border: '#fecaca' };
+        return { label: t('myBookings.status.cancelled', { defaultValue: 'Cancelled' }), bg: '#fee2e2', text: '#991b1b', border: '#fecaca', icon: 'close-circle' };
       default:
-        return { label: status, bg: '#f1f5f9', text: '#334155', border: '#e2e8f0' };
+        return { label: status, bg: '#f1f5f9', text: '#334155', border: '#e2e8f0', icon: 'information-circle' };
     }
   };
 
@@ -306,59 +391,31 @@ export default function MyBookingsScreen() {
       {/* Top Header */}
       <View style={[styles.header, { paddingTop: topInset + 8 }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={20} color="#103A75" />
+          <Ionicons name="chevron-back" size={20} color="rgb(22, 34, 50)" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>My Bookings</Text>
+          <Text style={styles.headerTitle}>{t('myBookings.title', { defaultValue: 'My Bookings' })}</Text>
           <Text style={styles.headerSub}>
-            {user ? `${user.fullName || 'Customer'} • ${formatDisplayPhone(user.phone)}` : 'Sign in to view your rides'}
+            {user ? `${formatTitleCase(user.fullName) || 'Customer'} • ${formatDisplayPhone(user.phone)}` : t('myBookings.signInToView', { defaultValue: 'Sign in to view your rides' })}
           </Text>
         </View>
         <TouchableOpacity
           style={styles.newRideBtn}
           onPress={() => router.push('/select-trip-type')}
         >
-          <Text style={styles.newRideBtnText}>+ New</Text>
+          <Text style={styles.newRideBtnText}>{t('myBookings.newRide', { defaultValue: '+ New' })}</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Customer Profile Summary Card (Only if logged in) */}
-      {user && (
-        <TouchableOpacity
-          style={styles.profileCard}
-          activeOpacity={0.8}
-          onPress={() => router.push('/profile')}
-        >
-          <View style={styles.profileAvatar}>
-            <Text style={styles.profileAvatarText}>
-              {user.fullName ? user.fullName[0].toUpperCase() : 'U'}
-            </Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={styles.profileNameRow}>
-              <Text style={styles.profileName}>{user.fullName || 'Valued Customer'}</Text>
-              <View style={styles.verifiedBadge}>
-                <Text style={styles.verifiedBadgeText}>✓ Verified</Text>
-              </View>
-            </View>
-            <View style={styles.profilePhoneRow}>
-              <Ionicons name="call" size={12} color="#0f172a" style={{ marginRight: 4 }} />
-              <Text style={styles.profilePhone}>{formatDisplayPhone(user.phone)}</Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
-        </TouchableOpacity>
-      )}
 
       {/* If logged out: Show clean Sign In state */}
       {!user && !loading ? (
         <View style={styles.guestContainer}>
           <View style={styles.guestAvatar}>
-            <Ionicons name="receipt-outline" size={44} color="#ea580c" />
+            <Ionicons name="receipt-outline" size={44} color="rgb(240, 117, 15)" />
           </View>
-          <Text style={styles.guestTitle}>Sign In to View Your Bookings</Text>
+          <Text style={styles.guestTitle}>{t('myBookings.signInTitle', { defaultValue: 'Sign In to View Your Bookings' })}</Text>
           <Text style={styles.guestSubtitle}>
-            Log in with your mobile number to view active rides, driver assignments, trip history, and download tax invoices.
+            {t('myBookings.signInSubtitle', { defaultValue: 'Log in with your mobile number to view active rides, driver assignments, trip history, and download tax invoices.' })}
           </Text>
           <TouchableOpacity
             style={styles.signInButton}
@@ -366,7 +423,7 @@ export default function MyBookingsScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="log-in-outline" size={20} color="#ffffff" style={{ marginRight: 8 }} />
-            <Text style={styles.signInButtonText}>Sign In / Register</Text>
+            <Text style={styles.signInButtonText}>{t('myBookings.signInBtn', { defaultValue: 'Sign In / Register' })}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -399,6 +456,9 @@ export default function MyBookingsScreen() {
                       styles.filterTabText,
                       isActive && styles.filterTabTextActive,
                     ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.8}
                   >
                     {item.label}
                   </Text>
@@ -410,7 +470,11 @@ export default function MyBookingsScreen() {
           {/* Bookings List */}
           <ScrollView
             style={styles.scrollArea}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingBottom: Math.max(insets.bottom + 90, 110) },
+              isSmallDevice && { padding: 8 },
+            ]}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
@@ -419,346 +483,424 @@ export default function MyBookingsScreen() {
                   setRefreshing(true);
                   loadData();
                 }}
-                tintColor="#ea580c"
+                tintColor="rgb(240, 117, 15)"
               />
             }
           >
-        {loading && bookings.length === 0 ? (
-          <View style={styles.centerBox}>
-            <ActivityIndicator size="large" color="#ea580c" />
-            <Text style={styles.loadingText}>Loading your bookings...</Text>
-          </View>
-        ) : bookings.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyEmoji}>🚕</Text>
-            <Text style={styles.emptyTitle}>No bookings found</Text>
-            <Text style={styles.emptySub}>
-              {activeFilter === 'ACTIVE'
-                ? 'You do not have any active rides right now.'
-                : 'Ready for your next journey? Book a clean AC cab in seconds!'}
-            </Text>
-            <TouchableOpacity
-              style={styles.bookNowBtn}
-              onPress={() => router.push('/')}
-            >
-              <Text style={styles.bookNowBtnText}>Book a Cab Now ➔</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          bookings.map((booking) => {
-            const badge = getStatusBadge(booking.status);
-            const totalFare = Number(booking.estimatedFare || 0);
-            const advancePaid = Number(booking.advanceAmount || 0);
-            const balanceDue = Number(booking.balanceAmount || totalFare - advancePaid);
-            const isBalancePending = booking.balancePaymentStatus === 'PENDING';
+            {loading && bookings.length === 0 ? (
+              <View style={styles.centerBox}>
+                <ActivityIndicator size="large" color="rgb(240, 117, 15)" />
+                <Text style={styles.loadingText}>{t('myBookings.loadingBookings', { defaultValue: 'Loading your bookings...' })}</Text>
+              </View>
+            ) : bookings.length === 0 ? (
+              <View style={styles.emptyBox}>
+                <Ionicons name="car-outline" size={44} color="#94a3b8" style={{ marginBottom: 8 }} />
+                <Text style={styles.emptyTitle}>{t('myBookings.noBookingsFound', { defaultValue: 'No bookings found' })}</Text>
+                <Text style={styles.emptySub}>
+                  {activeFilter === 'ACTIVE'
+                    ? t('myBookings.noActiveRides', { defaultValue: 'You do not have any active rides right now.' })
+                    : t('myBookings.bookNextJourney', { defaultValue: 'Ready for your next journey? Book a clean AC cab in seconds!' })}
+                </Text>
+                <TouchableOpacity
+                  style={styles.bookNowBtn}
+                  onPress={() => router.push('/')}
+                >
+                  <Text style={styles.bookNowBtnText}>{t('myBookings.bookNowBtn', { defaultValue: 'Book a Cab Now ➔' })}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              bookings.map((booking) => {
+                const isFleetApproval = booking.tripEvents?.some((e: any) =>
+                  e.type === 'FLEET_APPROVAL_REQUESTED' ||
+                  e.payloadJson?.requiresFleetApproval ||
+                  e.payloadJson?.category === 'TEMPO_TRAVELER' ||
+                  e.payloadJson?.category === 'URBANIA'
+                );
+                const isFleetApproved = booking.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVED');
+                const isAdvancePending = booking.advancePaymentStatus === 'PENDING' && Number(booking.advanceAmount) > 0;
+                const badge = getStatusBadge(booking.status, booking);
+                const totalFare = Number(booking.estimatedFare || 0);
+                const advancePaid = booking.advancePaymentStatus === 'PAID' ? Number(booking.advanceAmount || 0) : 0;
 
-            const driver = booking.assignedDriver;
-            const vehicle = booking.vehicle || driver?.vehicles?.[0];
+                const driver = booking.assignedDriver;
+                const vehicle = booking.vehicle || driver?.vehicles?.[0];
 
-            return (
-              <View key={booking.id} style={styles.card}>
-                {/* 1. Header: Ref, Status, Scheduled Date */}
-                <View style={styles.cardHeader}>
-                  <View style={styles.cardHeaderLeft}>
-                    <View style={styles.refRow}>
-                      <Text style={styles.refText}>{booking.humanReadableRef}</Text>
-                      <View
-                        style={[
-                          styles.statusPill,
-                          { backgroundColor: badge.bg, borderColor: badge.border },
-                        ]}
-                      >
-                        <Text style={[styles.statusPillText, { color: badge.text }]}>
-                          {badge.label}
+                return (
+                  <View key={booking.id} style={styles.card}>
+                    {/* 1. Header: Ref, Status, Scheduled Date */}
+                    <View style={styles.cardHeader}>
+                      <View style={styles.cardHeaderLeft}>
+                        <View style={styles.refRow}>
+                          <Text style={styles.refText}>{booking.humanReadableRef}</Text>
+                          <View style={styles.statusPill}>
+                            {badge.icon && (
+                              <Ionicons
+                                name={badge.icon as any}
+                                size={13}
+                                color={badge.text}
+                                style={{ marginRight: 4 }}
+                              />
+                            )}
+                            <Text style={[styles.statusPillText, { color: badge.text }]}>
+                              {badge.label}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.scheduledRow}>
+                          <Ionicons name="calendar-outline" size={14} color="#64748b" style={{ marginRight: 5 }} />
+                          <Text style={styles.scheduledText} numberOfLines={1}>
+                            {t('myBookings.scheduled', { defaultValue: 'Scheduled:' })}{' '}
+                            <Text style={styles.scheduledBold}>
+                              {new Date(booking.scheduledAt).toLocaleString([], {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </Text>
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.fareHeaderBlock}>
+                        <Text style={styles.fareTotalAmount} numberOfLines={1} adjustsFontSizeToFit>
+                          ₹{totalFare.toFixed(2)}
+                        </Text>
+                        <Text style={styles.advancePaidTag} numberOfLines={1}>
+                          {booking.advancePaymentStatus === 'PAID'
+                            ? (advancePaid >= totalFare && totalFare > 0
+                              ? `${t('myBookings.paidInFull', { defaultValue: 'Paid in Full:' })} ₹${advancePaid.toFixed(2)}`
+                              : `${t('myBookings.adv', { defaultValue: 'Adv:' })} ₹${advancePaid.toFixed(2)}`)
+                            : `${t('myBookings.advDue', { defaultValue: 'Adv Due:' })} ₹${Number(booking.advanceAmount || 0).toFixed(2)}`}
                         </Text>
                       </View>
                     </View>
-                    <View style={styles.scheduledRow}>
-                      <Ionicons name="calendar-outline" size={13} color="#64748b" style={{ marginRight: 4 }} />
-                      <Text style={styles.scheduledText} numberOfLines={1}>
-                        Scheduled: <Text style={styles.scheduledBold}>
-                          {new Date(booking.scheduledAt).toLocaleString([], {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </Text>
-                      </Text>
+
+                    {/* 2. Trip Route Details */}
+                    <View style={styles.routeSection}>
+                      <View style={styles.routeMainRow}>
+                        {/* Pickup & Drop Stack */}
+                        <View style={styles.routeLocationsCol}>
+                          {/* Pickup Row */}
+                          <View style={styles.locationItemRow}>
+                            <Ionicons name="location" size={20} color="#16a34a" style={styles.locationPinIcon} />
+                            <View style={styles.locationItemText}>
+                              <Text style={styles.routeNodeLabel}>{t('myBookings.pickupLocation', { defaultValue: 'PICKUP LOCATION' })}</Text>
+                              <Text style={styles.routeAddressText} numberOfLines={1}>
+                                {booking.status === BookingStatus.TRIP_STARTED || booking.status === BookingStatus.TRIP_COMPLETED
+                                  ? (booking.actualPickupAddress || booking.pickupAddress)
+                                  : booking.pickupAddress}
+                              </Text>
+                            </View>
+                          </View>
+
+                          {/* Drop Row */}
+                          <View style={[styles.locationItemRow, { marginTop: 14 }]}>
+                            <Ionicons name="location" size={20} color="rgb(240, 117, 15)" style={styles.locationPinIcon} />
+                            <View style={styles.locationItemText}>
+                              <Text style={styles.routeNodeLabel}>{t('myBookings.dropDestination', { defaultValue: 'DROP DESTINATION' })}</Text>
+                              <Text style={styles.routeAddressText} numberOfLines={1}>
+                                {booking.status === BookingStatus.TRIP_COMPLETED
+                                  ? (booking.actualDropAddress || booking.dropAddress)
+                                  : booking.dropAddress}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
                     </View>
-                  </View>
 
-                  <View style={styles.fareHeaderBlock}>
-                    <Text style={styles.fareTotalAmount} numberOfLines={1} adjustsFontSizeToFit>
-                      ₹{totalFare.toFixed(2)}
-                    </Text>
-                    <Text style={styles.advancePaidTag} numberOfLines={1}>
-                      Adv: ₹{advancePaid.toFixed(2)} ({Math.round((advancePaid / (totalFare || 1)) * 100)}%)
-                    </Text>
-                  </View>
-                </View>
+                    {/* Section Divider */}
+                    <View style={styles.cardSectionDivider} />
 
-                {/* 2. Trip Route Details (Clean Timeline Node Track) */}
-                <View style={styles.routeContainer}>
-                  <View style={styles.routeContentRow}>
-                    {/* Left: Timeline Tracker */}
-                    <View style={styles.timelineTrack}>
-                      <View style={styles.greenNodeDot} />
-                      <View style={styles.timelineConnector} />
-                      <View style={styles.redNodeDot} />
-                    </View>
-
-                    {/* Middle & Right: Pickup Row with KM Badge, and Drop Destination */}
-                    <View style={styles.routePointsCol}>
-                      {/* Pickup Row with KM Badge on Right */}
-                      <View style={styles.pickupRow}>
-                        <View style={styles.pickupBlock}>
-                          <Text style={styles.routeNodeLabel}>Pickup Location</Text>
-                          <Text style={styles.routeAddressText} numberOfLines={1}>
-                            {booking.status === BookingStatus.TRIP_STARTED || booking.status === BookingStatus.TRIP_COMPLETED
-                              ? (booking.actualPickupAddress || booking.pickupAddress)
-                              : booking.pickupAddress}
+                    {/* Fleet Availability Check Banners */}
+                    {isFleetApproval && !isFleetApproved && (
+                      <View style={styles.fleetCheckingBanner}>
+                        <Ionicons name="hourglass-outline" size={18} color="#92400e" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.fleetCheckingTitle}>Checking Fleet Availability</Text>
+                          <Text style={styles.fleetCheckingSub}>
+                            Our operations team is checking vehicle availability. No payment needed now. You will be notified once approved to pay from here.
                           </Text>
                         </View>
+                      </View>
+                    )}
 
-                        {/* Right: Distance & Trip Type Pill */}
-                        <View style={styles.distanceBadgePill}>
-                          <View style={styles.distanceTopRow}>
-                            <Ionicons name="speedometer-outline" size={11} color="#2563eb" style={{ marginRight: 3 }} />
-                            <Text style={styles.distanceBadgeText}>
-                              {booking.distanceKm ? `~${booking.distanceKm} km` : '~50 km'}
+                    {isFleetApproval && isFleetApproved && isAdvancePending && (
+                      <View style={styles.fleetApprovedBanner}>
+                        <Ionicons name="checkmark-circle" size={18} color="#15803d" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.fleetApprovedTitle}>Fleet Approved! Ready for Payment</Text>
+                          <Text style={styles.fleetApprovedSub}>
+                            Vehicle availability is confirmed by Admin. Tap "Pay Advance" below to complete advance payment and confirm your ride.
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* 3. Geofenced Proximity & Arrival OTP Banner (Only shown while waiting for pickup) */}
+                    {(booking.status === BookingStatus.DRIVER_ACCEPTED ||
+                      booking.status === BookingStatus.DRIVER_EN_ROUTE) &&
+                      proximityAlerts[booking.id]?.isArrived ? (
+                      <View style={styles.arrivedAlertBanner}>
+                        <View style={styles.arrivedHeaderRow}>
+                          <View style={styles.pulseDotGreen} />
+                          <Text style={styles.arrivedBadgeText}>{t('myBookings.driverArrivedAtPickup', { defaultValue: 'DRIVER HAS ARRIVED AT PICKUP' })}</Text>
+                        </View>
+                        <View style={styles.revealedOtpCard}>
+                          <Text style={styles.revealedOtpLabel}>{t('myBookings.yourPickupOtp', { defaultValue: 'YOUR PICKUP OTP' })}</Text>
+                          <View style={styles.revealedOtpPill}>
+                            <Text style={styles.revealedOtpCode}>
+                              {proximityAlerts[booking.id]?.pickupOtp || booking.pickupOtp}
                             </Text>
                           </View>
-                          <Text style={styles.tripTypeSubText}>
-                            {booking.tripType === TripType.ONEWAY
-                              ? 'One Way'
-                              : booking.tripType === TripType.ROUND
-                              ? 'Round Trip'
+                        </View>
+                      </View>
+                    ) : (booking.status === BookingStatus.DRIVER_ACCEPTED ||
+                      booking.status === BookingStatus.DRIVER_EN_ROUTE) &&
+                      proximityAlerts[booking.id]?.isNear ? (
+                      <View style={styles.nearAlertBanner}>
+                        <Ionicons name="car" size={20} color="#b45309" />
+                        <Text style={styles.nearAlertTitle}>{t('myBookings.driverNearby', { defaultValue: 'Your driver is nearby (~100m)' })}</Text>
+                      </View>
+                    ) : null}
+
+                    {/* Bottom Row: KM badge on Left side of Pickup OTP */}
+                    <View style={styles.bottomOtpKmRow}>
+                      {/* Left: Distance & Trip Type */}
+                      <View style={styles.distanceBadgePill}>
+                        <View style={styles.distanceTopRow}>
+                          <Ionicons name="trending-up" size={14} color="rgb(22, 34, 50)" style={{ marginRight: 4 }} />
+                          <Text style={styles.distanceBadgeText}>
+                            {booking.distanceKm ? `~${booking.distanceKm} km` : '~50 km'}
+                          </Text>
+                        </View>
+                        <Text style={styles.tripTypeSubText}>
+                          {booking.tripType === TripType.ONEWAY
+                            ? t('home.outstationOneWay', { defaultValue: 'One Way' })
+                            : booking.tripType === TripType.ROUND
+                              ? t('home.outstationRound', { defaultValue: 'Round Trip' })
                               : booking.tripType === TripType.AIRPORT
-                              ? 'Airport'
-                              : booking.tripType === TripType.LOCAL
-                              ? 'Hourly Local'
-                              : 'Standard'}
-                          </Text>
-                        </View>
+                                ? t('home.airportTransfer', { defaultValue: 'Airport' })
+                                : booking.tripType === TripType.LOCAL
+                                  ? t('home.localRental', { defaultValue: 'Hourly Local' })
+                                  : 'Standard'}
+                        </Text>
                       </View>
 
-                      {/* Drop */}
-                      <View style={styles.dropBlock}>
-                        <Text style={styles.routeNodeLabel}>Drop Destination</Text>
-                        <Text style={styles.routeAddressText} numberOfLines={1}>
-                          {booking.status === BookingStatus.TRIP_COMPLETED
-                            ? (booking.actualDropAddress || booking.dropAddress)
-                            : booking.dropAddress}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-
-                {/* 3. Geofenced Proximity & Arrival OTP Banner */}
-                {proximityAlerts[booking.id]?.isArrived ? (
-                  <View style={styles.arrivedAlertBanner}>
-                    <View style={styles.arrivedHeaderRow}>
-                      <View style={styles.pulseDotGreen} />
-                      <Text style={styles.arrivedBadgeText}>🚕 DRIVER HAS ARRIVED AT PICKUP</Text>
-                    </View>
-                    <Text style={styles.arrivedAlertMessage}>
-                      Your driver has reached your pickup location. Give the OTP below to start the ride.
-                    </Text>
-                    <View style={styles.revealedOtpCard}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.revealedOtpLabel}>🔐 YOUR PICKUP OTP</Text>
-                        <Text style={styles.revealedOtpSub}>Share this 4-digit code with your driver</Text>
-                      </View>
-                      <View style={styles.revealedOtpPill}>
-                        <Text style={styles.revealedOtpCode}>
-                          {proximityAlerts[booking.id]?.pickupOtp || booking.pickupOtp}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                ) : proximityAlerts[booking.id]?.isNear ? (
-                  <View style={styles.nearAlertBanner}>
-                    <Text style={styles.nearAlertEmoji}>🚕</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.nearAlertTitle}>Your driver is nearby (~100m)</Text>
-                      <Text style={styles.nearAlertSub}>Please be ready at your pickup location. Ride starting soon.</Text>
-                    </View>
-                  </View>
-                ) : (
-                  booking.pickupOtp &&
-                  booking.status !== BookingStatus.TRIP_COMPLETED &&
-                  booking.status !== BookingStatus.CANCELLED && (
-                    <View style={styles.otpBox}>
-                      <View style={styles.otpIconCircle}>
-                        <Ionicons name="pricetag" size={13} color="#ea580c" />
-                      </View>
-                      <View style={{ flex: 1, marginLeft: 8 }}>
-                        <Text style={styles.otpLabel}>Pickup OTP</Text>
-                        <Text style={styles.otpSub}>
-                          Share this 4-digit code with your driver at pickup only to start the ride.
-                        </Text>
-                      </View>
-                      <View style={styles.otpPill}>
-                        <Text style={styles.otpPillText}>{booking.pickupOtp}</Text>
-                      </View>
-                    </View>
-                  )
-                )}
-
-                {/* 4. Driver & Vehicle Card */}
-                <View style={styles.driverBox}>
-                  {driver ? (
-                    <View style={styles.driverInfoRow}>
-                      <View style={styles.driverCarCircle}>
-                        <Ionicons name="car" size={16} color="#0284c7" />
-                      </View>
-                      <View style={{ flex: 1, marginLeft: 10 }}>
-                        <View style={styles.driverHeaderRow}>
-                          <Text style={styles.driverBoxSubtitle}>Driver & Vehicle</Text>
-                          {/* Driver Overall Rating Badge */}
-                          <View style={styles.driverRatingPill}>
-                            <Ionicons name="star" size={10} color="#f59e0b" />
-                            <Text style={styles.driverRatingPillText}>
-                              {booking.driverRating ? Number(booking.driverRating).toFixed(1) : '4.9'}
-                            </Text>
-                          </View>
-                        </View>
-                        <Text style={styles.driverName}>
-                          {driver.user?.fullName || 'Assigned Driver'}
-                        </Text>
-                        <Text style={styles.driverVehicle}>
-                          {vehicle?.category || booking.category || 'Sedan'} • {vehicle?.plateNumber || 'Verified Vehicle'}
-                        </Text>
-                      </View>
-                      {driver.user?.phone &&
+                      {/* Vertical Line Separator */}
+                      {booking.pickupOtp &&
                         booking.status !== BookingStatus.TRIP_COMPLETED &&
                         booking.status !== BookingStatus.CANCELLED && (
-                        <TouchableOpacity
-                          style={styles.driverCallBtn}
-                          onPress={() => Linking.openURL(`tel:${driver.user.phone}`)}
-                        >
-                          <Ionicons name="call" size={12} color="#ffffff" style={{ marginRight: 4 }} />
-                          <Text style={styles.driverCallBtnText}>Call</Text>
-                        </TouchableOpacity>
-                      )}
+                          <View style={styles.verticalDivider} />
+                        )}
+
+                      {/* Right: Pickup OTP Card */}
+                      {booking.pickupOtp &&
+                        booking.status !== BookingStatus.TRIP_COMPLETED &&
+                        booking.status !== BookingStatus.CANCELLED && (
+                          <View style={styles.otpBox}>
+                            <View style={styles.otpIconCircle}>
+                              <Ionicons name="pricetag" size={20} color="rgb(22, 34, 50)" />
+                            </View>
+                            <Text style={[styles.otpLabel, { marginLeft: 8, flex: 1 }]}>{t('myBookings.pickupOtp', { defaultValue: 'Pickup OTP' })}</Text>
+                            <View style={styles.otpPill}>
+                              <Text style={styles.otpPillText}>{booking.pickupOtp}</Text>
+                            </View>
+                          </View>
+                        )}
                     </View>
-                  ) : (
-                    <View style={styles.unassignedRow}>
-                      <View style={styles.driverUserCircle}>
-                        <Ionicons name="person" size={15} color="#64748b" />
+
+                    {/* 4. Driver & Vehicle Card */}
+                    {driver ? (
+                      <View style={styles.driverSection}>
+                        <View style={styles.driverCarCircle}>
+                          <Ionicons name="car" size={22} color="#0284c7" />
+                        </View>
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                          <Text style={styles.driverBoxSubtitle}>{t('myBookings.driverAndVehicle', { defaultValue: 'DRIVER & VEHICLE' })}</Text>
+                          <Text style={styles.driverName}>
+                            {driver.user?.fullName || t('myBookings.assignedDriver', { defaultValue: 'Assigned Driver' })}
+                          </Text>
+                          <Text style={styles.driverVehicle}>
+                            {(vehicle?.category || booking.category || 'SEDAN').toUpperCase()} • {vehicle?.plateNumber || 'Ka 01 mj 2023'}
+                          </Text>
+                        </View>
+                        <View style={styles.driverRatingPill}>
+                          <Ionicons name="star" size={12} color="#f59e0b" />
+                          <Text style={styles.driverRatingPillText}>
+                            {booking.driverRating ? Number(booking.driverRating).toFixed(1) : '4.9'}
+                          </Text>
+                        </View>
+                        {driver.user?.phone &&
+                          booking.status !== BookingStatus.TRIP_COMPLETED &&
+                          booking.status !== BookingStatus.CANCELLED && (
+                            <TouchableOpacity
+                              style={styles.driverCallBtn}
+                              onPress={() => Linking.openURL(`tel:${driver.user.phone}`)}
+                            >
+                              <Ionicons name="call" size={12} color="#ffffff" style={{ marginRight: 4 }} />
+                              <Text style={styles.driverCallBtnText}>{t('myBookings.call', { defaultValue: 'Call' })}</Text>
+                            </TouchableOpacity>
+                          )}
                       </View>
-                      <View style={{ flex: 1, marginLeft: 10 }}>
-                        <Text style={styles.unassignedTitle}>Driver & Vehicle</Text>
-                        <Text style={styles.unassignedText}>
-                          Dispatching to closest driver... Waiting for driver assignment
-                        </Text>
+                    ) : (
+                      <View style={styles.unassignedRow}>
+                        <View style={styles.driverUserCircle}>
+                          <Ionicons name="person" size={18} color="#64748b" />
+                        </View>
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                          <Text style={styles.unassignedTitle}>{t('myBookings.driverAndVehicle', { defaultValue: 'DRIVER & VEHICLE' })}</Text>
+                          <Text style={styles.unassignedText}>
+                            {t('myBookings.dispatchingWait', { defaultValue: 'Dispatching to closest driver... Waiting for driver assignment' })}
+                          </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
                       </View>
-                      <Ionicons name="chevron-forward" size={15} color="#94a3b8" />
-                    </View>
-                  )}
-                </View>
+                    )}
 
-                {/* 5. Payment & Invoice Breakdown */}
-                <View style={styles.paymentRow}>
-                  <Text style={styles.paymentLabel}>
-                    Balance Due on Trip: <Text style={styles.paymentBold}>₹{balanceDue.toFixed(2)}</Text>
-                  </Text>
-                  <View style={[styles.statusBadgePill, isBalancePending ? styles.badgePending : styles.badgePaid]}>
-                    <Text style={[styles.statusBadgePillText, isBalancePending ? styles.badgePendingText : styles.badgePaidText]}>
-                      {isBalancePending ? 'PENDING' : 'PAID'}
-                    </Text>
-                  </View>
-                </View>
+                    {/* Customer Submitted Rating Badge (if completed and rated) */}
+                    {booking.customerRating && (() => {
+                      const driverScore = Number(
+                        booking.customerRating.driverRating ||
+                        booking.customerRating.rating ||
+                        5
+                      );
+                      const kandyScore = Number(
+                        booking.customerRating.kandyRating ||
+                        5
+                      );
 
-                {/* Customer Submitted Rating Badge (if completed and rated) */}
-                {booking.customerRating && (
-                  <View style={styles.tripRatedSummaryRow}>
-                    <View style={styles.tripRatedStars}>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Ionicons
-                          key={star}
-                          name={star <= Number(booking.customerRating.driverRating || booking.customerRating.rating) ? 'star' : 'star-outline'}
-                          size={12}
-                          color="#f59e0b"
-                        />
-                      ))}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.tripRatedText} numberOfLines={1}>
-                        Driver: {booking.customerRating.driverRating || booking.customerRating.rating}★ • KandyCabs: {booking.customerRating.kandyRating || 5}★
-                      </Text>
-                      {booking.customerRating.comment ? (
-                        <Text style={styles.tripRatedCommentText} numberOfLines={1}>
-                          "{booking.customerRating.comment}"
-                        </Text>
-                      ) : null}
-                    </View>
-                  </View>
-                )}
+                      return (
+                        <View style={styles.tripRatedCard}>
+                          <View style={styles.tripRatedHeaderRow}>
+                            <Ionicons name="star" size={13} color="#f59e0b" style={{ marginRight: 5 }} />
+                            <Text style={styles.tripRatedHeaderTitle}>{t('myBookings.yourTripRating', { defaultValue: 'Your Trip Rating' })}</Text>
+                          </View>
 
-                {/* 6. Action Buttons */}
-                <View style={styles.cardActionsRow}>
-                  <TouchableOpacity
-                    style={styles.invoiceBtn}
-                    onPress={() => setSelectedInvoiceId(booking.id)}
-                  >
-                    <Ionicons name="document-text-outline" size={14} color="#334155" />
-                    <Text style={styles.invoiceBtnText}>View Tax Invoice</Text>
-                  </TouchableOpacity>
+                          <View style={styles.ratedSectionsRow}>
+                            {/* Section 1: Driver Rating */}
+                            <View style={styles.ratedSectionCol}>
+                              <Text style={styles.ratedSectionLabel}>{t('myBookings.driver', { defaultValue: 'Driver' })}</Text>
+                              <View style={styles.ratedStarsRow}>
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <Ionicons
+                                    key={s}
+                                    name={s <= driverScore ? 'star' : 'star-outline'}
+                                    size={13}
+                                    color={s <= driverScore ? '#f59e0b' : '#cbd5e1'}
+                                    style={{ marginRight: 1.5 }}
+                                  />
+                                ))}
+                                <Text style={styles.ratedScoreBadge}>{driverScore}★</Text>
+                              </View>
+                            </View>
 
-                  {/* Driver & Trip Rating Button for Completed Trips */}
-                  {booking.status === BookingStatus.TRIP_COMPLETED && (
-                    <TouchableOpacity
-                      style={[
-                        styles.rateDriverBtn,
-                        booking.customerRating && styles.rateDriverBtnRated,
-                      ]}
-                      onPress={() => reviewManager.forceShowReview(booking)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons
-                        name="star"
-                        size={13}
-                        color={booking.customerRating ? '#b45309' : '#ea580c'}
-                        style={{ marginRight: 4 }}
-                      />
-                      <Text
-                        style={[
-                          styles.rateDriverBtnText,
-                          booking.customerRating && styles.rateDriverBtnRatedText,
-                        ]}
-                      >
-                        {booking.customerRating
-                          ? `Rated ${booking.customerRating.driverRating || booking.customerRating.rating}★ (Review)`
-                          : 'Rate Trip & Driver'}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                            {/* Divider */}
+                            <View style={styles.ratedVerticalDivider} />
 
-                  {booking.status !== BookingStatus.TRIP_COMPLETED &&
-                    booking.status !== BookingStatus.CANCELLED &&
-                    booking.status !== BookingStatus.TRIP_STARTED && (
+                            {/* Section 2: KandyCabs Rating */}
+                            <View style={styles.ratedSectionCol}>
+                              <Text style={styles.ratedSectionLabel}>KandyCabs</Text>
+                              <View style={styles.ratedStarsRow}>
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <Ionicons
+                                    key={s}
+                                    name={s <= kandyScore ? 'star' : 'star-outline'}
+                                    size={13}
+                                    color={s <= kandyScore ? '#f59e0b' : '#cbd5e1'}
+                                    style={{ marginRight: 1.5 }}
+                                  />
+                                ))}
+                                <Text style={styles.ratedScoreBadge}>{kandyScore}★</Text>
+                              </View>
+                            </View>
+                          </View>
+
+                          {/* Optional comment */}
+                          {booking.customerRating.comment ? (
+                            <View style={styles.ratedCommentRow}>
+                              <Text style={styles.ratedCommentText} numberOfLines={2}>
+                                "{booking.customerRating.comment}"
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      );
+                    })()}
+
+                    {/* Pay Advance Full-Width Primary Action (When Fleet Approved & Advance Pending) */}
+                    {isFleetApproved && isAdvancePending && (
                       <TouchableOpacity
-                        style={styles.cancelBtn}
-                        onPress={() => handleCancelBooking(booking.id, booking.humanReadableRef)}
-                        disabled={cancellingId === booking.id}
+                        style={styles.payAdvanceNowBtnFull}
+                        onPress={() => handlePayAdvance(booking)}
+                        disabled={payingBookingId === booking.id}
+                        activeOpacity={0.85}
                       >
-                        <Ionicons name="close-circle" size={14} color="#dc2626" />
-                        <Text style={styles.cancelBtnText}>
-                          {cancellingId === booking.id ? 'Cancelling...' : 'Cancel Ride'}
-                        </Text>
+                        {payingBookingId === booking.id ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <>
+                            <Ionicons name="card" size={16} color="#ffffff" style={{ marginRight: 8 }} />
+                            <Text style={styles.payAdvanceNowBtnFullText}>
+                              Pay Advance ₹{Number(booking.advanceAmount).toLocaleString('en-IN')} & Confirm Trip →
+                            </Text>
+                          </>
+                        )}
                       </TouchableOpacity>
                     )}
-                </View>
-              </View>
-            );
-          })
-        )}
-      </ScrollView>
-      </>
+
+                    {/* 6. Action Buttons */}
+                    <View style={styles.cardActionsRow}>
+                      <TouchableOpacity
+                        style={styles.invoiceBtn}
+                        onPress={() => setSelectedInvoiceId(booking.id)}
+                      >
+                        <Ionicons name="document-text-outline" size={16} color="rgb(22, 34, 50)" />
+                        <Text style={styles.invoiceBtnText} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>{t('myBookings.taxInvoice', { defaultValue: 'Tax invoice' })}</Text>
+                      </TouchableOpacity>
+
+                      {/* Driver & Trip Rating Button for Completed Trips (Only if not already rated) */}
+                      {booking.status === BookingStatus.TRIP_COMPLETED && !booking.customerRating && (
+                        <TouchableOpacity
+                          style={styles.rateTripNavyBtn}
+                          onPress={() => reviewManager.forceShowReview(booking)}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons
+                            name="star"
+                            size={16}
+                            color="#ffffff"
+                            style={{ marginRight: 6 }}
+                          />
+                          <Text style={styles.rateTripNavyBtnText} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
+                            {t('myBookings.rateTrip', { defaultValue: 'Rate trip' })}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {booking.status !== BookingStatus.TRIP_COMPLETED &&
+                        booking.status !== BookingStatus.CANCELLED &&
+                        booking.status !== BookingStatus.TRIP_STARTED && (
+                          <TouchableOpacity
+                            style={styles.cancelBtn}
+                            onPress={() => handleCancelBooking(booking.id, booking.humanReadableRef)}
+                            disabled={cancellingId === booking.id}
+                          >
+                            <Ionicons name="close-circle" size={15} color="#dc2626" />
+                            <Text style={styles.cancelBtnText} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
+                              {cancellingId === booking.id ? t('myBookings.cancelling', { defaultValue: 'Cancelling...' }) : t('myBookings.cancelRide', { defaultValue: 'Cancel Ride' })}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </ScrollView>
+        </>
       )}
 
       {/* Persistent Bottom Navigation Dock */}
@@ -823,25 +965,25 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '900',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     letterSpacing: -0.3,
   },
   headerSub: {
-    fontSize: 11,
+    fontSize: 12.5,
     color: '#64748b',
     marginTop: 1,
   },
   newRideBtn: {
-    backgroundColor: '#ea580c',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: 'rgb(240, 117, 15)',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: 10,
   },
   newRideBtnText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 14.5,
     fontWeight: '800',
   },
   profileCard: {
@@ -862,17 +1004,17 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   profileAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#ea580c',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgb(240, 117, 15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   profileAvatarText: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '900',
   },
   profileNameRow: {
@@ -880,9 +1022,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   profileName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   verifiedBadge: {
     marginLeft: 8,
@@ -893,8 +1035,8 @@ const styles = StyleSheet.create({
   },
   verifiedBadgeText: {
     color: '#166534',
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
   },
   profilePhoneRow: {
     flexDirection: 'row',
@@ -902,15 +1044,17 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   profilePhone: {
-    fontSize: 12,
-    color: '#64748b',
+    fontSize: 13.5,
+    color: '#475569',
+    fontWeight: '600',
   },
   filterTabsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
     marginHorizontal: 16,
-    marginTop: 8,
+    marginTop: 12,
+    marginBottom: 4,
     borderRadius: 14,
     padding: 4,
     borderWidth: 1,
@@ -924,22 +1068,22 @@ const styles = StyleSheet.create({
   filterTab: {
     flex: 1,
     flexDirection: 'row',
-    paddingVertical: 7,
+    paddingVertical: 9,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,
   },
   filterTabActive: {
-    backgroundColor: '#103A75',
+    backgroundColor: 'rgb(22, 34, 50)',
   },
   filterTabText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#64748b',
   },
   filterTabTextActive: {
     color: '#ffffff',
-    fontWeight: '800',
+    fontWeight: '900',
   },
   scrollArea: {
     flex: 1,
@@ -973,40 +1117,40 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emptyTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#103A75',
+    fontSize: 17,
+    fontWeight: '900',
+    color: 'rgb(22, 34, 50)',
   },
   emptySub: {
-    fontSize: 12,
+    fontSize: 13.5,
     color: '#64748b',
     textAlign: 'center',
     marginTop: 4,
-    marginBottom: 14,
-    lineHeight: 18,
+    marginBottom: 16,
+    lineHeight: 20,
   },
   bookNowBtn: {
-    backgroundColor: '#ea580c',
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    backgroundColor: 'rgb(240, 117, 15)',
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+    borderRadius: 12,
   },
   bookNowBtnText: {
     color: '#ffffff',
-    fontSize: 12.5,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '900',
   },
   card: {
     backgroundColor: '#ffffff',
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 11,
-    marginBottom: 11,
-    shadowColor: '#000',
+    borderColor: '#e8edf5',
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 2,
   },
   cardHeader: {
@@ -1015,7 +1159,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
-    paddingBottom: 7,
+    paddingBottom: 12,
+    marginBottom: 14,
     gap: 6,
   },
   cardHeaderLeft: {
@@ -1026,190 +1171,163 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
   },
   refText: {
-    fontSize: 12.5,
-    fontWeight: '900',
-    color: '#103A75',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 15.5,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
   },
   statusPill: {
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 10,
-    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 2,
   },
   statusPillText: {
-    fontSize: 9.5,
-    fontWeight: '800',
+    fontSize: 11.5,
+    fontWeight: '700',
   },
   scheduledRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 6,
   },
   scheduledText: {
-    fontSize: 10.5,
+    fontSize: 12,
     color: '#64748b',
   },
   scheduledBold: {
-    color: '#334155',
+    color: 'rgb(22, 34, 50)',
     fontWeight: '700',
   },
   fareHeaderBlock: {
     alignItems: 'flex-end',
     justifyContent: 'center',
     flexShrink: 0,
-    maxWidth: 130,
+    maxWidth: 140,
   },
   fareTotalAmount: {
-    fontSize: 14.5,
+    fontSize: 18,
     fontWeight: '900',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     textAlign: 'right',
   },
   advancePaidTag: {
-    fontSize: 9.5,
+    fontSize: 11.5,
     fontWeight: '700',
     color: '#16a34a',
     marginTop: 2,
     textAlign: 'right',
   },
-  routeContainer: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 10,
-    padding: 7,
-    marginTop: 7,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+  routeSection: {
+    marginTop: 2,
   },
-  routeContentRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  timelineTrack: {
-    width: 12,
-    alignItems: 'center',
-    marginRight: 6,
-    paddingTop: 3,
-  },
-  greenNodeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#16a34a',
-  },
-  timelineConnector: {
-    width: 2,
-    height: 22,
-    backgroundColor: '#cbd5e1',
-    marginVertical: 2,
-  },
-  redNodeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#dc2626',
-  },
-  routePointsCol: {
-    flex: 1,
-  },
-  pickupRow: {
+  routeMainRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
-  pickupBlock: {
+  routeLocationsCol: {
     flex: 1,
-    marginRight: 6,
   },
-  dropBlock: {
-    marginTop: 4,
+  locationItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  locationPinIcon: {
+    marginTop: 2,
+    marginRight: 8,
+  },
+  locationItemText: {
+    flex: 1,
   },
   routeNodeLabel: {
-    fontSize: 9,
+    fontSize: 10.5,
     color: '#64748b',
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
   routeAddressText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#103A75',
-    marginTop: 1,
+    fontSize: 14,
+    fontWeight: '800',
+    color: 'rgb(22, 34, 50)',
+    marginTop: 2,
+  },
+  bottomOtpKmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 2,
   },
   distanceBadgePill: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-    borderRadius: 7,
+    paddingVertical: 2,
     paddingHorizontal: 6,
-    paddingVertical: 3,
-    alignSelf: 'flex-start',
   },
   distanceTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   distanceBadgeText: {
-    fontSize: 10,
+    fontSize: 12.5,
     fontWeight: '800',
-    color: '#1d4ed8',
+    color: 'rgb(22, 34, 50)',
   },
   tripTypeSubText: {
-    fontSize: 8.5,
-    color: '#3b82f6',
+    fontSize: 10.5,
+    color: 'rgb(22, 34, 50)',
     fontWeight: '700',
-    marginTop: 0.5,
+    marginTop: 3.5,
+    textAlign: 'center',
+  },
+  verticalDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: '#cbd5e1',
+    marginHorizontal: 16,
+  },
+  cardSectionDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 14,
   },
   otpBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fffaf5',
-    borderWidth: 1,
-    borderColor: '#fed7aa',
-    borderRadius: 10,
-    padding: 7,
-    marginTop: 7,
+    paddingVertical: 2,
   },
   otpIconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#fff7ed',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#ffedd5',
   },
   otpLabel: {
-    fontSize: 10.5,
+    fontSize: 12.5,
     fontWeight: '900',
-    color: '#9a3412',
+    color: 'rgb(22, 34, 50)',
   },
   otpSub: {
-    fontSize: 9,
+    fontSize: 11,
     color: '#c2410c',
-    marginTop: 0.5,
-    lineHeight: 12,
+    marginTop: 1,
+    lineHeight: 14,
   },
   otpPill: {
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ea580c',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 7,
+    borderColor: 'rgb(240, 117, 15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
     marginLeft: 6,
   },
   otpPillText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
-    color: '#ea580c',
+    color: 'rgb(240, 117, 15)',
     letterSpacing: 2,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
@@ -1220,20 +1338,20 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#f59e0b',
     borderRadius: 12,
-    padding: 10,
-    marginTop: 9,
+    padding: 11,
+    marginTop: 10,
     gap: 8,
   },
   nearAlertEmoji: {
     fontSize: 22,
   },
   nearAlertTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
     color: '#b45309',
   },
   nearAlertSub: {
-    fontSize: 10.5,
+    fontSize: 11.5,
     color: '#92400e',
     marginTop: 1,
   },
@@ -1243,7 +1361,7 @@ const styles = StyleSheet.create({
     borderColor: '#10b981',
     borderRadius: 14,
     padding: 12,
-    marginTop: 9,
+    marginTop: 10,
   },
   arrivedHeaderRow: {
     flexDirection: 'row',
@@ -1258,13 +1376,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#10b981',
   },
   arrivedBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '900',
     color: '#047857',
     letterSpacing: 0.5,
   },
   arrivedAlertMessage: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#065f46',
     marginBottom: 8,
   },
@@ -1280,12 +1398,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   revealedOtpLabel: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontWeight: '900',
     color: '#065f46',
   },
   revealedOtpSub: {
-    fontSize: 9.5,
+    fontSize: 10.5,
     color: '#047857',
     marginTop: 1,
   },
@@ -1298,80 +1416,63 @@ const styles = StyleSheet.create({
     borderColor: '#059669',
   },
   revealedOtpCode: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '900',
     color: '#065f46',
     letterSpacing: 3,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
-  driverBox: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 10,
-    padding: 8,
-    marginTop: 7,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  driverInfoRow: {
+  driverSection: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   driverCarCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#e0f2fe',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#bae6fd',
   },
   driverUserCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  driverHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingRight: 4,
   },
   driverRatingPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#fffbeb',
+    gap: 4,
+    backgroundColor: '#fffdf0',
     borderWidth: 1,
     borderColor: '#fde68a',
-    paddingHorizontal: 5.5,
-    paddingVertical: 1.5,
-    borderRadius: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 8,
   },
   driverRatingPillText: {
-    fontSize: 10,
+    fontSize: 12.5,
     fontWeight: '800',
     color: '#b45309',
   },
   driverBoxSubtitle: {
-    fontSize: 9.5,
+    fontSize: 10.5,
     fontWeight: '700',
     color: '#64748b',
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
   driverName: {
-    fontSize: 12.5,
+    fontSize: 15.5,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
+    marginTop: 1,
   },
   driverVehicle: {
-    fontSize: 10.5,
+    fontSize: 12.5,
     color: '#64748b',
     marginTop: 1,
   },
@@ -1379,13 +1480,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#16a34a',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 7,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    marginLeft: 8,
   },
   driverCallBtnText: {
     color: '#ffffff',
-    fontSize: 10.5,
+    fontSize: 11.5,
     fontWeight: '800',
   },
   unassignedRow: {
@@ -1393,155 +1495,148 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   unassignedTitle: {
-    fontSize: 9.5,
+    fontSize: 10.5,
     fontWeight: '700',
     color: '#64748b',
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
   unassignedText: {
-    fontSize: 11,
+    fontSize: 12.5,
     color: '#64748b',
     marginTop: 1,
   },
-  paymentRow: {
+  tripRatedCard: {
+    backgroundColor: '#fffdf2',
+    borderWidth: 1,
+    borderColor: '#fef3c7',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 14,
+  },
+  tripRatedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  tripRatedHeaderTitle: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#92400e',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  ratedSectionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 7,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
   },
-  paymentLabel: {
-    fontSize: 11.5,
+  ratedSectionCol: {
+    flex: 1,
+  },
+  ratedSectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
     color: '#475569',
+    marginBottom: 4,
   },
-  paymentBold: {
+  ratedStarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratedScoreBadge: {
+    fontSize: 12,
     fontWeight: '800',
-    color: '#103A75',
+    color: '#92400e',
+    marginLeft: 5,
   },
-  statusBadgePill: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
+  ratedVerticalDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: '#fde68a',
+    marginHorizontal: 12,
   },
-  badgePending: {
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
+  ratedCommentRow: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#fef3c7',
   },
-  badgePaid: {
-    backgroundColor: '#dcfce7',
-    borderColor: '#86efac',
-  },
-  statusBadgePillText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  badgePendingText: {
-    color: '#dc2626',
-  },
-  badgePaidText: {
-    color: '#166534',
+  ratedCommentText: {
+    fontSize: 11.5,
+    fontStyle: 'italic',
+    color: '#78350f',
   },
   cardActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 7,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    gap: 8,
+    marginTop: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
+    paddingHorizontal: 4,
+    gap: 10,
   },
   invoiceBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    paddingVertical: 7,
-    borderRadius: 8,
-    gap: 5,
+    backgroundColor: '#ffffff',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
   },
   invoiceBtnText: {
-    fontSize: 11.5,
+    fontSize: 13.5,
     fontWeight: '800',
-    color: '#334155',
+    color: 'rgb(22, 34, 50)',
+  },
+  rateTripNavyBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgb(22, 34, 50)',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
+    shadowColor: 'rgb(22, 34, 50)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  rateTripNavyBtnText: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#ffffff',
   },
   cancelBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
     gap: 4,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
   },
   cancelBtnText: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontWeight: '800',
     color: '#dc2626',
-  },
-  rateDriverBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff7ed',
-    borderWidth: 1,
-    borderColor: '#fed7aa',
-    paddingVertical: 7,
-    borderRadius: 8,
-    gap: 4,
-  },
-  rateDriverBtnText: {
-    fontSize: 11.5,
-    fontWeight: '800',
-    color: '#ea580c',
-  },
-  rateDriverBtnRated: {
-    backgroundColor: '#fffbeb',
-    borderColor: '#fde68a',
-  },
-  rateDriverBtnRatedText: {
-    color: '#b45309',
-  },
-  tripRatedSummaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#fffbeb',
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: '#fde68a',
-    paddingHorizontal: 8,
-    paddingVertical: 4.5,
-    marginTop: 6,
-  },
-  tripRatedStars: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 1.5,
-  },
-  tripRatedText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#92400e',
-    flex: 1,
-  },
-  tripRatedCommentText: {
-    fontSize: 9.5,
-    fontStyle: 'italic',
-    color: '#78350f',
-    marginTop: 1,
   },
   guestContainer: {
     alignItems: 'center',
@@ -1552,7 +1647,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#fed7aa',
     marginTop: 20,
-    shadowColor: '#ea580c',
+    shadowColor: 'rgb(240, 117, 15)',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -1570,7 +1665,7 @@ const styles = StyleSheet.create({
   guestTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginBottom: 8,
   },
   guestSubtitle: {
@@ -1585,7 +1680,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ea580c',
+    backgroundColor: 'rgb(240, 117, 15)',
     borderRadius: 12,
     paddingHorizontal: 24,
     paddingVertical: 14,
@@ -1594,6 +1689,91 @@ const styles = StyleSheet.create({
   signInButtonText: {
     color: '#ffffff',
     fontSize: 15,
+    fontWeight: '800',
+  },
+  fleetCheckingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fef3c7',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 10,
+  },
+  fleetCheckingTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#92400e',
+  },
+  fleetCheckingSub: {
+    fontSize: 11,
+    color: '#78350f',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  fleetApprovedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#dcfce7',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 10,
+  },
+  fleetApprovedTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#15803d',
+  },
+  fleetApprovedSub: {
+    fontSize: 11,
+    color: '#166534',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  payAdvanceNowBtnFull: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#16a34a',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginTop: 8,
+    marginBottom: 6,
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.28,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  payAdvanceNowBtnFullText: {
+    color: '#ffffff',
+    fontSize: 13.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  payAdvanceNowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  payAdvanceNowBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
     fontWeight: '800',
   },
 });

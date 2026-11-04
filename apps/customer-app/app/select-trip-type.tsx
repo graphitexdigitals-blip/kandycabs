@@ -8,6 +8,7 @@ import {
   StatusBar,
   Platform,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -75,6 +76,8 @@ export default function SelectTripTypeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isSmallDevice = width < 380;
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
 
   const initialSelected = (params.selected as string) || (params.tripType as string) || 'ONEWAY';
@@ -97,8 +100,8 @@ export default function SelectTripTypeScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { paddingTop: topInset }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -110,12 +113,16 @@ export default function SelectTripTypeScreen() {
         >
           <Ionicons name="chevron-back" size={24} color="#0f172a" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Select Trip Type</Text>
+        <Text style={styles.headerTitle} numberOfLines={1} adjustsFontSizeToFit={true}>Select Trip Type</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom + 20, 30) },
+          isSmallDevice && { paddingHorizontal: 12 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.cardList}>
@@ -137,20 +144,20 @@ export default function SelectTripTypeScreen() {
                     <MaterialCommunityIcons
                       name={item.iconName as any}
                       size={28}
-                      color="#ea580c"
+                      color="rgb(240, 117, 15)"
                     />
                   ) : (
                     <Ionicons
                       name={item.iconName as any}
                       size={28}
-                      color="#ea580c"
+                      color="rgb(240, 117, 15)"
                     />
                   )}
                 </View>
 
                 {/* Text Content */}
                 <View style={styles.textContainer}>
-                  <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]}>
+                  <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]} numberOfLines={1} adjustsFontSizeToFit={true}>
                     {item.title}
                   </Text>
                   <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
@@ -199,7 +206,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     textAlign: 'center',
   },
   scrollContent: {
@@ -235,11 +242,11 @@ const styles = StyleSheet.create({
     }),
   },
   tripCardSelected: {
-    borderColor: '#ea580c',
+    borderColor: 'rgb(240, 117, 15)',
     backgroundColor: '#fff7ed',
     ...Platform.select({
       ios: {
-        shadowColor: '#ea580c',
+        shadowColor: 'rgb(240, 117, 15)',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.12,
         shadowRadius: 8,
@@ -267,11 +274,11 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
     marginBottom: 4,
   },
   cardTitleSelected: {
-    color: '#103A75',
+    color: 'rgb(22, 34, 50)',
   },
   cardSubtitle: {
     fontSize: 13,
@@ -282,7 +289,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#ea580c',
+    backgroundColor: 'rgb(240, 117, 15)',
     alignItems: 'center',
     justifyContent: 'center',
   },

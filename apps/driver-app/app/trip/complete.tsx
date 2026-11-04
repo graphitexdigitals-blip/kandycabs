@@ -12,6 +12,7 @@ import {
   Platform,
   StatusBar,
   Image,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,13 +21,22 @@ import { locationTracker } from '../../lib/location-tracker';
 import { reverseGeocodeAddress } from '../../lib/reverse-geocoding';
 import { driverApiClient } from '../../lib/api';
 import { Ionicons } from '@expo/vector-icons';
-import { setTripInProcess } from '../../lib/tripState';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
+import {
+  setTripInProcess,
+  setTripCompletionDraft,
+  getTripCompletionDraft,
+  clearTripCompletionDraft,
+} from '../../lib/tripState';
 
 const ODOMETER_SAMPLE = require('../../assets/images/inspection/odometer_sample.jpg');
+const CASH_RUPEE_ICON = require('../../assets/images/cash-rupee-icon.png');
 
 export default function DriverTripCompleteScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
 
@@ -42,6 +52,14 @@ export default function DriverTripCompleteScreen() {
   const [photoLocation, setPhotoLocation] = useState<{ lat: number; lng: number; time: string } | null>(null);
   const [ocrScanning, setOcrScanning] = useState(false);
   const [ocrResultText, setOcrResultText] = useState<{ status: 'success' | 'failed' | 'idle'; reading?: number; message?: string }>({ status: 'idle' });
+
+  // Payment Collection Modal State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'UPI_QR' | 'CASH'>('UPI_QR');
+  const [tripSuccess, setTripSuccess] = useState(false);
+  const [successData, setSuccessData] = useState<{ distance: number; totalAmount: number; paymentMethod: string } | null>(null);
+  const [paymentError, setPaymentError] = useState('');
+  const [copiedUpi, setCopiedUpi] = useState(false);
 
   // Subscribe to live GPS coordinates
   useEffect(() => {
@@ -69,6 +87,33 @@ export default function DriverTripCompleteScreen() {
     fetchBookingDetails();
   }, [fetchBookingDetails]);
 
+  // Restore any previously entered odometer or photo draft when reopening screen
+  useEffect(() => {
+    const id = bookingId || booking?.id;
+    if (!id) return;
+    const draft = getTripCompletionDraft(id);
+    if (draft) {
+      if (draft.finalOdometer) {
+        setFinalOdometer(draft.finalOdometer);
+      }
+      if (draft.odometerImageUri) {
+        setOdometerImageUri(draft.odometerImageUri);
+        setOdometerPhotoAttached(true);
+      }
+      if (draft.tollAmount) {
+        setTollAmount(draft.tollAmount);
+      }
+      if (draft.parkingAmount) {
+        setParkingAmount(draft.parkingAmount);
+      }
+      if (draft.photoLocation) {
+        setPhotoLocation(draft.photoLocation);
+      }
+      if (draft.ocrResultText) {
+        setOcrResultText(draft.ocrResultText);
+      }
+    }
+  }, [bookingId, booking?.id]);
 
   const runOdometerOcr = async (uriOrBase64: string) => {
     setOcrScanning(true);
@@ -80,22 +125,30 @@ export default function DriverTripCompleteScreen() {
       });
       if (res && res.success && res.reading) {
         setFinalOdometer(String(res.reading));
-        setOcrResultText({
-          status: 'success',
+        const successOcr = {
+          status: 'success' as const,
           reading: res.reading,
-          message: `Auto-detected ${res.reading} KM from odometer photo`,
-        });
+          message: t('complete_trip.auto_detected_km', { reading: res.reading }),
+        };
+        setOcrResultText(successOcr);
+        const id = bookingId || booking?.id;
+        if (id) {
+          setTripCompletionDraft(id, {
+            finalOdometer: String(res.reading),
+            ocrResultText: successOcr,
+          });
+        }
       } else {
         setOcrResultText({
           status: 'failed',
-          message: 'Could not auto-read gauge numbers. Please check and type reading manually.',
+          message: t('complete_trip.could_not_read_gauge'),
         });
       }
     } catch (err: any) {
       console.warn('Odometer OCR error:', err);
       setOcrResultText({
         status: 'failed',
-        message: 'Could not auto-read. Please enter reading manually.',
+        message: t('complete_trip.could_not_read_gauge'),
       });
     } finally {
       setOcrScanning(false);
@@ -106,7 +159,7 @@ export default function DriverTripCompleteScreen() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Camera access is required to photograph your odometer.');
+        Alert.alert(t('complete_trip.permission_required'), t('complete_trip.camera_permission_msg'));
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
@@ -123,31 +176,50 @@ export default function DriverTripCompleteScreen() {
         runOdometerOcr(dataUri);
         // Lock location at the exact moment of photo capture
         const latest = locationTracker.getCurrentCoordinates();
+        let locStamp: { lat: number; lng: number; time: string } | null = null;
         if (latest.lat != null && latest.lng != null) {
-          setPhotoLocation({
+          locStamp = {
             lat: latest.lat,
             lng: latest.lng,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          };
+          setPhotoLocation(locStamp);
+        }
+        const id = bookingId || booking?.id;
+        if (id) {
+          setTripCompletionDraft(id, {
+            odometerImageUri: dataUri,
+            photoLocation: locStamp,
           });
         }
       }
     } catch (err: any) {
-      Alert.alert('Camera Error', err.message || 'Failed to open camera');
+      Alert.alert(t('complete_trip.camera_error'), err.message || t('complete_trip.failed_open_camera'));
     }
   };
 
-  const handleCompleteTrip = async () => {
+  const baseBalance = parseFloat(booking?.balanceAmount) || 0;
+  const parsedToll = parseFloat(tollAmount) || 0;
+  const parsedParking = parseFloat(parkingAmount) || 0;
+  const totalRemainingAmount = Math.max(0, Math.round(baseBalance + parsedToll + parsedParking));
+
+  const adminUpiId = process.env.EXPO_PUBLIC_ADMIN_UPI_ID || 'kandycabs@icici';
+  const adminUpiName = process.env.EXPO_PUBLIC_ADMIN_UPI_NAME || 'Kandy Cabs';
+  const upiPayUrl = `upi://pay?pa=${encodeURIComponent(adminUpiId)}&pn=${encodeURIComponent(adminUpiName)}&am=${totalRemainingAmount}&cu=INR&tn=${encodeURIComponent(`Booking ${booking?.humanReadableRef || 'Trip'}`)}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(upiPayUrl)}`;
+
+  const handleOpenPaymentModal = () => {
     if (!finalOdometer) {
-      setError('Please enter the final odometer reading');
+      setError(t('complete_trip.enter_final_error', 'Please enter final odometer reading'));
       return;
     }
     if (!odometerImageUri) {
-      setError('Final odometer photo is mandatory. Please capture photo of the odometer.');
+      setError(t('complete_trip.photo_mandatory_error', 'Final odometer photo is mandatory'));
       Alert.alert(
-        'Final Odometer Photo Required',
-        'You must capture a clear photo of the final vehicle odometer before completing the trip.',
+        t('complete_trip.photo_required_title', 'Photo Required'),
+        t('complete_trip.photo_required_msg', 'Please capture a clear photo of the final odometer reading.'),
         [
-          { text: '📷 Capture Final Odometer Photo', onPress: handleOpenCamera },
+          { text: t('complete_trip.capture_photo_btn', 'Capture Photo'), onPress: handleOpenCamera },
           { text: 'OK' },
         ]
       );
@@ -158,15 +230,22 @@ export default function DriverTripCompleteScreen() {
     const endOdo = parseFloat(finalOdometer);
 
     if (startOdo > 0 && endOdo < startOdo) {
-      setError(`Final odometer (${endOdo}) cannot be lower than starting odometer (${startOdo})`);
+      setError(t('complete_trip.lower_odometer_error', `Final reading (${endOdo}) cannot be less than starting reading (${startOdo})`));
       return;
     }
 
-    const parsedToll = parseFloat(tollAmount) || 0;
-    const parsedParking = parseFloat(parkingAmount) || 0;
-
     setError('');
+    setPaymentError('');
+    setShowPaymentModal(true);
+  };
+
+  const handleConfirmPayment = async (method: 'UPI_QR' | 'CASH') => {
+    const endOdo = parseFloat(finalOdometer);
+    const parsedTollVal = parseFloat(tollAmount) || 0;
+    const parsedParkingVal = parseFloat(parkingAmount) || 0;
+
     setLoading(true);
+    setPaymentError('');
 
     try {
       // Capture exact driver GPS location at completion moment
@@ -181,41 +260,39 @@ export default function DriverTripCompleteScreen() {
 
       const res = await driverApiClient.fetch('/api/driver/trip/complete', {
         method: 'POST',
+        timeoutMs: 35000,
         body: JSON.stringify({
           bookingId: bookingId || booking?.id,
           finalOdometer: endOdo,
           finalOdometerImagePath: odometerImageUri,
-          tollAmount: parsedToll,
-          parkingAmount: parsedParking,
-          paymentMethod: 'CASH',
+          tollAmount: parsedTollVal,
+          parkingAmount: parsedParkingVal,
+          paymentMethod: method,
           actualDropLat: actualLat,
           actualDropLng: actualLng,
           actualDropAddress: actualAddress,
         }),
-      });
+      } as any);
 
       if (res.success) {
-        // Send final tracking point and stop active background tracking
         if (bookingId || booking?.id) {
           await setTripInProcess(bookingId || booking?.id, false);
+          clearTripCompletionDraft(bookingId || booking?.id);
         }
         await locationTracker.sendFinalTrackingPoint(bookingId || booking?.id);
         await locationTracker.stopTracking();
-        Alert.alert(
-          'Trip Completed! 🎉',
-          `Distance: ${res.actualDistanceKm} km.\nTrip marked as completed successfully.\nAdmin will generate and dispatch the final invoice.`,
-          [
-            {
-              text: 'Back to Dashboard',
-              onPress: () => router.replace('/dashboard'),
-            },
-          ]
-        );
+
+        setTripSuccess(true);
+        setSuccessData({
+          distance: res.actualDistanceKm ?? distanceCovered,
+          totalAmount: totalRemainingAmount,
+          paymentMethod: method,
+        });
       } else {
-        setError(res.message || 'Failed to complete trip');
+        setPaymentError(res.message || 'Failed to complete trip. Please try again.');
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to complete trip');
+      setPaymentError(err.message || 'Failed to complete trip. Please check your network and retry.');
     } finally {
       setLoading(false);
     }
@@ -234,7 +311,13 @@ export default function DriverTripCompleteScreen() {
         <View style={styles.headerLeftGroup}>
           <TouchableOpacity
             style={styles.headerBackBtn}
-            onPress={() => router.replace('/dashboard')}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/dashboard');
+              }
+            }}
             activeOpacity={0.8}
           >
             <Ionicons name="arrow-back" size={20} color="#0f172a" />
@@ -245,10 +328,10 @@ export default function DriverTripCompleteScreen() {
           <View style={styles.headerTextCol}>
             <View style={styles.headerStepBadgeRow}>
               <View style={styles.headerLiveDot} />
-              <Text style={styles.headerLiveRadarText}>TRIP ACTIVE</Text>
+              <Text style={styles.headerLiveRadarText}>{t('complete_trip.trip_active_caps')}</Text>
             </View>
-            <Text style={styles.headerMainTitle}>Final Odometer Reading</Text>
-            <Text style={styles.headerSubtitleText}>Enter the final reading after the trip ends</Text>
+            <Text style={styles.headerMainTitle}>{t('trip_flow.final_odometer')}</Text>
+            <Text style={styles.headerSubtitleText}>{t('trip_flow.final_odometer_desc')}</Text>
           </View>
         </View>
 
@@ -279,14 +362,11 @@ export default function DriverTripCompleteScreen() {
             </View>
             <View style={styles.cardHeaderTextCol}>
               <View style={styles.sectionTitleRow}>
-                <View style={styles.stepCircleBlue}>
-                  <Text style={styles.stepCircleText}>1</Text>
-                </View>
                 <Text style={styles.sectionTitle}>
-                  Final Odometer Reading <Text style={styles.redAsterisk}>*</Text>
+                  {t('trip_flow.final_odometer')} <Text style={styles.redAsterisk}>*</Text>
                 </Text>
               </View>
-              <Text style={styles.sectionSubtitle}>Enter the final reading from the odometer</Text>
+              <Text style={styles.sectionSubtitle}>{t('complete_trip.enter_final_odometer_sub')}</Text>
             </View>
           </View>
 
@@ -296,9 +376,13 @@ export default function DriverTripCompleteScreen() {
             <TextInput
               style={styles.odometerTextInput}
               value={finalOdometer}
-              onChangeText={setFinalOdometer}
+              onChangeText={(val) => {
+                setFinalOdometer(val);
+                const id = bookingId || booking?.id;
+                if (id) setTripCompletionDraft(id, { finalOdometer: val });
+              }}
               keyboardType="decimal-pad"
-              placeholder="e.g. 45310.2"
+              placeholder={t('complete_trip.odometer_placeholder')}
               placeholderTextColor="#94a3b8"
             />
             <View style={styles.odometerDividerV} />
@@ -320,51 +404,31 @@ export default function DriverTripCompleteScreen() {
                 <View style={styles.gpsWatermarkOverlay}>
                   <View style={styles.gpsWatermarkHeader}>
                     <View style={styles.gpsWatermarkDot} />
-                    <Text style={styles.gpsWatermarkTitle}>📍 GPS LOCATION STAMP</Text>
+                    <Text style={styles.gpsWatermarkTitle}>📍 {t('trip_flow.gps_location_stamp')}</Text>
                   </View>
                   <Text style={styles.gpsWatermarkCoords}>
                     {photoLocation
                       ? `${photoLocation.lat.toFixed(5)}° N, ${photoLocation.lng.toFixed(5)}° E`
                       : currentCoords
                       ? `${currentCoords.lat.toFixed(5)}° N, ${currentCoords.lng.toFixed(5)}° E`
-                      : 'Acquiring GPS...'}
+                      : t('complete_trip.acquiring_gps')}
                   </Text>
                   <Text style={styles.gpsWatermarkTime}>
-                    ⏱️ Captured: {photoLocation?.time || 'Just now'} • Verified Odometer Evidence
+                    ⏱️ {photoLocation?.time || 'Just now'} • {t('trip_flow.verified_evidence')}
                   </Text>
-                </View>
-              </View>
-
-              {/* Location Details Card at Bottom of Photo */}
-              <View style={styles.photoLocationCard}>
-                <View style={styles.photoLocationRow}>
-                  <Text style={styles.photoLocationLabel}>Latitude:</Text>
-                  <Text style={styles.photoLocationVal}>
-                    {photoLocation ? `${photoLocation.lat.toFixed(6)}°` : currentCoords ? `${currentCoords.lat.toFixed(6)}°` : 'Acquiring...'}
-                  </Text>
-                </View>
-                <View style={styles.photoLocationRow}>
-                  <Text style={styles.photoLocationLabel}>Longitude:</Text>
-                  <Text style={styles.photoLocationVal}>
-                    {photoLocation ? `${photoLocation.lng.toFixed(6)}°` : currentCoords ? `${currentCoords.lng.toFixed(6)}°` : 'Acquiring...'}
-                  </Text>
-                </View>
-                <View style={styles.photoLocationRow}>
-                  <Text style={styles.photoLocationLabel}>Time of Capture:</Text>
-                  <Text style={styles.photoLocationVal}>{photoLocation?.time || 'Just now'}</Text>
                 </View>
               </View>
 
               <TouchableOpacity style={styles.retakeBtn} onPress={handleOpenCamera} activeOpacity={0.85}>
-                <Ionicons name="camera-reverse" size={15} color="#ffffff" />
-                <Text style={styles.retakeBtnText}>Retake Final Odometer Photo</Text>
+                <Ionicons name="camera-reverse" size={16} color="#0f172a" />
+                <Text style={styles.retakeBtnText}>{t('complete_trip.retake_final_odometer')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.odometerSampleContainer}>
               <View style={styles.sampleGuideHeader}>
                 <Ionicons name="information-circle" size={14} color="#0284c7" />
-                <Text style={styles.sampleGuideHeaderText}>Reference: Take a clear photo of your car odometer gauge</Text>
+                <Text style={styles.sampleGuideHeaderText}>{t('complete_trip.reference_gauge')}</Text>
               </View>
 
               {/* Sample Reference Image with Center Camera Overlay */}
@@ -379,7 +443,7 @@ export default function DriverTripCompleteScreen() {
                   resizeMode="cover"
                 />
                 <View style={styles.sampleBadgeOverlay}>
-                  <Text style={styles.sampleBadgeText}>📷 Reference Sample Photo</Text>
+                  <Text style={styles.sampleBadgeText}>{t('complete_trip.reference_sample_photo')}</Text>
                 </View>
                 <View style={styles.centerCameraCircleOverlay}>
                   <Ionicons name="camera" size={24} color="#ffffff" />
@@ -392,7 +456,9 @@ export default function DriverTripCompleteScreen() {
                 activeOpacity={0.85}
               >
                 <Ionicons name="camera" size={18} color="#ffffff" />
-                <Text style={styles.cameraPrimaryBtnText}>Open Camera & Capture Final Odometer</Text>
+                <Text style={styles.cameraPrimaryBtnText} numberOfLines={1}>
+                  {t('complete_trip.open_camera_final_odometer')}
+                </Text>
               </TouchableOpacity>
 
               {/* Pre-capture Current Location Indicator Pill */}
@@ -401,8 +467,8 @@ export default function DriverTripCompleteScreen() {
                   <Ionicons name="location" size={14} color="#10b981" />
                   <Text style={styles.preCaptureGpsText}>
                     {currentCoords
-                      ? `GPS: ${currentCoords.lat.toFixed(5)}, ${currentCoords.lng.toFixed(5)}`
-                      : 'Acquiring GPS position...'}
+                      ? `${t('complete_trip.gps_prefix')}: ${currentCoords.lat.toFixed(5)}, ${currentCoords.lng.toFixed(5)}`
+                      : t('complete_trip.acquiring_gps')}
                   </Text>
                 </View>
               </View>
@@ -418,13 +484,10 @@ export default function DriverTripCompleteScreen() {
             </View>
             <View style={styles.cardHeaderTextCol}>
               <View style={styles.sectionTitleRow}>
-                <View style={styles.stepCirclePurple}>
-                  <Text style={styles.stepCircleText}>2</Text>
-                </View>
-                <Text style={styles.sectionTitle}>Additional Charges</Text>
+                <Text style={styles.sectionTitle}>{t('trip_flow.additional_charges')}</Text>
               </View>
               <Text style={styles.sectionSubtitle}>
-                Enter any toll or parking fees paid during this trip. Admin will include them in the customer's final invoice.
+                {t('trip_flow.additional_charges_desc')}
               </Text>
             </View>
           </View>
@@ -434,12 +497,16 @@ export default function DriverTripCompleteScreen() {
             <View style={styles.tollChargeBox}>
               <View style={styles.chargeHeaderRow}>
                 <Ionicons name="business" size={16} color="#059669" />
-                <Text style={styles.chargeLabel}>Toll Gate Fare (₹)</Text>
+                <Text style={styles.chargeLabel}>{t('trip_flow.toll_fare')}</Text>
               </View>
               <TextInput
                 style={styles.chargeInput}
                 value={tollAmount}
-                onChangeText={setTollAmount}
+                onChangeText={(val) => {
+                  setTollAmount(val);
+                  const id = bookingId || booking?.id;
+                  if (id) setTripCompletionDraft(id, { tollAmount: val });
+                }}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
                 placeholderTextColor="#94a3b8"
@@ -452,12 +519,16 @@ export default function DriverTripCompleteScreen() {
                 <View style={styles.parkingBadge}>
                   <Text style={styles.parkingBadgeText}>P</Text>
                 </View>
-                <Text style={styles.chargeLabel}>Parking Fare (₹)</Text>
+                <Text style={styles.chargeLabel}>{t('trip_flow.parking_fare')}</Text>
               </View>
               <TextInput
                 style={styles.chargeInput}
                 value={parkingAmount}
-                onChangeText={setParkingAmount}
+                onChangeText={(val) => {
+                  setParkingAmount(val);
+                  const id = bookingId || booking?.id;
+                  if (id) setTripCompletionDraft(id, { parkingAmount: val });
+                }}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
                 placeholderTextColor="#94a3b8"
@@ -471,43 +542,329 @@ export default function DriverTripCompleteScreen() {
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <TouchableOpacity
           style={[
-            styles.completeButton,
-            odometerImageUri && finalOdometer ? styles.completeButtonReady : styles.completeButtonLocked,
+            styles.yellowPrimaryButton,
+            odometerImageUri && finalOdometer ? styles.yellowPrimaryButtonReady : null,
             loading && styles.completeButtonDisabled,
           ]}
-          onPress={odometerImageUri && finalOdometer ? handleCompleteTrip : (!odometerImageUri ? handleOpenCamera : handleCompleteTrip)}
+          onPress={odometerImageUri && finalOdometer ? handleOpenPaymentModal : (!odometerImageUri ? handleOpenCamera : handleOpenPaymentModal)}
           disabled={loading}
           activeOpacity={0.88}
         >
-          {loading ? (
-            <ActivityIndicator color="#ffffff" size="small" />
+          {odometerImageUri && finalOdometer ? (
+            <LinearGradient
+              colors={['#009669', '#008760', '#007c5a']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.readyGradient}
+            >
+              {loading ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <>
+                  <Text style={[styles.yellowPrimaryButtonText, styles.yellowPrimaryButtonTextReady]} numberOfLines={1}>
+                    Collect Payment (₹{totalRemainingAmount}) & Complete
+                  </Text>
+                  <Ionicons name="arrow-forward" size={20} color="#ffffff" />
+                </>
+              )}
+            </LinearGradient>
+          ) : loading ? (
+            <ActivityIndicator color="#0f172a" size="small" />
           ) : !odometerImageUri ? (
             <>
-              <View style={styles.ctaIconCircleAmber}>
-                <Ionicons name="camera" size={16} color="#d97706" />
-              </View>
-              <Text style={styles.completeButtonText}>ATTACH FINAL ODOMETER PHOTO</Text>
-              <Ionicons name="camera-outline" size={18} color="#ffffff" />
-            </>
-          ) : !finalOdometer ? (
-            <>
-              <View style={styles.ctaIconCircleAmber}>
-                <Ionicons name="speedometer" size={16} color="#d97706" />
-              </View>
-              <Text style={styles.completeButtonText}>ENTER FINAL ODOMETER READING</Text>
-              <Ionicons name="arrow-forward" size={18} color="#ffffff" />
+              <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
+                {t('complete_trip.open_camera_odometer', 'Capture Odometer Photo')}
+              </Text>
+              <Ionicons name="camera" size={20} color="#0f172a" />
             </>
           ) : (
             <>
-              <View style={styles.ctaIconCircle}>
-                <Ionicons name="checkmark-sharp" size={16} color="#059669" />
-              </View>
-              <Text style={styles.completeButtonText}>COMPLETE TRIP</Text>
-              <Ionicons name="arrow-forward" size={18} color="#ffffff" />
+              <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
+                {t('complete_trip.enter_final_reading', 'Enter Final Reading')}
+              </Text>
+              <Ionicons name="arrow-forward" size={20} color="#0f172a" />
             </>
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Remaining Payment Options Modal */}
+      <Modal
+        visible={showPaymentModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (!loading && !tripSuccess) setShowPaymentModal(false);
+        }}
+      >
+        <SafeAreaView style={styles.modalBackdrop}>
+          <View style={styles.modalContainer}>
+            {tripSuccess ? (
+              /* Success Receipt State */
+              <View style={styles.successContentBox}>
+                <View style={styles.successIconCircle}>
+                  <Ionicons name="checkmark-circle" size={72} color="#16a34a" />
+                </View>
+
+                <Text style={styles.successMainTitle}>Trip Completed!</Text>
+                <Text style={styles.successSubtitle}>
+                  Booking #{booking?.humanReadableRef || 'TRIP'}
+                </Text>
+
+                <View style={styles.receiptCard}>
+                  <View style={styles.receiptRow}>
+                    <Text style={styles.receiptLabel}>Total Distance</Text>
+                    <Text style={styles.receiptValue}>{successData?.distance} KM</Text>
+                  </View>
+                  <View style={styles.receiptDivider} />
+                  <View style={styles.receiptRow}>
+                    <Text style={styles.receiptLabel}>Remaining Payment</Text>
+                    <Text style={[styles.receiptValue, { color: '#16a34a', fontWeight: '800' }]}>
+                      ₹{successData?.totalAmount}
+                    </Text>
+                  </View>
+                  <View style={styles.receiptDivider} />
+                  <View style={styles.receiptRow}>
+                    <Text style={styles.receiptLabel}>Payment Method</Text>
+                    <View style={styles.methodBadge}>
+                      {successData?.paymentMethod === 'UPI_QR' ? (
+                        <Ionicons
+                          name="qr-code-outline"
+                          size={14}
+                          color="#0f172a"
+                        />
+                      ) : (
+                        <Image
+                          source={CASH_RUPEE_ICON}
+                          style={styles.receiptCashIcon}
+                          resizeMode="contain"
+                        />
+                      )}
+                      <Text style={styles.methodBadgeText}>
+                        {successData?.paymentMethod === 'UPI_QR' ? 'Admin UPI QR' : 'Cash Collected'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.dashboardReturnBtn}
+                  onPress={() => router.replace('/dashboard')}
+                  activeOpacity={0.88}
+                >
+                  <Text style={styles.dashboardReturnBtnText}>Back to Dashboard</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#ffffff" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              /* Payment Options Selection & Confirmation State */
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.modalScrollContent}
+              >
+                {/* Modal Header */}
+                <View style={styles.modalHeaderRow}>
+                  <View style={styles.modalHeaderTitleRow}>
+                    <Text style={styles.modalTitle}>Remaining Payment</Text>
+                    <View style={styles.bookingRefPill}>
+                      <Text style={styles.bookingRefPillText}>#{booking?.humanReadableRef || 'TRIP'}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.modalCloseBtn}
+                    onPress={() => !loading && setShowPaymentModal(false)}
+                    disabled={loading}
+                  >
+                    <Ionicons name="close" size={20} color="#64748b" />
+                  </TouchableOpacity>
+                </View>
+
+                {paymentError ? (
+                  <View style={styles.modalErrorBox}>
+                    <Ionicons name="alert-circle" size={16} color="#ef4444" />
+                    <Text style={styles.modalErrorText}>{paymentError}</Text>
+                  </View>
+                ) : null}
+
+                {/* Payment Option Selector Tabs */}
+                <Text style={styles.sectionHeaderTitle}>SELECT PAYMENT METHOD</Text>
+                <View style={styles.paymentTabsRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentTabBtn,
+                      selectedPaymentMethod === 'UPI_QR' ? styles.paymentTabBtnActive : null,
+                    ]}
+                    onPress={() => setSelectedPaymentMethod('UPI_QR')}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons
+                      name="qr-code-outline"
+                      size={20}
+                      color={selectedPaymentMethod === 'UPI_QR' ? '#008860' : '#64748b'}
+                    />
+                    <Text
+                      style={[
+                        styles.paymentTabText,
+                        selectedPaymentMethod === 'UPI_QR' ? styles.paymentTabTextActive : null,
+                      ]}
+                    >
+                      Admin UPI QR
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentTabBtn,
+                      selectedPaymentMethod === 'CASH' ? styles.paymentTabBtnActive : null,
+                    ]}
+                    onPress={() => setSelectedPaymentMethod('CASH')}
+                    activeOpacity={0.85}
+                  >
+                    <Image
+                      source={CASH_RUPEE_ICON}
+                      style={[
+                        styles.cashTabIcon,
+                        { tintColor: selectedPaymentMethod === 'CASH' ? '#008860' : '#64748b' },
+                      ]}
+                      resizeMode="contain"
+                    />
+                    <Text
+                      style={[
+                        styles.paymentTabText,
+                        selectedPaymentMethod === 'CASH' ? styles.paymentTabTextActive : null,
+                      ]}
+                    >
+                      Cash Collected
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* TAB 1: ADMIN UPI QR CODE */}
+                {selectedPaymentMethod === 'UPI_QR' ? (
+                  <View style={styles.qrContentCard}>
+                    <Text style={styles.qrHeaderTitle}>Scan & Pay to Admin</Text>
+                    <Text style={styles.qrHeaderDesc}>
+                      Ask passenger to scan this QR code with any UPI app to pay ₹{totalRemainingAmount} directly to Admin.
+                    </Text>
+
+                    {/* QR Code Container */}
+                    <View style={styles.qrCodeWrapper}>
+                      <Image
+                        source={{ uri: qrCodeUrl }}
+                        style={styles.qrCodeImage}
+                        resizeMode="contain"
+                      />
+                      <View style={styles.qrAmountTag}>
+                        <Text style={styles.qrAmountTagText}>Amount: ₹{totalRemainingAmount}</Text>
+                      </View>
+                    </View>
+
+                    {/* Accepted UPI Apps Row */}
+                    <View style={styles.upiBadgesRow}>
+                      <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>GPay</Text></View>
+                      <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>PhonePe</Text></View>
+                      <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>Paytm</Text></View>
+                      <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>BHIM</Text></View>
+                      <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>Any UPI</Text></View>
+                    </View>
+
+                    {/* Admin UPI ID Box */}
+                    <View style={styles.upiIdCard}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.upiIdLabel}>ADMIN UPI ID</Text>
+                        <Text style={styles.upiIdText} selectable>{adminUpiId}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.copyBtn}
+                        onPress={() => {
+                          setCopiedUpi(true);
+                          setTimeout(() => setCopiedUpi(false), 2500);
+                        }}
+                      >
+                        <Ionicons
+                          name={copiedUpi ? 'checkmark-circle' : 'copy-outline'}
+                          size={16}
+                          color={copiedUpi ? '#16a34a' : '#2563eb'}
+                        />
+                        <Text style={[styles.copyBtnText, copiedUpi && { color: '#16a34a' }]}>
+                          {copiedUpi ? 'Verified' : 'Verify ID'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* QR Payment Confirmation Button */}
+                    <TouchableOpacity
+                      style={[styles.confirmPaymentBtn, loading && styles.completeButtonDisabled]}
+                      onPress={() => handleConfirmPayment('UPI_QR')}
+                      disabled={loading}
+                      activeOpacity={0.88}
+                    >
+                      {loading ? (
+                        <ActivityIndicator color="#ffffff" size="small" />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark-circle-outline" size={20} color="#ffffff" />
+                          <Text style={styles.confirmPaymentBtnText}>
+                            Confirm QR Payment Received (₹{totalRemainingAmount})
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  /* TAB 2: CASH COLLECTED BY DRIVER */
+                  <View style={styles.cashContentCard}>
+                    <View style={styles.cashIconCircle}>
+                      <Image
+                        source={CASH_RUPEE_ICON}
+                        style={styles.cashCardLargeIcon}
+                        resizeMode="contain"
+                      />
+                    </View>
+
+                    <Text style={styles.cashHeaderTitle}>Cash Collection by Driver</Text>
+                    <Text style={styles.cashAmountDisplay}>₹{totalRemainingAmount}</Text>
+
+                    <View style={styles.cashInstructionsBox}>
+                      <View style={styles.bulletRow}>
+                        <Ionicons name="checkbox-outline" size={18} color="#16a34a" style={{ marginTop: 2 }} />
+                        <Text style={styles.bulletText}>
+                          Collect <Text style={{ fontWeight: '800', color: '#0f172a' }}>₹{totalRemainingAmount}</Text> in physical cash directly from the passenger.
+                        </Text>
+                      </View>
+                      <View style={styles.bulletRow}>
+                        <Ionicons name="shield-checkmark-outline" size={18} color="#2563eb" style={{ marginTop: 2 }} />
+                        <Text style={styles.bulletText}>
+                          This cash will be recorded against your driver account and settled in your weekly payout statement.
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Cash Collection Confirmation Button */}
+                    <TouchableOpacity
+                      style={[styles.confirmCashBtn, loading && styles.completeButtonDisabled]}
+                      onPress={() => handleConfirmPayment('CASH')}
+                      disabled={loading}
+                      activeOpacity={0.88}
+                    >
+                      {loading ? (
+                        <ActivityIndicator color="#ffffff" size="small" />
+                      ) : (
+                        <>
+                          <Ionicons name="hand-right-outline" size={20} color="#ffffff" />
+                          <Text style={styles.confirmPaymentBtnText}>
+                            Confirm Cash Collected (₹{totalRemainingAmount})
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
@@ -643,22 +1000,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   speedometerIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#dbeafe',
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
   walletIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#faf5ff',
-    borderWidth: 1,
-    borderColor: '#e9d5ff',
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1076,59 +1425,518 @@ const styles = StyleSheet.create({
   bottomBar: {
     backgroundColor: '#ffffff',
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: '#f1f5f9',
   },
-  completeButton: {
+  yellowPrimaryButton: {
+    backgroundColor: '#fbbf24',
     borderRadius: 30,
-    paddingVertical: 16,
+    height: 54,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    elevation: 6,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-  },
-  completeButtonReady: {
-    backgroundColor: '#059669',
-    shadowColor: '#059669',
-    shadowOpacity: 0.35,
-  },
-  completeButtonLocked: {
-    backgroundColor: '#1e293b',
-    shadowColor: '#0f172a',
+    justifyContent: 'space-between',
+    shadowColor: '#d97706',
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  yellowPrimaryButtonReady: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    shadowColor: '#007c5a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  readyGradient: {
+    width: '100%',
+    height: '100%',
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 30,
+  },
+  btnLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  btnDividerDark: {
+    width: 1.5,
+    height: 20,
+    backgroundColor: 'rgba(15, 23, 42, 0.25)',
+    marginHorizontal: 12,
+  },
+  btnDividerLight: {
+    width: 1.5,
+    height: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    marginHorizontal: 12,
+  },
+  yellowPrimaryButtonText: {
+    color: '#0f172a',
+    fontSize: 14.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    flex: 1,
+  },
+  yellowPrimaryButtonTextReady: {
+    color: '#ffffff',
+    fontWeight: '900',
   },
   completeButtonDisabled: {
     opacity: 0.6,
   },
-  ctaIconCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+  // --- Payment Modal Styles ---
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
     backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: '92%',
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
   },
-  ctaIconCircleAmber: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#fff7ed',
+  modalScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 20,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  modalHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    flexWrap: 'wrap',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  bookingRefPill: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#fed7aa',
+    borderColor: '#e2e8f0',
   },
-  completeButtonText: {
-    color: '#ffffff',
-    fontSize: 13.5,
+  bookingRefPillText: {
+    fontSize: 11.5,
+    color: '#64748b',
+    fontWeight: '700',
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+    gap: 6,
+  },
+  modalErrorText: {
+    fontSize: 12.5,
+    color: '#ef4444',
+    flex: 1,
+    fontWeight: '600',
+  },
+  amountDueCard: {
+    backgroundColor: '#ecfdf5',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#a7f3d0',
+    padding: 18,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  amountDueLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#047857',
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  amountDueValue: {
+    fontSize: 34,
     fontWeight: '900',
-    letterSpacing: 0.4,
+    color: '#065f46',
+  },
+  amountBreakdownRow: {
+    marginTop: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  amountBreakdownText: {
+    fontSize: 11.5,
+    color: '#047857',
+    fontWeight: '600',
+  },
+  sectionHeaderTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748b',
+    letterSpacing: 0.6,
+    marginBottom: 6,
+  },
+  paymentTabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  paymentTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    gap: 6,
+  },
+  paymentTabBtnActive: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#008860',
+  },
+  paymentTabText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  paymentTabTextActive: {
+    color: '#008860',
+    fontWeight: '800',
+  },
+  cashTabIcon: {
+    width: 20,
+    height: 14,
+  },
+  qrContentCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 12,
+    alignItems: 'center',
+  },
+  qrHeaderTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 2,
+  },
+  qrHeaderDesc: {
+    fontSize: 11.5,
+    color: '#64748b',
     textAlign: 'center',
+    lineHeight: 16,
+    marginBottom: 8,
+    paddingHorizontal: 6,
+  },
+  qrCodeWrapper: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 8,
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+    marginBottom: 8,
+  },
+  qrCodeImage: {
+    width: 185,
+    height: 185,
+    borderRadius: 6,
+  },
+  qrAmountTag: {
+    marginTop: 6,
+    backgroundColor: '#ecfdf5',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  qrAmountTagText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#065f46',
+  },
+  upiBadgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 5,
+    marginBottom: 10,
+  },
+  upiBadgePill: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  upiBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  upiIdCard: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 10,
+    marginBottom: 12,
+  },
+  upiIdLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#94a3b8',
+    letterSpacing: 0.5,
+  },
+  upiIdText: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginTop: 1,
+  },
+  copyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    gap: 4,
+  },
+  copyBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#2563eb',
+  },
+  confirmPaymentBtn: {
+    width: '100%',
+    backgroundColor: '#008860',
+    borderRadius: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#008860',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  confirmPaymentBtnText: {
+    color: '#ffffff',
+    fontSize: 14.5,
+    fontWeight: '800',
+  },
+  cashContentCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 16,
+    alignItems: 'center',
+  },
+  cashIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#ecfdf5',
+    borderWidth: 2,
+    borderColor: '#a7f3d0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  cashCardLargeIcon: {
+    width: 38,
+    height: 25,
+    tintColor: '#008860',
+  },
+  cashHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  cashAmountDisplay: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#008860',
+    marginBottom: 12,
+  },
+  cashInstructionsBox: {
+    width: '100%',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 12,
+    marginBottom: 14,
+    gap: 8,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  bulletText: {
+    fontSize: 12,
+    color: '#475569',
+    flex: 1,
+    lineHeight: 17,
+  },
+  confirmCashBtn: {
+    width: '100%',
+    backgroundColor: '#008860',
+    borderRadius: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#008860',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  // Success Receipt State
+  successContentBox: {
+    padding: 28,
+    alignItems: 'center',
+  },
+  successIconCircle: {
+    marginBottom: 16,
+  },
+  successMainTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  successSubtitle: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '700',
+    marginBottom: 20,
+  },
+  receiptCard: {
+    width: '100%',
+    backgroundColor: '#f8fafc',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 18,
+    marginBottom: 24,
+  },
+  receiptRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+  },
+  receiptLabel: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  receiptValue: {
+    fontSize: 14,
+    color: '#0f172a',
+    fontWeight: '700',
+  },
+  receiptDivider: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
+  },
+  methodBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  methodBadgeText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  receiptCashIcon: {
+    width: 16,
+    height: 11,
+    tintColor: '#0f172a',
+  },
+  dashboardReturnBtn: {
+    width: '100%',
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
+    paddingVertical: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  dashboardReturnBtnText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
   },
 });
 

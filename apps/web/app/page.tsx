@@ -24,7 +24,7 @@ const HERO_FLEET_SLIDES = [
   {
     id: 'hatchback',
     name: 'Economy Hatchback',
-    models: 'Baleno • WagonR • Tiago',
+    models: 'Swift • WagonR • Tiago',
     image: '/images/fleet-hatchback.webp',
     rate: '₹11 / km',
     capacity: '4 Passengers',
@@ -76,7 +76,7 @@ const FLEET_DATA = [
   {
     category: VehicleCategory.HATCHBACK,
     name: 'Hatchback',
-    models: 'WagonR • Tiago • Celerio',
+    models: 'Swift • WagonR • Tiago',
     image: '/images/fleet-hatchback.webp',
     ratePerKm: '₹11',
     ratePerKmUnit: '/ km',

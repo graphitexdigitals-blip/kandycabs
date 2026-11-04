@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { driverApiClient } from '../lib/api';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -27,7 +28,7 @@ const VEHICLE_CATEGORIES: Array<{
   defaultModel: string;
   models: string;
   seats: string;
-  icon: string;
+  image: any;
 }> = [
   {
     id: 'HATCHBACK',
@@ -35,7 +36,7 @@ const VEHICLE_CATEGORIES: Array<{
     defaultModel: 'Maruti Suzuki WagonR',
     models: 'WagonR, Swift, Tiago, i10',
     seats: '4 Seats',
-    icon: '🚗',
+    image: require('../assets/images/fleet-hatchback.png'),
   },
   {
     id: 'SEDAN',
@@ -43,7 +44,7 @@ const VEHICLE_CATEGORIES: Array<{
     defaultModel: 'Maruti Suzuki Dzire',
     models: 'Dzire, Etios, Aura, Amaze',
     seats: '4 Seats',
-    icon: '🚘',
+    image: require('../assets/images/fleet-sedan.png'),
   },
   {
     id: 'SUV',
@@ -51,7 +52,7 @@ const VEHICLE_CATEGORIES: Array<{
     defaultModel: 'Maruti Suzuki Ertiga',
     models: 'Ertiga, Carens, Triber, XL6',
     seats: '6 Seats',
-    icon: '🚙',
+    image: require('../assets/images/fleet-suv.png'),
   },
   {
     id: 'SUV_PREMIUM',
@@ -59,7 +60,7 @@ const VEHICLE_CATEGORIES: Array<{
     defaultModel: 'Toyota Innova Crysta',
     models: 'Innova Crysta, Hycross, XUV700',
     seats: '7 Seats',
-    icon: '🚐',
+    image: require('../assets/images/fleet-crysta.png'),
   },
   {
     id: 'TEMPO_TRAVELER',
@@ -67,14 +68,19 @@ const VEHICLE_CATEGORIES: Array<{
     defaultModel: 'Force Traveller 12 Seater',
     models: 'Force Traveller, Winger, Urbania',
     seats: '12 Seats',
-    icon: '🚌',
+    image: require('../assets/images/fleet-traveller.png'),
   },
 ];
 
-const FUEL_TYPES: Array<{ id: FuelTypeVal; label: string; icon: string }> = [
-  { id: 'DIESEL', label: 'Diesel', icon: '⛽' },
-  { id: 'PETROL', label: 'Petrol', icon: '⛽' },
-  { id: 'CNG', label: 'CNG (Green)', icon: '🟢' },
+const FUEL_TYPES: Array<{
+  id: FuelTypeVal;
+  label: string;
+  iconName: 'funnel' | 'ellipse';
+  iconColor: string;
+}> = [
+  { id: 'DIESEL', label: 'Diesel', iconName: 'funnel', iconColor: 'rgb(240, 117, 15)' },
+  { id: 'PETROL', label: 'Petrol', iconName: 'funnel', iconColor: '#ef4444' },
+  { id: 'CNG', label: 'CNG (Green)', iconName: 'ellipse', iconColor: '#16a34a' },
 ];
 
 const CARRIAGE_OPTIONS = [
@@ -83,7 +89,7 @@ const CARRIAGE_OPTIONS = [
   '3 Large Bags (Spacious Boot)',
   '4 Large Bags (SUV Boot Space)',
   '5+ Large Bags (Max Cargo)',
-  'Roof Carrier Included 🧳 (Heavy Luggage / Hill Trips)',
+  'Roof Carrier Included (Heavy Luggage / Hill Trips)',
 ];
 
 export default function DriverDocumentsUploadScreen() {
@@ -98,14 +104,16 @@ export default function DriverDocumentsUploadScreen() {
   const [rcDocUrl, setRcDocUrl] = useState<string | null>(null);
   const [insuranceDocUrl, setInsuranceDocUrl] = useState<string | null>(null);
 
-  // Vehicle & Carriage Specs (Starts completely empty / unselected)
-  const [plateNumber, setPlateNumber] = useState('');
-  const [category, setCategory] = useState<VehicleCategoryType | null>(null);
+  // Vehicle & Carriage Specs
+  const [plateNumber, setPlateNumber] = useState('KA-01-SD-2002');
+  const [category, setCategory] = useState<VehicleCategoryType | null>('SEDAN');
   const [carModel, setCarModel] = useState('');
-  const [fuelType, setFuelType] = useState<FuelTypeVal | null>(null);
+  const [fuelType, setFuelType] = useState<FuelTypeVal | null>('DIESEL');
   const [carriageCapacity, setCarriageCapacity] = useState<string | null>(null);
 
-  // Dropdown States
+  // Accordion & Dropdown States
+  const [step1Expanded, setStep1Expanded] = useState(false);
+  const [step2Expanded, setStep2Expanded] = useState(true);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [carriageDropdownOpen, setCarriageDropdownOpen] = useState(false);
 
@@ -143,15 +151,7 @@ export default function DriverDocumentsUploadScreen() {
             if (d.vehicle.fuelType) {
               setFuelType(d.vehicle.fuelType as FuelTypeVal);
             }
-          } else {
-            setPlateNumber('');
-            setCategory(null);
-            setFuelType(null);
           }
-        } else {
-          setPlateNumber('');
-          setCategory(null);
-          setFuelType(null);
         }
 
         if (d.carModel) {
@@ -160,11 +160,7 @@ export default function DriverDocumentsUploadScreen() {
           const matchModel = d.adminNotes.match(/\[Car Model:\s*([^\]]+)\]/);
           if (matchModel && matchModel[1]) {
             setCarModel(matchModel[1].trim());
-          } else {
-            setCarModel('');
           }
-        } else {
-          setCarModel('');
         }
 
         if (d.carriageCapacity) {
@@ -238,13 +234,20 @@ export default function DriverDocumentsUploadScreen() {
   };
 
   const handleSelectOptions = (target: 'profile' | 'license' | 'rc' | 'insurance') => {
-    const title = target === 'profile' ? 'Upload Driver Profile Photo' : 'Upload Document Photo';
+    const title =
+      target === 'profile'
+        ? 'Driver Profile Photo'
+        : target === 'license'
+        ? 'Driving License Photo'
+        : target === 'rc'
+        ? 'RC Certificate Photo'
+        : 'Vehicle Insurance Photo';
     Alert.alert(
       title,
       'Choose source for uploading photo:',
       [
         { text: '📷 Take Photo with Camera', onPress: () => pickImage(target, 'camera') },
-        { text: '🖼️ Choose from Photo Gallery', onPress: () => pickImage(target, 'library') },
+        { text: '🖼️ Choose from Gallery', onPress: () => pickImage(target, 'library') },
         { text: 'Cancel', style: 'cancel' },
       ]
     );
@@ -255,18 +258,18 @@ export default function DriverDocumentsUploadScreen() {
     setLicenseDocUrl('https://images.unsplash.com/photo-1584433144859-1fc3ab64a957?w=800&auto=format&fit=crop&q=80');
     setRcDocUrl('https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&auto=format&fit=crop&q=80');
     setInsuranceDocUrl('https://images.unsplash.com/photo-1450133064473-71024230f91b?w=800&auto=format&fit=crop&q=80');
-    if (!licenseNumber) setLicenseNumber('KA 01 2023 0089745');
-    if (!plateNumber) setPlateNumber('KA 01 MJ 2023');
+    if (!licenseNumber) setLicenseNumber('KA-01-2023-0089745');
+    setPlateNumber('KA-01-SD-2002');
     setCategory('SEDAN');
-    setCarModel('Maruti Suzuki Dzire VXI');
+    setCarModel('Maruti Suzuki Dzire');
     setFuelType('DIESEL');
-    setCarriageCapacity('3 Large Bags (Spacious Boot)');
-    Alert.alert('Demo Details Loaded', 'Loaded sample verified KYC documents, vehicle specs (KA 01 MJ 2023 Maruti Suzuki Dzire) and carriage capacity. You can now tap Save & Submit!');
+    setCarriageCapacity('2 Large Bags (Standard Boot)');
+    Alert.alert('⚡ Demo Values Loaded', 'Filled sample verified vehicle specifications (KA-01-SD-2002 Sedan Dzire) and KYC documents.');
   };
 
   const handleSubmit = async () => {
     if (!plateNumber.trim()) {
-      Alert.alert('Required Field', 'Please enter your Vehicle Plate / Registration number (e.g. KA 01 MJ 2023).');
+      Alert.alert('Required Field', 'Please enter your Vehicle Plate / Registration number (e.g. KA-01-SD-2002).');
       return;
     }
 
@@ -276,7 +279,7 @@ export default function DriverDocumentsUploadScreen() {
     }
 
     if (!carModel.trim()) {
-      Alert.alert('Required Field', 'Please enter which car make & model you drive (e.g. Maruti Suzuki Dzire / Toyota Innova).');
+      Alert.alert('Required Field', 'Please enter which car make & model you drive (e.g. Maruti Suzuki Dzire).');
       return;
     }
 
@@ -312,33 +315,18 @@ export default function DriverDocumentsUploadScreen() {
 
       if (res.success) {
         await fetchDocuments();
-        if (allDocsAttached) {
-          Alert.alert(
-            '✓ Submitted to Admin',
-            'Your vehicle specifications and all KYC documents have been saved and sent for Admin Verification.',
-            [
-              {
-                text: 'Back to Dashboard',
-                onPress: () => router.replace('/dashboard'),
-              },
-            ]
-          );
-        } else {
-          Alert.alert(
-            '✓ Vehicle Details Saved',
-            'Your vehicle specifications and plate have been updated. Remember to upload all 3 KYC certificates (DL, RC, Insurance) for final approval.',
-            [
-              {
-                text: 'Back to Dashboard',
-                onPress: () => router.replace('/dashboard'),
-              },
-              {
-                text: 'Stay on Page',
-                style: 'cancel',
-              },
-            ]
-          );
-        }
+        Alert.alert(
+          '✓ Saved & Submitted',
+          allDocsAttached
+            ? 'Your vehicle specifications and all KYC documents have been saved and submitted to Kandy Cabs Admin Review.'
+            : 'Vehicle details saved! Make sure to upload all KYC documents for final activation.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/dashboard'),
+            },
+          ]
+        );
       } else {
         Alert.alert('Submission Error', res.message || 'Failed to submit documents');
       }
@@ -351,18 +339,13 @@ export default function DriverDocumentsUploadScreen() {
 
   const selectedCategoryObj = VEHICLE_CATEGORIES.find((c) => c.id === category);
 
-  const cleanFeedback = adminNotes
-    ? adminNotes
-        .replace(/\[Car Model:[^\]]+\]/g, '')
-        .replace(/\[Luggage\/Carriage:[^\]]+\]/g, '')
-        .trim()
-    : '';
-
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#ea580c" />
-        <Text style={{ color: '#0f172a', marginTop: 12, fontWeight: '700' }}>Loading Details...</Text>
+        <ActivityIndicator size="large" color="rgb(240, 117, 15)" />
+        <Text style={{ color: '#0f172a', marginTop: 12, fontWeight: '700', fontSize: 13 }}>
+          Loading Registration...
+        </Text>
       </View>
     );
   }
@@ -371,522 +354,526 @@ export default function DriverDocumentsUploadScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      {/* Top Navigation Bar */}
-      <View style={styles.topNavBar}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={20} color="#0f172a" />
-          <Text style={styles.backBtnText}>Profile</Text>
-        </TouchableOpacity>
-        <Text style={styles.navTitle}>Vehicle & KYC Registration</Text>
-        <TouchableOpacity
-          style={styles.quickFillBtn}
-          onPress={handleFillDemoPhotos}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.quickFillBtnText}>⚡ Demo</Text>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Status / Notice Header */}
-        <View style={styles.noticeCard}>
-          <View style={styles.noticeTopRow}>
-            <Text style={styles.noticeEmoji}>🛡️</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.noticeTitle}>Driver & Vehicle Profile Setup</Text>
-              <Text style={styles.noticeSub}>
-                Select your vehicle category, input your car model, license number, carriage allowance, and KYC documents for admin approval.
+        {/* ============================================================ */}
+        {/* HERO HEADER: Back Btn, Title on Right Side, & Car Cutout     */}
+        {/* ============================================================ */}
+        <View style={styles.heroHeaderContainer}>
+          <View style={styles.heroRow}>
+            <TouchableOpacity
+              style={styles.backCircleBtn}
+              onPress={() => router.back()}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="arrow-back" size={18} color="#0f172a" />
+            </TouchableOpacity>
+
+            <View style={styles.heroTitleColumn}>
+              <Text style={styles.heroTitleMain}>Vehicle & KYC</Text>
+              <Text style={styles.heroTitleMain}>Registration</Text>
+              <Text style={styles.heroSubtitle}>
+                Complete your details to start receiving ride requests.
               </Text>
             </View>
-          </View>
 
-          {cleanFeedback ? (
-            <View style={styles.adminFeedbackBox}>
-              <Text style={styles.adminFeedbackTitle}>⚠️ Admin Feedback:</Text>
-              <Text style={styles.adminFeedbackText}>{cleanFeedback}</Text>
+            <View style={styles.heroCarImageBox}>
+              <Image
+                source={require('../assets/images/fleet-sedan.png')}
+                style={styles.heroCarImage}
+                resizeMode="contain"
+              />
             </View>
-          ) : null}
+          </View>
         </View>
 
         {/* ============================================================ */}
-        {/* SECTION 1: VEHICLE & CARRIAGE DETAILS                        */}
+        {/* SECURITY & DATA PROTECTION BANNER                            */}
         {/* ============================================================ */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionHeaderTitle}>1. VEHICLE & CARRIAGE DETAILS</Text>
-          <Text style={styles.sectionHeaderSub}>Car Specs</Text>
-        </View>
-
-        {/* Vehicle Plate / Reg Number */}
-        <View style={styles.inputCard}>
-          <View style={styles.inputLabelRow}>
-            <Text style={styles.inputLabel}>VEHICLE PLATE / REGISTRATION NUMBER:</Text>
-            <View style={[styles.badgePill, plateNumber ? styles.badgeGreen : styles.badgeAmber]}>
-              <Text style={plateNumber ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                {plateNumber ? '✓ Filled' : 'Required'}
-              </Text>
-            </View>
+        <View style={styles.securityBannerCard}>
+          <View style={styles.securityShieldCircle}>
+            <Ionicons name="shield-checkmark" size={16} color="#ffffff" />
           </View>
-          <View style={styles.plateInputWrapper}>
-            <View style={styles.plateIndBadge}>
-              <Text style={styles.plateIndText}>IND</Text>
-            </View>
-            <TextInput
-              style={styles.plateTextInput}
-              value={plateNumber}
-              onChangeText={setPlateNumber}
-              placeholder="e.g. KA 01 MJ 2023"
-              placeholderTextColor="#94a3b8"
-              autoCapitalize="characters"
-            />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.securityBannerTitle}>Your information is safe and secure</Text>
+            <Text style={styles.securityBannerSub}>We keep your data protected.</Text>
           </View>
         </View>
 
-        {/* Vehicle Category (Car Model) - DROPDOWN & EXACT CAR INPUT */}
-        <View style={styles.inputCard}>
-          <View style={styles.inputLabelRow}>
-            <Text style={styles.inputLabel}>VEHICLE CATEGORY (SEGMENT):</Text>
-            <View style={[styles.badgePill, selectedCategoryObj ? styles.badgeGreen : styles.badgeAmber]}>
-              <Text style={selectedCategoryObj ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                {selectedCategoryObj ? selectedCategoryObj.seats : 'Required'}
+        {/* ============================================================ */}
+        {/* STEP 1: Driver Profile Setup (Driver Photo at First)         */}
+        {/* ============================================================ */}
+        <View style={styles.stepCardWhite}>
+          <View style={styles.stepCardHeaderRow}>
+            <View style={{ flex: 1, paddingRight: 6 }}>
+              <Text style={styles.stepTitleText}>Driver Profile Photo</Text>
+              <Text style={styles.stepSubtitleTextMini}>
+                Upload a clear selfie or portrait photo for customer verification.
+              </Text>
+            </View>
+            <View style={[styles.badgePill, profilePhotoUrl ? styles.badgeGreen : styles.badgeAmber]}>
+              <Text style={profilePhotoUrl ? styles.badgeGreenText : styles.badgeAmberText}>
+                {profilePhotoUrl ? '✓ Uploaded' : 'Required'}
               </Text>
             </View>
           </View>
-          <Text style={styles.fieldSubHelp}>Tap to choose your vehicle category segment:</Text>
 
-          {/* Dropdown Trigger */}
+          {/* Driver Photo Upload Card */}
           <TouchableOpacity
-            style={[styles.dropdownTrigger, categoryDropdownOpen && styles.dropdownTriggerOpen]}
-            onPress={() => {
-              setCategoryDropdownOpen(!categoryDropdownOpen);
-              if (carriageDropdownOpen) setCarriageDropdownOpen(false);
-            }}
+            style={styles.driverPhotoCard}
+            onPress={() => handleSelectOptions('profile')}
             activeOpacity={0.8}
           >
-            <Text style={styles.dropdownTriggerIcon}>{selectedCategoryObj?.icon || '🚗'}</Text>
-            <View style={{ flex: 1, paddingHorizontal: 6 }}>
-              {selectedCategoryObj ? (
+            <View style={styles.driverAvatarCircle}>
+              {profilePhotoUrl ? (
+                <Image source={{ uri: profilePhotoUrl }} style={styles.driverAvatarImg} />
+              ) : (
+                <View style={styles.driverAvatarPlaceholder}>
+                  <Ionicons name="person" size={26} color="#0f2744" />
+                </View>
+              )}
+              <View style={styles.avatarCameraBadge}>
+                <Ionicons name="camera" size={11} color="#ffffff" />
+              </View>
+            </View>
+
+            <View style={styles.driverPhotoTextBox}>
+              <Text style={styles.driverPhotoTitle}>Driver Profile Photo</Text>
+              <Text style={styles.driverPhotoSubtitle}>(Selfie / Front-Facing Portrait)</Text>
+              <Text style={styles.driverPhotoHelp}>
+                {profilePhotoUrl ? 'Tap to change or take new photo' : 'Required for customer identification'}
+              </Text>
+            </View>
+
+            <View style={profilePhotoUrl ? styles.docCardUploadedBtn : styles.docCardUploadBtn}>
+              {profilePhotoUrl ? (
                 <>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.dropdownTriggerTitle}>{selectedCategoryObj.title}</Text>
-                    <View style={styles.dropdownSeatBadge}>
-                      <Text style={styles.dropdownSeatBadgeText}>{selectedCategoryObj.seats}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.dropdownTriggerSub} numberOfLines={1}>
-                    {selectedCategoryObj.models}
-                  </Text>
+                  <Ionicons name="checkmark-circle" size={12} color="#16a34a" />
+                  <Text style={styles.docCardUploadedText}>Uploaded</Text>
+                  <Ionicons name="chevron-forward" size={10} color="#16a34a" style={{ marginLeft: 2 }} />
                 </>
               ) : (
                 <>
-                  <Text style={[styles.dropdownTriggerTitle, { color: '#94a3b8' }]}>
-                    Select Vehicle Category
-                  </Text>
-                  <Text style={styles.dropdownTriggerSub}>
-                    Tap to select Hatchback, Sedan, SUV, TT
-                  </Text>
+                  <Ionicons name="cloud-upload-outline" size={12} color="rgb(240, 117, 15)" />
+                  <Text style={styles.docCardUploadText}>Upload</Text>
+                  <Ionicons name="chevron-forward" size={10} color="rgb(240, 117, 15)" style={{ marginLeft: 2 }} />
                 </>
               )}
             </View>
-            <Ionicons
-              name={categoryDropdownOpen ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={categoryDropdownOpen ? '#ea580c' : '#64748b'}
-            />
           </TouchableOpacity>
-
-          {/* Dropdown Menu Items */}
-          {categoryDropdownOpen && (
-            <View style={styles.dropdownMenu}>
-              {VEHICLE_CATEGORIES.map((cat, idx) => {
-                const isSelected = category === cat.id;
-                const isLast = idx === VEHICLE_CATEGORIES.length - 1;
-                return (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      styles.dropdownMenuItem,
-                      isSelected && styles.dropdownMenuItemSelected,
-                      !isLast && styles.dropdownMenuItemBorder,
-                    ]}
-                    onPress={() => {
-                      setCategory(cat.id);
-                      setCategoryDropdownOpen(false);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.dropdownItemIcon}>{cat.icon}</Text>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={[styles.dropdownItemTitle, isSelected && styles.dropdownItemTitleSelected]}>
-                          {cat.title}
-                        </Text>
-                        <View style={[styles.dropdownItemSeatPill, isSelected && styles.dropdownItemSeatPillSelected]}>
-                          <Text style={[styles.dropdownItemSeatText, isSelected && styles.dropdownItemSeatTextSelected]}>
-                            {cat.seats}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text style={styles.dropdownItemModels}>{cat.models}</Text>
-                    </View>
-                    <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
-                      {isSelected && <View style={styles.radioDot} />}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-
-          {/* Exact Car Model Name Input (Which Car) */}
-          <View style={{ marginTop: 12 }}>
-            <View style={styles.inputLabelRow}>
-              <Text style={styles.inputLabel}>WHICH CAR (MAKE & MODEL NAME):</Text>
-              <View style={[styles.badgePill, carModel.trim() ? styles.badgeGreen : styles.badgeAmber]}>
-                <Text style={carModel.trim() ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                  {carModel.trim() ? '✓ Filled' : 'Required'}
-                </Text>
-              </View>
-            </View>
-            <TextInput
-              style={styles.textInput}
-              value={carModel}
-              onChangeText={setCarModel}
-              placeholder="e.g. Maruti Suzuki Dzire / Toyota Innova Crysta / Tata Tiago"
-              placeholderTextColor="#94a3b8"
-            />
-          </View>
         </View>
 
-        {/* Fuel Type */}
-        <View style={styles.inputCard}>
-          <View style={styles.inputLabelRow}>
-            <Text style={styles.inputLabel}>FUEL TYPE:</Text>
-            <View style={[styles.badgePill, fuelType ? styles.badgeGreen : styles.badgeAmber]}>
-              <Text style={fuelType ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                {fuelType ? `✓ ${fuelType}` : 'Required'}
-              </Text>
-            </View>
-          </View>
-          <Text style={styles.fieldSubHelp}>Select the fuel engine type of your vehicle:</Text>
-          <View style={styles.pillsRow}>
-            {FUEL_TYPES.map((f) => {
-              const isSelected = fuelType === f.id;
-              return (
-                <TouchableOpacity
-                  key={f.id}
-                  style={[styles.fuelPill, isSelected && styles.fuelPillSelected]}
-                  onPress={() => setFuelType(f.id)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.fuelPillIcon}>{f.icon}</Text>
-                  <Text style={[styles.fuelPillLabel, isSelected && styles.fuelPillLabelSelected]}>
-                    {f.label}
-                  </Text>
-                  {isSelected && <Text style={styles.fuelPillCheck}>✓</Text>}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Carriage Included How Much - DROPDOWN */}
-        <View style={styles.inputCard}>
-          <View style={styles.inputLabelRow}>
-            <Text style={styles.inputLabel}>CARRIAGE / LUGGAGE CAPACITY (HOW MUCH):</Text>
-            <View style={[styles.badgePill, carriageCapacity ? styles.badgeGreen : styles.badgeAmber]}>
-              <Text style={carriageCapacity ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                {carriageCapacity ? '✓ Selected' : 'Required'}
-              </Text>
-            </View>
-          </View>
-          <Text style={styles.fieldSubHelp}>Tap to select luggage boot / roof carrier allowance:</Text>
-
-          {/* Dropdown Trigger */}
+        {/* ============================================================ */}
+        {/* STEP 2: Vehicle & Carriage Details                           */}
+        {/* ============================================================ */}
+        <View style={styles.stepCardWhite}>
           <TouchableOpacity
-            style={[styles.dropdownTrigger, carriageDropdownOpen && styles.dropdownTriggerOpen]}
-            onPress={() => {
-              setCarriageDropdownOpen(!carriageDropdownOpen);
-              if (categoryDropdownOpen) setCategoryDropdownOpen(false);
-            }}
-            activeOpacity={0.8}
+            style={styles.stepCardHeaderRow}
+            onPress={() => setStep2Expanded(!step2Expanded)}
+            activeOpacity={0.7}
           >
-            <Text style={styles.dropdownTriggerIcon}>
-              {carriageCapacity?.startsWith('None') ? '🚫' : carriageCapacity?.includes('Roof') ? '🧳' : '👜'}
-            </Text>
-            <View style={{ flex: 1, paddingHorizontal: 6 }}>
-              <Text
-                style={[
-                  styles.dropdownTriggerTitle,
-                  !carriageCapacity && { color: '#94a3b8' },
-                ]}
-                numberOfLines={1}
-              >
-                {carriageCapacity || 'Select Luggage / Carriage Allowance'}
-              </Text>
-              <Text style={styles.dropdownTriggerSub}>
-                {carriageCapacity ? 'Boot space or luggage carrier capacity' : 'Tap to select allowance'}
-              </Text>
-            </View>
+            <Text style={styles.stepTitleText}>Vehicle & Carriage Details</Text>
             <Ionicons
-              name={carriageDropdownOpen ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={carriageDropdownOpen ? '#ea580c' : '#64748b'}
+              name={step2Expanded ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color="#0f172a"
             />
           </TouchableOpacity>
 
-          {/* Dropdown Menu Items */}
-          {carriageDropdownOpen && (
-            <View style={styles.dropdownMenu}>
-              {CARRIAGE_OPTIONS.map((opt, idx) => {
-                const isSelected = carriageCapacity === opt;
-                const isLast = idx === CARRIAGE_OPTIONS.length - 1;
-                return (
-                  <TouchableOpacity
-                    key={opt}
-                    style={[
-                      styles.dropdownMenuItem,
-                      isSelected && styles.dropdownMenuItemSelected,
-                      !isLast && styles.dropdownMenuItemBorder,
-                    ]}
-                    onPress={() => {
-                      setCarriageCapacity(opt);
-                      setCarriageDropdownOpen(false);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.dropdownItemIcon}>
-                      {opt.startsWith('None') ? '🚫' : opt.includes('Roof') ? '🧳' : '👜'}
-                    </Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.dropdownItemTitle, isSelected && styles.dropdownItemTitleSelected]}>
-                        {opt}
+          {step2Expanded && (
+            <View style={styles.step2ContentWrapper}>
+              {/* Row 1: Vehicle Plate / Registration Number */}
+              <View style={styles.fieldRow}>
+                <View style={styles.fieldIconBox}>
+                  <Ionicons name="card" size={20} color="#0f2744" />
+                </View>
+
+                <View style={styles.fieldBody}>
+                  <View style={styles.fieldLabelRow}>
+                    <Text style={styles.fieldLabelText}>Vehicle Plate / Registration Number</Text>
+                    <View style={[styles.badgePill, plateNumber ? styles.badgeGreen : styles.badgeAmber]}>
+                      <Text style={plateNumber ? styles.badgeGreenText : styles.badgeAmberText}>
+                        {plateNumber ? '✓ Filled' : 'Required'}
                       </Text>
                     </View>
-                    <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
-                      {isSelected && <View style={styles.radioDot} />}
+                  </View>
+
+                  <TextInput
+                    style={styles.plateInputClean}
+                    value={plateNumber}
+                    onChangeText={(val) => setPlateNumber(val.toUpperCase())}
+                    placeholder="KA-01-SD-2002"
+                    placeholderTextColor="#94a3b8"
+                    autoCapitalize="characters"
+                  />
+                </View>
+              </View>
+
+              {/* Row 2: Vehicle Category (Segment) */}
+              <View style={styles.fieldRow}>
+                <View style={styles.fieldIconBox}>
+                  <Ionicons name="car-sport" size={20} color="#0f2744" />
+                </View>
+
+                <View style={styles.fieldBody}>
+                  <View style={styles.fieldLabelRow}>
+                    <Text style={styles.fieldLabelText}>Vehicle Category (Segment)</Text>
+                    <View style={[styles.badgePill, category ? styles.badgeGreen : styles.badgeAmber]}>
+                      <Text style={category ? styles.badgeGreenText : styles.badgeAmberText}>
+                        {category ? '✓ Selected' : 'Required'}
+                      </Text>
                     </View>
+                  </View>
+
+                  {/* Category Dropdown Trigger */}
+                  <TouchableOpacity
+                    style={styles.categorySelectBox}
+                    onPress={() => {
+                      setCategoryDropdownOpen(!categoryDropdownOpen);
+                      if (carriageDropdownOpen) setCarriageDropdownOpen(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Image
+                      source={selectedCategoryObj?.image || require('../assets/images/fleet-sedan.png')}
+                      style={styles.categoryThumbnail}
+                      resizeMode="contain"
+                    />
+                    <View style={styles.categoryInfoCol}>
+                      <Text style={styles.categoryTitleText}>
+                        {selectedCategoryObj?.title || 'Sedan'}
+                      </Text>
+                      <Text style={styles.categorySubmodelsText} numberOfLines={1}>
+                        {selectedCategoryObj?.models || 'Dzire, Etios, Aura, Amaze'}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={categoryDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color="#0f172a"
+                    />
                   </TouchableOpacity>
-                );
-              })}
+
+                  {/* Dropdown Menu */}
+                  {categoryDropdownOpen && (
+                    <View style={styles.dropdownMenu}>
+                      {VEHICLE_CATEGORIES.map((cat, idx) => {
+                        const isSelected = category === cat.id;
+                        const isLast = idx === VEHICLE_CATEGORIES.length - 1;
+                        return (
+                          <TouchableOpacity
+                            key={cat.id}
+                            style={[
+                              styles.dropdownItem,
+                              isSelected && styles.dropdownItemSelected,
+                              !isLast && styles.dropdownItemBorder,
+                            ]}
+                            onPress={() => {
+                              setCategory(cat.id);
+                              setCategoryDropdownOpen(false);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Image
+                              source={cat.image}
+                              style={styles.categoryThumbnail}
+                              resizeMode="contain"
+                            />
+                            <View style={{ flex: 1, marginLeft: 10 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={[styles.dropdownItemTitle, isSelected && { color: 'rgb(240, 117, 15)' }]}>
+                                  {cat.title}
+                                </Text>
+                                <View style={styles.seatPillOrange}>
+                                  <Text style={styles.seatPillOrangeText}>{cat.seats}</Text>
+                                </View>
+                              </View>
+                              <Text style={styles.dropdownItemModels}>{cat.models}</Text>
+                            </View>
+                            {isSelected && <Ionicons name="checkmark" size={16} color="rgb(240, 117, 15)" />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              {/* Row 3: Which Car (Make & Model Name) */}
+              <View style={styles.fieldRow}>
+                <View style={styles.fieldIconBox}>
+                  <Ionicons name="car" size={20} color="#0f2744" />
+                </View>
+
+                <View style={styles.fieldBody}>
+                  <View style={styles.fieldLabelRow}>
+                    <Text style={styles.fieldLabelText}>Which Car (Make & Model Name)</Text>
+                    <View style={[styles.badgePill, carModel.trim() ? styles.badgeGreen : styles.badgeAmber]}>
+                      <Text style={carModel.trim() ? styles.badgeGreenText : styles.badgeAmberText}>
+                        {carModel.trim() ? '✓ Filled' : 'Required'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <TextInput
+                    style={styles.textInputField}
+                    value={carModel}
+                    onChangeText={setCarModel}
+                    placeholder="e.g. Maruti Suzuki Dzire / Toyota Innova Crysta"
+                    placeholderTextColor="#94a3b8"
+                  />
+                </View>
+              </View>
+
+              {/* Row 4: Fuel Type */}
+              <View style={styles.fieldRow}>
+                <View style={styles.fieldIconBox}>
+                  <Ionicons name="funnel" size={17} color="#0f2744" />
+                </View>
+
+                <View style={styles.fieldBody}>
+                  <View style={styles.fieldLabelRow}>
+                    <Text style={styles.fieldLabelText}>Fuel Type</Text>
+                    <View style={[styles.badgePill, fuelType ? styles.badgeGreen : styles.badgeAmber]}>
+                      <Text style={fuelType ? styles.badgeGreenText : styles.badgeAmberText}>
+                        {fuelType ? `✓ ${fuelType.charAt(0) + fuelType.slice(1).toLowerCase()}` : 'Required'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.fieldHelpText}>Select the fuel engine type of your vehicle</Text>
+
+                  <View style={styles.fuelSegmentRow}>
+                    {FUEL_TYPES.map((f) => {
+                      const isSelected = fuelType === f.id;
+                      return (
+                        <TouchableOpacity
+                          key={f.id}
+                          style={[styles.fuelBtn, isSelected ? styles.fuelBtnActive : styles.fuelBtnInactive]}
+                          onPress={() => setFuelType(f.id)}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name={f.iconName} size={12} color={f.iconColor} style={{ marginRight: 4 }} />
+                          <Text style={[styles.fuelBtnText, isSelected && styles.fuelBtnTextActive]}>
+                            {f.label}{isSelected ? ' ✓' : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              </View>
+
+              {/* Row 5: Carriage / Luggage Capacity (How Much) */}
+              <View style={styles.fieldRow}>
+                <View style={styles.fieldIconBox}>
+                  <Ionicons name="briefcase" size={20} color="#0f2744" />
+                </View>
+
+                <View style={styles.fieldBody}>
+                  <View style={styles.fieldLabelRow}>
+                    <Text style={styles.fieldLabelText}>Carriage / Luggage Capacity (How Much)</Text>
+                    <View style={[styles.badgePill, carriageCapacity ? styles.badgeGreen : styles.badgeAmber]}>
+                      <Text style={carriageCapacity ? styles.badgeGreenText : styles.badgeAmberText}>
+                        {carriageCapacity ? '✓ Selected' : 'Required'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.fieldHelpText}>Tap to select luggage boot / roof carrier allowance.</Text>
+
+                  {/* Carriage Dropdown Trigger */}
+                  <TouchableOpacity
+                    style={styles.carriageSelectBox}
+                    onPress={() => {
+                      setCarriageDropdownOpen(!carriageDropdownOpen);
+                      if (categoryDropdownOpen) setCategoryDropdownOpen(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="briefcase" size={18} color="rgb(240, 117, 15)" style={{ marginRight: 8 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.carriageTitleText,
+                          !carriageCapacity && { color: '#0f172a' },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {carriageCapacity || 'Select Luggage / Carriage Allowance'}
+                      </Text>
+                      <Text style={styles.carriageSubText}>
+                        {carriageCapacity ? 'Boot space or roof carrier capacity' : 'Tap to select allowance'}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={carriageDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color="#0f172a"
+                    />
+                  </TouchableOpacity>
+
+                  {/* Dropdown Menu */}
+                  {carriageDropdownOpen && (
+                    <View style={styles.dropdownMenu}>
+                      {CARRIAGE_OPTIONS.map((opt, idx) => {
+                        const isSelected = carriageCapacity === opt;
+                        const isLast = idx === CARRIAGE_OPTIONS.length - 1;
+                        return (
+                          <TouchableOpacity
+                            key={opt}
+                            style={[
+                              styles.dropdownItem,
+                              isSelected && styles.dropdownItemSelected,
+                              !isLast && styles.dropdownItemBorder,
+                            ]}
+                            onPress={() => {
+                              setCarriageCapacity(opt);
+                              setCarriageDropdownOpen(false);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons
+                              name={
+                                opt.startsWith('None')
+                                  ? 'close-circle-outline'
+                                  : opt.includes('Roof')
+                                  ? 'car-outline'
+                                  : 'briefcase-outline'
+                              }
+                              size={16}
+                              color={isSelected ? 'rgb(240, 117, 15)' : '#64748b'}
+                            />
+                            <Text
+                              style={[
+                                styles.dropdownItemTitle,
+                                { flex: 1, marginLeft: 8 },
+                                isSelected && { color: 'rgb(240, 117, 15)', fontWeight: '800' },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {opt}
+                            </Text>
+                            {isSelected && <Ionicons name="checkmark" size={16} color="rgb(240, 117, 15)" />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+              </View>
             </View>
           )}
         </View>
 
         {/* ============================================================ */}
-        {/* SECTION 2: DRIVER IDENTITY & OFFICIAL KYC DOCUMENTS          */}
+        {/* STEP 3: Vehicle Identity & KYC Documents                     */}
         {/* ============================================================ */}
-        <View style={[styles.sectionHeaderRow, { marginTop: 12 }]}>
-          <Text style={styles.sectionHeaderTitle}>2. DRIVER IDENTITY & KYC DOCUMENTS</Text>
-          <Text style={styles.sectionHeaderSub}>Verification</Text>
-        </View>
-
-        {/* Driver Profile Photo (Circular 1:1 Avatar) */}
-        <View style={styles.docUploadCard}>
-          <View style={styles.docCardHeader}>
-            <View style={{ flex: 1, paddingRight: 8 }}>
-              <Text style={styles.docCardTitle}>📸 Driver Profile Photo (Selfie / Portrait)</Text>
-              <Text style={styles.docCardSubtitle}>1:1 circle crop for your driver ID badge & passenger ride screen</Text>
+        <View style={styles.stepCardWhite}>
+          <View style={styles.step3HeaderBetween}>
+            <View style={{ flex: 1, paddingRight: 6 }}>
+              <Text style={styles.stepTitleText}>Vehicle & KYC Documents</Text>
+              <Text style={styles.stepSubtitleTextMini}>Upload the required documents for vehicle verification.</Text>
             </View>
-            <View style={[styles.badgePill, profilePhotoUrl ? styles.badgeGreen : styles.badgeAmber]}>
-              <Text style={profilePhotoUrl ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                {profilePhotoUrl ? '✓ Attached' : '⏳ Pending'}
-              </Text>
+
+            <View style={styles.verificationBadgeBlue}>
+              <Ionicons name="shield-checkmark" size={12} color="#1d4ed8" style={{ marginRight: 4 }} />
+              <Text style={styles.verificationBadgeBlueText}>Verification</Text>
+              <Ionicons name="chevron-forward" size={10} color="#1d4ed8" style={{ marginLeft: 2 }} />
             </View>
           </View>
 
-          {profilePhotoUrl ? (
-            <View style={styles.profileCirclePreviewCard}>
-              <View style={styles.profileCircleRing}>
-                <Image
-                  source={{ uri: profilePhotoUrl }}
-                  style={styles.profileCircleImage}
-                  resizeMode="cover"
-                />
-              </View>
-              <View style={styles.profileCircleInfo}>
-                <Text style={styles.profileCircleTitle}>✓ 1:1 Portrait Attached</Text>
-                <Text style={styles.profileCircleSub}>Cropped in circle for passenger & badge display</Text>
-                <TouchableOpacity
-                  style={styles.changeProfileBtn}
-                  onPress={() => handleSelectOptions('profile')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.changeProfileBtnText}>📷 Retake / Change Photo</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
+          {/* 3 Document Upload Cards (DL, RC, Insurance) */}
+          <View style={styles.docsRowGrid}>
+            {/* 1. Driving License */}
             <TouchableOpacity
-              style={styles.profileUploadPlaceholder}
-              onPress={() => handleSelectOptions('profile')}
-              activeOpacity={0.8}
-            >
-              <View style={styles.profilePlaceholderCircle}>
-                <Text style={styles.profilePlaceholderEmoji}>🤳</Text>
-              </View>
-              <Text style={styles.uploadPlaceholderTitle}>Tap to Upload Profile Photo (1:1 Crop)</Text>
-              <Text style={styles.uploadPlaceholderSub}>Take camera selfie or choose portrait image</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Driving License Number Input */}
-        <View style={styles.inputCard}>
-          <View style={styles.inputLabelRow}>
-            <Text style={styles.inputLabel}>DRIVING LICENSE NUMBER (DL):</Text>
-            <View style={[styles.badgePill, licenseNumber ? styles.badgeGreen : styles.badgeAmber]}>
-              <Text style={licenseNumber ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                {licenseNumber ? '✓ Filled' : 'Required'}
-              </Text>
-            </View>
-          </View>
-          <TextInput
-            style={styles.textInput}
-            value={licenseNumber}
-            onChangeText={setLicenseNumber}
-            placeholder="e.g. KA 01 2023 0012345"
-            placeholderTextColor="#94a3b8"
-            autoCapitalize="characters"
-          />
-        </View>
-
-        {/* Doc 1: Driving License Photo */}
-        <View style={styles.docUploadCard}>
-          <View style={styles.docCardHeader}>
-            <View>
-              <Text style={styles.docCardTitle}>📄 Driving License (DL) Copy</Text>
-              <Text style={styles.docCardSubtitle}>Front side photo showing DL number & validity</Text>
-            </View>
-            <View style={[styles.badgePill, licenseDocUrl ? styles.badgeGreen : styles.badgeAmber]}>
-              <Text style={licenseDocUrl ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                {licenseDocUrl ? '✓ Attached' : '⏳ Pending'}
-              </Text>
-            </View>
-          </View>
-
-          {licenseDocUrl ? (
-            <View style={styles.previewContainer}>
-              <Image
-                source={{ uri: licenseDocUrl }}
-                style={styles.docPreviewImage}
-                resizeMode="cover"
-              />
-              <TouchableOpacity
-                style={styles.changePhotoOverlay}
-                onPress={() => handleSelectOptions('license')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.changePhotoText}>📷 Change Photo</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.uploadPlaceholder}
+              style={styles.docUploadCard}
               onPress={() => handleSelectOptions('license')}
               activeOpacity={0.8}
             >
-              <Text style={styles.uploadPlaceholderIcon}>📷</Text>
-              <Text style={styles.uploadPlaceholderTitle}>Tap to Upload Driving License</Text>
-              <Text style={styles.uploadPlaceholderSub}>Take camera photo or pick from gallery</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Doc 2: RC Book */}
-        <View style={styles.docUploadCard}>
-          <View style={styles.docCardHeader}>
-            <View>
-              <Text style={styles.docCardTitle}>📄 RC Book / Certificate</Text>
-              <Text style={styles.docCardSubtitle}>Vehicle Registration certificate with owner & plate</Text>
-            </View>
-            <View style={[styles.badgePill, rcDocUrl ? styles.badgeGreen : styles.badgeAmber]}>
-              <Text style={rcDocUrl ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                {rcDocUrl ? '✓ Attached' : '⏳ Pending'}
+              <View style={styles.docIconCircle}>
+                <Ionicons name="card" size={20} color="#0f2744" />
+              </View>
+              <Text style={styles.docCardTitle} numberOfLines={2}>
+                Driving License{'\n'}(DL Copy)
               </Text>
-            </View>
-          </View>
+              {licenseDocUrl ? (
+                <View style={styles.docCardUploadedBtn}>
+                  <Ionicons name="checkmark-circle" size={11} color="#16a34a" />
+                  <Text style={styles.docCardUploadedText}>Uploaded</Text>
+                  <Ionicons name="chevron-forward" size={10} color="#16a34a" style={{ marginLeft: 2 }} />
+                </View>
+              ) : (
+                <View style={styles.docCardUploadBtn}>
+                  <Ionicons name="cloud-upload-outline" size={12} color="rgb(240, 117, 15)" />
+                  <Text style={styles.docCardUploadText}>Upload</Text>
+                  <Ionicons name="chevron-forward" size={10} color="rgb(240, 117, 15)" style={{ marginLeft: 2 }} />
+                </View>
+              )}
+            </TouchableOpacity>
 
-          {rcDocUrl ? (
-            <View style={styles.previewContainer}>
-              <Image
-                source={{ uri: rcDocUrl }}
-                style={styles.docPreviewImage}
-                resizeMode="cover"
-              />
-              <TouchableOpacity
-                style={styles.changePhotoOverlay}
-                onPress={() => handleSelectOptions('rc')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.changePhotoText}>📷 Change Photo</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
+            {/* 2. RC Book */}
             <TouchableOpacity
-              style={styles.uploadPlaceholder}
+              style={styles.docUploadCard}
               onPress={() => handleSelectOptions('rc')}
               activeOpacity={0.8}
             >
-              <Text style={styles.uploadPlaceholderIcon}>📋</Text>
-              <Text style={styles.uploadPlaceholderTitle}>Tap to Upload RC Certificate</Text>
-              <Text style={styles.uploadPlaceholderSub}>Take camera photo or pick from gallery</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Doc 3: Vehicle Insurance */}
-        <View style={styles.docUploadCard}>
-          <View style={styles.docCardHeader}>
-            <View>
-              <Text style={styles.docCardTitle}>📄 Vehicle Insurance Policy</Text>
-              <Text style={styles.docCardSubtitle}>Valid comprehensive or commercial cab insurance</Text>
-            </View>
-            <View style={[styles.badgePill, insuranceDocUrl ? styles.badgeGreen : styles.badgeAmber]}>
-              <Text style={insuranceDocUrl ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                {insuranceDocUrl ? '✓ Attached' : '⏳ Pending'}
+              <View style={styles.docIconCircle}>
+                <Ionicons name="document-text" size={20} color="#0f2744" />
+              </View>
+              <Text style={styles.docCardTitle} numberOfLines={2}>
+                RC Book /{'\n'}Certificate
               </Text>
-            </View>
-          </View>
+              {rcDocUrl ? (
+                <View style={styles.docCardUploadedBtn}>
+                  <Ionicons name="checkmark-circle" size={11} color="#16a34a" />
+                  <Text style={styles.docCardUploadedText}>Uploaded</Text>
+                  <Ionicons name="chevron-forward" size={10} color="#16a34a" style={{ marginLeft: 2 }} />
+                </View>
+              ) : (
+                <View style={styles.docCardUploadBtn}>
+                  <Ionicons name="cloud-upload-outline" size={12} color="rgb(240, 117, 15)" />
+                  <Text style={styles.docCardUploadText}>Upload</Text>
+                  <Ionicons name="chevron-forward" size={10} color="rgb(240, 117, 15)" style={{ marginLeft: 2 }} />
+                </View>
+              )}
+            </TouchableOpacity>
 
-          {insuranceDocUrl ? (
-            <View style={styles.previewContainer}>
-              <Image
-                source={{ uri: insuranceDocUrl }}
-                style={styles.docPreviewImage}
-                resizeMode="cover"
-              />
-              <TouchableOpacity
-                style={styles.changePhotoOverlay}
-                onPress={() => handleSelectOptions('insurance')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.changePhotoText}>📷 Change Photo</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
+            {/* 3. Vehicle Insurance */}
             <TouchableOpacity
-              style={styles.uploadPlaceholder}
+              style={styles.docUploadCard}
               onPress={() => handleSelectOptions('insurance')}
               activeOpacity={0.8}
             >
-              <Text style={styles.uploadPlaceholderIcon}>🛡️</Text>
-              <Text style={styles.uploadPlaceholderTitle}>Tap to Upload Vehicle Insurance</Text>
-              <Text style={styles.uploadPlaceholderSub}>Take camera photo or pick from gallery</Text>
+              <View style={styles.docIconCircle}>
+                <Ionicons name="shield-checkmark" size={20} color="#0f2744" />
+              </View>
+              <Text style={styles.docCardTitle} numberOfLines={2}>
+                Vehicle Insurance{'\n'}Policy
+              </Text>
+              {insuranceDocUrl ? (
+                <View style={styles.docCardUploadedBtn}>
+                  <Ionicons name="checkmark-circle" size={11} color="#16a34a" />
+                  <Text style={styles.docCardUploadedText}>Uploaded</Text>
+                  <Ionicons name="chevron-forward" size={10} color="#16a34a" style={{ marginLeft: 2 }} />
+                </View>
+              ) : (
+                <View style={styles.docCardUploadBtn}>
+                  <Ionicons name="cloud-upload-outline" size={12} color="rgb(240, 117, 15)" />
+                  <Text style={styles.docCardUploadText}>Upload</Text>
+                  <Ionicons name="chevron-forward" size={10} color="rgb(240, 117, 15)" style={{ marginLeft: 2 }} />
+                </View>
+              )}
             </TouchableOpacity>
-          )}
+          </View>
         </View>
 
-        {/* Submit Action */}
+        {/* ============================================================ */}
+        {/* SUBMIT BUTTON: Vibrant Orange with Arrow Circle              */}
+        {/* ============================================================ */}
         <TouchableOpacity
-          style={[styles.submitBtn, submitting && { opacity: 0.7 }]}
+          style={[styles.submitButton, submitting && { opacity: 0.7 }]}
           onPress={handleSubmit}
           disabled={submitting}
           activeOpacity={0.85}
@@ -895,15 +882,23 @@ export default function DriverDocumentsUploadScreen() {
             <ActivityIndicator color="#ffffff" size="small" />
           ) : (
             <>
-              <Text style={styles.submitBtnIcon}>🚀</Text>
-              <Text style={styles.submitBtnText}>SAVE & SUBMIT TO ADMIN REVIEW</Text>
+              <View style={styles.submitLeftBox}>
+                <Ionicons name="cloud-upload-outline" size={22} color="#ffffff" />
+                <Text style={styles.submitButtonText}>Save & Submit to Admin Review</Text>
+              </View>
+              <View style={styles.submitChevronCircle}>
+                <Ionicons name="chevron-forward" size={15} color="rgb(240, 117, 15)" />
+              </View>
             </>
           )}
         </TouchableOpacity>
 
-        <Text style={styles.footerNote}>
-          Once submitted, your vehicle specifications, license details, carriage capacity, and KYC documents will be reviewed in the Kandy Cabs Admin Panel.
+        {/* Footer Note */}
+        <Text style={styles.footerNoteText}>
+          ⓘ Once submitted, your details will be reviewed by the admin panel.
         </Text>
+
+        <View style={{ height: 28 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -914,550 +909,582 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
-  topNavBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingRight: 8,
-  },
-  backBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  navTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#0f172a',
-  },
-  quickFillBtn: {
-    backgroundColor: '#fff7ed',
-    borderWidth: 1,
-    borderColor: '#ea580c',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  quickFillBtnText: {
-    color: '#ea580c',
-    fontSize: 11,
-    fontWeight: '800',
-  },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 20,
   },
-  noticeCard: {
+
+  /* Hero Header Container */
+  heroHeaderContainer: {
+    paddingHorizontal: 2,
+    paddingTop: 8,
+    paddingBottom: 6,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  backCircleBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    marginBottom: 16,
-  },
-  noticeTopRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  noticeEmoji: {
-    fontSize: 32,
-  },
-  noticeTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#0f172a',
-  },
-  noticeSub: {
-    fontSize: 11,
-    color: '#64748b',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
+    marginRight: 10,
     marginTop: 2,
+  },
+  heroTitleColumn: {
+    flex: 1,
+    paddingRight: 6,
+  },
+  heroTitleMain: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: '#0f172a',
+    lineHeight: 25,
+    letterSpacing: -0.3,
+  },
+  heroSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 4,
     lineHeight: 16,
   },
-  adminFeedbackBox: {
-    marginTop: 10,
-    padding: 10,
-    backgroundColor: '#fff1f2',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#fecdd3',
-  },
-  adminFeedbackTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#e11d48',
-  },
-  adminFeedbackText: {
-    fontSize: 11,
-    color: '#be123c',
+  heroCarImageBox: {
+    width: 120,
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 2,
   },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+  heroCarImage: {
+    width: '100%',
+    height: '100%',
   },
-  sectionHeaderTitle: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#ea580c',
-    letterSpacing: 0.5,
-  },
-  sectionHeaderSub: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#64748b',
-  },
-  inputCard: {
-    backgroundColor: '#ffffff',
+
+  /* Security & Privacy Banner */
+  securityBannerCard: {
+    backgroundColor: '#f0f7ff',
+    borderWidth: 1,
+    borderColor: '#dbeafe',
     borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 12,
-  },
-  inputLabelRow: {
+    paddingVertical: 10,
+    paddingHorizontal: 13,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginTop: 12,
   },
-  inputLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#475569',
+  securityShieldCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#0f2744',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
-  fieldSubHelp: {
-    fontSize: 11,
-    color: '#64748b',
-    marginBottom: 8,
-  },
-  textInput: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  securityBannerTitle: {
     fontSize: 13,
     fontWeight: '800',
     color: '#0f172a',
   },
-  plateInputWrapper: {
+  securityBannerSub: {
+    fontSize: 11.5,
+    color: '#64748b',
+    marginTop: 2,
+  },
+
+  /* Step Cards */
+  stepCardWhite: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 15,
+    marginTop: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  stepCardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderWidth: 1.5,
-    borderColor: '#0f172a',
-    borderRadius: 8,
-    overflow: 'hidden',
   },
-  plateIndBadge: {
-    backgroundColor: '#1e3a8a',
-    paddingHorizontal: 8,
-    paddingVertical: 10,
+  stepNumberBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgb(240, 117, 15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  plateIndText: {
+  stepNumberText: {
     color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '900',
+    fontSize: 12.5,
+    fontWeight: '800',
   },
-  plateTextInput: {
-    flex: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 14,
-    fontWeight: '900',
+  stepTitleText: {
+    fontSize: 15.5,
+    fontWeight: '800',
     color: '#0f172a',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    letterSpacing: 1,
+    flex: 1,
+  },
+  stepSubtitleText: {
+    fontSize: 12,
+    color: '#64748b',
+    lineHeight: 17,
+    marginTop: 6,
+  },
+  stepSubtitleTextMini: {
+    fontSize: 11.5,
+    color: '#64748b',
+    marginTop: 3,
+    lineHeight: 16,
   },
 
-  // Dropdown Styles
-  dropdownTrigger: {
+  /* Driver Profile Photo Card (Above at First) */
+  driverPhotoCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f8fafc',
-    borderWidth: 1.5,
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 12,
   },
-  dropdownTriggerOpen: {
-    borderColor: '#ea580c',
-    backgroundColor: '#fff7ed',
+  driverAvatarCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    position: 'relative',
+    marginRight: 12,
   },
-  dropdownTriggerIcon: {
-    fontSize: 22,
-    marginRight: 4,
+  driverAvatarImg: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
   },
-  dropdownTriggerTitle: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#0f172a',
-  },
-  dropdownTriggerSub: {
-    fontSize: 10,
-    color: '#64748b',
-    marginTop: 1,
-  },
-  dropdownSeatBadge: {
-    backgroundColor: '#ea580c',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  dropdownSeatBadgeText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: '900',
-  },
-  dropdownMenu: {
-    marginTop: 8,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#ea580c',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  dropdownMenuItem: {
-    flexDirection: 'row',
+  driverAvatarPlaceholder: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#edf7ff',
+    borderWidth: 1,
+    borderColor: '#dbeafe',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#ffffff',
-    gap: 8,
+    justifyContent: 'center',
   },
-  dropdownMenuItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  dropdownMenuItemSelected: {
-    backgroundColor: '#fff7ed',
-  },
-  dropdownItemIcon: {
-    fontSize: 18,
-  },
-  dropdownItemTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  dropdownItemTitleSelected: {
-    color: '#ea580c',
-    fontWeight: '900',
-  },
-  dropdownItemModels: {
-    fontSize: 10,
-    color: '#64748b',
-    marginTop: 1,
-  },
-  dropdownItemSeatPill: {
-    backgroundColor: '#e2e8f0',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  dropdownItemSeatPillSelected: {
-    backgroundColor: '#ea580c',
-  },
-  dropdownItemSeatText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#475569',
-  },
-  dropdownItemSeatTextSelected: {
-    color: '#ffffff',
-  },
-  radioCircle: {
+  avatarCameraBadge: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
     width: 18,
     height: 18,
     borderRadius: 9,
+    backgroundColor: 'rgb(240, 117, 15)',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#cbd5e1',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: '#ffffff',
   },
-  radioCircleSelected: {
-    borderColor: '#ea580c',
-  },
-  radioDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#ea580c',
-  },
-
-  pillsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  fuelPill: {
+  driverPhotoTextBox: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    backgroundColor: '#f8fafc',
+    paddingRight: 6,
   },
-  fuelPillSelected: {
-    borderColor: '#ea580c',
-    backgroundColor: '#fff7ed',
-    borderWidth: 2,
-  },
-  fuelPillIcon: {
-    fontSize: 14,
-  },
-  fuelPillLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  fuelPillLabelSelected: {
-    color: '#ea580c',
-    fontWeight: '900',
-  },
-  fuelPillCheck: {
-    color: '#ea580c',
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  docUploadCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 12,
-  },
-  docCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  docCardTitle: {
-    fontSize: 13,
-    fontWeight: '900',
+  driverPhotoTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
     color: '#0f172a',
   },
-  docCardSubtitle: {
-    fontSize: 10,
+  driverPhotoSubtitle: {
+    fontSize: 11.5,
+    fontWeight: '600',
     color: '#64748b',
     marginTop: 2,
   },
+  driverPhotoHelp: {
+    fontSize: 10.5,
+    color: '#94a3b8',
+    marginTop: 3,
+  },
+
+  /* Step 2 Content */
+  step2ContentWrapper: {
+    marginTop: 12,
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 14,
+  },
+  fieldIconBox: {
+    width: 26,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 9,
+    marginTop: 2,
+  },
+  fieldBody: {
+    flex: 1,
+  },
+  fieldLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  fieldLabelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  fieldHelpText: {
+    fontSize: 11.5,
+    color: '#64748b',
+    marginBottom: 6,
+  },
+
+  /* Badges */
   badgePill: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 9,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 10,
   },
   badgeGreen: {
     backgroundColor: '#ecfdf5',
-    borderWidth: 1,
-    borderColor: '#a7f3d0',
+  },
+  badgeGreenText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#16a34a',
   },
   badgeAmber: {
-    backgroundColor: '#fffbeb',
-    borderWidth: 1,
-    borderColor: '#fde68a',
+    backgroundColor: '#fff7ed',
   },
-  badgeTextGreen: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#059669',
+  badgeAmberText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#d97706',
   },
-  badgeTextAmber: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#b45309',
-  },
-  profileCirclePreviewCard: {
+  seatPillGrey: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff7ed',
-    borderWidth: 1.5,
-    borderColor: '#fed7aa',
-    borderRadius: 16,
-    padding: 14,
-    gap: 16,
   },
-  profileCircleRing: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    borderWidth: 3,
-    borderColor: '#ea580c',
-    backgroundColor: '#0f172a',
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#ea580c',
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 4,
+  seatPillGreyText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#475569',
   },
-  profileCircleImage: {
-    width: '100%',
-    height: '100%',
-  },
-  profileCircleInfo: {
-    flex: 1,
-  },
-  profileCircleTitle: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#9a3412',
-  },
-  profileCircleSub: {
-    fontSize: 10,
-    color: '#c2410c',
-    marginTop: 2,
-    lineHeight: 14,
-  },
-  changeProfileBtn: {
-    backgroundColor: '#ea580c',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    marginTop: 8,
-  },
-  changeProfileBtnText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  profileUploadPlaceholder: {
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#ea580c',
-    borderRadius: 16,
-    backgroundColor: '#fff7ed',
-    paddingVertical: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profilePlaceholderCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#ffedd5',
-    borderWidth: 2,
-    borderColor: '#fdba74',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  profilePlaceholderEmoji: {
-    fontSize: 26,
-  },
-  previewContainer: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    position: 'relative',
-    height: 160,
-    backgroundColor: '#0f172a',
-  },
-  docPreviewImage: {
-    width: '100%',
-    height: '100%',
-  },
-  changePhotoOverlay: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  changePhotoText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  uploadPlaceholder: {
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
+
+  /* Clean Input Fields */
+  plateInputClean: {
     backgroundColor: '#f8fafc',
-    paddingVertical: 24,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 9,
+    height: 42,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: 0.5,
+  },
+  textInputField: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 9,
+    height: 42,
+    paddingHorizontal: 12,
+    fontSize: 13,
+    color: '#0f172a',
+  },
+
+  /* Category Selector */
+  categorySelectBox: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 9,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  uploadPlaceholderIcon: {
-    fontSize: 28,
-    marginBottom: 6,
+  categoryThumbnail: {
+    width: 52,
+    height: 28,
   },
-  uploadPlaceholderTitle: {
-    fontSize: 12,
+  categoryInfoCol: {
+    flex: 1,
+    paddingHorizontal: 8,
+  },
+  categoryTitleText: {
+    fontSize: 14,
     fontWeight: '800',
     color: '#0f172a',
   },
-  uploadPlaceholderSub: {
-    fontSize: 10,
+  seatPillOrange: {
+    backgroundColor: 'rgb(240, 117, 15)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  seatPillOrangeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  categorySubmodelsText: {
+    fontSize: 11.5,
     color: '#64748b',
     marginTop: 2,
   },
-  submitBtn: {
-    backgroundColor: '#ea580c',
-    borderRadius: 14,
-    paddingVertical: 14,
+
+  /* Fuel Buttons */
+  fuelSegmentRow: {
+    flexDirection: 'row',
+    gap: 7,
+  },
+  fuelBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 6,
+    borderRadius: 9,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+  },
+  fuelBtnActive: {
+    backgroundColor: '#fff7ed',
+    borderWidth: 1.5,
+    borderColor: 'rgb(240, 117, 15)',
+  },
+  fuelBtnInactive: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  fuelBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  fuelBtnTextActive: {
+    color: 'rgb(240, 117, 15)',
+  },
+
+  /* Carriage Selector */
+  carriageSelectBox: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 9,
+    paddingVertical: 9,
+    paddingHorizontal: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  carriageTitleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  carriageSubText: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2,
+  },
+
+  /* Dropdown Menus */
+  dropdownMenu: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    marginTop: 6,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 11,
+  },
+  dropdownItemSelected: {
+    backgroundColor: '#fff7ed',
+  },
+  dropdownItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  dropdownItemTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  dropdownItemModels: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2,
+  },
+
+  /* Step 3 Header */
+  step3HeaderBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  verificationBadgeBlue: {
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  verificationBadgeBlueText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1d4ed8',
+  },
+
+  /* 4 KYC Document Cards Grid */
+  docsRowGrid: {
+    flexDirection: 'row',
+    gap: 7,
+    marginTop: 13,
+  },
+  docUploadCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 134,
+  },
+  docIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#edf7ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 3,
+  },
+  docCardTitle: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#0f172a',
+    textAlign: 'center',
+    lineHeight: 15,
+    marginTop: 3,
+  },
+  docCardUploadBtn: {
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    borderRadius: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  docCardUploadText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: 'rgb(240, 117, 15)',
+    marginHorizontal: 3,
+  },
+  docCardUploadedBtn: {
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    borderRadius: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  docCardUploadedText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#16a34a',
+    marginHorizontal: 3,
+  },
+
+  /* Submit Action Button */
+  submitButton: {
+    backgroundColor: 'rgb(240, 117, 15)',
+    borderRadius: 28,
+    height: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
     marginTop: 20,
-    shadowColor: '#ea580c',
+    shadowColor: 'rgb(240, 117, 15)',
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
     elevation: 4,
   },
-  submitBtnIcon: {
-    fontSize: 16,
+  submitLeftBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  submitBtnText: {
+  submitButtonText: {
+    fontSize: 15,
+    fontWeight: '800',
     color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 0.5,
   },
-  footerNote: {
-    fontSize: 10,
-    color: '#94a3b8',
+  submitChevronCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* Footer Note */
+  footerNoteText: {
+    marginTop: 11,
     textAlign: 'center',
-    marginTop: 10,
-    lineHeight: 14,
+    fontSize: 12,
+    color: '#64748b',
+    paddingHorizontal: 12,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   View,
@@ -11,8 +11,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { customerApiClient } from '../lib/api';
 
 export interface TripReviewModalProps {
@@ -31,20 +33,12 @@ export interface TripReviewModalProps {
   }) => void;
 }
 
-const DRIVER_RATING_LABELS: Record<number, string> = {
-  1: '1/5 - Unsatisfactory Driver',
-  2: '2/5 - Needs Improvement',
-  3: '3/5 - Average Driver',
-  4: '4/5 - Good & Helpful',
-  5: '5/5 - Outstanding Driver',
-};
-
-const KANDY_RATING_LABELS: Record<number, string> = {
-  1: '1/5 - Poor Experience',
-  2: '2/5 - Below Expectations',
-  3: '3/5 - Fair Service',
-  4: '4/5 - Great Service',
-  5: '5/5 - Exceptional Experience',
+const RATING_LABELS: Record<number, string> = {
+  1: '1 - Poor',
+  2: '2 - Needs improvement',
+  3: '3 - Good',
+  4: '4 - Very good',
+  5: '5 - Excellent',
 };
 
 export function DriverRatingModal({
@@ -53,31 +47,44 @@ export function DriverRatingModal({
   onClose,
   onRatingSubmitted,
 }: TripReviewModalProps) {
-  const [driverRating, setDriverRating] = useState<number>(5);
-  const [kandyRating, setKandyRating] = useState<number>(5);
+  const { t } = useTranslation();
+  const [driverRating, setDriverRating] = useState<number>(0);
+  const [kandyRating, setKandyRating] = useState<number>(0);
   const [comment, setComment] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const activeBookingIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isOpen && booking) {
-      if (booking.customerRating) {
-        setDriverRating(Number(booking.customerRating.driverRating || booking.customerRating.rating) || 5);
-        setKandyRating(Number(booking.customerRating.kandyRating) || 5);
-        setComment(booking.customerRating.comment || '');
-      } else {
-        setDriverRating(5);
-        setKandyRating(5);
-        setComment('');
+      const bId = booking.id || booking.bookingId || 'current';
+      if (activeBookingIdRef.current !== bId) {
+        activeBookingIdRef.current = bId;
+        if (booking.customerRating) {
+          setDriverRating(Number(booking.customerRating.driverRating || booking.customerRating.rating) || 0);
+          setKandyRating(Number(booking.customerRating.kandyRating) || 0);
+          setComment(booking.customerRating.comment || '');
+        } else {
+          setDriverRating(0);
+          setKandyRating(0);
+          setComment('');
+        }
       }
+    } else if (!isOpen) {
+      activeBookingIdRef.current = null;
     }
-  }, [isOpen, booking]);
+  }, [isOpen, booking?.id]);
 
   if (!isOpen || !booking) return null;
 
   const driver = booking.assignedDriver;
   const vehicle = booking.vehicle || driver?.vehicles?.[0];
-  const driverName = driver?.user?.fullName || 'Assigned Driver';
-  const vehicleDesc = `${(vehicle?.category || booking.category || 'SEDAN').toUpperCase()}  •  ${(vehicle?.plateNumber || 'KA 01 MJ 2023').toUpperCase()}`;
+  const driverName = driver?.user?.fullName || driver?.name || 'Assigned Driver';
+  const driverPhoto = driver?.user?.avatarUrl || driver?.avatarUrl || driver?.photoUrl || null;
+
+  const categoryRaw = vehicle?.category || booking.category || 'Sedan';
+  const categoryFormatted = categoryRaw.charAt(0).toUpperCase() + categoryRaw.slice(1).toLowerCase();
+  const plateNumber = (vehicle?.plateNumber || 'KA 01 MJ 2023').toUpperCase();
+  const vehicleDesc = `${categoryFormatted}  •  ${plateNumber}`;
 
   const handleSubmit = async () => {
     if (!driverRating || driverRating < 1 || !kandyRating || kandyRating < 1) {
@@ -136,18 +143,20 @@ export function DriverRatingModal({
         style={styles.backdrop}
       >
         <View style={styles.modalCard}>
+          {/* Top Drag Handle */}
+          <View style={styles.dragHandle} />
+
           {/* Header */}
           <View style={styles.headerRow}>
-            {/* Header Titles */}
             <View style={styles.headerTextCol}>
-              <Text style={styles.modalTitle}>Rate Your Trip & Driver</Text>
-              <Text style={styles.modalSubHeader}>Your feedback helps us serve you better</Text>
-              <Text style={styles.bookingMetaRow}>
-                <Text style={styles.metaLabel}>Booking No. </Text>
-                <Text style={styles.metaRef}>{booking.humanReadableRef}</Text>
+              <Text style={styles.modalTitle}>Rate your trip</Text>
+              <View style={styles.bookingMetaRow}>
+                <Text style={styles.metaLabel}>Booking No.  </Text>
+                <Text style={styles.metaRef}>{booking.humanReadableRef || booking.ref || 'KC-2026-428597'}</Text>
                 <Text style={styles.metaDot}>  •  </Text>
-                <Text style={styles.metaStatus}>Ride Completed</Text>
-              </Text>
+                <Ionicons name="checkmark-circle" size={12} color="#10b981" style={{ marginRight: 3 }} />
+                <Text style={styles.metaStatus}>Ride completed</Text>
+              </View>
             </View>
 
             {/* Close Button */}
@@ -156,138 +165,147 @@ export function DriverRatingModal({
               style={styles.closeBtn}
               activeOpacity={0.7}
             >
-              <Ionicons name="close" size={18} color="#475569" />
+              <Ionicons name="close" size={18} color="rgb(22, 34, 50)" />
             </TouchableOpacity>
           </View>
+
+          {/* Header Divider */}
+          <View style={styles.headerDivider} />
 
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
-            {/* CARD 1: DRIVER RATING */}
-            <View style={styles.driverSectionCard}>
-              <View style={styles.cardHeaderRow}>
-                <View style={styles.driverAvatarCircle}>
-                  <Ionicons name="person" size={20} color="#0284c7" />
+            {/* SECTION 1: DRIVER INFO & RATING */}
+            <View style={styles.driverRatingSection}>
+              <View style={styles.driverInfoRow}>
+                <View style={styles.driverAvatarContainer}>
+                  {driverPhoto ? (
+                    <Image source={{ uri: driverPhoto }} style={styles.driverAvatarImage} />
+                  ) : (
+                    <View style={styles.driverAvatarFallback}>
+                      <Ionicons name="person" size={22} color="rgb(22, 34, 50)" />
+                    </View>
+                  )}
                 </View>
-                <View style={{ flex: 1, marginLeft: 10 }}>
+                <View style={styles.driverDetailsCol}>
                   <Text style={styles.driverNameText}>{driverName}</Text>
                   <Text style={styles.vehicleDescText}>{vehicleDesc}</Text>
                 </View>
-                <View style={styles.driverBadge}>
-                  <Ionicons name="checkmark-circle" size={11} color="#16a34a" />
-                  <Text style={styles.driverBadgeText}>Driver</Text>
+              </View>
+
+              <Text style={styles.driverPromptTitle}>How was your driver?</Text>
+
+              {/* Stars */}
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map((starVal) => {
+                  const isFilled = driverRating > 0 && starVal <= driverRating;
+                  return (
+                    <TouchableOpacity
+                      key={starVal}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
+                      onPress={() => setDriverRating(starVal)}
+                      style={styles.starTouchable}
+                    >
+                      <Ionicons
+                        name={isFilled ? 'star' : 'star-outline'}
+                        size={34}
+                        color={isFilled ? '#f59e0b' : '#cbd5e1'}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={[styles.ratingFeedbackLabel, driverRating === 0 && styles.unselectedRatingLabel]}>
+                {driverRating > 0 ? (RATING_LABELS[driverRating] || '') : 'Tap stars to rate'}
+              </Text>
+            </View>
+
+            {/* DIVIDER */}
+            <View style={styles.divider} />
+
+            {/* SECTION 2: KANDYCABS SERVICE */}
+            <View style={styles.kandySection}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.circleIconBadge}>
+                  <Image
+                    source={require('../assets/images/service-car-front.png')}
+                    style={styles.serviceCarIcon}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View style={styles.sectionHeaderTitleCol}>
+                  <Text style={styles.sectionHeaderTitle}>KandyCabs service</Text>
+                  <Text style={styles.sectionHeaderSub}>Overall booking & ride quality</Text>
                 </View>
               </View>
 
-              {/* Driver Stars */}
-              <View style={styles.starsBox}>
-                <Text style={styles.starsPrompt}>How was your driver?</Text>
-                <View style={styles.starsRow}>
-                  {[1, 2, 3, 4, 5].map((starVal) => {
-                    const isFilled = starVal <= driverRating;
-                    return (
-                      <TouchableOpacity
-                        key={starVal}
-                        activeOpacity={0.7}
-                        onPress={() => setDriverRating(starVal)}
-                        style={styles.starTouchable}
-                      >
-                        <Ionicons
-                          name={isFilled ? 'star' : 'star-outline'}
-                          size={32}
-                          color={isFilled ? '#f59e0b' : '#cbd5e1'}
-                        />
-                      </TouchableOpacity>
-                    );
-                  })}
+              <Text style={styles.kandyPromptTitle}>How was your overall experience?</Text>
+
+              {/* Stars */}
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map((starVal) => {
+                  const isFilled = kandyRating > 0 && starVal <= kandyRating;
+                  return (
+                    <TouchableOpacity
+                      key={starVal}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
+                      onPress={() => setKandyRating(starVal)}
+                      style={styles.starTouchable}
+                    >
+                      <Ionicons
+                        name={isFilled ? 'star' : 'star-outline'}
+                        size={34}
+                        color={isFilled ? '#f59e0b' : '#cbd5e1'}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={[styles.ratingFeedbackLabel, kandyRating === 0 && styles.unselectedRatingLabel]}>
+                {kandyRating > 0 ? (RATING_LABELS[kandyRating] || '') : 'Tap stars to rate'}
+              </Text>
+            </View>
+
+            {/* DIVIDER */}
+            <View style={styles.divider} />
+
+            {/* SECTION 3: WRITE A REVIEW */}
+            <View style={styles.reviewSection}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.circleIconBadge}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={17} color="rgb(22, 34, 50)" />
                 </View>
-                <Text style={styles.driverRatingLabelText}>
-                  {DRIVER_RATING_LABELS[driverRating] || ''}
-                </Text>
+                <View style={styles.reviewTitleInline}>
+                  <Text style={styles.sectionHeaderTitle}>Write a review</Text>
+                  <Text style={styles.optionalText}> (optional)</Text>
+                </View>
+              </View>
+
+              <View style={styles.reviewInputWrapper}>
+                <TextInput
+                  style={styles.reviewTextInput}
+                  placeholder="Tell us about your driver, cleanliness, punctuality, and overall experience..."
+                  placeholderTextColor="#94a3b8"
+                  multiline
+                  numberOfLines={3}
+                  value={comment}
+                  onChangeText={setComment}
+                  maxLength={500}
+                  textAlignVertical="top"
+                />
+                <Text style={styles.charCountText}>{comment.length}/500</Text>
               </View>
             </View>
 
-            {/* CARD 2: KANDYCABS SERVICE EXPERIENCE */}
-            <View style={styles.kandySectionCard}>
-              <View style={styles.cardHeaderRow}>
-                <View style={styles.kandyAvatarCircle}>
-                  <Ionicons name="car-sport" size={19} color="#059669" />
-                </View>
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={styles.kandyNameText}>KandyCabs Service</Text>
-                  <Text style={styles.kandySubText}>Overall booking & ride quality</Text>
-                </View>
-                <View style={styles.kandyBadge}>
-                  <Ionicons name="shield-checkmark" size={11} color="#2563eb" />
-                  <Text style={styles.kandyBadgeText}>Official Service</Text>
-                </View>
-              </View>
-
-              {/* KandyCabs Stars */}
-              <View style={styles.starsBox}>
-                <Text style={styles.starsPrompt}>How was your experience with KandyCabs?</Text>
-                <View style={styles.starsRow}>
-                  {[1, 2, 3, 4, 5].map((starVal) => {
-                    const isFilled = starVal <= kandyRating;
-                    return (
-                      <TouchableOpacity
-                        key={starVal}
-                        activeOpacity={0.7}
-                        onPress={() => setKandyRating(starVal)}
-                        style={styles.starTouchable}
-                      >
-                        <Ionicons
-                          name={isFilled ? 'star' : 'star-outline'}
-                          size={32}
-                          color={isFilled ? '#f59e0b' : '#cbd5e1'}
-                        />
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                <Text style={styles.kandyRatingLabelText}>
-                  {KANDY_RATING_LABELS[kandyRating] || ''}
-                </Text>
-              </View>
-            </View>
-
-            {/* CARD 3: TYPABLE REVIEW SECTION */}
-            <View style={styles.reviewSectionCard}>
-              <View style={styles.cardHeaderRow}>
-                <View style={styles.reviewIconSquircle}>
-                  <Ionicons name="create-outline" size={18} color="#ea580c" />
-                </View>
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={styles.reviewSectionTitle}>Write Your Review</Text>
-                  <Text style={styles.reviewSectionSub}>
-                    Share your experience with KandyCabs & your driver
-                  </Text>
-                </View>
-                <View style={styles.charCountPill}>
-                  <Text style={styles.commentCharCount}>{comment.length}/500</Text>
-                </View>
-              </View>
-
-              <TextInput
-                style={styles.reviewTextInput}
-                placeholder="Share details about your trip, driver behavior, cab cleanliness, punctuality, and overall journey..."
-                placeholderTextColor="#94a3b8"
-                multiline
-                numberOfLines={4}
-                value={comment}
-                onChangeText={setComment}
-                maxLength={500}
-                textAlignVertical="top"
-              />
-            </View>
-          </ScrollView>
-
-          {/* Action Buttons */}
-          <View style={styles.actionsFooter}>
+            {/* ACTION BUTTONS */}
             <TouchableOpacity
-              style={styles.navySubmitBtn}
+              style={styles.submitBtn}
               onPress={handleSubmit}
               disabled={submitting}
               activeOpacity={0.88}
@@ -295,24 +313,26 @@ export function DriverRatingModal({
               {submitting ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <View style={styles.navyBtnInnerRow}>
-                  <Ionicons name="star" size={16} color="#ffffff" />
-                  <View style={styles.navyDividerBar} />
-                  <Text style={styles.navyBtnText}>Submit Trip & Driver Review</Text>
+                <View style={styles.submitBtnContent}>
+                  <View style={styles.submitBtnLeft}>
+                    <Ionicons name="star" size={16} color="#ffffff" />
+                    <View style={styles.submitBtnDivider} />
+                  </View>
+                  <Text style={styles.submitBtnText}>{t('modals.rating.submitRating', { defaultValue: 'Submit review' })}</Text>
                   <Ionicons name="arrow-forward" size={16} color="#ffffff" />
                 </View>
               )}
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.laterBtn}
+              style={styles.maybeLaterBtn}
               onPress={onClose}
               disabled={submitting}
               activeOpacity={0.7}
             >
-              <Text style={styles.laterBtnText}>Maybe Later</Text>
+              <Text style={styles.maybeLaterText}>Maybe later</Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -328,324 +348,301 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
   },
   modalCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 22,
+    borderRadius: 24,
     width: '100%',
-    maxWidth: 440,
+    maxWidth: 420,
     maxHeight: '94%',
+    paddingTop: 12,
+    paddingBottom: 8,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 12,
     overflow: 'hidden',
+  },
+  dragHandle: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#cbd5e1',
+    alignSelf: 'center',
+    marginBottom: 10,
   },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingBottom: 10,
   },
-  cabLogoBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#fff7ed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#ffedd5',
-    marginRight: 10,
+  headerDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginHorizontal: 18,
+    marginBottom: 2,
   },
   headerTextCol: {
     flex: 1,
+    paddingRight: 8,
   },
   modalTitle: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '800',
-    color: '#0f294a',
+    color: 'rgb(22, 34, 50)',
+    letterSpacing: -0.3,
   },
   modalSubHeader: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '500',
-    color: '#475569',
-    marginTop: 0.5,
-  },
-  bookingMetaRow: {
-    fontSize: 10,
+    color: '#64748b',
     marginTop: 2,
   },
+  bookingMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
   metaLabel: {
+    fontSize: 11.5,
     color: '#94a3b8',
     fontWeight: '500',
   },
   metaRef: {
-    color: '#334155',
+    fontSize: 11.5,
+    color: 'rgb(22, 34, 50)',
     fontWeight: '700',
   },
   metaDot: {
+    fontSize: 11.5,
     color: '#cbd5e1',
   },
   metaStatus: {
+    fontSize: 11.5,
     color: '#64748b',
     fontWeight: '500',
   },
   closeBtn: {
-    padding: 6,
-    borderRadius: 20,
-    backgroundColor: '#f1f5f9',
-    marginLeft: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#eaf0f9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 11,
+    paddingHorizontal: 18,
+    paddingBottom: 14,
   },
-  driverSectionCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 15,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  kandySectionCard: {
-    backgroundColor: '#f0fdf4',
-    borderRadius: 15,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-  },
-  reviewSectionCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 15,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  cardHeaderRow: {
+  driverInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(226, 232, 240, 0.6)',
+    paddingTop: 4,
+    paddingBottom: 4,
   },
-  driverAvatarCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#e0f2fe',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#bae6fd',
-  },
-  kandyAvatarCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#dcfce7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#86efac',
-  },
-  reviewIconSquircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#fff7ed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#fed7aa',
-  },
-  driverNameText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0f294a',
-  },
-  kandyNameText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#064e3b',
-  },
-  reviewSectionTitle: {
+  driverPromptTitle: {
     fontSize: 13.5,
-    fontWeight: '800',
-    color: '#0f294a',
-  },
-  vehicleDescText: {
-    fontSize: 10.5,
-    color: '#64748b',
-    marginTop: 1,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  kandySubText: {
-    fontSize: 10.5,
-    color: '#64748b',
-    marginTop: 1,
-    fontWeight: '500',
-  },
-  reviewSectionSub: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#64748b',
-    marginTop: 0.5,
-  },
-  driverBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#dcfce7',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#86efac',
-  },
-  driverBadgeText: {
-    fontSize: 10,
     fontWeight: '700',
-    color: '#166534',
-  },
-  kandyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-  },
-  kandyBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#1d4ed8',
-  },
-  charCountPill: {
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  commentCharCount: {
-    fontSize: 10,
-    color: '#64748b',
-    fontWeight: '700',
-  },
-  starsBox: {
-    alignItems: 'center',
-    marginTop: 8,
+    color: 'rgb(22, 34, 50)',
+    marginTop: 10,
     marginBottom: 2,
   },
-  starsPrompt: {
-    fontSize: 12.5,
+  driverAvatarContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#eaf0f9',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  driverAvatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  driverAvatarFallback: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#eaf0f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  driverDetailsCol: {
+    marginLeft: 12,
+    justifyContent: 'center',
+  },
+  driverNameText: {
+    fontSize: 15,
     fontWeight: '700',
-    color: '#0f294a',
-    marginBottom: 5,
+    color: 'rgb(22, 34, 50)',
+  },
+  vehicleDescText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  driverRatingSection: {
+    paddingVertical: 2,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  circleIconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#eaf0f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  serviceCarIcon: {
+    width: 20,
+    height: 15,
+    tintColor: 'rgb(22, 34, 50)',
+  },
+  sectionHeaderTitleCol: {
+    marginLeft: 10,
+    justifyContent: 'center',
+  },
+  sectionHeaderTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: 'rgb(22, 34, 50)',
+    marginLeft: 10,
+  },
+  sectionHeaderSub: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '400',
+    marginTop: 1,
+    marginLeft: 10,
+  },
+  kandyPromptTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: 'rgb(22, 34, 50)',
+    marginTop: 8,
+    marginLeft: 44,
   },
   starsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    justifyContent: 'center',
+    marginTop: 8,
+    gap: 10,
   },
   starTouchable: {
-    padding: 2,
+    padding: 3,
   },
-  driverRatingLabelText: {
-    fontSize: 11.5,
+  ratingFeedbackLabel: {
+    fontSize: 12,
     fontWeight: '700',
-    color: '#d97706',
-    marginTop: 4,
+    color: '#f59e0b',
+    textAlign: 'center',
+    marginTop: 5,
   },
-  kandyRatingLabelText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#d97706',
-    marginTop: 4,
+  unselectedRatingLabel: {
+    color: '#94a3b8',
+    fontWeight: '500',
   },
-  reviewTextInput: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 11.5,
-    color: '#0f294a',
-    minHeight: 82,
-    textAlignVertical: 'top',
-    lineHeight: 17,
-    marginTop: 8,
+  divider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 12,
   },
-  actionsFooter: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    backgroundColor: '#ffffff',
+  kandySection: {
+    paddingVertical: 2,
   },
-  navySubmitBtn: {
-    backgroundColor: '#0a2540',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    shadowColor: '#0a2540',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+  reviewSection: {
+    paddingVertical: 2,
   },
-  navyBtnInnerRow: {
+  reviewTitleInline: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  navyDividerBar: {
+  optionalText: {
+    fontSize: 12.5,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  reviewInputWrapper: {
+    marginLeft: 44,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 6,
+    minHeight: 84,
+    justifyContent: 'space-between',
+  },
+  reviewTextInput: {
+    fontSize: 11.5,
+    color: '#1e293b',
+    minHeight: 48,
+    padding: 0,
+    textAlignVertical: 'top',
+  },
+  charCountText: {
+    alignSelf: 'flex-end',
+    fontSize: 10,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  submitBtn: {
+    backgroundColor: 'rgb(22, 34, 50)',
+    borderRadius: 14,
+    height: 48,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    marginTop: 18,
+    shadowColor: 'rgb(22, 34, 50)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  submitBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  submitBtnLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  submitBtnDivider: {
     width: 1,
     height: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    marginHorizontal: 12,
+    marginLeft: 12,
   },
-  navyBtnText: {
+  submitBtnText: {
     color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '800',
-    flex: 1,
-    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '700',
     letterSpacing: 0.2,
   },
-  laterBtn: {
+  maybeLaterBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    marginTop: 3,
+    paddingVertical: 10,
+    marginTop: 4,
   },
-  laterBtnText: {
-    color: '#64748b',
-    fontSize: 11.5,
+  maybeLaterText: {
+    fontSize: 13.5,
+    color: 'rgb(22, 34, 50)',
     fontWeight: '600',
   },
 });

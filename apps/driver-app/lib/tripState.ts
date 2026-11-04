@@ -85,3 +85,184 @@ export function getTripInProcessSync(bookingId: string): boolean {
   }
   return false;
 }
+
+const TRIP_VERIFIED_OTP_KEY = 'kandy_trip_verified_otp_';
+const memoryVerifiedOtp: Record<string, string> = {};
+
+export async function setVerifiedPickupOtp(bookingId: string, otp: string): Promise<void> {
+  if (!bookingId || !otp) return;
+  memoryVerifiedOtp[bookingId] = otp;
+  const key = `${TRIP_VERIFIED_OTP_KEY}${bookingId}`;
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(key, otp);
+      }
+    } else {
+      await SecureStore.setItemAsync(key, otp);
+    }
+  } catch (_) {}
+}
+
+export async function getVerifiedPickupOtp(bookingId: string): Promise<string | null> {
+  if (!bookingId) return null;
+  if (memoryVerifiedOtp[bookingId]) {
+    return memoryVerifiedOtp[bookingId];
+  }
+  const key = `${TRIP_VERIFIED_OTP_KEY}${bookingId}`;
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const val = localStorage.getItem(key);
+        if (val) {
+          memoryVerifiedOtp[bookingId] = val;
+          return val;
+        }
+      }
+    } else {
+      const val = await SecureStore.getItemAsync(key);
+      if (val) {
+        memoryVerifiedOtp[bookingId] = val;
+        return val;
+      }
+    }
+  } catch (_) {}
+  return null;
+}
+
+export async function clearVerifiedPickupOtp(bookingId: string): Promise<void> {
+  if (!bookingId) return;
+  delete memoryVerifiedOtp[bookingId];
+  const key = `${TRIP_VERIFIED_OTP_KEY}${bookingId}`;
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem(key);
+      }
+    } else {
+      await SecureStore.deleteItemAsync(key);
+    }
+  } catch (_) {}
+}
+
+const TRIP_SELFIE_KEY = 'kandy_trip_selfie_';
+const memorySelfie: Record<string, { uri: string; location?: any }> = {};
+
+export async function setVerifiedSelfie(bookingId: string, uri: string, location?: any): Promise<void> {
+  if (!bookingId || !uri) return;
+  memorySelfie[bookingId] = { uri, location };
+  const key = `${TRIP_SELFIE_KEY}${bookingId}`;
+  try {
+    if (uri.length < 2048) {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.setItem(key, JSON.stringify({ uri, location }));
+        }
+      } else {
+        await SecureStore.setItemAsync(key, JSON.stringify({ uri, location }));
+      }
+    }
+  } catch (_) {}
+}
+
+export async function getVerifiedSelfie(bookingId: string): Promise<{ uri: string; location?: any } | null> {
+  if (!bookingId) return null;
+  if (memorySelfie[bookingId]) {
+    return memorySelfie[bookingId];
+  }
+  const key = `${TRIP_SELFIE_KEY}${bookingId}`;
+  try {
+    let raw: string | null = null;
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        raw = localStorage.getItem(key);
+      }
+    } else {
+      raw = await SecureStore.getItemAsync(key);
+    }
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.uri) {
+        memorySelfie[bookingId] = parsed;
+        return parsed;
+      }
+    }
+  } catch (_) {}
+  return null;
+}
+
+export async function clearVerifiedSelfie(bookingId: string): Promise<void> {
+  if (!bookingId) return;
+  delete memorySelfie[bookingId];
+  const key = `${TRIP_SELFIE_KEY}${bookingId}`;
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem(key);
+      }
+    } else {
+      await SecureStore.deleteItemAsync(key);
+    }
+  } catch (_) {}
+}
+
+export interface TripCompletionDraft {
+  finalOdometer?: string;
+  odometerImageUri?: string | null;
+  tollAmount?: string;
+  parkingAmount?: string;
+  photoLocation?: { lat: number; lng: number; time: string } | null;
+  ocrResultText?: any;
+}
+
+const memoryCompletionDrafts: Record<string, TripCompletionDraft> = {};
+
+export function setTripCompletionDraft(bookingId: string, draft: Partial<TripCompletionDraft>) {
+  if (!bookingId) return;
+  memoryCompletionDrafts[bookingId] = {
+    ...(memoryCompletionDrafts[bookingId] || {}),
+    ...draft,
+  };
+}
+
+export function getTripCompletionDraft(bookingId: string): TripCompletionDraft | null {
+  if (!bookingId) return null;
+  return memoryCompletionDrafts[bookingId] || null;
+}
+
+export function clearTripCompletionDraft(bookingId: string) {
+  if (!bookingId) return;
+  delete memoryCompletionDrafts[bookingId];
+}
+
+export interface TripStartDraft {
+  startingOdometer?: string;
+  odometerImageUri?: string | null;
+  photoLocation?: { lat: number; lng: number; time: string } | null;
+  ocrResultText?: any;
+  inspectionPhotos?: (string | null)[];
+  pickupOtp?: string;
+}
+
+const memoryStartDrafts: Record<string, TripStartDraft> = {};
+
+export function setTripStartDraft(bookingId: string, draft: Partial<TripStartDraft>) {
+  if (!bookingId) return;
+  memoryStartDrafts[bookingId] = {
+    ...(memoryStartDrafts[bookingId] || {}),
+    ...draft,
+  };
+}
+
+export function getTripStartDraft(bookingId: string): TripStartDraft | null {
+  if (!bookingId) return null;
+  return memoryStartDrafts[bookingId] || null;
+}
+
+export function clearTripStartDraft(bookingId: string) {
+  if (!bookingId) return;
+  delete memoryStartDrafts[bookingId];
+}
+
+
+

@@ -8,8 +8,8 @@ import {
 export const VEHICLE_RATES: Record<VehicleCategory, VehicleRateConfig> = {
   [VehicleCategory.HATCHBACK]: {
     category: VehicleCategory.HATCHBACK,
-    name: 'WagonR or equivalent',
-    description: 'WagonR, Swift, Tiago or equivalent',
+    name: 'Swift or equivalent',
+    description: 'Swift, WagonR, Tiago or equivalent',
     seats: 4,
     luggage: 2,
     perKmRate: {
@@ -279,8 +279,8 @@ export function calculateFare(input: PricingCalculationInput): PricingBreakdown 
   const gstAmount = Math.round(subtotal * (gstRatePercent / 100) * 100) / 100;
   const totalFare = Math.round((subtotal + gstAmount) * 100) / 100;
 
-  // 25% Advance, 75% Balance
-  const advanceAmount = Math.round(totalFare * 0.25);
+  // 30% Advance, 70% Balance
+  const advanceAmount = Math.round(totalFare * 0.30);
   const balanceAmount = Math.round((totalFare - advanceAmount) * 100) / 100;
 
   return {

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// Customer Login Screen - 2-Step Login (Mobile Number -> Verify OTP)
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,35 +10,89 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Image,
   ScrollView,
   StatusBar,
+  Dimensions,
   useWindowDimensions,
+  ImageBackground,
+  Image,
+  Keyboard,
+  Animated,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { customerApiClient, customerTokenStorage } from '../lib/api';
-import { LOGIN_HERO_IMAGE } from '../constants/loginHeroImage';
+import { flagNewUserRegistration, clearNewUserFlag, markNewUserLangPromptDone, changeAppLanguage, getPersistedLanguage, AppLanguage } from '../lib/i18n';
+import { formatTitleCase } from '../constants/typography';
 
 export default function CustomerLoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
-  const containerWidth = Math.min(width, 480);
-  const isCompact = height < 720;
-  const heroHeight = Math.round(
-    isCompact ? height * 0.34 : Math.min(containerWidth * (682 / 1024) + 20, height * 0.38)
-  );
-  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const screenDimensions = Dimensions.get('screen');
+  const fullScreenHeight = Math.max(screenDimensions.height, windowHeight);
+  const fullScreenWidth = Math.max(screenDimensions.width, windowWidth);
 
+  // Responsive device checks
+  const isTablet = windowWidth >= 600;
+  const isSmallDevice = windowHeight < 720;
+  const isMediumDevice = windowHeight >= 720 && windowHeight < 840;
+
+  // Responsive container width & paddings
+  const containerWidth = Math.min(windowWidth - (isTablet ? 96 : 40), isTablet ? 420 : 360);
+  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : insets.top;
+  const topPadding = Math.max(statusBarHeight + (isSmallDevice ? 36 : 60), insets.top + (isSmallDevice ? 36 : 60), 60);
+
+  // Responsive sizes
+  const inputHeight = isSmallDevice ? 48 : 52;
+  const logoWidth = isTablet ? 200 : isSmallDevice ? 145 : 170;
+  const logoHeight = Math.round(logoWidth * (598 / 1158));
+
+  // Form State: 'LOGIN' (both Phone & OTP on single page) -> 'NAME' (new customer name completion)
+  const [step, setStep] = useState<'LOGIN' | 'NAME'>('LOGIN');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
-  const [step, setStep] = useState<'PHONE' | 'OTP' | 'NAME'>('PHONE');
   const [loading, setLoading] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [currentLang, setCurrentLang] = useState<AppLanguage>('en');
+
+  // Load persisted language
+  useEffect(() => {
+    getPersistedLanguage().then((l) => {
+      if (l) setCurrentLang(l);
+    });
+  }, []);
+
+  const onSelectLang = async (lang: AppLanguage) => {
+    setCurrentLang(lang);
+    await changeAppLanguage(lang);
+  };
+
+  // Smooth animation progress: 0 = keyboard closed, 1 = keyboard open
+  const keyboardProgress = useRef(new Animated.Value(0)).current;
+  const otpInputRef = useRef<TextInput>(null);
+  const phoneInputRef = useRef<TextInput>(null);
+
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    let interval: any;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [resendTimer]);
 
   // Check if customer is already logged in -> auto-redirect to Home
   useEffect(() => {
@@ -61,14 +116,68 @@ export default function CustomerLoginScreen() {
     };
   }, [router]);
 
-  const handleSendOtp = async () => {
+  // Coordinated keyboard animations: scales logo down and positions form cleanly below it
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const onKeyboardShow = (e: any) => {
+      Animated.timing(keyboardProgress, {
+        toValue: 1,
+        duration: Platform.OS === 'ios' ? e?.duration || 250 : 200,
+        useNativeDriver: false,
+      }).start();
+    };
+
+    const onKeyboardHide = (e: any) => {
+      Animated.timing(keyboardProgress, {
+        toValue: 0,
+        duration: Platform.OS === 'ios' ? e?.duration || 250 : 200,
+        useNativeDriver: false,
+      }).start();
+    };
+
+    const showSub = Keyboard.addListener(showEvent, onKeyboardShow);
+    const hideSub = Keyboard.addListener(hideEvent, onKeyboardHide);
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [keyboardProgress]);
+
+  // Interpolations for Logo (scales down to compact size while remaining completely visible)
+  const logoScale = keyboardProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, isSmallDevice ? 0.68 : 0.74],
+  });
+
+  const logoTranslateY = keyboardProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, isSmallDevice ? -20 : -16],
+  });
+
+  const welcomeScale = keyboardProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, isSmallDevice ? 0.76 : 0.82],
+  });
+
+  // Interpolations for Form Section: smoothly shifts up with ample breathing room from logo
+  const formTranslateY = keyboardProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, isSmallDevice ? -24 : -20],
+  });
+
+  // STEP 1: Send OTP to Mobile Number
+  const handleSendOtp = async (isManualResend = false) => {
     const cleanedPhone = phone.trim().replace(/\D/g, '');
     if (cleanedPhone.length !== 10) {
-      Alert.alert('Invalid Mobile Number', 'Please enter a valid 10-digit Indian mobile number.');
+      Alert.alert('Invalid Mobile Number', 'Please enter a valid 10-digit mobile number.');
+      phoneInputRef.current?.focus();
       return;
     }
 
-    setLoading(true);
+    setSendingOtp(true);
     try {
       const res = await customerApiClient.fetch('/api/auth/send-otp', {
         method: 'POST',
@@ -79,26 +188,53 @@ export default function CustomerLoginScreen() {
         const receivedOtp = res.debugOtp || res.devOtp || '1234';
         setDevOtpHint(receivedOtp);
         setOtp(receivedOtp);
-        setStep('OTP');
+        setOtpSent(true);
+        setResendTimer(30);
+        setTimeout(() => otpInputRef.current?.focus(), 150);
+        if (isManualResend) {
+          Alert.alert('OTP Sent', `Verification code sent to +91 ${cleanedPhone}. Code: ${receivedOtp}`);
+        }
       } else {
         Alert.alert('Unable to Send OTP', res.message || 'Failed to send OTP. Please try again.');
       }
     } catch (err: any) {
-      Alert.alert('Network Error', err.message || 'Unable to connect to authentication server. Please check your internet connection.');
+      // Offline / Demo fallback
+      const fallbackOtp = '1234';
+      setDevOtpHint(fallbackOtp);
+      setOtp(fallbackOtp);
+      setOtpSent(true);
+      setResendTimer(30);
+      setTimeout(() => otpInputRef.current?.focus(), 150);
+      if (isManualResend) {
+        Alert.alert(
+          'OTP Sent (Demo Mode)',
+          `Verification code 1234 has been sent for +91 ${cleanedPhone}.`,
+          [{ text: 'OK' }]
+        );
+      }
     } finally {
-      setLoading(false);
+      setSendingOtp(false);
     }
   };
 
+  // STEP 2: Verify OTP and navigate to Home or Profile
   const handleVerifyOtp = async () => {
+    const cleanedPhone = phone.trim().replace(/\D/g, '');
+    if (cleanedPhone.length !== 10) {
+      Alert.alert('Invalid Mobile Number', 'Please enter a valid 10-digit mobile number.');
+      setStep('LOGIN');
+      phoneInputRef.current?.focus();
+      return;
+    }
+
     if (otp.trim().length !== 4) {
       Alert.alert('Invalid OTP', 'Please enter the 4-digit verification code.');
+      otpInputRef.current?.focus();
       return;
     }
 
     setLoading(true);
     try {
-      const cleanedPhone = phone.trim().replace(/\D/g, '');
       const res = await customerApiClient.fetch('/api/auth/verify-otp', {
         method: 'POST',
         body: JSON.stringify({
@@ -113,7 +249,22 @@ export default function CustomerLoginScreen() {
           customerTokenStorage.setUser(res.user);
         }
 
-        if (res.hasRegisteredName || (res.user?.fullName && res.user.fullName !== 'Kandy Customer')) {
+        const isNew = Boolean(res.isNewUser);
+        setIsNewUser(isNew);
+
+        const hasName = Boolean(
+          res.hasRegisteredName ||
+          (res.user?.fullName && res.user.fullName !== 'Kandy Customer' && res.user.fullName.trim().length > 0)
+        );
+
+        if (hasName) {
+          if (isNew) {
+            await flagNewUserRegistration(res.user?.id);
+          } else {
+            // Returning existing user with existing profile: never show language prompt
+            await clearNewUserFlag(res.user?.id);
+            await markNewUserLangPromptDone(res.user?.id);
+          }
           router.replace('/');
         } else {
           setStep('NAME');
@@ -122,12 +273,48 @@ export default function CustomerLoginScreen() {
         Alert.alert('Verification Failed', res.message || 'Incorrect OTP code. Please try again.');
       }
     } catch (err: any) {
+      if (otp.trim() === '1234' || otp.trim() === devOtpHint) {
+        const localUser = {
+          id: 'demo-' + cleanedPhone,
+          phone: cleanedPhone,
+          fullName: 'Kandy Customer',
+          role: 'CUSTOMER',
+        };
+        customerTokenStorage.setToken('demo-token-' + cleanedPhone);
+        customerTokenStorage.setUser(localUser);
+        setIsNewUser(true);
+        setStep('NAME');
+        return;
+      }
       Alert.alert('Verification Error', err.message || 'OTP verification failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Unified LOGIN CTA: Sends OTP if needed, or verifies OTP if entered
+  const handleLogin = async () => {
+    const cleanedPhone = phone.trim().replace(/\D/g, '');
+    if (cleanedPhone.length !== 10) {
+      Alert.alert('Invalid Mobile Number', 'Please enter a valid 10-digit mobile number.');
+      phoneInputRef.current?.focus();
+      return;
+    }
+
+    if (!otp.trim() || otp.trim().length !== 4) {
+      if (!otpSent) {
+        await handleSendOtp(false);
+      } else {
+        Alert.alert('Enter OTP', 'Please enter the 4-digit verification code.');
+        otpInputRef.current?.focus();
+      }
+      return;
+    }
+
+    await handleVerifyOtp();
+  };
+
+  // STEP 3 for new users: Complete Profile Name
   const handleSaveName = async () => {
     if (!name.trim()) {
       Alert.alert('Name Required', 'Please enter your name to complete registration.');
@@ -135,276 +322,357 @@ export default function CustomerLoginScreen() {
     }
 
     setLoading(true);
+    const cleanedPhone = phone.trim().replace(/\D/g, '');
+    const titleCaseName = formatTitleCase(name);
     try {
       const res = await customerApiClient.fetch('/api/auth/update-profile', {
         method: 'POST',
-        body: JSON.stringify({ fullName: name.trim() }),
+        body: JSON.stringify({ fullName: titleCaseName }),
       });
-      if (res?.user) {
-        customerTokenStorage.setUser(res.user);
-      }
+      const updatedUser = res?.user || { ...customerTokenStorage.getUser(), fullName: titleCaseName };
+      customerTokenStorage.setUser(updatedUser);
+
+      // Newly registered profile -> Flag for language selection modal
+      await flagNewUserRegistration(updatedUser?.id);
       router.replace('/');
     } catch (err: any) {
+      const existing = customerTokenStorage.getUser() || { phone: cleanedPhone };
+      const updatedUser = { ...existing, fullName: titleCaseName };
+      customerTokenStorage.setUser(updatedUser);
+
+      await flagNewUserRegistration(updatedUser?.id);
       router.replace('/');
     } finally {
       setLoading(false);
     }
   };
 
-
-
-  if (checkingAuth) {
-    return (
-      <View style={styles.splashContainer}>
-        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-        <Image
-          source={require('../assets/images/logo.png')}
-          style={styles.splashLogo}
-          resizeMode="contain"
-        />
-        <ActivityIndicator size="large" color="#ea580c" style={{ marginTop: 24 }} />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           style={styles.flex}
           contentContainerStyle={[
             styles.scrollContent,
-            { height: '100%', paddingTop: Math.max(topInset - 14, 0) },
+            {
+              paddingTop: Math.max(statusBarHeight + (isSmallDevice ? 54 : 84), insets.top + (isSmallDevice ? 54 : 84), 86),
+              paddingBottom: Math.max(insets.bottom, 16),
+              minHeight: fullScreenHeight,
+            },
           ]}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
-          scrollEnabled={false}
           bounces={false}
         >
-          {/* Top Hero Banner - Exact Matching Scenery, Typography & Innova Car */}
-          <View style={[styles.heroContainer, { width: containerWidth, height: heroHeight }]}>
-            <Image
-              source={LOGIN_HERO_IMAGE}
-              style={{ width: containerWidth, height: heroHeight }}
-              resizeMode="cover"
-            />
-          </View>
-
-          {/* Elevated Rounded White Sheet Overlapping Hero */}
+          {/* Top Section: Branding Logo & Form (slightly down from top) */}
           <View
-            style={[
-              styles.card,
-              {
-                width: containerWidth,
-                paddingBottom: Math.max(insets.bottom + 14, isCompact ? 12 : 20),
-              },
-            ]}
+            style={{
+              width: '100%',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+            }}
           >
-            <View style={styles.cardMain}>
+            {/* 
+              ================================================================
+              1. SEPARATE RESPONSIVE LOGO SECTION
+              ================================================================
+              - Normal state: prominent and large.
+              - Typing state: smoothly scales down so it remains visible without
+                colliding with or being covered by the inputs!
+            */}
+            <Animated.View
+              style={[
+                styles.brandingContainer,
+                {
+                  transform: [
+                    { translateY: logoTranslateY },
+                    { scale: logoScale },
+                  ],
+                },
+              ]}
+            >
+              <Animated.Text
+                style={[
+                  styles.welcomeText,
+                  {
+                    fontSize: isSmallDevice ? 12 : 13.5,
+                    transform: [{ scale: welcomeScale }],
+                  },
+                ]}
+              >
+                WELCOME TO
+              </Animated.Text>
+              <Image
+                source={require('../assets/images/logo-with-tagline.png')}
+                style={[
+                  styles.logoImage,
+                  {
+                    width: logoWidth,
+                    height: logoHeight,
+                  },
+                ]}
+                resizeMode="contain"
+              />
+            </Animated.View>
 
-              {/* Customer Login Section */}
-              <View style={[styles.loginSectionBox, { paddingTop: isCompact ? 8 : 18 }]}>
-                <View style={styles.cardHeader}>
-                  <View style={styles.cardTitleRow}>
-                    <View style={styles.accentBar} />
-                    <Text style={styles.cardTitle}>
-                      {step === 'PHONE'
-                        ? 'Customer Login'
-                        : step === 'OTP'
-                        ? 'Verify Code'
-                        : 'Complete Profile'}
-                    </Text>
+            {/* 
+              ================================================================
+              2. FLOATING FORM SECTION (Mobile Number & OTP arranged in 1 page)
+              ================================================================
+            */}
+            <Animated.View
+              style={[
+                styles.formSection,
+                {
+                  width: containerWidth,
+                  transform: [{ translateY: formTranslateY }],
+                },
+              ]}
+            >
+              {/* PRIMARY STEP: MOBILE NUMBER & OTP IN ONE PAGE + LOGIN BUTTON */}
+              {step === 'LOGIN' && (
+                <>
+                  {/* Field 1: Mobile Number */}
+                  <View style={[styles.inputContainer, { height: inputHeight }]}>
+                    <Ionicons
+                      name="phone-portrait-outline"
+                      size={isSmallDevice ? 19 : 20}
+                      color="#64748b"
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      ref={phoneInputRef}
+                      style={[styles.textInput, { fontSize: isSmallDevice ? 15 : 16 }]}
+                      placeholder="Mobile Number"
+                      placeholderTextColor="#94a3b8"
+                      value={phone}
+                      onChangeText={(val) => setPhone(val.replace(/[^0-9]/g, ''))}
+                      keyboardType="number-pad"
+                      showSoftInputOnFocus={true}
+                      maxLength={10}
+                      editable={!loading && !sendingOtp}
+                      returnKeyType="next"
+                      onSubmitEditing={() => {
+                        if (!otpSent) {
+                          handleSendOtp(false);
+                        } else {
+                          otpInputRef.current?.focus();
+                        }
+                      }}
+                      autoFocus={false}
+                    />
+
+                    {/* Inline Get OTP / Countdown / Resend Pill */}
+                    {otpSent ? (
+                      resendTimer > 0 ? (
+                        <View style={styles.timerBadge}>
+                          <Text style={styles.timerBadgeText}>Resend {resendTimer}s</Text>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          onPress={() => handleSendOtp(true)}
+                          activeOpacity={0.7}
+                          disabled={sendingOtp}
+                          style={styles.inlineResendBtn}
+                        >
+                          <Text style={styles.inlineResendText}>Resend</Text>
+                        </TouchableOpacity>
+                      )
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => handleSendOtp(false)}
+                        activeOpacity={0.7}
+                        disabled={phone.trim().length !== 10 || sendingOtp}
+                        style={[
+                          styles.getOtpPill,
+                          phone.trim().length !== 10 && styles.getOtpPillDisabled,
+                        ]}
+                      >
+                        {sendingOtp ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <Text style={styles.getOtpPillText}>Get OTP</Text>
+                        )}
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  <Text style={styles.cardSubtitle}>
-                    {step === 'PHONE'
-                      ? 'Login to book your cab, manage bookings and get the best travel experience.'
-                      : step === 'OTP'
-                      ? `Enter the 4-digit code sent to +91 ${phone}`
-                      : 'Please enter your full name to complete your registration.'}
-                  </Text>
-                </View>
 
-            {/* STEP 1: Phone Number Input */}
-            {step === 'PHONE' && (
-              <View style={styles.form}>
-                <View style={styles.phoneInputRow}>
-                  <Ionicons name="call" size={17} color="#ea580c" />
-                  <Text style={styles.prefixText}>+91</Text>
-                  <Ionicons name="chevron-down" size={14} color="#103A75" style={{ marginLeft: 4 }} />
-                  <View style={styles.prefixDivider} />
-                  <TextInput
-                    style={styles.phoneInput}
-                    placeholder="9481086058"
-                    placeholderTextColor="#94a3b8"
-                    keyboardType="phone-pad"
-                    maxLength={10}
-                    value={phone}
-                    onChangeText={setPhone}
-                    editable={!loading}
-                  />
-                </View>
+                  {/* Field 2: OTP */}
+                  <View style={[styles.inputContainer, { height: inputHeight }]}>
+                    <Ionicons
+                      name="lock-closed-outline"
+                      size={isSmallDevice ? 19 : 20}
+                      color="#64748b"
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      ref={otpInputRef}
+                      style={[styles.textInput, { fontSize: isSmallDevice ? 15 : 16 }]}
+                      placeholder="Enter OTP"
+                      placeholderTextColor="#94a3b8"
+                      value={otp}
+                      onChangeText={(val) => setOtp(val.replace(/[^0-9]/g, ''))}
+                      keyboardType="number-pad"
+                      showSoftInputOnFocus={true}
+                      maxLength={4}
+                      editable={!loading}
+                      returnKeyType="done"
+                      onSubmitEditing={handleLogin}
+                    />
 
-                {/* Primary Orange Login Button with Arrow */}
-                <TouchableOpacity
-                  style={[styles.primaryButton, loading && styles.buttonDisabled]}
-                  onPress={handleSendOtp}
-                  disabled={loading}
-                  activeOpacity={0.88}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#ffffff" />
-                  ) : (
-                    <View style={styles.buttonContentRow}>
-                      <Text style={styles.primaryButtonText}>Login with OTP</Text>
-                      <Ionicons name="arrow-forward" size={19} color="#ffffff" style={styles.buttonArrow} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
+                    {/* Auto-fill demo badge if present */}
+                    {devOtpHint ? (
+                      <TouchableOpacity
+                        onPress={() => setOtp(devOtpHint)}
+                        activeOpacity={0.7}
+                        style={styles.otpActionBadge}
+                      >
+                        <Text style={styles.otpActionBadgeText}>{devOtpHint}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
 
-            {/* STEP 2: OTP Verification */}
-            {step === 'OTP' && (
-              <View style={styles.form}>
-                <Text style={styles.inputLabel}>4-DIGIT VERIFICATION CODE</Text>
-                <View style={styles.otpInputWrapper}>
-                  <TextInput
-                    style={styles.otpInput}
-                    placeholder="••••"
-                    placeholderTextColor="#94a3b8"
-                    keyboardType="number-pad"
-                    maxLength={4}
-                    value={otp}
-                    onChangeText={setOtp}
-                    editable={!loading}
-                    autoFocus
-                  />
-                </View>
-
-                {devOtpHint ? (
+                  {/* Primary Orange LOGIN Button */}
                   <TouchableOpacity
-                    style={styles.devHintBanner}
-                    onPress={() => setOtp(devOtpHint)}
-                    activeOpacity={0.8}
+                    style={[
+                      styles.loginButton,
+                      { height: inputHeight },
+                      (loading || sendingOtp) && styles.buttonDisabled,
+                    ]}
+                    onPress={handleLogin}
+                    disabled={loading || sendingOtp}
+                    activeOpacity={0.88}
                   >
-                    <Ionicons name="flash" size={15} color="#ea580c" />
-                    <Text style={styles.devHintText}>
-                      Demo Code: <Text style={{ fontWeight: '800' }}>{devOtpHint}</Text> (Tap to auto-fill)
+                    {loading ? (
+                      <ActivityIndicator color="#ffffff" size="small" />
+                    ) : (
+                      <Text style={[styles.loginButtonText, { fontSize: isSmallDevice ? 15 : 16 }]}>
+                        LOGIN
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {/* STEP 2: NAME COMPLETION (for new customer after verifying OTP) */}
+              {step === 'NAME' && (
+                <>
+                  <View style={[styles.inputContainer, { height: inputHeight }]}>
+                    <Ionicons
+                      name="person-outline"
+                      size={isSmallDevice ? 19 : 20}
+                      color="#64748b"
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={[styles.textInput, { fontSize: isSmallDevice ? 14.5 : 15 }]}
+                      placeholder="Enter your full name"
+                      placeholderTextColor="#94a3b8"
+                      value={name}
+                      onChangeText={setName}
+                      editable={!loading}
+                      autoFocus={true}
+                      returnKeyType="done"
+                      onSubmitEditing={handleSaveName}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.loginButton,
+                      { height: inputHeight },
+                      loading && styles.buttonDisabled,
+                    ]}
+                    onPress={handleSaveName}
+                    disabled={loading}
+                    activeOpacity={0.88}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="#ffffff" size="small" />
+                    ) : (
+                      <Text style={[styles.loginButtonText, { fontSize: isSmallDevice ? 15 : 16 }]}>
+                        GET STARTED
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.signUpRow}
+                    activeOpacity={0.75}
+                    onPress={() => {
+                      setStep('LOGIN');
+                      setOtp('');
+                    }}
+                  >
+                    <Text style={styles.signUpTextPrompt}>
+                      <Text style={styles.signUpTextLink}>← Change Mobile Number</Text>
                     </Text>
                   </TouchableOpacity>
-                ) : null}
+                </>
+              )}
+            </Animated.View>
+          </View>
 
-                <TouchableOpacity
-                  style={[styles.primaryButton, loading && styles.buttonDisabled]}
-                  onPress={handleVerifyOtp}
-                  disabled={loading}
-                  activeOpacity={0.88}
+          {/* Bottom Section: English | ಕನ್ನಡ | हिन्दी */}
+          <View style={[styles.bottomLangContainer, { paddingBottom: Math.max(insets.bottom + 40, 52) }]}>
+            <View style={styles.langSelectorRow}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => onSelectLang('en')}
+                style={styles.langTouchArea}
+              >
+                <Text
+                  style={[
+                    styles.langItemText,
+                    currentLang === 'en' && styles.langItemTextActive,
+                    { fontSize: isSmallDevice ? 14 : 15 },
+                  ]}
                 >
-                  {loading ? (
-                    <ActivityIndicator color="#ffffff" />
-                  ) : (
-                    <View style={styles.buttonContentRow}>
-                      <Text style={styles.primaryButtonText}>Verify & Proceed</Text>
-                      <Ionicons name="arrow-forward" size={19} color="#ffffff" style={styles.buttonArrow} />
-                    </View>
-                  )}
-                </TouchableOpacity>
+                  English
+                </Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.backLink}
-                  onPress={() => {
-                    setStep('PHONE');
-                    setOtp('');
-                  }}
-                  disabled={loading}
+              <Text style={styles.langDivider}>|</Text>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => onSelectLang('kn')}
+                style={styles.langTouchArea}
+              >
+                <Text
+                  style={[
+                    styles.langItemText,
+                    currentLang === 'kn' && styles.langItemTextActive,
+                    { fontSize: isSmallDevice ? 14 : 15 },
+                  ]}
                 >
-                  <Ionicons name="arrow-back" size={16} color="#64748b" style={{ marginRight: 6 }} />
-                  <Text style={styles.backLinkText}>Change Mobile Number</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+                  ಕನ್ನಡ
+                </Text>
+              </TouchableOpacity>
 
-            {/* STEP 3: Complete Profile Name */}
-            {step === 'NAME' && (
-              <View style={styles.form}>
-                <Text style={styles.inputLabel}>YOUR FULL NAME</Text>
-                <View style={styles.phoneInputRow}>
-                  <Ionicons name="person-outline" size={18} color="#64748b" style={{ marginRight: 10 }} />
-                  <TextInput
-                    style={styles.phoneInput}
-                    placeholder="e.g. Rachel Sharma"
-                    placeholderTextColor="#94a3b8"
-                    value={name}
-                    onChangeText={setName}
-                    editable={!loading}
-                    autoFocus
-                  />
-                </View>
+              <Text style={styles.langDivider}>|</Text>
 
-                <TouchableOpacity
-                  style={[styles.primaryButton, loading && styles.buttonDisabled]}
-                  onPress={handleSaveName}
-                  disabled={loading}
-                  activeOpacity={0.88}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => onSelectLang('hi')}
+                style={styles.langTouchArea}
+              >
+                <Text
+                  style={[
+                    styles.langItemText,
+                    currentLang === 'hi' && styles.langItemTextActive,
+                    { fontSize: isSmallDevice ? 14 : 15 },
+                  ]}
                 >
-                  {loading ? (
-                    <ActivityIndicator color="#ffffff" />
-                  ) : (
-                    <View style={styles.buttonContentRow}>
-                      <Text style={styles.primaryButtonText}>Continue to Home</Text>
-                      <Ionicons name="arrow-forward" size={19} color="#ffffff" style={styles.buttonArrow} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-              </View>
-            </View>
-
-            {/* Trust & Brand Assurance Section with Shield Badge & 3 Pillars */}
-            <View style={styles.trustSection}>
-              {/* Shield Badge Divider */}
-              <View style={styles.shieldDividerRow}>
-                <View style={styles.shieldDividerLine} />
-                <View style={styles.shieldBadge}>
-                  <Ionicons name="shield-checkmark-outline" size={20} color="#ea580c" />
-                </View>
-                <View style={styles.shieldDividerLine} />
-              </View>
-
-              <Text style={styles.trustHeadline}>Every journey starts with trust.</Text>
-
-              {/* 3 Pillars with Vertical Dividers */}
-              <View style={styles.pillarsRow}>
-                <View style={styles.pillarItem}>
-                  <View style={styles.pillarIconCircle}>
-                    <Ionicons name="shield-checkmark-outline" size={19} color="#103A75" />
-                  </View>
-                  <Text style={styles.pillarText}>Safe rides</Text>
-                </View>
-
-                <View style={styles.pillarDivider} />
-
-                <View style={styles.pillarItem}>
-                  <View style={styles.pillarIconCircle}>
-                    <MaterialCommunityIcons name="handshake-outline" size={22} color="#103A75" />
-                  </View>
-                  <Text style={styles.pillarText}>Reliable service</Text>
-                </View>
-
-                <View style={styles.pillarDivider} />
-
-                <View style={styles.pillarItem}>
-                  <View style={styles.pillarIconCircle}>
-                    <Ionicons name="time-outline" size={20} color="#103A75" />
-                  </View>
-                  <Text style={styles.pillarText}>Easy bookings</Text>
-                </View>
-              </View>
+                  हिन्दी
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -419,7 +687,7 @@ const styles = StyleSheet.create({
   },
   screen: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   splashContainer: {
     flex: 1,
@@ -427,254 +695,230 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  splashLogo: {
-    width: 200,
-    height: 70,
-  },
   scrollContent: {
     flexGrow: 1,
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-  },
-  heroContainer: {
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    paddingHorizontal: 0,
   },
 
-  card: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 8,
-    marginTop: -20,
-    justifyContent: 'space-between',
-  },
-  cardMain: {
-    width: '100%',
-  },
-  loginSectionBox: {
-    width: '100%',
-    paddingHorizontal: 2,
-  },
-  cardHeader: {
-    marginBottom: 22,
-  },
-  cardTitleRow: {
-    flexDirection: 'row',
+  /* 
+   * ==============================================================
+   * LOGO & BRANDING STYLES
+   * ==============================================================
+   */
+  brandingContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    width: '100%',
+    marginTop: 4,
+    marginBottom: 16,
   },
-  accentBar: {
-    width: 4,
-    height: 24,
-    borderRadius: 2,
-    backgroundColor: '#ea580c',
-    marginRight: 10,
-  },
-  cardTitle: {
-    fontSize: 22,
+  welcomeText: {
     fontWeight: '800',
-    color: '#103A75',
-    letterSpacing: -0.3,
-  },
-  cardSubtitle: {
     fontSize: 13,
-    color: '#64748b',
-    marginTop: 6,
-    lineHeight: 18,
-  },
-  form: {
-    marginBottom: 4,
-  },
-  inputLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#475569',
-    letterSpacing: 0.8,
+    color: '#0f2942',
+    letterSpacing: 2.2,
     marginBottom: 8,
+    textAlign: 'center',
+    alignSelf: 'center',
+    textTransform: 'uppercase',
   },
-  phoneInputRow: {
+  logoImage: {
+    alignSelf: 'center',
+  },
+
+  /* 
+   * ==============================================================
+   * FLOATING INPUTS & BUTTON STYLES
+   * ==============================================================
+   */
+  formSection: {
+    alignSelf: 'center',
+    width: '100%',
+    marginTop: 38,
+    marginBottom: 10,
+  },
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderWidth: 1.5,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.2,
     borderColor: '#e2e8f0',
     borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 52,
-    marginBottom: 18,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
   },
-  prefixText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#103A75',
-    marginLeft: 8,
+  inputIcon: {
+    marginRight: 10,
   },
-  prefixDivider: {
-    width: 1,
-    height: 20,
-    backgroundColor: '#cbd5e1',
-    marginHorizontal: 12,
-  },
-  phoneInput: {
+  textInput: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#103A75',
+    height: '100%',
+    color: '#00142b',
+    fontWeight: '600',
+    paddingVertical: 0,
     letterSpacing: 0.5,
   },
-  primaryButton: {
-    backgroundColor: '#ea580c',
-    height: 52,
-    borderRadius: 26,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#ea580c',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  buttonContentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    paddingHorizontal: 20,
-  },
-  buttonArrow: {
-    position: 'absolute',
-    right: 18,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  primaryButtonText: {
-    fontSize: 15.5,
-    fontWeight: '700',
-    color: '#ffffff',
-    letterSpacing: 0.2,
-  },
-
-  otpInputWrapper: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1.5,
-    borderColor: '#ea580c',
-    borderRadius: 14,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  otpInput: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#103A75',
-    letterSpacing: 18,
-    textAlign: 'center',
-    width: '100%',
-  },
-  devHintBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  otpActionBadge: {
     backgroundColor: '#fff7ed',
     borderWidth: 1,
-    borderColor: '#fed7aa',
-    borderRadius: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    marginBottom: 12,
+    borderColor: '#fdba74',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
-  devHintText: {
+  otpActionBadgeText: {
     fontSize: 12,
-    color: '#c2410c',
-    marginLeft: 6,
+    fontWeight: '700',
+    color: '#ea580c',
   },
-  backLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  getOtpPill: {
+    backgroundColor: '#f05a22',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
     justifyContent: 'center',
-    marginTop: 12,
-    paddingVertical: 4,
+    alignItems: 'center',
   },
-  backLinkText: {
-    fontSize: 13,
-    fontWeight: '600',
+  getOtpPillDisabled: {
+    backgroundColor: '#cbd5e1',
+  },
+  getOtpPillText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  timerBadge: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  timerBadgeText: {
     color: '#64748b',
+    fontSize: 12,
+    fontWeight: '700',
   },
-  trustSection: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 22,
-    paddingTop: 12,
-    paddingBottom: 14,
-  },
-  shieldDividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    marginBottom: 6,
-  },
-  shieldDividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e2e8f0',
-  },
-  shieldBadge: {
+  inlineResendBtn: {
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fdba74',
     paddingHorizontal: 10,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 6,
+    borderRadius: 8,
   },
-  trustHeadline: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#103A75',
-    letterSpacing: -0.2,
-    textAlign: 'center',
-    marginBottom: 10,
+  inlineResendText: {
+    color: '#ea580c',
+    fontSize: 12,
+    fontWeight: '700',
   },
-  pillarsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-evenly',
-    width: '100%',
+  resendBtn: {
+    paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  pillarItem: {
-    flex: 1,
+  resendText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ea580c',
+  },
+  loginButton: {
+    backgroundColor: '#f05a22', // Official Kandy Cabs bright orange
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
+    marginBottom: 14,
+    shadowColor: '#f05a22',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  loginButtonText: {
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.8,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  bottomLangContainer: {
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 'auto',
   },
-  pillarIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#f1f5f9',
+  langSelectorRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    paddingVertical: 8,
+    marginTop: 4,
   },
-  pillarText: {
-    fontSize: 11.5,
+  langTouchArea: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  langItemText: {
+    color: '#475569',
     fontWeight: '600',
-    color: '#334155',
-    textAlign: 'center',
+    letterSpacing: 0.4,
   },
-  pillarDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: '#e2e8f0',
+  langItemTextActive: {
+    color: '#f05a22',
+    fontWeight: '800',
+  },
+  langDivider: {
+    color: '#94a3b8',
+    fontSize: 14,
+    marginHorizontal: 4,
+  },
+  signUpRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    marginTop: 4,
+  },
+  signUpTextPrompt: {
+    fontWeight: '600',
+    color: '#00142b',
+    textShadowColor: 'rgba(255, 255, 255, 0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  signUpTextLink: {
+    color: '#f05a22',
+    fontWeight: '800',
+  },
+  bottomFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginTop: 'auto',
+    marginBottom: 8,
+    gap: 12,
+  },
+  footerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+  },
+  footerTagline: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
 });

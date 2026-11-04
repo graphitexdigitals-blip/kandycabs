@@ -67,7 +67,7 @@ export function getDynamicBaseUrl(): string {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
   }
-  return 'https://web-rgwp.vercel.app';
+  return 'https://kandycabs.vercel.app';
 }
 
 export const driverApiClient = new KandyApiClient({

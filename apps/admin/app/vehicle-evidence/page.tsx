@@ -31,6 +31,15 @@ export default function AdminVehicleEvidencePage() {
     fuelType: 'DIESEL',
     carriageCapacity: '2 Large Bags (Standard Boot)',
     plateNumber: '',
+    payoutMethod: 'BANK',
+    bankAccountHolderName: '',
+    bankAccountNumber: '',
+    bankIfsc: '',
+    bankName: '',
+    payoutUpiId: '',
+    payoutPhone: '',
+    payoutEmail: '',
+    payoutStatus: 'PENDING',
   });
 
   // Delete Driver modal state
@@ -98,9 +107,38 @@ export default function AdminVehicleEvidencePage() {
       fuelType: driver.vehicle?.fuelType || 'DIESEL',
       carriageCapacity: carriageMatch ? carriageMatch[1].trim() : '2 Large Bags (Standard Boot)',
       plateNumber: driver.vehicle?.plateNumber && driver.vehicle.plateNumber !== 'PENDING' && !driver.vehicle.plateNumber.startsWith('KA 01 TR 0000') ? driver.vehicle.plateNumber : '',
+      payoutMethod: driver.payoutMethod || 'BANK',
+      bankAccountHolderName: driver.bankAccountHolderName || '',
+      bankAccountNumber: driver.bankAccountNumber || '',
+      bankIfsc: driver.bankIfsc || '',
+      bankName: driver.bankName || '',
+      payoutUpiId: driver.payoutUpiId || '',
+      payoutPhone: driver.payoutPhone || '',
+      payoutEmail: driver.payoutEmail || '',
+      payoutStatus: driver.payoutStatus || 'PENDING',
     });
     setEditDriverError('');
     setEditModalOpen(true);
+  };
+
+  const handleTogglePayoutStatus = async (driverId: string, newStatus: 'VERIFIED' | 'PENDING') => {
+    try {
+      const res = await fetch(`/api/admin/vehicle-evidence/${driverId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payoutStatus: newStatus }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setDrivers((prev) =>
+          prev.map((d) => (d.driverId === driverId ? { ...d, payoutStatus: newStatus } : d))
+        );
+      } else {
+        alert(data.error || 'Failed to update payout status');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error updating payout status');
+    }
   };
 
   const handleEditDriver = async (e: React.FormEvent) => {
@@ -628,6 +666,141 @@ export default function AdminVehicleEvidencePage() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Bank & Payout Details (RazorpayX Integration) */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-3 border-b border-slate-200 gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">💳</span>
+                          <div>
+                            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                              Bank Account & Payout Details (RazorpayX)
+                            </h3>
+                            <div className="text-[11px] text-slate-500">
+                              Method:{' '}
+                              <span className="font-bold text-slate-800">
+                                {selectedDriver.payoutMethod === 'UPI' ? '⚡ UPI Transfer (Option 2)' : '🏦 Bank Transfer (Option 1)'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {selectedDriver.payoutStatus === 'VERIFIED' ? (
+                            <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold flex items-center gap-1">
+                              <span>✓</span> Payout Verified
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-xs font-bold flex items-center gap-1">
+                              <span>⏳</span> Verification Pending
+                            </span>
+                          )}
+
+                          {selectedDriver.payoutStatus === 'VERIFIED' ? (
+                            <button
+                              onClick={() => handleTogglePayoutStatus(selectedDriver.driverId, 'PENDING')}
+                              className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-2xs transition"
+                              title="Revoke verification"
+                            >
+                              Mark Pending
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleTogglePayoutStatus(selectedDriver.driverId, 'VERIFIED')}
+                              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-2xs transition flex items-center gap-1"
+                              title="Verify driver bank account for RazorpayX payouts"
+                            >
+                              <span>✓</span> Verify Bank Details
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => openEditModal(selectedDriver)}
+                            className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-xs font-bold shadow-2xs transition flex items-center gap-1"
+                          >
+                            <span>✏️</span> Edit
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Details Display */}
+                      {selectedDriver.payoutMethod === 'UPI' ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                          <div className="bg-white p-3 rounded-lg border border-slate-200">
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">Driver's Full Name</div>
+                            <div className="font-bold text-slate-900 mt-0.5">
+                              {selectedDriver.bankAccountHolderName || selectedDriver.fullName || 'Not Provided'}
+                            </div>
+                          </div>
+                          <div className="bg-white p-3 rounded-lg border border-sky-200 bg-sky-50/30">
+                            <div className="text-[10px] text-sky-700 font-bold uppercase">UPI ID (VPA)</div>
+                            <div className="font-mono font-bold text-sky-900 mt-0.5 truncate" title={selectedDriver.payoutUpiId || ''}>
+                              {selectedDriver.payoutUpiId || 'Not Provided'}
+                            </div>
+                          </div>
+                          <div className="bg-white p-3 rounded-lg border border-slate-200">
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">Payout Contact Phone</div>
+                            <div className="font-bold text-slate-900 mt-0.5">
+                              {selectedDriver.payoutPhone || selectedDriver.phone || 'None'}
+                            </div>
+                          </div>
+                          <div className="bg-white p-3 rounded-lg border border-slate-200">
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">Payout Contact Email</div>
+                            <div className="font-bold text-slate-900 mt-0.5 truncate" title={selectedDriver.payoutEmail || ''}>
+                              {selectedDriver.payoutEmail || 'None'}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                          <div className="bg-white p-3 rounded-lg border border-slate-200">
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">Account Holder Name</div>
+                            <div className="font-bold text-slate-900 mt-0.5">
+                              {selectedDriver.bankAccountHolderName || 'Not Provided'}
+                            </div>
+                          </div>
+                          <div className="bg-white p-3 rounded-lg border border-slate-200">
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">Bank Account Number</div>
+                            <div className="font-mono font-bold text-slate-900 mt-0.5">
+                              {selectedDriver.bankAccountNumber
+                                ? `•••• ${selectedDriver.bankAccountNumber.slice(-4)} (${selectedDriver.bankAccountNumber})`
+                                : 'Not Provided'}
+                            </div>
+                          </div>
+                          <div className="bg-white p-3 rounded-lg border border-slate-200">
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">Bank IFSC Code</div>
+                            <div className="font-mono font-bold text-emerald-800 mt-0.5">
+                              {selectedDriver.bankIfsc || 'Not Provided'}
+                            </div>
+                          </div>
+                          <div className="bg-white p-3 rounded-lg border border-slate-200">
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">Bank Name</div>
+                            <div className="font-bold text-slate-900 mt-0.5">
+                              {selectedDriver.bankName || 'Not Specified'}
+                            </div>
+                          </div>
+                          <div className="bg-white p-3 rounded-lg border border-slate-200">
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">Payout Contact Phone</div>
+                            <div className="font-bold text-slate-900 mt-0.5">
+                              {selectedDriver.payoutPhone || selectedDriver.phone || 'None'}
+                            </div>
+                          </div>
+                          <div className="bg-white p-3 rounded-lg border border-slate-200">
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">Payout Contact Email</div>
+                            <div className="font-bold text-slate-900 mt-0.5 truncate" title={selectedDriver.payoutEmail || ''}>
+                              {selectedDriver.payoutEmail || 'None'}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {!selectedDriver.bankAccountNumber && !selectedDriver.payoutUpiId && (
+                        <div className="mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-center gap-2">
+                          <span>⚠️</span>
+                          <span>Driver has not submitted settlement details yet. Details can be collected via the mobile app or manually edited.</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })()
@@ -844,6 +1017,143 @@ export default function AdminVehicleEvidencePage() {
                     <option value="5+ Large Bags (Max Cargo)">🚐 5+ Large Bags (Max Cargo)</option>
                     <option value="Roof Carrier Included 🧳 (Heavy Luggage / Hill Trips)">🧳 Roof Carrier Included (Heavy Luggage)</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Section 3: Bank & Payout Details (RazorpayX) */}
+              <div className="pt-3 border-t border-slate-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    3. Bank & Payout Details (RazorpayX)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[11px] font-bold text-slate-600">Verification Status:</label>
+                    <select
+                      value={editDriverData.payoutStatus}
+                      onChange={(e) => setEditDriverData({ ...editDriverData, payoutStatus: e.target.value })}
+                      className={`text-[11px] font-bold rounded px-2 py-1 border ${
+                        editDriverData.payoutStatus === 'VERIFIED'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                          : 'bg-amber-50 text-amber-800 border-amber-300'
+                      }`}
+                    >
+                      <option value="PENDING">⏳ Pending Verification</option>
+                      <option value="VERIFIED">✓ Verified</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <label className="block text-slate-700 font-bold mb-1">Payout Method</label>
+                  <select
+                    value={editDriverData.payoutMethod}
+                    onChange={(e) => setEditDriverData({ ...editDriverData, payoutMethod: e.target.value })}
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none font-semibold"
+                  >
+                    <option value="BANK">Option 1: Bank Account Transfer (NEFT/IMPS)</option>
+                    <option value="UPI">Option 2: UPI Transfer (Instant VPA)</option>
+                  </select>
+                </div>
+
+                {editDriverData.payoutMethod === 'BANK' ? (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-slate-700 font-bold mb-1">Account Holder Name *</label>
+                        <input
+                          type="text"
+                          value={editDriverData.bankAccountHolderName}
+                          onChange={(e) => setEditDriverData({ ...editDriverData, bankAccountHolderName: e.target.value })}
+                          placeholder="e.g. Ramesh Kumar"
+                          className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-700 font-bold mb-1">Bank Account Number *</label>
+                        <input
+                          type="text"
+                          value={editDriverData.bankAccountNumber}
+                          onChange={(e) => setEditDriverData({ ...editDriverData, bankAccountNumber: e.target.value })}
+                          placeholder="e.g. 50100428912345"
+                          className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <label className="block text-slate-700 font-bold mb-1">Bank IFSC Code *</label>
+                        <input
+                          type="text"
+                          value={editDriverData.bankIfsc}
+                          onChange={(e) => setEditDriverData({ ...editDriverData, bankIfsc: e.target.value.toUpperCase() })}
+                          placeholder="e.g. HDFC0001234"
+                          maxLength={11}
+                          className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono uppercase placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-700 font-bold mb-1">Bank Name (For Display)</label>
+                        <input
+                          type="text"
+                          value={editDriverData.bankName}
+                          onChange={(e) => setEditDriverData({ ...editDriverData, bankName: e.target.value })}
+                          placeholder="e.g. HDFC Bank"
+                          className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">Driver's Full Name *</label>
+                      <input
+                        type="text"
+                        value={editDriverData.bankAccountHolderName}
+                        onChange={(e) => setEditDriverData({ ...editDriverData, bankAccountHolderName: e.target.value })}
+                        placeholder="e.g. Ramesh Kumar"
+                        className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">UPI ID (e.g. driver@oksbi) *</label>
+                      <input
+                        type="text"
+                        value={editDriverData.payoutUpiId}
+                        onChange={(e) => setEditDriverData({ ...editDriverData, payoutUpiId: e.target.value })}
+                        placeholder="e.g. driver@oksbi"
+                        className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Payout Mobile Number (Optional)</label>
+                    <input
+                      type="tel"
+                      value={editDriverData.payoutPhone}
+                      onChange={(e) => setEditDriverData({ ...editDriverData, payoutPhone: e.target.value })}
+                      placeholder="e.g. 9876543210"
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Payout Email Address (Optional)</label>
+                    <input
+                      type="email"
+                      value={editDriverData.payoutEmail}
+                      onChange={(e) => setEditDriverData({ ...editDriverData, payoutEmail: e.target.value })}
+                      placeholder="e.g. driver@kandycabs.in"
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
