@@ -75,7 +75,7 @@ export default function DriverLoginScreen() {
         try {
           const initialDriver = {
             id: res.user?.id || 'driver',
-            name: (res.user as any)?.fullName || (res.user as any)?.name || (phone === '9587425635' ? 'Mukesh' : (phone === '8888888888' ? 'Ramesh Kumar' : 'Driver Partner')),
+            name: (res.user as any)?.fullName || (res.user as any)?.name || (phone === '9587425635' ? 'Rakshith' : (phone === '8888888888' ? 'Ramesh Kumar' : 'Driver Partner')),
             phone: phone,
             vehicleNumber: phone === '9587425635' ? 'KA 01 MJ 2023' : (phone === '8888888888' ? 'KA-01-SD-2002' : ''),
             status: 'APPROVED',
@@ -163,8 +163,8 @@ export default function DriverLoginScreen() {
                     if (verifyRes.success) {
                       try {
                         const initialDriver = {
-                          id: verifyRes.user?.id || 'mukesh',
-                          name: 'Mukesh',
+                          id: verifyRes.user?.id || 'rakshith',
+                          name: 'Rakshith',
                           phone: '9587425635',
                           vehicleNumber: 'KA 01 MJ 2023',
                           status: 'APPROVED',
@@ -180,8 +180,8 @@ export default function DriverLoginScreen() {
                   } catch (e: any) {
                     // Graceful fallback: If dev server is unreachable over 4G, load demo session directly
                     const initialDriver = {
-                      id: 'mukesh',
-                      name: 'Mukesh',
+                      id: 'rakshith',
+                      name: 'Rakshith',
                       phone: '9587425635',
                       vehicleNumber: 'KA 01 MJ 2023',
                       status: 'APPROVED',
@@ -198,7 +198,7 @@ export default function DriverLoginScreen() {
                 activeOpacity={0.85}
               >
                 <View>
-                  <Text style={styles.demoName}>👨🏽‍✈️ Mukesh (Driver)</Text>
+                  <Text style={styles.demoName}>👨🏽‍✈️ Rakshith (Driver)</Text>
                   <Text style={styles.demoSubtitleOrange}>KA 01 MJ 2023 • +91 9587425635</Text>
                 </View>
                 <View style={styles.demoActionPillOrange}>
