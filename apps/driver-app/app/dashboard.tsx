@@ -282,8 +282,7 @@ export default function DriverDashboardScreen() {
       } else if (statusRes && statusRes.success === false) {
         if (
           statusRes.message?.includes('deactivated') ||
-          statusRes.message?.includes('deleted') ||
-          statusRes.message?.includes('Unauthorized')
+          statusRes.message?.includes('deleted')
         ) {
           handleSessionExpired(statusRes.message);
           return;
@@ -298,12 +297,8 @@ export default function DriverDashboardScreen() {
     } catch (err: any) {
       console.warn('[DriverDashboard] Failed to fetch driver data:', err);
       if (
-        err.status === 401 ||
-        err.status === 403 ||
-        err.message?.includes('Unauthorized') ||
         err.message?.includes('deactivated') ||
-        err.message?.includes('deleted') ||
-        err.message?.includes('Driver authentication required')
+        err.message?.includes('deleted')
       ) {
         handleSessionExpired(err.message);
         return;

@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyAuthToken, UserRole } from '@kandy-cabs/shared';
 
-// Public paths that do not require ADMIN authentication
-const PUBLIC_PATHS = ['/login', '/api/auth', '/api/health', '/_next', '/favicon.ico', '/static', '/images'];
+// Public paths that do not require ADMIN authentication (driver routes handle their own driver Bearer authentication)
+const PUBLIC_PATHS = ['/login', '/api/auth', '/api/driver', '/api/health', '/_next', '/favicon.ico', '/static', '/images'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
