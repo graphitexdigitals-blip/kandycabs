@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
-import { createWorker } from 'tesseract.js';
 import path from 'path';
 import fs from 'fs';
 
@@ -8,6 +7,19 @@ export const dynamic = 'force-dynamic';
 
 export async function OPTIONS() {
   return handleOptions();
+}
+
+/**
+ * Dynamically import createWorker to ensure safe bundling across monorepo packages
+ */
+async function getTesseractWorker() {
+  try {
+    const tesseract = await import('tesseract.js');
+    return tesseract.createWorker;
+  } catch (err) {
+    console.warn('[Odometer OCR] tesseract.js not available:', err);
+    return null;
+  }
 }
 
 /**
@@ -126,7 +138,15 @@ export async function POST(req: NextRequest) {
       workerOptions.workerPath = workerPath;
     }
 
-    worker = await createWorker('eng', 1, workerOptions);
+    const createWorkerFn = await getTesseractWorker();
+    if (!createWorkerFn) {
+      return NextResponse.json({
+        success: false,
+        message: 'OCR engine is initializing. Please enter odometer manually if needed.',
+      });
+    }
+
+    worker = await createWorkerFn('eng', 1, workerOptions);
 
     const ocrResult = await worker.recognize(imageBuffer);
     const rawText = ocrResult?.data?.text || '';

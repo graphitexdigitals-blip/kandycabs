@@ -17,7 +17,8 @@
     "leaflet": "^1.9.4",
     "next": "14.2.3",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@kandy-cabs/typescript-config": "*",
