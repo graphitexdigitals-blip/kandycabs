@@ -30,6 +30,7 @@ import { SUPPORTED_LANGUAGES, changeAppLanguage } from '../lib/i18n';
 import { SlideToAccept } from '../components/SlideToAccept';
 import { LanguageSelectionModal } from '../components/LanguageSelectionModal';
 import { NotificationsModal } from '../components/NotificationsModal';
+import { BackgroundProtectionModal } from '../components/BackgroundProtectionModal';
 import { getTripInProcessSync, getTripInProcess, setTripInProcess, subscribeTripState } from '../lib/tripState';
 
 export default function DriverDashboardScreen() {
@@ -46,6 +47,7 @@ export default function DriverDashboardScreen() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [showBgGuide, setShowBgGuide] = useState(false);
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsState, setGpsState] = useState<LocationState>(locationTracker.getState());
   const [tripInProcessRev, setTripInProcessRev] = useState(0);
@@ -568,6 +570,16 @@ export default function DriverDashboardScreen() {
       }
 
       locationTracker.startIdleTracking();
+
+      // Show background protection guide on first Online switch
+      try {
+        SecureStore.getItemAsync('kandy_bg_guide_seen').then((seen) => {
+          if (!seen) {
+            setShowBgGuide(true);
+            SecureStore.setItemAsync('kandy_bg_guide_seen', 'true').catch(() => {});
+          }
+        }).catch(() => {});
+      } catch (_) {}
     } else {
       locationTracker.stopTracking();
     }
@@ -1019,6 +1031,24 @@ export default function DriverDashboardScreen() {
 
             {/* FLOATING CARD CONTAINER */}
             <View style={styles.homeCardsContainer}>
+            {/* Background Protection Pill when Online */}
+            {onlineStatus && (
+              <TouchableOpacity
+                style={styles.bgProtectionBanner}
+                onPress={() => setShowBgGuide(true)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.bgProtectionLeft}>
+                  <View style={styles.bgProtectionPulseDot} />
+                  <Ionicons name="shield-checkmark" size={15} color="#008860" />
+                  <Text style={styles.bgProtectionTitle}>Stay Online in Background</Text>
+                </View>
+                <View style={styles.bgProtectionRight}>
+                  <Text style={styles.bgProtectionAction}>Setup 🔒</Text>
+                  <Ionicons name="chevron-forward" size={13} color="#008860" />
+                </View>
+              </TouchableOpacity>
+            )}
             {/* 2. Top Priority KYC Incomplete Banner on Home Tab */}
             {hasPendingDocuments && (
               <View style={styles.kycVerificationCard}>
@@ -2645,6 +2675,11 @@ export default function DriverDashboardScreen() {
           setActiveBottomTab('HOME');
         }}
       />
+      {/* Background Protection & Lock Setup Modal */}
+      <BackgroundProtectionModal
+        visible={showBgGuide}
+        onClose={() => setShowBgGuide(false)}
+      />
     </View>
   );
 }
@@ -2653,6 +2688,46 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  bgProtectionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 12,
+  },
+  bgProtectionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  bgProtectionPulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#16a34a',
+  },
+  bgProtectionTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#15803d',
+    flex: 1,
+  },
+  bgProtectionRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  bgProtectionAction: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#008860',
   },
   mainHeaderWhite: {
     backgroundColor: '#162232',
