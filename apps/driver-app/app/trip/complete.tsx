@@ -21,7 +21,7 @@ import { locationTracker } from '../../lib/location-tracker';
 import { reverseGeocodeAddress } from '../../lib/reverse-geocoding';
 import { driverApiClient } from '../../lib/api';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../../components/SafeLinearGradient';
 import { useTranslation } from 'react-i18next';
 import {
   setTripInProcess,

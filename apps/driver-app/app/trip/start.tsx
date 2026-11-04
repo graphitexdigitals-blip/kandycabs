@@ -34,7 +34,7 @@ import {
   clearTripStartDraft,
 } from '../../lib/tripState';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../../components/SafeLinearGradient';
 import { useTranslation } from 'react-i18next';
 
 const ODOMETER_SAMPLE = require('../../assets/images/inspection/odometer_sample.jpg');
