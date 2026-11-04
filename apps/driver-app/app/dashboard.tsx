@@ -29,6 +29,7 @@ import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES, changeAppLanguage } from '../lib/i18n';
 import { SlideToAccept } from '../components/SlideToAccept';
 import { LanguageSelectionModal } from '../components/LanguageSelectionModal';
+import { NotificationsModal } from '../components/NotificationsModal';
 import { getTripInProcessSync, getTripInProcess, setTripInProcess, subscribeTripState } from '../lib/tripState';
 
 export default function DriverDashboardScreen() {
@@ -48,6 +49,7 @@ export default function DriverDashboardScreen() {
   const [gpsState, setGpsState] = useState<LocationState>(locationTracker.getState());
   const [tripInProcessRev, setTripInProcessRev] = useState(0);
   const [isLangModalOpen, setIsLangModalOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
 
   // Immediately hydrate cached driver session to prevent blank/green screen on offline boot
   useEffect(() => {
@@ -878,6 +880,24 @@ export default function DriverDashboardScreen() {
                 </Text>
               </TouchableOpacity>
             )}
+
+            {/* Notification Bell Icon beside profile */}
+            <TouchableOpacity
+              style={styles.notificationBellHeader}
+              onPress={() => setIsNotificationModalOpen(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="notifications-outline" size={21} color="#ffffff" />
+              {(dispatches.length > 0 || hasPendingDocuments) && (
+                <View style={styles.notificationBellBadge}>
+                  <Text style={styles.notificationBellBadgeText}>
+                    {dispatches.length + (hasPendingDocuments ? 1 : 0) > 9
+                      ? '9+'
+                      : dispatches.length + (hasPendingDocuments ? 1 : 0)}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.avatarRingHeader}
@@ -2595,6 +2615,22 @@ export default function DriverDashboardScreen() {
           {activeBottomTab === 'PROFILE' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
       </View>
+      {/* Universal Updates & Notifications Modal */}
+      <NotificationsModal
+        visible={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+        dispatches={dispatches}
+        activeBooking={activeBooking}
+        upcomingBookings={upcomingBookings}
+        driver={driver}
+        onlineStatus={onlineStatus}
+        onSelectDispatch={() => {
+          setActiveBottomTab('HOME');
+        }}
+        onSelectBooking={() => {
+          setActiveBottomTab('HOME');
+        }}
+      />
     </View>
   );
 }
@@ -2629,6 +2665,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  notificationBellHeader: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  notificationBellBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#ea580c',
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: '#162232',
+  },
+  notificationBellBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800',
   },
   avatarRingHeader: {
     width: 38,
