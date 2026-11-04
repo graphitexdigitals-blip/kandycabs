@@ -1,5 +1,6 @@
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
+Add-Type -AssemblyName System.Drawing
 
 $root = "D:\Rakshith\Graphitex Digitals\client websites\kandycabs\kandycabs website\kandycabs updated"
 $baseApk = Join-Path $root "apps\driver-app\android\app\build\outputs\apk\release\app-release.apk"
@@ -79,6 +80,74 @@ if (Test-Path $assetsDir) {
         if ($null -ne $existing) { $existing.Delete() }
         [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, $rel)
     }
+}
+
+# Replace any green placeholder launcher/splash drawables with Kandy Cabs logo / adaptive icon
+$iconPath = Join-Path $root "apps\driver-app\assets\icon.png"
+$adaptiveIconPath = Join-Path $root "apps\driver-app\assets\adaptive-icon.png"
+
+if ((Test-Path $iconPath) -and (Test-Path $adaptiveIconPath)) {
+    $iconBmp = New-Object System.Drawing.Bitmap($iconPath)
+    $adaptiveBmp = New-Object System.Drawing.Bitmap($adaptiveIconPath)
+
+    $entriesToReplace = @()
+    foreach ($entry in $zip.Entries) {
+        if ($entry.FullName.StartsWith("res/") -and $entry.FullName.EndsWith(".png") -and ($entry.FullName.IndexOf('/', 4) -lt 0)) {
+            $stream = $entry.Open()
+            $ms = New-Object System.IO.MemoryStream
+            $stream.CopyTo($ms)
+            $stream.Dispose()
+            try {
+                $bmp = New-Object System.Drawing.Bitmap($ms)
+                $c = $bmp.GetPixel([int]($bmp.Width / 2), [int]($bmp.Height / 2))
+                if ($c.G -gt 110 -and $c.G -gt $c.R -and $c.G -gt $c.B) {
+                    $corner = $bmp.GetPixel(0, 0)
+                    $entriesToReplace += [PSCustomObject]@{
+                        EntryName = $entry.FullName
+                        Width = $bmp.Width
+                        Height = $bmp.Height
+                        IsTransparent = ($corner.A -eq 0)
+                        Is1x1 = ($bmp.Width -eq 1 -and $bmp.Height -eq 1)
+                    }
+                }
+                $bmp.Dispose()
+            } catch {}
+            $ms.Dispose()
+        }
+    }
+
+    foreach ($item in $entriesToReplace) {
+        $existing = $zip.GetEntry($item.EntryName)
+        if ($null -ne $existing) { $existing.Delete() }
+
+        $targetBmp = New-Object System.Drawing.Bitmap($item.Width, $item.Height)
+        $g = [System.Drawing.Graphics]::FromImage($targetBmp)
+        $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+        $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+
+        if ($item.Is1x1) {
+            $g.Clear([System.Drawing.Color]::White)
+        } elseif ($item.IsTransparent) {
+            $g.Clear([System.Drawing.Color]::Transparent)
+            $g.DrawImage($adaptiveBmp, 0, 0, $item.Width, $item.Height)
+        } else {
+            $g.Clear([System.Drawing.Color]::White)
+            $g.DrawImage($iconBmp, 0, 0, $item.Width, $item.Height)
+        }
+        $g.Dispose()
+
+        $tempPng = [System.IO.Path]::GetTempFileName() + ".png"
+        $targetBmp.Save($tempPng, [System.Drawing.Imaging.ImageFormat]::Png)
+        $targetBmp.Dispose()
+
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $tempPng, $item.EntryName)
+        Remove-Item $tempPng -Force
+        Write-Output "Cleaned native icon drawable: $($item.EntryName) ($($item.Width)x$($item.Height))"
+    }
+
+    $iconBmp.Dispose()
+    $adaptiveBmp.Dispose()
 }
 
 $zip.Dispose()
