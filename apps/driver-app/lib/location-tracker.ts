@@ -275,10 +275,10 @@ class LocationTrackerService {
           await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
         }
 
-        const notificationTitle = isTrip ? 'Kandy Cabs Driver — Active Ride' : 'Kandy Cabs Driver Partner';
+        const notificationTitle = isTrip ? 'Kandy Cabs — Active Ride' : 'Kandy Cabs Driver Partner';
         const notificationBody = isTrip
-          ? '🚖 Trip in progress — Live GPS tracking enabled'
-          : '🟢 You are Online & On-Duty — Ready for ride assignments';
+          ? 'ON TRIP: Live GPS tracking enabled'
+          : 'ONLINE: Ready for ride assignments';
         const notificationColor = isTrip ? '#ea580c' : '#008860';
 
         await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {

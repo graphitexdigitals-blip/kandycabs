@@ -121,7 +121,7 @@ export function NotificationsModal({
     list.push({
       id: `duty-status-${onlineStatus ? 'online' : 'offline'}`,
       type: 'DUTY',
-      title: onlineStatus ? '🟢 You are currently ON-DUTY' : '⚪ You are currently OFF-DUTY',
+      title: onlineStatus ? 'ONLINE: Currently ON-DUTY' : 'OFFLINE: Currently OFF-DUTY',
       message: onlineStatus
         ? 'Direct Admin dispatches and radar broadcasts are active for your vehicle.'
         : 'Go On-Duty from the Home screen whenever you are ready to receive ride assignments.',
