@@ -18,7 +18,7 @@ if (-not (Test-Path $distDir)) {
     New-Item -ItemType Directory -Path $distDir -Force | Out-Null
 }
 
-$env:EXPO_PUBLIC_API_URL = "http://192.168.1.5:3000"
+$env:EXPO_PUBLIC_API_URL = "https://kandycabs.vercel.app"
 Write-Host "Using EXPO_PUBLIC_API_URL = $env:EXPO_PUBLIC_API_URL" -ForegroundColor Green
 
 Set-Location $driverAppDir
