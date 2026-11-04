@@ -38,9 +38,9 @@ export default function DriverAppIndex() {
       // Check if we have cached driver info for instant resilience
       const cached = await SecureStore.getItemAsync('kandy_cached_driver').catch(() => null);
 
-      // 2. Token exists -> Verify token with /api/driver/status
+      // 2. Token exists -> Verify token with /api/driver/status (20s timeout for mobile resilience)
       try {
-        const statusRes = await driverApiClient.fetch('/api/driver/status', { timeoutMs: 8000 } as any);
+        const statusRes = await driverApiClient.fetch('/api/driver/status', { timeoutMs: 20000 } as any);
         if (statusRes?.success && statusRes?.driver) {
           try {
             await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(statusRes.driver));
