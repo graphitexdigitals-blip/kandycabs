@@ -2,7 +2,7 @@ Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $root = "D:\Rakshith\Graphitex Digitals\client websites\kandycabs\kandycabs website\kandycabs updated"
-$baseApk = Join-Path $root "apps\driver-app\driver-camera-test.apk"
+$baseApk = Join-Path $root "apps\driver-app\android\app\build\outputs\apk\release\app-release.apk"
 $distDir = Join-Path $root "apps\driver-app\dist_bundle"
 $tempUnsigned = Join-Path $distDir "temp_unsigned.apk"
 $tempAligned = Join-Path $distDir "temp_aligned.apk"

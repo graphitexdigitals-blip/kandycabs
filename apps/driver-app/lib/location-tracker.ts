@@ -1,8 +1,17 @@
 import 'fast-text-encoding';
 import * as Location from 'expo-location';
-import * as TaskManager from 'expo-task-manager';
 import { Linking, Platform } from 'react-native';
 import { driverApiClient } from './api';
+
+// Safe dynamic resolution: guard against missing native module ExpoTaskManager in pre-built APKs
+let TaskManager: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  TaskManager = require('expo-task-manager');
+} catch (_) {
+  // Native module not linked in base APK; fallback gracefully to foreground watcher
+  TaskManager = null;
+}
 
 export const BACKGROUND_LOCATION_TASK = 'KANDY_ACTIVE_TRIP_BACKGROUND_LOCATION';
 
@@ -243,6 +252,10 @@ class LocationTrackerService {
 
   private async ensureBackgroundLocationStarted(bookingId: string) {
     try {
+      if (!TaskManager || typeof TaskManager.isTaskDefined !== 'function') {
+        // Safe fallback: TaskManager native module not present; foreground watcher is active
+        return;
+      }
       if (Platform.OS === 'android') {
         const bgGranted = await this.requestBackgroundPermissions();
         if (!bgGranted) {
@@ -277,6 +290,9 @@ class LocationTrackerService {
 
   private async stopBackgroundLocationUpdates() {
     try {
+      if (!TaskManager || typeof TaskManager.isTaskDefined !== 'function') {
+        return;
+      }
       const isRunning = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
       if (isRunning) {
         await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
@@ -598,20 +614,26 @@ class LocationTrackerService {
 
 export const locationTracker = new LocationTrackerService();
 
-// Register background task at module scope (outside React components)
-if (!TaskManager.isTaskDefined(BACKGROUND_LOCATION_TASK)) {
-  TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: { data: any; error: any }) => {
-    if (error) {
-      console.error('[BackgroundGPS] API error:', error?.message || error);
-      return;
+// Register background task at module scope only if TaskManager native module is available
+try {
+  if (TaskManager && typeof TaskManager.isTaskDefined === 'function' && typeof TaskManager.defineTask === 'function') {
+    if (!TaskManager.isTaskDefined(BACKGROUND_LOCATION_TASK)) {
+      TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: { data: any; error: any }) => {
+        if (error) {
+          console.error('[BackgroundGPS] API error:', error?.message || error);
+          return;
+        }
+        if (data) {
+          const { locations } = data as { locations: Location.LocationObject[] };
+          if (locations && locations.length > 0) {
+            const latest = locations[locations.length - 1];
+            console.log(`[BackgroundGPS] Location received: lat=${latest.coords.latitude}, lng=${latest.coords.longitude}, time=${new Date(latest.timestamp || Date.now()).toISOString()}`);
+            await locationTracker.handleBackgroundLocationUpdate(latest);
+          }
+        }
+      });
     }
-    if (data) {
-      const { locations } = data as { locations: Location.LocationObject[] };
-      if (locations && locations.length > 0) {
-        const latest = locations[locations.length - 1];
-        console.log(`[BackgroundGPS] Location received: lat=${latest.coords.latitude}, lng=${latest.coords.longitude}, time=${new Date(latest.timestamp || Date.now()).toISOString()}`);
-        await locationTracker.handleBackgroundLocationUpdate(latest);
-      }
-    }
-  });
+  }
+} catch (err) {
+  console.warn('[BackgroundGPS] TaskManager unavailable; background service skipped:', err);
 }
