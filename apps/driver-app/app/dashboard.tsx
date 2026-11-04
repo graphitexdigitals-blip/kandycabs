@@ -17,7 +17,7 @@ import {
   AppStateStatus,
   Animated,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -34,6 +34,7 @@ import { getTripInProcessSync, getTripInProcess, setTripInProcess, subscribeTrip
 
 export default function DriverDashboardScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ openNotifications?: string }>();
   const insets = useSafeAreaInsets();
   const { t, i18n } = useTranslation();
   const [driver, setDriver] = useState<any>(null);
@@ -50,6 +51,13 @@ export default function DriverDashboardScreen() {
   const [tripInProcessRev, setTripInProcessRev] = useState(0);
   const [isLangModalOpen, setIsLangModalOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+
+  // If opened via notification intent / deep-link query parameter
+  useEffect(() => {
+    if (params?.openNotifications === 'true') {
+      router.push('/notifications');
+    }
+  }, [params?.openNotifications, router]);
 
   // Immediately hydrate cached driver session to prevent blank/green screen on offline boot
   useEffect(() => {
@@ -884,7 +892,7 @@ export default function DriverDashboardScreen() {
             {/* Notification Bell Icon */}
             <TouchableOpacity
               style={styles.notificationBellHeader}
-              onPress={() => setIsNotificationModalOpen(true)}
+              onPress={() => router.push('/notifications')}
               activeOpacity={0.8}
             >
               <Ionicons name="notifications-outline" size={21} color="#ffffff" />
