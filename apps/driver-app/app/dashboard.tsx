@@ -391,6 +391,11 @@ export default function DriverDashboardScreen() {
     driverRealtimeClient.start();
 
     const unsubNew = driverRealtimeClient.on('DISPATCH_NEW', (newDispatch: any) => {
+      // If dispatch lacks populated booking relation, fetch complete dispatch records
+      if (!newDispatch?.booking) {
+        triggerDebouncedFetch(200);
+        return;
+      }
       setDispatches((prev) => {
         if (prev.some((d) => d.id === newDispatch.id)) return prev;
         return [newDispatch, ...prev];
@@ -1816,7 +1821,7 @@ export default function DriverDashboardScreen() {
                 )}
 
                 {dispatches.map((d) => {
-                  const b = d.booking;
+                  const b = d?.booking || {};
                   const isAccepting = acceptingId === d.id;
 
                   return (
@@ -1828,10 +1833,10 @@ export default function DriverDashboardScreen() {
                               <Ionicons name="radio-button-on" size={13} color="#2563eb" />
                               <Text style={styles.newAlertText}>{t('dashboard.new_ride')}</Text>
                             </View>
-                            <Text style={styles.dispatchRefText}>{b.humanReadableRef}</Text>
+                            <Text style={styles.dispatchRefText}>{b?.humanReadableRef || 'RIDE'}</Text>
                           </View>
                           <View style={styles.distanceBadgeLight}>
-                            <Text style={styles.distanceBadgeTextLight}>📍 {b.distanceKm} km</Text>
+                            <Text style={styles.distanceBadgeTextLight}>📍 {b?.distanceKm || '--'} km</Text>
                           </View>
                         </View>
                       </View>
@@ -1842,7 +1847,7 @@ export default function DriverDashboardScreen() {
                           <View style={styles.stepPoint}>
                             <Ionicons name="location-sharp" size={16} color="#16a34a" style={styles.pickupPin} />
                             <View style={styles.stepTextGroup}>
-                              <Text style={styles.locationTitle}>{b.pickupAddress}</Text>
+                              <Text style={styles.locationTitle}>{b?.pickupAddress || 'Pickup Location'}</Text>
                               <Text style={styles.locationSubtitle}>{t('dashboard.pickup_location_title')}</Text>
                             </View>
                           </View>
@@ -1850,7 +1855,7 @@ export default function DriverDashboardScreen() {
                           <View style={styles.stepPoint}>
                             <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
                             <View style={styles.stepTextGroup}>
-                              <Text style={styles.locationTitle}>{b.dropAddress}</Text>
+                              <Text style={styles.locationTitle}>{b?.dropAddress || 'Drop Location'}</Text>
                               <Text style={styles.locationSubtitle}>{t('dashboard.drop')}</Text>
                             </View>
                           </View>
@@ -1860,14 +1865,14 @@ export default function DriverDashboardScreen() {
                       {/* Passenger & Fare Row */}
                       <View style={styles.dispatchPassengerRowLight}>
                         <Text style={styles.dispatchPassengerNameDark}>
-                          👤 {b.customer?.user?.fullName || 'Customer'}
+                          👤 {b?.customer?.user?.fullName || 'Customer'}
                         </Text>
-                        <Text style={styles.dispatchTripTypeOrange}>{b.tripType}</Text>
+                        <Text style={styles.dispatchTripTypeOrange}>{b?.tripType || 'ONE WAY'}</Text>
                       </View>
 
                       {/* Call-style Slide to Accept Ride Slider */}
                       <SlideToAccept
-                        onAccept={() => handleAcceptDispatch(d.id, b.id)}
+                        onAccept={() => handleAcceptDispatch(d.id, b?.id || d.bookingId)}
                         isAccepting={isAccepting}
                         disabled={false}
                         title={currentTrip ? 'SLIDE TO ACCEPT (QUEUED TRIP)' : 'SLIDE RIGHT TO ACCEPT'}

@@ -236,21 +236,31 @@ class DriverRealtimeClient {
       xhr.onreadystatechange = () => {
         if (this.isStopped) return;
 
-        if (xhr.readyState === 3 || xhr.readyState === 4) {
-          const responseText = xhr.responseText || '';
-          if (responseText.length > this.processedIndex) {
-            const newChunk = responseText.substring(this.processedIndex);
-            this.processedIndex = responseText.length;
-            this.parseSSEChunk(newChunk);
+        try {
+          if (xhr.readyState === 3 || xhr.readyState === 4) {
+            let responseText = '';
+            try {
+              responseText = xhr.responseText || '';
+            } catch (_) {
+              // In React Native on Android, responseText may not be available until readyState is 4
+              return;
+            }
+            if (responseText && responseText.length > this.processedIndex) {
+              const newChunk = responseText.substring(this.processedIndex);
+              this.processedIndex = responseText.length;
+              this.parseSSEChunk(newChunk);
+            }
           }
-        }
 
-        if (xhr.readyState === 4) {
-          this.isSseConnected = false;
-          this.xhr = null;
-          if (!this.isStopped && !this.isSupabaseConnected) {
-            this.scheduleReconnect();
+          if (xhr.readyState === 4) {
+            this.isSseConnected = false;
+            this.xhr = null;
+            if (!this.isStopped && !this.isSupabaseConnected) {
+              this.scheduleReconnect();
+            }
           }
+        } catch (stateErr) {
+          console.warn('[Driver Realtime] SSE state error:', stateErr);
         }
       };
 
