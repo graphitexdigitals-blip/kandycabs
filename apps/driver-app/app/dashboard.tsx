@@ -30,7 +30,6 @@ import { SUPPORTED_LANGUAGES, changeAppLanguage } from '../lib/i18n';
 import { SlideToAccept } from '../components/SlideToAccept';
 import { LanguageSelectionModal } from '../components/LanguageSelectionModal';
 import { NotificationsModal } from '../components/NotificationsModal';
-import { BackgroundProtectionModal } from '../components/BackgroundProtectionModal';
 import { getTripInProcessSync, getTripInProcess, setTripInProcess, subscribeTripState } from '../lib/tripState';
 
 export default function DriverDashboardScreen() {
@@ -47,7 +46,6 @@ export default function DriverDashboardScreen() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
-  const [showBgGuide, setShowBgGuide] = useState(false);
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsState, setGpsState] = useState<LocationState>(locationTracker.getState());
   const [tripInProcessRev, setTripInProcessRev] = useState(0);
@@ -570,16 +568,6 @@ export default function DriverDashboardScreen() {
       }
 
       locationTracker.startIdleTracking();
-
-      // Show background protection guide on first Online switch
-      try {
-        SecureStore.getItemAsync('kandy_bg_guide_seen').then((seen) => {
-          if (!seen) {
-            setShowBgGuide(true);
-            SecureStore.setItemAsync('kandy_bg_guide_seen', 'true').catch(() => {});
-          }
-        }).catch(() => {});
-      } catch (_) {}
     } else {
       locationTracker.stopTracking();
     }
@@ -1031,24 +1019,6 @@ export default function DriverDashboardScreen() {
 
             {/* FLOATING CARD CONTAINER */}
             <View style={styles.homeCardsContainer}>
-            {/* Background Protection Pill when Online */}
-            {onlineStatus && (
-              <TouchableOpacity
-                style={styles.bgProtectionBanner}
-                onPress={() => setShowBgGuide(true)}
-                activeOpacity={0.85}
-              >
-                <View style={styles.bgProtectionLeft}>
-                  <View style={styles.bgProtectionPulseDot} />
-                  <Ionicons name="shield-checkmark" size={15} color="#008860" />
-                  <Text style={styles.bgProtectionTitle}>Stay Online in Background</Text>
-                </View>
-                <View style={styles.bgProtectionRight}>
-                  <Text style={styles.bgProtectionAction}>Setup 🔒</Text>
-                  <Ionicons name="chevron-forward" size={13} color="#008860" />
-                </View>
-              </TouchableOpacity>
-            )}
             {/* 2. Top Priority KYC Incomplete Banner on Home Tab */}
             {hasPendingDocuments && (
               <View style={styles.kycVerificationCard}>
@@ -2674,11 +2644,6 @@ export default function DriverDashboardScreen() {
         onSelectBooking={() => {
           setActiveBottomTab('HOME');
         }}
-      />
-      {/* Background Protection & Lock Setup Modal */}
-      <BackgroundProtectionModal
-        visible={showBgGuide}
-        onClose={() => setShowBgGuide(false)}
       />
     </View>
   );

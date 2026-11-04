@@ -124,6 +124,7 @@ model Driver {
   currentLat Float?
   currentLng Float?
   lastPingAt DateTime?
+  pushToken  String?
 
   deletedAt DateTime?
 

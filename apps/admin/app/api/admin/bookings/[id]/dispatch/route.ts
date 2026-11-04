@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@kandy-cabs/db';
 import { BookingStatus, DispatchStatus } from '@kandy-cabs/shared';
+import { sendCloudPushNotification } from '@/lib/push-notifications';
 import { getAdminSession } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -108,6 +109,29 @@ export async function POST(
       timeout: 15000,
       maxWait: 10000,
     });
+
+    // 5. Trigger Cloud Push Notifications to dispatched drivers in background
+    try {
+      const driversWithTokens = await prisma.driver.findMany({
+        where: {
+          id: { in: driverIds },
+          pushToken: { not: null },
+        },
+        select: { pushToken: true },
+      });
+
+      const tokens = driversWithTokens.map((d: any) => d.pushToken).filter(Boolean) as string[];
+      if (tokens.length > 0) {
+        sendCloudPushNotification({
+          to: tokens,
+          title: 'New Trip Dispatched by Admin',
+          body: `${booking.pickupAddress} ➔ ${booking.dropAddress} (${booking.tripType || 'RIDE'})`,
+          data: { bookingId: id },
+        }).catch((err: any) => console.error('[DispatchPush] Failed to send push:', err));
+      }
+    } catch (pushErr) {
+      console.warn('[DispatchPush] Error fetching driver push tokens:', pushErr);
+    }
 
     return NextResponse.json(
       {
