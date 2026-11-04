@@ -881,7 +881,7 @@ export default function DriverDashboardScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Notification Bell Icon beside profile */}
+            {/* Notification Bell Icon */}
             <TouchableOpacity
               style={styles.notificationBellHeader}
               onPress={() => setIsNotificationModalOpen(true)}
@@ -895,31 +895,6 @@ export default function DriverDashboardScreen() {
                       ? '9+'
                       : dispatches.length + (hasPendingDocuments ? 1 : 0)}
                   </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.avatarRingHeader}
-              onPress={() => setActiveBottomTab('PROFILE')}
-              activeOpacity={0.8}
-            >
-              {driver?.profilePhotoUrl ? (
-                <View style={styles.avatarPhotoClipper}>
-                  <Image
-                    source={{ uri: driver.profilePhotoUrl }}
-                    style={styles.avatarImageHeader}
-                    resizeMode="cover"
-                  />
-                </View>
-              ) : (
-                <View style={styles.avatarFallbackIconCircle}>
-                  <Ionicons name="person" size={20} color="#0f2744" />
-                </View>
-              )}
-              {hasPendingDocuments && (
-                <View style={styles.avatarNotificationBadge}>
-                  <Text style={styles.avatarNotificationBadgeText}>1</Text>
                 </View>
               )}
             </TouchableOpacity>
