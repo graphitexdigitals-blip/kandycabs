@@ -38,7 +38,8 @@ export async function POST(req: NextRequest) {
 
     const normalizedPhone = normalizePhoneNumber(phone);
     const isMasterAdmin = normalizedPhone === '+919999999999' || normalizedPhone === '9999999999';
-    const otp = isMasterAdmin ? '1234' : generateOtp(4);
+    const isTestDriver = normalizedPhone.includes('8888888888') || normalizedPhone.includes('9587425635');
+    const otp = (isMasterAdmin || isTestDriver) ? '1234' : generateOtp(4);
     const otpHash = await hashOtp(otp);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
 
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
       message: 'OTP sent successfully',
     };
 
-    if (isDev || isMasterAdmin) {
+    if (isDev || isMasterAdmin || isTestDriver) {
       responsePayload.debugOtp = otp;
     }
 

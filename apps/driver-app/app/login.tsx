@@ -79,6 +79,7 @@ export default function DriverLoginScreen() {
             phone: phone,
             vehicleNumber: phone === '9587425635' ? 'KA 01 MJ 2023' : (phone === '8888888888' ? 'KA-01-SD-2002' : ''),
             status: 'APPROVED',
+            verificationStatus: 'APPROVED',
             onlineStatus: false,
           };
           await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(initialDriver));
@@ -167,6 +168,7 @@ export default function DriverLoginScreen() {
                           phone: '9587425635',
                           vehicleNumber: 'KA 01 MJ 2023',
                           status: 'APPROVED',
+                          verificationStatus: 'APPROVED',
                           onlineStatus: false,
                         };
                         await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(initialDriver));
@@ -183,6 +185,7 @@ export default function DriverLoginScreen() {
                       phone: '9587425635',
                       vehicleNumber: 'KA 01 MJ 2023',
                       status: 'APPROVED',
+                      verificationStatus: 'APPROVED',
                       onlineStatus: false,
                     };
                     await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(initialDriver));
@@ -221,6 +224,7 @@ export default function DriverLoginScreen() {
                           phone: '8888888888',
                           vehicleNumber: 'KA-01-SD-2002',
                           status: 'APPROVED',
+                          verificationStatus: 'APPROVED',
                           onlineStatus: false,
                         };
                         await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(initialDriver));
@@ -238,6 +242,7 @@ export default function DriverLoginScreen() {
                       phone: '8888888888',
                       vehicleNumber: 'KA-01-SD-2002',
                       status: 'APPROVED',
+                      verificationStatus: 'APPROVED',
                       onlineStatus: false,
                     };
                     await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(initialDriver));

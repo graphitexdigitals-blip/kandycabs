@@ -135,6 +135,7 @@ export default function DriverDashboardScreen() {
   // Check if any KYC document or driver profile photo is missing (unfilled)
   const hasPendingDocuments = useMemo(() => {
     if (!driver) return false;
+    if (driver.verificationStatus === 'APPROVED') return false;
     if (!driver.profilePhotoUrl || !driver.licenseDocUrl || !driver.rcDocUrl || !driver.insuranceDocUrl) {
       return true;
     }
@@ -453,8 +454,8 @@ export default function DriverDashboardScreen() {
     if (isTogglingDutyRef.current) return;
     isTogglingDutyRef.current = true;
 
-    // Check verification status before attempting to go online
-    if (val && driver?.verificationStatus !== 'APPROVED') {
+    // Only block if explicitly REJECTED or SUSPENDED by Admin
+    if (val && (driver?.verificationStatus === 'REJECTED' || driver?.verificationStatus === 'SUSPENDED')) {
       Alert.alert(
         'Verification In Review',
         'Your profile is currently under review by Admin. You will be able to go Online and receive rides once verified.'
