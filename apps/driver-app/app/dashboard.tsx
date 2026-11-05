@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   Linking,
+  PermissionsAndroid,
   ImageBackground,
   StatusBar,
   Image,
@@ -58,6 +59,13 @@ export default function DriverDashboardScreen() {
       router.push('/notifications');
     }
   }, [params?.openNotifications, router]);
+
+  // Request runtime notification permission on Android 13+ (API 33+)
+  useEffect(() => {
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
+      PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS).catch(() => {});
+    }
+  }, []);
 
   // Immediately hydrate cached driver session to prevent blank/green screen on offline boot
   useEffect(() => {

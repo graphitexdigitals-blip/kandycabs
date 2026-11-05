@@ -1,6 +1,6 @@
 import 'fast-text-encoding';
 import * as Location from 'expo-location';
-import { Linking, Platform } from 'react-native';
+import { Linking, Platform, PermissionsAndroid } from 'react-native';
 import { driverApiClient } from './api';
 
 // Safe dynamic resolution: guard against missing native module ExpoTaskManager in pre-built APKs
@@ -149,6 +149,13 @@ class LocationTrackerService {
         this.errorMessage = 'Foreground location permission was denied by the user.';
         this.notifyListeners();
         return { granted: false, status: 'PERMISSION_DENIED', error: this.errorMessage };
+      }
+
+      // 3. Request runtime notification permission on Android 13+ (API 33+) for status bar alerts
+      if (Platform.OS === 'android' && Platform.Version >= 33) {
+        try {
+          await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+        } catch (_) {}
       }
 
       this.hasForegroundPermission = true;
