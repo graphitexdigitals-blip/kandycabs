@@ -322,22 +322,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   header: {
-    marginBottom: 20,
+    marginBottom: 16,
     alignItems: 'center',
   },
   logoImage: {
     width: 210,
     height: 105,
-    marginBottom: 10,
+    marginBottom: 2,
   },
   badgeContainer: {
     backgroundColor: '#fff7ed',
     borderWidth: 1,
     borderColor: '#fed7aa',
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 14,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   badge: {
     fontSize: 10.5,
