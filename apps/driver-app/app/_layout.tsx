@@ -1,7 +1,7 @@
 import 'fast-text-encoding';
 import '@kandy-cabs/shared';
 import React, { useEffect } from 'react';
-import { LogBox } from 'react-native';
+import { LogBox, Platform, PermissionsAndroid } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import '../lib/location-tracker';
@@ -13,6 +13,26 @@ LogBox.ignoreAllLogs(true);
 
 export default function RootLayout() {
   const router = useRouter();
+
+  // Request Notification permission immediately on app startup (Android 13+ / API 33+)
+  useEffect(() => {
+    (async () => {
+      if (Platform.OS === 'android' && Platform.Version >= 33) {
+        try {
+          const hasNotif = await PermissionsAndroid.check(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+          );
+          if (!hasNotif) {
+            await PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+            );
+          }
+        } catch (err) {
+          console.warn('[RootLayout] Error requesting notification permission:', err);
+        }
+      }
+    })();
+  }, []);
 
   // Handle deep links from notifications when app is launched or opened from background
   useEffect(() => {

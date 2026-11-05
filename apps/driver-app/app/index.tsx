@@ -1,6 +1,6 @@
 import 'fast-text-encoding';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ActivityIndicator, Image, TouchableOpacity, StatusBar, SafeAreaView } from 'react-native';
+import { StyleSheet, Text, View, ActivityIndicator, Image, TouchableOpacity, StatusBar, SafeAreaView, Platform, PermissionsAndroid } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { driverApiClient } from '../lib/api';
@@ -10,6 +10,17 @@ export default function DriverAppIndex() {
   const [networkError, setNetworkError] = useState(false);
 
   useEffect(() => {
+    // Request notification permission immediately when app launches
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
+      PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS)
+        .then((hasPerm) => {
+          if (!hasPerm) {
+            PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS).catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
+
     let isMounted = true;
     const timer = setTimeout(() => {
       if (isMounted) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  PermissionsAndroid,
   Image,
   StatusBar,
 } from 'react-native';
@@ -33,6 +34,19 @@ export default function DriverLoginScreen() {
   const [currentServer, setCurrentServer] = useState(getDynamicBaseUrl());
   const [showServerModal, setShowServerModal] = useState(false);
   const [customServerInput, setCustomServerInput] = useState('');
+
+  // Request notification permission immediately when login screen mounts
+  useEffect(() => {
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
+      PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS)
+        .then((hasPerm) => {
+          if (!hasPerm) {
+            PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS).catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   const handleSendOtp = async () => {
     if (phone.length < 10) {
