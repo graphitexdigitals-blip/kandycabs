@@ -185,7 +185,7 @@ export function NotificationsModal({
           </TouchableOpacity>
 
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Updates & Notifications</Text>
+            <Text style={styles.headerTitle}>Notifications</Text>
             {unreadCount > 0 && (
               <View style={styles.unreadCountBadge}>
                 <Text style={styles.unreadCountText}>{unreadCount} new</Text>

@@ -322,13 +322,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 16,
     alignItems: 'center',
   },
   logoImage: {
-    width: 250,
-    height: 125,
-    marginBottom: 10,
+    width: 170,
+    height: 85,
+    marginBottom: 8,
   },
   badgeContainer: {
     backgroundColor: '#fff7ed',

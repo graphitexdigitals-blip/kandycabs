@@ -183,8 +183,9 @@ if ((Test-Path $iconPath) -and (Test-Path $adaptiveIconPath)) {
             $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
             $g.Clear([System.Drawing.Color]::Transparent)
 
-            # Preserve exact 1158x598 aspect ratio, fit and center on transparent canvas
-            $scale = [Math]::Min($targetW / $logoBmp.Width, $targetH / $logoBmp.Height)
+            # Preserve exact 1158x598 aspect ratio, fit and center medium logo on transparent canvas
+            $maxScale = [Math]::Min($targetW / $logoBmp.Width, $targetH / $logoBmp.Height)
+            $scale = $maxScale * 0.48
             $drawW = [int]($logoBmp.Width * $scale)
             $drawH = [int]($logoBmp.Height * $scale)
             $drawX = [int](($targetW - $drawW) / 2)

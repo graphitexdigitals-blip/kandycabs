@@ -44,7 +44,7 @@ export default function RootLayout() {
         <Stack.Screen name="dashboard" options={{ title: 'Driver Dashboard', contentStyle: { backgroundColor: '#ffffff' } }} />
         <Stack.Screen name="documents" options={{ title: 'Driver Documents', contentStyle: { backgroundColor: '#ffffff' } }} />
         <Stack.Screen name="payout-details" options={{ title: 'Settlement & Bank Details', contentStyle: { backgroundColor: '#ffffff' } }} />
-        <Stack.Screen name="notifications" options={{ title: 'Updates & Notifications', contentStyle: { backgroundColor: '#ffffff' } }} />
+        <Stack.Screen name="notifications" options={{ title: 'Notifications', contentStyle: { backgroundColor: '#ffffff' } }} />
         <Stack.Screen name="trip" options={{ contentStyle: { backgroundColor: '#ffffff' } }} />
         <Stack.Screen name="+not-found" options={{ contentStyle: { backgroundColor: '#ffffff' } }} />
       </Stack>
