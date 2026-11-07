@@ -92,6 +92,7 @@ export default function DriverLoginScreen() {
     try {
       let isVerified = false;
       let userData: any = null;
+      let serverToken: string | null = null;
 
       // 1. Attempt verification with backend API without enforcing DRIVER role
       // (This avoids legacy remote 403 checks while registering new driver accounts)
@@ -99,6 +100,7 @@ export default function DriverLoginScreen() {
         const res = await driverApiClient.auth.verifyOtp(phone.trim(), otp.trim(), 'Driver Partner');
         if (res?.success && res?.token) {
           userData = res.user;
+          serverToken = res.token;
           isVerified = true;
         }
       } catch (apiErr: any) {
@@ -134,7 +136,7 @@ export default function DriverLoginScreen() {
       await SecureStore.setItemAsync('kandy_driver_phone', cleanPhone);
 
       // ALWAYS set the session token specifically for THIS logging-in phone number!
-      const sessionToken = (userData && (userData as any).token) || `driver_session_${cleanPhone}_${Date.now()}`;
+      const sessionToken = serverToken || (userData && (userData as any).token) || `driver_session_${cleanPhone}_${Date.now()}`;
       await driverApiClient.setToken(sessionToken);
 
       const regDriver = getAdminRegisteredDriver(cleanPhone);
@@ -276,7 +278,10 @@ export default function DriverLoginScreen() {
       try {
         const otpRes = await driverApiClient.auth.sendOtp(targetPhone, 'DRIVER');
         const devCode = otpRes.debugOtp || '1234';
-        await driverApiClient.auth.verifyOtp(targetPhone, devCode);
+        const verifyRes = await driverApiClient.auth.verifyOtp(targetPhone, devCode);
+        if (verifyRes?.token) {
+          await driverApiClient.setToken(verifyRes.token);
+        }
       } catch (_) {}
 
       try {

@@ -63,39 +63,18 @@ class MobileTokenStorage implements TokenStorage {
 
 export const driverTokenStorage = new MobileTokenStorage();
 
-const SECURE_API_URL_KEY = 'kandy_driver_api_url_v1';
+const SECURE_API_URL_KEY = 'kandy_driver_api_url_v2';
 export const DEFAULT_PROD_URL = 'https://kandycabs-8kew.vercel.app';
 export const DEFAULT_DEV_PORT = '3001';
 export const DEFAULT_LAN_HOST = '192.168.1.5';
 export const DEFAULT_EMULATOR_HOST = '10.0.2.2';
 
 export function resolveDefaultApiUrl(): string {
-  // If env variable is provided and not pointing to remote Vercel
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (envUrl && !envUrl.includes('vercel.app')) {
+  if (envUrl && envUrl.startsWith('http')) {
     return envUrl.replace(/\/+$/, '');
   }
-
-  // In development:
-  if (__DEV__) {
-    // 1. Check Expo Metro debugger host
-    const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
-    if (hostUri) {
-      const hostIp = hostUri.split(':')[0];
-      if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1') {
-        return `http://${hostIp}:${DEFAULT_DEV_PORT}`;
-      }
-    }
-
-    // 2. Android Emulator default host loopback
-    if (Platform.OS === 'android') {
-      return `http://${DEFAULT_EMULATOR_HOST}:${DEFAULT_DEV_PORT}`;
-    }
-
-    return `http://localhost:${DEFAULT_DEV_PORT}`;
-  }
-
-  return `http://${DEFAULT_LAN_HOST}:${DEFAULT_DEV_PORT}`;
+  return DEFAULT_PROD_URL;
 }
 
 export const DEFAULT_LAN_URL = resolveDefaultApiUrl();
@@ -105,12 +84,26 @@ let activeBaseUrl: string = resolveDefaultApiUrl();
 // Hydrate saved custom API URL asynchronously
 SecureStore.getItemAsync(SECURE_API_URL_KEY)
   .then((stored) => {
-    // Only accept stored URL if it is not an old unreachable vercel domain in dev
-    if (stored && stored.startsWith('http') && (!__DEV__ || !stored.includes('vercel.app'))) {
+    // Invalidate any local or dead endpoints
+    if (
+      stored &&
+      (stored.includes('192.168.') ||
+        stored.includes('10.0.2.2') ||
+        stored.includes(':3001') ||
+        stored.includes('localhost'))
+    ) {
+      activeBaseUrl = DEFAULT_PROD_URL;
+      SecureStore.setItemAsync(SECURE_API_URL_KEY, DEFAULT_PROD_URL).catch(() => {});
+      return;
+    }
+    if (stored && stored.startsWith('http')) {
       activeBaseUrl = stored.replace(/\/+$/, '');
     }
   })
   .catch(() => {});
+
+// Clean up any old key from previous versions
+SecureStore.deleteItemAsync('kandy_driver_api_url_v1').catch(() => {});
 
 export function getDynamicBaseUrl(): string {
   return activeBaseUrl;
