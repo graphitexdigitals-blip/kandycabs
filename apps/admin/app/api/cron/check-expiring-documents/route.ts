@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       driverId: string;
       fullName: string;
       phone: string;
-      plateNumber?: string;
+      plateNumber?: string | null;
       expiringCount: number;
       expiringDocuments: any[];
     }> = [];
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
           driverId: d.id,
           fullName: d.user?.fullName || 'Driver',
           phone: d.user?.phone || '',
-          plateNumber: d.vehicles?.[0]?.plateNumber,
+          plateNumber: d.vehicles?.[0]?.plateNumber || undefined,
           expiringCount: expiring.length,
           expiringDocuments: expiring,
         });
