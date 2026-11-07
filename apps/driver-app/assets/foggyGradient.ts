@@ -1,0 +1,3 @@
+// Continuous 256x1 horizontal gradient PNG for hardware bi-linear interpolation
+// Eliminates all vertical banding lines and creates translucent soft fog with visible background
+export const FOGGY_OVERLAY_GRADIENT_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAABCAYAAAAxWXB3AAABOklEQVR4nO3Sa2vPARzG4bFhRg5ZE4kkkSRJWmpJkqS0JElKkiRJJIlEZM2W8/k45/P5/O4u94Pvg1/r/2AvwIPrDXzuuw1/W/gzBr9b+DXKz1F+NHwv3xq+li/lc8On8hEfyvvyrrzFm/Iar8pLvCjP8aw8xQie4HF5hId4gPst3Gu4W+6U27hVbuIGruMaruIKLmMYQ7iEQQzgIi7gPM7hLM7gNE7hJE7gOI7hKI7gMA7hIA5gP/ZhL/ZgN3ZhJ3ZgO7ahH1uxBZuxCRuxAeuxDn1Ym0/0Zt812XB1NluVjVZmkxXZYnn6L0v3pWm+JK0Xp/GitF2YrgvSdX56zkvLuWk3J61mp1NP+nSnz6y0mZk2M9JmetpMw9S0mZI2XWkzOW06MSl9JqbPhNKRTu1lfBnX0Pbf2P0DZmFPbtOeJUMAAAAASUVORK5CYII=';

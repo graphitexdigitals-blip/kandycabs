@@ -40,6 +40,7 @@ import {
   HERO_DRIVER_CARD_BASE64,
   getEmbeddedFleetImage,
 } from '../assets/embeddedAssets';
+import { FOGGY_OVERLAY_GRADIENT_BASE64 } from '../assets/foggyGradient';
 
 export default function DriverDashboardScreen() {
   const router = useRouter();
@@ -1188,49 +1189,43 @@ export default function DriverDashboardScreen() {
                 style={styles.heroCardBg}
                 imageStyle={{ borderRadius: 24, resizeMode: 'cover' }}
               >
-                {/* Seamless Translucent White Fog Gradient: NO hard lines or bands, bg smoothly visible through it */}
-                <LinearGradient
-                  colors={[
-                    'rgba(255, 255, 255, 0.92)',
-                    'rgba(255, 255, 255, 0.82)',
-                    'rgba(255, 255, 255, 0.50)',
-                    'rgba(255, 255, 255, 0.15)',
-                    'rgba(255, 255, 255, 0.0)',
-                  ]}
-                  locations={[0, 0.35, 0.52, 0.68, 0.82]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={StyleSheet.absoluteFillObject}
+                {/* Continuous 256x1 hardware-interpolated fog gradient: ZERO vertical lines, soft translucent fog with scenery visible */}
+                <Image
+                  source={{ uri: FOGGY_OVERLAY_GRADIENT_BASE64 }}
+                  style={[StyleSheet.absoluteFillObject, { borderRadius: 24 }]}
+                  resizeMode="stretch"
                   pointerEvents="none"
                 />
 
                 <View style={styles.heroCardContent}>
                   <View style={styles.heroCardLeft}>
-                    {/* Profile Avatar above driver name */}
-                    <TouchableOpacity
-                      style={styles.heroAvatarContainer}
-                      onPress={() => router.push('/documents')}
-                      activeOpacity={0.85}
-                    >
-                      {driver?.profilePhotoUrl ? (
-                        <Image
-                          source={{ uri: driver.profilePhotoUrl }}
-                          style={styles.heroAvatarImg}
-                          resizeMode="cover"
-                        />
-                      ) : (
-                        <Image
-                          source={{ uri: CAPTAIN_AVATAR_BASE64 }}
-                          style={styles.heroAvatarImg}
-                          resizeMode="cover"
-                        />
-                      )}
-                      <View style={[styles.heroAvatarStatusDot, { backgroundColor: onlineStatus ? '#22c55e' : '#94a3b8' }]} />
-                    </TouchableOpacity>
+                    {/* Profile Avatar & Driver Name centered together */}
+                    <View style={styles.heroAvatarNameBlock}>
+                      <TouchableOpacity
+                        style={styles.heroAvatarContainer}
+                        onPress={() => router.push('/documents')}
+                        activeOpacity={0.85}
+                      >
+                        {driver?.profilePhotoUrl ? (
+                          <Image
+                            source={{ uri: driver.profilePhotoUrl }}
+                            style={styles.heroAvatarImg}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <Image
+                            source={{ uri: CAPTAIN_AVATAR_BASE64 }}
+                            style={styles.heroAvatarImg}
+                            resizeMode="cover"
+                          />
+                        )}
+                        <View style={[styles.heroAvatarStatusDot, { backgroundColor: onlineStatus ? '#22c55e' : '#94a3b8' }]} />
+                      </TouchableOpacity>
 
-                    <Text style={styles.heroCardName} numberOfLines={1}>
-                      {driver?.fullName || 'Asha'}
-                    </Text>
+                      <Text style={styles.heroCardName} numberOfLines={1}>
+                        {driver?.fullName || 'Asha'}
+                      </Text>
+                    </View>
 
                     <View style={styles.heroCardPlateRow}>
                       <Ionicons name="car" size={13} color="#0a192f" style={{ marginRight: 5 }} />
@@ -3259,6 +3254,11 @@ const styles = StyleSheet.create({
   heroCardLeft: {
     maxWidth: '56%',
   },
+  heroAvatarNameBlock: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    minWidth: 50,
+  },
   heroAvatarContainer: {
     width: 50,
     height: 50,
@@ -3302,6 +3302,7 @@ const styles = StyleSheet.create({
     color: '#0a192f',
     letterSpacing: -0.2,
     lineHeight: 20,
+    textAlign: 'center',
   },
   heroCardPlateRow: {
     flexDirection: 'row',
