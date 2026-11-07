@@ -15,11 +15,12 @@ export interface LinearGradientProps extends ViewProps {
  * while providing identical layout, sizing, and styling.
  */
 export function LinearGradient({ colors, style, children, ...rest }: LinearGradientProps) {
-  // Use the first color (or fallback to dark blue / primary green) as solid background
-  const primaryBg = colors && colors.length > 0 ? colors[0] : '#15803d';
+  // If this is an overlay gradient (fading to transparent), don't paint a solid blocking background
+  const isFadeOverlay = colors && colors.some((c) => c === 'transparent' || c.includes('0.0') || c.includes(', 0)') || c.includes(',0)'));
+  const primaryBg = !isFadeOverlay && colors && colors.length > 0 ? colors[0] : undefined;
 
   return (
-    <View style={[{ backgroundColor: primaryBg }, style]} {...rest}>
+    <View style={[primaryBg ? { backgroundColor: primaryBg } : null, style]} {...rest}>
       {children}
     </View>
   );
