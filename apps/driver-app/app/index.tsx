@@ -196,16 +196,16 @@ const styles = StyleSheet.create({
   logoImage: {
     width: 210,
     height: 105,
-    marginBottom: -5,
+    marginBottom: 8,
   },
   badge: {
     backgroundColor: 'rgba(234, 88, 12, 0.09)',
     borderColor: 'rgba(234, 88, 12, 0.35)',
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 3,
+    paddingHorizontal: 13,
+    paddingVertical: 4,
     borderRadius: 14,
-    marginTop: 0,
+    marginTop: 4,
   },
   badgeText: {
     fontSize: 10.5,

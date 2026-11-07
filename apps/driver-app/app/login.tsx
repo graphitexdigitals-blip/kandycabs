@@ -520,14 +520,14 @@ const styles = StyleSheet.create({
   logoImage: {
     width: 180,
     height: 90,
-    marginBottom: -2,
+    marginBottom: 4,
   },
   partnerTitle: {
     fontSize: 16.5,
     fontWeight: '900',
     color: '#002244',
     letterSpacing: 0.8,
-    marginTop: 6,
+    marginTop: 8,
     textAlign: 'center',
   },
   languageRow: {
