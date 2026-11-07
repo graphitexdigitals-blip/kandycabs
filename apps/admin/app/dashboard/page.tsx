@@ -430,7 +430,6 @@ export default function AdminDashboardPage() {
                 <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">Logs</p>
               </div>
             </Link>
-            </Link>
           </div>
         </div>
 

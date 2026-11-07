@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AdminNavbar } from '@/components/AdminNavbar';
 import { DriverVerificationStatus } from '@kandy-cabs/shared';
@@ -72,7 +72,7 @@ function getDocValidityStatus(validTo?: string | null, validFrom?: string | null
 
 export const dynamic = 'force-dynamic';
 
-export default function AdminVehicleEvidencePage() {
+function AdminVehicleEvidenceContent() {
   const searchParams = useSearchParams();
   const [drivers, setDrivers] = useState<any[]>([]);
   const [counts, setCounts] = useState({ all: 0, pending: 0, approved: 0, rejected: 0, expiringSoon: 0 });
@@ -2102,5 +2102,13 @@ export default function AdminVehicleEvidencePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminVehicleEvidencePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center text-white text-sm">Loading Vehicle & Driver KYC...</div>}>
+      <AdminVehicleEvidenceContent />
+    </Suspense>
   );
 }

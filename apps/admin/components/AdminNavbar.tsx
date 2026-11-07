@@ -24,7 +24,7 @@ interface NavItem {
   href: string;
   label: string;
   description: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   section: 'OPERATIONS' | 'FLEET & DRIVERS' | 'SYSTEM & ANALYTICS';
 }
 
@@ -307,7 +307,6 @@ export function AdminNavbar() {
                           className={`w-5 h-5 shrink-0 transition-colors ${
                             isActive ? 'text-slate-950' : 'text-slate-500 group-hover:text-slate-900'
                           }`}
-                          style={{ width: 18, height: 18, minWidth: 18, minHeight: 18 }}
                         />
 
                         <div className="min-w-0 flex-1">
