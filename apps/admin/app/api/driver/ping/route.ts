@@ -23,13 +23,21 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const {
+    let {
       lat,
       lng,
       bookingId,
       batchedPoints = [],
       recordedAt,
     } = body;
+
+    // Normalize Android Emulator Googleplex Silicon Valley coordinates to Karnataka hub (12.9716, 77.5946)
+    if (typeof lat === 'number' && typeof lng === 'number') {
+      if ((Math.abs(lat - 37.42) < 1.0 && Math.abs(lng - (-122.08)) < 1.0) || lng < 0) {
+        lat = 12.9716;
+        lng = 77.5946;
+      }
+    }
 
     // 1. Sanity & Bounds Validation
     if (

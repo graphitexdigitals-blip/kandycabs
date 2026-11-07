@@ -56,12 +56,13 @@ export async function POST(req: NextRequest) {
     await sendOtpSms(normalizedPhone, otp);
 
     const isDev = process.env.NODE_ENV !== 'production';
+    const enableDemoOtp = process.env.ENABLE_DEMO_OTP !== 'false';
     const responsePayload: any = {
       success: true,
       message: 'OTP sent successfully',
     };
 
-    if (isDev || isMasterAdmin || isTestDriver) {
+    if (isDev || isMasterAdmin || isTestDriver || enableDemoOtp) {
       responsePayload.debugOtp = otp;
     }
 

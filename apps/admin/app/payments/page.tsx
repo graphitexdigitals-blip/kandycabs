@@ -3,6 +3,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AdminNavbar } from '@/components/AdminNavbar';
 import { PaymentStatus } from '@kandy-cabs/shared';
+import {
+  IconPayments,
+  IconRefresh,
+  IconCheck,
+  IconCross,
+  IconCar,
+  IconPhone,
+  IconSearch,
+  IconWallet,
+  IconUsers,
+  IconClock,
+  IconCalendar,
+  IconGrid,
+  IconList,
+  IconTrendingUp,
+  IconChevronDown,
+  IconChevronLeft,
+  IconChevronRight,
+  IconUserSolid,
+  IconFileText,
+  IconEdit,
+} from '@/components/Icons';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +62,101 @@ export default function AdminPaymentsPage() {
   const [balanceNotes, setBalanceNotes] = useState<string>('');
   const [savingBalance, setSavingBalance] = useState<boolean>(false);
 
+  // Accordion state for mobile/tablet payment transaction cards
+  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
+  const toggleCardExpand = (id: string) => {
+    setExpandedCards((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  // Date Filtering States
+  const [datePreset, setDatePreset] = useState<string>('ALL');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState<boolean>(false);
+  const dateDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(e.target as Node)) {
+        setIsDateDropdownOpen(false);
+      }
+    };
+    if (isDateDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDateDropdownOpen]);
+
+  const toLocalIsoDate = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+
+  const handleSelectPreset = (preset: string) => {
+    setDatePreset(preset);
+    const now = new Date();
+    if (preset === 'ALL') {
+      setStartDate('');
+      setEndDate('');
+    } else if (preset === 'TODAY') {
+      const todayStr = toLocalIsoDate(now);
+      setStartDate(todayStr);
+      setEndDate(todayStr);
+    } else if (preset === 'YESTERDAY') {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yStr = toLocalIsoDate(yesterday);
+      setStartDate(yStr);
+      setEndDate(yStr);
+    } else if (preset === 'THIS_WEEK') {
+      const weekAgo = new Date(now);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      setStartDate(toLocalIsoDate(weekAgo));
+      setEndDate(toLocalIsoDate(now));
+    } else if (preset === 'THIS_MONTH') {
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      setStartDate(toLocalIsoDate(monthStart));
+      setEndDate(toLocalIsoDate(now));
+    }
+    setIsDateDropdownOpen(false);
+    setPage(1);
+  };
+
+  const handleClearDateFilter = () => {
+    setDatePreset('ALL');
+    setStartDate('');
+    setEndDate('');
+    setIsDateDropdownOpen(false);
+    setPage(1);
+  };
+
+  const getDateButtonLabel = () => {
+    if (!startDate && !endDate) return 'Select Date';
+    if (datePreset === 'TODAY') return 'Today';
+    if (datePreset === 'YESTERDAY') return 'Yesterday';
+    if (datePreset === 'THIS_WEEK') return 'Last 7 Days';
+    if (datePreset === 'THIS_MONTH') return 'This Month';
+    if (startDate && endDate && startDate === endDate) {
+      const d = new Date(startDate);
+      return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    }
+    if (startDate && endDate) {
+      const d1 = new Date(startDate);
+      const d2 = new Date(endDate);
+      return `${d1.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} - ${d2.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`;
+    }
+    if (startDate) {
+      return `From ${new Date(startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`;
+    }
+    return 'Select Date';
+  };
+
   const fetchPayments = useCallback(async () => {
     setLoading(true);
     try {
@@ -48,6 +165,8 @@ export default function AdminPaymentsPage() {
         limit: '25',
         status: statusFilter,
         ...(search ? { search } : {}),
+        ...(startDate ? { startDate } : {}),
+        ...(endDate ? { endDate } : {}),
       });
 
       const res = await fetch(`/api/admin/payments?${queryParams}`);
@@ -64,7 +183,7 @@ export default function AdminPaymentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, search]);
+  }, [page, statusFilter, search, startDate, endDate]);
 
   useEffect(() => {
     fetchPayments();
@@ -275,138 +394,469 @@ Thank you for choosing Kandy Cabs Mangalore!
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       <AdminNavbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-3.5 sm:py-6 space-y-3.5 sm:space-y-5">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2">
-              <span>💳</span> Revenue & Driver Payout Ledger
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              Live financial ledger, customer collections & manual driver payouts verification
-            </p>
-          </div>
-          <button
-            onClick={() => fetchPayments()}
-            className="px-3.5 py-2 bg-white hover:bg-slate-100 text-xs font-semibold rounded-lg border border-slate-200 flex items-center gap-1.5 text-slate-700 transition shadow-xs"
-          >
-            <span>🔄</span> Refresh Data
-          </button>
-        </div>
-
-        {/* Top KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 sm:gap-4">
-          {/* Total Revenue */}
-          <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs">
-            <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Total Revenue</div>
-            <div className="text-2xl font-black text-slate-900 mt-1">
-              ₹{(summary.totalRevenue || 0).toLocaleString('en-IN')}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3.5">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-amber-100/90 text-slate-900 flex items-center justify-center shadow-2xs shrink-0 border border-amber-200/60">
+              <IconWallet className="w-5 h-5 sm:w-6 sm:h-6 text-slate-900" strokeWidth={2.2} />
             </div>
-            <div className="text-[10px] text-slate-400 mt-1">Verified customer payments</div>
-          </div>
-
-          {/* Driver Payout Done */}
-          <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl shadow-xs">
-            <div className="text-[11px] font-extrabold text-emerald-800 uppercase tracking-wider flex items-center gap-1">
-              <span>✓</span> Driver Paid
-            </div>
-            <div className="text-2xl font-black text-emerald-800 mt-1">
-              ₹{(summary.totalDriverPaidAmount || 0).toLocaleString('en-IN')}
-            </div>
-            <div className="text-[10px] text-emerald-700 font-medium mt-1">
-              {summary.driverPaidCount || 0} trips settled
+            <div>
+              <h1 className="text-base sm:text-2xl font-black tracking-tight text-slate-900 leading-tight">
+                Revenue & Driver Payout Ledger
+              </h1>
+              <p className="text-[10px] sm:text-xs text-slate-500 font-medium mt-0.5">
+                Manage customer collections and driver settlements
+              </p>
             </div>
           </div>
 
-          {/* Driver Payout Pending */}
-          <div className="bg-rose-50 border border-rose-200 p-4 rounded-xl shadow-xs">
-            <div className="text-[11px] font-extrabold text-rose-800 uppercase tracking-wider flex items-center gap-1">
-              <span>✗</span> Driver Unpaid
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => fetchPayments()}
+              className="px-2.5 py-1.5 sm:px-3 sm:py-2 bg-white hover:bg-slate-50 text-[11px] sm:text-xs font-bold rounded-lg sm:rounded-xl border border-slate-200/90 flex items-center gap-1.5 text-slate-700 transition shadow-2xs"
+            >
+              <IconRefresh className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-600" />
+              <span>Refresh Data</span>
+            </button>
+            <div className="px-2.5 py-1.5 sm:px-3 sm:py-2 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Live Ledger</span>
             </div>
-            <div className="text-2xl font-black text-rose-800 mt-1">
-              ₹{(summary.totalDriverPendingAmount || 0).toLocaleString('en-IN')}
-            </div>
-            <div className="text-[10px] text-rose-700 font-medium mt-1">
-              {summary.driverPendingCount || 0} trips due payout
-            </div>
-          </div>
-
-          {/* Customer Fully Paid */}
-          <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs">
-            <div className="text-[11px] font-medium text-blue-700 uppercase tracking-wider">Cust. Amount Received</div>
-            <div className="text-2xl font-black text-blue-700 mt-1">{summary.paidCount || 0}</div>
-            <div className="text-[10px] text-slate-400 mt-1">Advance + Balance received</div>
-          </div>
-
-          {/* Customer Partially Paid */}
-          <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs">
-            <div className="text-[11px] font-medium text-amber-700 uppercase tracking-wider">Advance Received (25%)</div>
-            <div className="text-2xl font-black text-amber-700 mt-1">{summary.partiallyPaidCount || 0}</div>
-            <div className="text-[10px] text-slate-400 mt-1">Balance due at drop</div>
-          </div>
-
-          {/* Customer Pending Advance */}
-          <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs">
-            <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Adv. Due</div>
-            <div className="text-2xl font-black text-slate-800 mt-1">{summary.pendingCount || 0}</div>
-            <div className="text-[10px] text-slate-400 mt-1">Unpaid bookings</div>
           </div>
         </div>
 
-        {/* Filter & Search Bar */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row gap-4 justify-between items-center shadow-xs">
-          {/* Status Tabs */}
-          <div className="flex flex-wrap gap-1.5 w-full md:w-auto">
-            {[
-              { id: 'ALL', label: 'All Bookings' },
-              { id: 'DRIVER_PAID', label: `✓ Driver Paid (${summary.driverPaidCount || 0})`, color: 'emerald' },
-              { id: 'DRIVER_UNPAID', label: `✗ Driver Unpaid (${summary.driverPendingCount || 0})`, color: 'rose' },
-              { id: 'PAID', label: 'Customer Amount Received' },
-              { id: 'PARTIALLY_PAID', label: 'Customer Adv Received' },
-              { id: 'PENDING', label: 'Customer Adv Due' },
-            ].map((tab) => {
-              const isActive = statusFilter === tab.id;
-              let activeClass = 'bg-amber-500 text-slate-950 font-bold shadow-xs';
-              if (tab.color === 'emerald') activeClass = 'bg-emerald-600 text-white font-bold shadow-xs';
-              if (tab.color === 'rose') activeClass = 'bg-rose-600 text-white font-bold shadow-xs';
-
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setStatusFilter(tab.id);
-                    setPage(1);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
-                    isActive ? activeClass : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
+        {/* 6 Summary Metric Cards - 3 in a row on mobile */}
+        <div className="grid grid-cols-3 lg:grid-cols-6 gap-1.5 sm:gap-3 lg:gap-4">
+          {/* 1. Total Revenue */}
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/80 p-2 sm:p-3.5 lg:p-4 shadow-2xs sm:shadow-xs relative overflow-hidden flex flex-col justify-between hover:shadow-md transition group">
+            <div>
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-[9px] sm:text-xs shrink-0">
+                    ₹
+                  </div>
+                  <span className="text-[10px] sm:text-xs font-bold text-slate-800 truncate">Total Revenue</span>
+                </div>
+                <IconTrendingUp className="hidden sm:block w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition shrink-0" />
+              </div>
+              <div className="text-xs sm:text-lg lg:text-xl font-black text-slate-900 mt-1 sm:mt-2 tracking-tight truncate">
+                ₹{(summary.totalRevenue || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              </div>
+            </div>
+            <div className="text-[9px] sm:text-[11px] text-slate-400 font-medium mt-0.5 truncate">Verified payments</div>
+            {/* Soft wave accent */}
+            <div className="absolute -bottom-1 left-0 right-0 h-2 sm:h-3.5 opacity-35 pointer-events-none">
+              <svg viewBox="0 0 500 150" preserveAspectRatio="none" className="w-full h-full fill-current text-blue-500">
+                <path d="M0.00,49.98 C149.99,150.00 349.81,-49.98 500.00,49.98 L500.00,150.00 L0.00,150.00 Z" />
+              </svg>
+            </div>
           </div>
 
-          {/* Search Input */}
-          <form onSubmit={handleSearchSubmit} className="w-full md:w-80 flex gap-2">
-            <input
-              type="text"
-              placeholder="Search by ref, phone, driver name..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs"
-            />
+          {/* 2. Driver Paid */}
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/80 p-2 sm:p-3.5 lg:p-4 shadow-2xs sm:shadow-xs relative overflow-hidden flex flex-col justify-between hover:shadow-md transition group">
+            <div>
+              <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+                <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-[9px] sm:text-xs shrink-0">
+                  <IconCheck className="w-2.5 h-2.5 sm:w-3 sm:h-3" strokeWidth={3} />
+                </div>
+                <span className="text-[10px] sm:text-xs font-bold text-slate-800 truncate">Driver Paid</span>
+              </div>
+              <div className="text-xs sm:text-lg lg:text-xl font-black text-slate-900 mt-1 sm:mt-2 tracking-tight truncate">
+                ₹{(summary.totalDriverPaidAmount || 0).toLocaleString('en-IN')}
+              </div>
+            </div>
+            <div className="text-[9px] sm:text-[11px] text-slate-400 font-medium mt-0.5 truncate">
+              Settled payouts
+            </div>
+            {/* Soft wave accent */}
+            <div className="absolute -bottom-1 left-0 right-0 h-2 sm:h-3.5 opacity-35 pointer-events-none">
+              <svg viewBox="0 0 500 150" preserveAspectRatio="none" className="w-full h-full fill-current text-emerald-500">
+                <path d="M0.00,49.98 C149.99,150.00 349.81,-49.98 500.00,49.98 L500.00,150.00 L0.00,150.00 Z" />
+              </svg>
+            </div>
+          </div>
+
+          {/* 3. Driver Unpaid */}
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/80 p-2 sm:p-3.5 lg:p-4 shadow-2xs sm:shadow-xs relative overflow-hidden flex flex-col justify-between hover:shadow-md transition group">
+            <div>
+              <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+                <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-rose-500 text-white flex items-center justify-center font-black text-[9px] sm:text-xs shrink-0">
+                  !
+                </div>
+                <span className="text-[10px] sm:text-xs font-bold text-slate-800 truncate">Driver Unpaid</span>
+              </div>
+              <div className="text-xs sm:text-lg lg:text-xl font-black text-slate-900 mt-1 sm:mt-2 tracking-tight truncate">
+                ₹{(summary.totalDriverPendingAmount || 0).toLocaleString('en-IN')}
+              </div>
+            </div>
+            <div className="text-[9px] sm:text-[11px] text-slate-400 font-medium mt-0.5 truncate">
+              Pending payouts
+            </div>
+            {/* Soft wave accent */}
+            <div className="absolute -bottom-1 left-0 right-0 h-2 sm:h-3.5 opacity-35 pointer-events-none">
+              <svg viewBox="0 0 500 150" preserveAspectRatio="none" className="w-full h-full fill-current text-rose-500">
+                <path d="M0.00,49.98 C149.99,150.00 349.81,-49.98 500.00,49.98 L500.00,150.00 L0.00,150.00 Z" />
+              </svg>
+            </div>
+          </div>
+
+          {/* 4. Customer Received */}
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/80 p-2 sm:p-3.5 lg:p-4 shadow-2xs sm:shadow-xs relative overflow-hidden flex flex-col justify-between hover:shadow-md transition group">
+            <div>
+              <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+                <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0">
+                  <IconUsers className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                </div>
+                <span className="text-[10px] sm:text-xs font-bold text-slate-800 truncate">Cust. Received</span>
+              </div>
+              <div className="text-xs sm:text-lg lg:text-xl font-black text-slate-900 mt-1 sm:mt-2 tracking-tight truncate">
+                {summary.paidCount || 0}
+              </div>
+            </div>
+            <div className="text-[9px] sm:text-[11px] text-slate-400 font-medium mt-0.5 truncate">Payments received</div>
+            {/* Soft wave accent */}
+            <div className="absolute -bottom-1 left-0 right-0 h-2 sm:h-3.5 opacity-35 pointer-events-none">
+              <svg viewBox="0 0 500 150" preserveAspectRatio="none" className="w-full h-full fill-current text-blue-500">
+                <path d="M0.00,49.98 C149.99,150.00 349.81,-49.98 500.00,49.98 L500.00,150.00 L0.00,150.00 Z" />
+              </svg>
+            </div>
+          </div>
+
+          {/* 5. Advance Received */}
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/80 p-2 sm:p-3.5 lg:p-4 shadow-2xs sm:shadow-xs relative overflow-hidden flex flex-col justify-between hover:shadow-md transition group">
+            <div>
+              <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+                <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0">
+                  <IconClock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                </div>
+                <span className="text-[10px] sm:text-xs font-bold text-slate-800 truncate">Adv. Received</span>
+              </div>
+              <div className="text-xs sm:text-lg lg:text-xl font-black text-slate-900 mt-1 sm:mt-2 tracking-tight truncate">
+                {summary.partiallyPaidCount || 0}
+              </div>
+            </div>
+            <div className="text-[9px] sm:text-[11px] text-slate-400 font-medium mt-0.5 truncate">Balance at drop</div>
+            {/* Soft wave accent */}
+            <div className="absolute -bottom-1 left-0 right-0 h-2 sm:h-3.5 opacity-35 pointer-events-none">
+              <svg viewBox="0 0 500 150" preserveAspectRatio="none" className="w-full h-full fill-current text-amber-500">
+                <path d="M0.00,49.98 C149.99,150.00 349.81,-49.98 500.00,49.98 L500.00,150.00 L0.00,150.00 Z" />
+              </svg>
+            </div>
+          </div>
+
+          {/* 6. Advance Due */}
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/80 p-2 sm:p-3.5 lg:p-4 shadow-2xs sm:shadow-xs relative overflow-hidden flex flex-col justify-between hover:shadow-md transition group">
+            <div>
+              <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+                <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-slate-700 text-white flex items-center justify-center shrink-0">
+                  <IconCalendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                </div>
+                <span className="text-[10px] sm:text-xs font-bold text-slate-800 truncate">Advance Due</span>
+              </div>
+              <div className="text-xs sm:text-lg lg:text-xl font-black text-slate-900 mt-1 sm:mt-2 tracking-tight truncate">
+                {summary.pendingCount || 0}
+              </div>
+            </div>
+            <div className="text-[9px] sm:text-[11px] text-slate-400 font-medium mt-0.5 truncate">Unpaid bookings</div>
+            {/* Soft wave accent */}
+            <div className="absolute -bottom-1 left-0 right-0 h-2 sm:h-3.5 opacity-35 pointer-events-none">
+              <svg viewBox="0 0 500 150" preserveAspectRatio="none" className="w-full h-full fill-current text-slate-600">
+                <path d="M0.00,49.98 C149.99,150.00 349.81,-49.98 500.00,49.98 L500.00,150.00 L0.00,150.00 Z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter Pills & Search Bar */}
+        <div className="flex flex-col lg:flex-row gap-3.5 justify-between items-stretch lg:items-center">
+          {/* Filter Pills (slidable on mobile/tablet) */}
+          <div className="flex overflow-x-auto no-scrollbar gap-2 items-center pb-1 lg:pb-0 lg:flex-wrap -mx-2.5 px-2.5 lg:mx-0 lg:px-0">
+            {/* All Bookings */}
+            <button
+              onClick={() => {
+                setStatusFilter('ALL');
+                setPage(1);
+              }}
+              className={`px-4 py-2 rounded-full text-xs font-bold transition flex items-center gap-1.5 shadow-xs shrink-0 whitespace-nowrap cursor-pointer ${
+                statusFilter === 'ALL'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+              }`}
+            >
+              <IconGrid className="w-3.5 h-3.5" />
+              <span>All Bookings</span>
+              <span
+                className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] ${
+                  statusFilter === 'ALL' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'
+                }`}
+              >
+                {pagination.totalCount || transactions.length}
+              </span>
+            </button>
+
+            {/* Driver Paid */}
+            <button
+              onClick={() => {
+                setStatusFilter('DRIVER_PAID');
+                setPage(1);
+              }}
+              className={`px-3.5 py-2 rounded-full text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs shrink-0 whitespace-nowrap cursor-pointer ${
+                statusFilter === 'DRIVER_PAID'
+                  ? 'bg-slate-900 text-white font-bold'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+              }`}
+            >
+              <span>✓ Driver Paid ({summary.driverPaidCount || 0})</span>
+            </button>
+
+            {/* Driver Unpaid */}
+            <button
+              onClick={() => {
+                setStatusFilter('DRIVER_UNPAID');
+                setPage(1);
+              }}
+              className={`px-3.5 py-2 rounded-full text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs shrink-0 whitespace-nowrap cursor-pointer ${
+                statusFilter === 'DRIVER_UNPAID'
+                  ? 'bg-slate-900 text-white font-bold'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+              }`}
+            >
+              <span>✕ Driver Unpaid ({summary.driverPendingCount || 0})</span>
+            </button>
+
+            {/* Customer Paid */}
+            <button
+              onClick={() => {
+                setStatusFilter('PAID');
+                setPage(1);
+              }}
+              className={`px-3.5 py-2 rounded-full text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs shrink-0 whitespace-nowrap cursor-pointer ${
+                statusFilter === 'PAID'
+                  ? 'bg-slate-900 text-white font-bold'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+              }`}
+            >
+              <IconUserSolid className="w-3 h-3 text-slate-500" />
+              <span>Customer Paid</span>
+            </button>
+
+            {/* Customer Adv Received */}
+            <button
+              onClick={() => {
+                setStatusFilter('PARTIALLY_PAID');
+                setPage(1);
+              }}
+              className={`px-3.5 py-2 rounded-full text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs shrink-0 whitespace-nowrap cursor-pointer ${
+                statusFilter === 'PARTIALLY_PAID'
+                  ? 'bg-slate-900 text-white font-bold'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+              }`}
+            >
+              <IconPayments className="w-3.5 h-3.5 text-slate-500" />
+              <span>Customer Adv Received</span>
+            </button>
+          </div>
+
+          {/* Search Form */}
+          <form onSubmit={handleSearchSubmit} className="flex gap-2 items-center w-full lg:w-auto">
+            <div className="relative flex-1 lg:w-80">
+              <IconSearch className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search by ref, phone, driver name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs"
+              />
+            </div>
             <button
               type="submit"
-              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg transition shadow-xs"
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition shadow-xs shrink-0"
             >
               Search
             </button>
           </form>
         </div>
 
-        {/* Transactions Table */}
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+        {/* Transactions Table Card: Booking Ledger */}
+        <div className="bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden">
+          {/* Card Header Row */}
+          <div className="px-3.5 sm:px-5 py-3 sm:py-4 flex justify-between items-center border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <IconList className="w-4 h-4 text-slate-800" strokeWidth={2.5} />
+              <h2 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">Booking Ledger</h2>
+            </div>
+
+            {/* Select Date Dropdown Button */}
+            <div className="relative" ref={dateDropdownRef}>
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsDateDropdownOpen((prev) => !prev)}
+                  className={`px-2.5 sm:px-3.5 py-1.5 bg-white hover:bg-slate-50 border rounded-xl text-xs font-semibold flex items-center gap-1.5 sm:gap-2 shadow-2xs transition cursor-pointer ${
+                    startDate ? 'border-amber-400 bg-amber-50/50 text-amber-950 font-bold' : 'border-slate-200 text-slate-700'
+                  }`}
+                >
+                  <IconCalendar className={`w-3.5 h-3.5 ${startDate ? 'text-amber-600' : 'text-slate-500'}`} />
+                  <span className="truncate max-w-[120px] sm:max-w-none">{getDateButtonLabel()}</span>
+                  <IconChevronDown
+                    className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 ${
+                      isDateDropdownOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+
+                {/* Reset button when date filter is active */}
+                {startDate && (
+                  <button
+                    type="button"
+                    onClick={handleClearDateFilter}
+                    className="w-7 h-7 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-500 flex items-center justify-center text-xs transition cursor-pointer border border-slate-200 shadow-2xs"
+                    title="Reset date filter to All Dates"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Date Filter Dropdown Popup */}
+              {isDateDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-[265px] sm:w-80 bg-white rounded-xl sm:rounded-2xl shadow-xl border border-slate-200/90 p-2.5 sm:p-3.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-[11px] sm:text-xs">
+                    <span className="font-extrabold text-slate-900 tracking-tight">Filter Ledger by Date</span>
+                    {startDate && (
+                      <button
+                        type="button"
+                        onClick={handleClearDateFilter}
+                        className="text-[10px] sm:text-[11px] font-bold text-rose-600 hover:text-rose-800 transition cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Preset Quick Filters */}
+                  <div className="py-1.5">
+                    <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 px-0.5">
+                      Quick Presets
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPreset('ALL')}
+                        className={`px-2 py-1 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-semibold text-left transition cursor-pointer ${
+                          datePreset === 'ALL' && !startDate
+                            ? 'bg-slate-900 text-white font-bold'
+                            : 'hover:bg-slate-100 text-slate-700 bg-slate-50'
+                        }`}
+                      >
+                        All Dates
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPreset('TODAY')}
+                        className={`px-2 py-1 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-semibold text-left transition cursor-pointer ${
+                          datePreset === 'TODAY'
+                            ? 'bg-slate-900 text-white font-bold'
+                            : 'hover:bg-slate-100 text-slate-700 bg-slate-50'
+                        }`}
+                      >
+                        Today
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPreset('YESTERDAY')}
+                        className={`px-2 py-1 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-semibold text-left transition cursor-pointer ${
+                          datePreset === 'YESTERDAY'
+                            ? 'bg-slate-900 text-white font-bold'
+                            : 'hover:bg-slate-100 text-slate-700 bg-slate-50'
+                        }`}
+                      >
+                        Yesterday
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPreset('THIS_WEEK')}
+                        className={`px-2 py-1 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-semibold text-left transition cursor-pointer ${
+                          datePreset === 'THIS_WEEK'
+                            ? 'bg-slate-900 text-white font-bold'
+                            : 'hover:bg-slate-100 text-slate-700 bg-slate-50'
+                        }`}
+                      >
+                        Last 7 Days
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPreset('THIS_MONTH')}
+                        className={`col-span-2 px-2 py-1 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-semibold text-left transition cursor-pointer ${
+                          datePreset === 'THIS_MONTH'
+                            ? 'bg-slate-900 text-white font-bold'
+                            : 'hover:bg-slate-100 text-slate-700 bg-slate-50'
+                        }`}
+                      >
+                        This Month
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Custom Date Range */}
+                  <div className="border-t border-slate-100 pt-1.5">
+                    <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 px-0.5">
+                      Custom Date Range
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 text-xs">
+                      <div>
+                        <label className="text-[10px] text-slate-500 font-medium block mb-0.5">From Date</label>
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => {
+                            setDatePreset('CUSTOM');
+                            setStartDate(e.target.value);
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-md sm:rounded-lg py-1 px-1.5 text-[11px] text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-500 font-medium block mb-0.5">To Date</label>
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => {
+                            setDatePreset('CUSTOM');
+                            setEndDate(e.target.value);
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-md sm:rounded-lg py-1 px-1.5 text-[11px] text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={handleClearDateFilter}
+                        className="text-[11px] text-slate-600 hover:text-slate-900 font-semibold px-1.5 py-0.5 rounded transition cursor-pointer"
+                      >
+                        Reset All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsDateDropdownOpen(false);
+                          setPage(1);
+                        }}
+                        className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded-md sm:rounded-lg transition shadow-2xs cursor-pointer"
+                      >
+                        Apply Filter
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {loading ? (
             <div className="py-20 text-center text-slate-400 text-sm">
               <div className="inline-block animate-spin text-2xl mb-2">🔄</div>
@@ -418,295 +868,551 @@ Thank you for choosing Kandy Cabs Mangalore!
               <div>No payment transactions found matching the filter criteria.</div>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
-                  <tr>
-                    <th className="py-3 px-4">Booking Ref / Date</th>
-                    <th className="py-3 px-4">Customer</th>
-                    <th className="py-3 px-4">Assigned Driver</th>
-                    <th className="py-3 px-4">Total Fare</th>
-                    <th className="py-3 px-4">25% Advance</th>
-                    <th className="py-3 px-4">75% Balance</th>
-                    <th className="py-3 px-4">Tolls / Parking</th>
-                    <th className="py-3 px-4 bg-slate-100/70 border-x border-slate-200 text-emerald-800 font-extrabold">
-                      Driver Payout (Manual Admin)
-                    </th>
-                    <th className="py-3 px-4">Ride Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {transactions.map((t) => {
-                    const isDriverPaid = t.driverPaymentStatus === 'PAID';
-                    const isProcessing = actionLoadingId === t.id;
-                    const totalDriverEarning = (t.driverAllowance || 0) + (t.driverPayeeAmount || 0);
+            <>
+              {/* Desktop Table View (lg and up) */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-bold tracking-tight">
+                    <tr>
+                      <th className="py-3.5 px-4 font-bold">Booking Ref<br /><span className="text-[11px] text-slate-400 font-normal">/ Date</span></th>
+                      <th className="py-3.5 px-4 font-bold">Customer</th>
+                      <th className="py-3.5 px-4 font-bold">Assigned Driver</th>
+                      <th className="py-3.5 px-4 font-bold">Total Fare</th>
+                      <th className="py-3.5 px-4 font-bold">Advance</th>
+                      <th className="py-3.5 px-4 font-bold">Balance</th>
+                      <th className="py-3.5 px-4 font-bold">Tolls /<br /><span className="text-[11px] text-slate-400 font-normal">Parking</span></th>
+                      <th className="py-3.5 px-4 font-bold">Driver Payout</th>
+                      <th className="py-3.5 px-4 font-bold">Ride Status</th>
+                      <th className="py-3.5 px-4 font-bold text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {transactions.map((t) => {
+                      const isDriverPaid = t.driverPaymentStatus === 'PAID';
+                      const isProcessing = actionLoadingId === t.id;
+                      const totalDriverEarning = (t.driverAllowance || 0) + (t.driverPayeeAmount || 0);
 
-                    return (
-                      <tr key={t.id} className="hover:bg-slate-50 transition">
-                        {/* Booking Ref */}
-                        <td className="py-3 px-4">
-                          <div className="font-bold text-amber-800">{t.humanReadableRef}</div>
-                          <div className="text-[10px] text-slate-500 mt-0.5">
-                            {new Date(t.createdAt).toLocaleDateString('en-IN', {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </div>
-                          <div className="text-[10px] text-slate-500 uppercase font-medium">{t.tripType}</div>
-                        </td>
-
-                        {/* Customer */}
-                        <td className="py-3 px-4">
-                          <div className="font-semibold text-slate-900">{t.customerName}</div>
-                          <div className="text-[10px] text-slate-500">{t.customerPhone}</div>
-                        </td>
-
-                        {/* Driver */}
-                        <td className="py-3 px-4">
-                          {t.driverName ? (
-                            <div>
-                              <div className="font-bold text-slate-900 flex items-center gap-1">
-                                <span>🚕</span> {t.driverName}
-                              </div>
-                              <div className="text-[10px] text-slate-500 font-mono">{t.driverPhone}</div>
+                      return (
+                        <tr key={t.id} className="hover:bg-slate-50/80 transition">
+                          {/* 1. Booking Ref / Date */}
+                          <td className="py-3.5 px-4 align-top">
+                            <div className="font-extrabold text-slate-900 font-mono text-xs">
+                              {t.humanReadableRef}
                             </div>
-                          ) : (
-                            <span className="text-slate-400 italic text-[11px]">Unassigned</span>
-                          )}
-                        </td>
-
-                        {/* Total Fare */}
-                        <td className="py-3 px-4">
-                          <div className="font-bold text-slate-900">₹{t.estimatedFare.toLocaleString('en-IN')}</div>
-                        </td>
-
-                        {/* 25% Advance */}
-                        <td className="py-3 px-4">
-                          <div className="font-semibold text-slate-900">₹{t.advanceAmount.toLocaleString('en-IN')}</div>
-                          {t.advancePaymentStatus === PaymentStatus.PAID ? (
-                            <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[9px] font-bold">
-                              ✓ RECEIVED (Online)
-                            </span>
-                          ) : (
-                            <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 rounded text-[9px] font-bold">
-                              ADV. DUE
-                            </span>
-                          )}
-                          {t.advancePayment?.razorpayPaymentId && (
-                            <div
-                              className="text-[9px] font-mono text-slate-500 mt-0.5 truncate max-w-[110px]"
-                              title={t.advancePayment.razorpayPaymentId}
-                            >
-                              {t.advancePayment.razorpayPaymentId}
-                            </div>
-                          )}
-                        </td>
-
-                        {/* 75% Balance */}
-                        <td className="py-3 px-4">
-                          <div className="font-semibold text-slate-900">₹{t.balanceAmount.toLocaleString('en-IN')}</div>
-                          {t.balancePaymentStatus === PaymentStatus.PAID ? (
-                            <div className="space-y-1 mt-0.5">
-                              <span className="inline-block px-1.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[9px] font-bold">
-                                ✓ RECEIVED ({t.balancePayment?.paymentMethod || 'CASH'})
+                            <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                              <IconClock className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span>
+                                {new Date(t.createdAt).toLocaleDateString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
                               </span>
-                              <div className="flex flex-wrap gap-1 pt-0.5">
+                            </div>
+                            <span className="inline-block mt-1 px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded-md tracking-wider">
+                              {t.tripType || 'ONEWAY'}
+                            </span>
+                          </td>
+
+                          {/* 2. Customer */}
+                          <td className="py-3.5 px-4 align-top">
+                            <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
+                              <IconUserSolid className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                              <span>{t.customerName}</span>
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1 mt-0.5">
+                              <IconPhone className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span>{t.customerPhone}</span>
+                            </div>
+                          </td>
+
+                          {/* 3. Assigned Driver */}
+                          <td className="py-3.5 px-4 align-top">
+                            {t.driverName ? (
+                              <div>
+                                <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
+                                  <IconUserSolid className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                  <span>{t.driverName}</span>
+                                </div>
+                                <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1 mt-0.5">
+                                  <IconPhone className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span>{t.driverPhone}</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 italic text-[11px]">Unassigned</span>
+                            )}
+                          </td>
+
+                          {/* 4. Total Fare */}
+                          <td className="py-3.5 px-4 align-top">
+                            <div className="font-extrabold text-slate-900 text-xs sm:text-sm">
+                              ₹{t.estimatedFare?.toLocaleString('en-IN')}
+                            </div>
+                          </td>
+
+                          {/* 5. Advance */}
+                          <td className="py-3.5 px-4 align-top">
+                            <div className="font-semibold text-slate-800 text-xs">
+                              ₹{t.advanceAmount?.toLocaleString('en-IN')}
+                            </div>
+                            {t.advancePaymentStatus === PaymentStatus.PAID ? (
+                              <div className="text-[10px] text-emerald-700 font-bold mt-0.5">
+                                ✓ Paid
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-amber-700 font-bold mt-0.5">
+                                Due
+                              </div>
+                            )}
+                          </td>
+
+                          {/* 6. Balance */}
+                          <td className="py-3.5 px-4 align-top">
+                            <div className="font-semibold text-slate-800 text-xs">
+                              ₹{t.balanceAmount?.toLocaleString('en-IN')}
+                            </div>
+                            {t.balancePaymentStatus === PaymentStatus.PAID ? (
+                              <div className="text-[10px] text-emerald-700 font-bold mt-0.5">
+                                ✓ Paid ({t.balancePayment?.paymentMethod || 'Cash'})
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-slate-400 mt-0.5">
+                                Due at drop
+                              </div>
+                            )}
+                          </td>
+
+                          {/* 7. Tolls / Parking */}
+                          <td className="py-3.5 px-4 align-top">
+                            {t.tollAmount > 0 || t.parkingAmount > 0 ? (
+                              <div className="space-y-0.5 text-[11px]">
+                                {t.tollAmount > 0 && (
+                                  <div className="text-amber-800 font-semibold font-mono">
+                                    Toll: ₹{t.tollAmount.toLocaleString('en-IN')}
+                                  </div>
+                                )}
+                                {t.parkingAmount > 0 && (
+                                  <div className="text-sky-800 font-semibold font-mono">
+                                    Park: ₹{t.parkingAmount.toLocaleString('en-IN')}
+                                  </div>
+                                )}
+                                <div className="text-emerald-700 font-bold text-[10px]">
+                                  +₹{(t.tollAmount + t.parkingAmount).toLocaleString('en-IN')}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-xs">—</span>
+                            )}
+                          </td>
+
+                          {/* 8. Driver Payout Mini-Card */}
+                          <td className="py-3.5 px-4 align-top">
+                            {t.driverName ? (
+                              <div className="bg-slate-50/90 border border-slate-200/90 rounded-xl p-2.5 text-xs min-w-[145px] space-y-1 shadow-2xs">
+                                <div className="font-bold text-slate-900 text-[11px]">Driver Payout</div>
+                                <div className="flex justify-between text-slate-500 text-[11px]">
+                                  <span>Allowance</span>
+                                  <span className="font-semibold text-slate-700">₹{(t.driverAllowance || 0).toLocaleString('en-IN')}</span>
+                                </div>
+                                <div className="flex justify-between text-slate-500 text-[11px]">
+                                  <span>Payee</span>
+                                  <span className="font-semibold text-slate-700">₹{(t.driverPayeeAmount || 0).toLocaleString('en-IN')}</span>
+                                </div>
+                                <div className="flex justify-between font-bold text-slate-900 text-[11px] pt-1 border-t border-slate-200">
+                                  <span>Total</span>
+                                  <span>₹{totalDriverEarning.toLocaleString('en-IN')}</span>
+                                </div>
+                                {isDriverPaid ? (
+                                  <div className="mt-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold text-center flex items-center justify-center gap-1">
+                                    <span>✓</span>
+                                    <span>Driver Paid</span>
+                                  </div>
+                                ) : (
+                                  <div className="mt-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold text-center flex items-center justify-center gap-1">
+                                    <span>!</span>
+                                    <span>Driver Unpaid</span>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 italic text-[11px]">No driver</span>
+                            )}
+                          </td>
+
+                          {/* 9. Ride Status */}
+                          <td className="py-3.5 px-4 align-top">
+                            {t.status === 'TRIP_COMPLETED' ? (
+                              <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1.5 whitespace-nowrap shadow-2xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                <span>Completed</span>
+                              </span>
+                            ) : t.status === 'CANCELLED' ? (
+                              <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1.5 whitespace-nowrap shadow-2xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                <span>Cancelled</span>
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1.5 whitespace-nowrap shadow-2xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                <span>{String(t.status).replace(/_/g, ' ')}</span>
+                              </span>
+                            )}
+                          </td>
+
+                          {/* 10. Actions */}
+                          <td className="py-3.5 px-4 align-top">
+                            <div className="flex flex-col items-center gap-1.5 min-w-[125px]">
+                              {/* Top row: Receipt & Edit buttons */}
+                              <div className="flex items-center gap-1.5 w-full justify-center">
                                 <button
                                   type="button"
                                   onClick={() => handleShareWhatsAppReceipt(t)}
-                                  className="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[9px] font-bold transition flex items-center gap-1 shadow-2xs"
-                                  title="Send Official Receipt via WhatsApp"
+                                  className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition shadow-2xs cursor-pointer"
+                                  title="Share WhatsApp Invoice / Receipt"
                                 >
-                                  <span>📲</span> Receipt
+                                  <IconFileText className="w-4 h-4 text-slate-700" />
                                 </button>
-                                <a
-                                  href={`http://localhost:3000/pay/${t.humanReadableRef}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[9px] font-semibold border border-slate-300 transition shadow-2xs"
-                                  title="View Public Tax Invoice"
-                                >
-                                  📄 View
-                                </a>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-1.5 mt-0.5">
-                              <span className="inline-block px-1.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded text-[9px] font-bold">
-                                DUE AT DROP
-                              </span>
-                              <div className="flex flex-wrap gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleShareWhatsAppBill(t)}
-                                  className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[9px] font-bold transition flex items-center gap-1 shadow-2xs"
-                                  title="Share Trip Bill & Payment Link on WhatsApp"
-                                >
-                                  <span>📲</span> Share Bill
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenBalanceModal(t)}
-                                  className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-amber-900 border border-amber-300 rounded text-[9px] font-bold transition flex items-center gap-0.5 shadow-2xs"
-                                  title="Record or Mark Balance Payment"
-                                >
-                                  <span>💵</span> Mark Received
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Tolls & Parking */}
-                        <td className="py-3 px-4">
-                          {t.tollAmount > 0 || t.parkingAmount > 0 ? (
-                            <div className="space-y-1">
-                              {t.tollAmount > 0 && (
-                                <div className="text-[10px] font-mono text-amber-800 font-semibold">
-                                  🛣️ Toll: ₹{t.tollAmount.toLocaleString('en-IN')}
-                                </div>
-                              )}
-                              {t.parkingAmount > 0 && (
-                                <div className="text-[10px] font-mono text-sky-800 font-semibold">
-                                  🅿️ Park: ₹{t.parkingAmount.toLocaleString('en-IN')}
-                                </div>
-                              )}
-                              <div className="text-[9px] text-emerald-800 font-bold bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded inline-block">
-                                +₹{(t.tollAmount + t.parkingAmount).toLocaleString('en-IN')}
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-slate-400 text-[11px]">—</span>
-                          )}
-                        </td>
-
-                        {/* Driver Payout Column with Tick Mark PAID / Cross Mark NOT PAID */}
-                        <td className="py-3 px-4 bg-slate-50/50 border-x border-slate-200">
-                          {t.driverName ? (
-                            <div className="space-y-2">
-                              {/* Prominent Badge */}
-                              <div className="flex items-center gap-2">
-                                {isDriverPaid ? (
-                                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
-                                    <span className="text-base font-black text-emerald-700">✓</span>
-                                    <span>DRIVER PAID</span>
-                                  </div>
-                                ) : (
-                                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-black bg-rose-100 text-rose-800 border border-rose-300 shadow-2xs">
-                                    <span className="text-base font-black text-rose-700">✗</span>
-                                    <span>DRIVER UNPAID</span>
-                                  </div>
-                                )}
-
                                 <button
                                   type="button"
                                   onClick={() => handleOpenEditModal(t)}
-                                  className="text-[10px] text-slate-600 hover:text-amber-800 px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 border border-slate-300 transition"
-                                  title="Edit Allowance and Payee Amounts"
+                                  className="w-8 h-8 flex items-center justify-center bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition shadow-2xs border border-amber-200/50 cursor-pointer"
+                                  title="Edit Allowance & Payee"
                                 >
-                                  ✏️ Edit
+                                  <IconEdit className="w-4 h-4 text-amber-600" />
                                 </button>
                               </div>
 
-                              {/* Breakdown */}
-                              <div className="text-[11px] space-y-0.5">
-                                <div className="text-emerald-800">
-                                  🚗 Allowance: <span className="font-bold">₹{(t.driverAllowance || 0).toLocaleString('en-IN')}</span>
+                              {/* Bottom row: Mark Paid Button or Status */}
+                              {t.driverName && (
+                                <div className="w-full">
+                                  {isDriverPaid ? (
+                                    <button
+                                      type="button"
+                                      disabled={isProcessing}
+                                      onClick={() => handleToggleDriverPayment(t.id, 'PENDING')}
+                                      className="w-full px-2 py-1 bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 rounded-lg text-[10px] font-semibold transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
+                                      title="Mark Driver Unpaid"
+                                    >
+                                      <IconChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      disabled={isProcessing}
+                                      onClick={() => handleToggleDriverPayment(t.id, 'PAID')}
+                                      className="w-full px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1.5 shadow-2xs disabled:opacity-50 cursor-pointer"
+                                    >
+                                      {isProcessing ? (
+                                        <span>...</span>
+                                      ) : (
+                                        <>
+                                          <IconCheck className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+                                          <span>Mark Driver Paid</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  )}
                                 </div>
-                                <div className="text-sky-800">
-                                  💰 Payee: <span className="font-bold">₹{(t.driverPayeeAmount || 0).toLocaleString('en-IN')}</span>
-                                </div>
-                                <div className="text-slate-900 font-extrabold border-t border-slate-200 pt-0.5">
-                                  Total: ₹{totalDriverEarning.toLocaleString('en-IN')}
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile and Tablet Card View (< lg) */}
+              <div className="block lg:hidden divide-y divide-slate-100">
+                {transactions.map((t) => {
+                  const isDriverPaid = t.driverPaymentStatus === 'PAID';
+                  const isProcessing = actionLoadingId === t.id;
+                  const totalDriverEarning = (t.driverAllowance || 0) + (t.driverPayeeAmount || 0);
+                  const isExpanded = !!expandedCards[t.id];
+
+                  return (
+                    <div key={t.id} className="p-3.5 sm:p-4 transition hover:bg-slate-50/50">
+                      {/* Top Row: Ref & Date + Ride Status */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-slate-900 font-mono text-sm tracking-tight">
+                              {t.humanReadableRef}
+                            </span>
+                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded-md tracking-wider">
+                              {t.tripType || 'ONEWAY'}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                            <IconClock className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span>
+                              {new Date(t.createdAt).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Ride Status Badge */}
+                        <div className="shrink-0">
+                          {t.status === 'TRIP_COMPLETED' ? (
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1.5 shadow-2xs">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              <span>Completed</span>
+                            </span>
+                          ) : t.status === 'CANCELLED' ? (
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1.5 shadow-2xs">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                              <span>Cancelled</span>
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1.5 shadow-2xs">
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                              <span>{String(t.status).replace(/_/g, ' ')}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Summary Row: Customer, Driver, Fare */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mt-3 pt-3 border-t border-slate-100">
+                        {/* Customer */}
+                        <div className="min-w-0">
+                          <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Customer</span>
+                          <div className="flex items-center gap-1 text-xs font-bold text-slate-900 truncate mt-0.5" title={t.customerName}>
+                            <IconUserSolid className="w-3 h-3 text-blue-600 shrink-0" />
+                            <span className="truncate">{t.customerName}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 font-mono mt-0.5 flex items-center gap-1">
+                            <IconPhone className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                            <span>{t.customerPhone}</span>
+                          </div>
+                        </div>
+
+                        {/* Driver */}
+                        <div className="min-w-0">
+                          <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Driver</span>
+                          {t.driverName ? (
+                            <>
+                              <div className="flex items-center gap-1 text-xs font-bold text-slate-900 truncate mt-0.5" title={t.driverName}>
+                                <IconUserSolid className="w-3 h-3 text-blue-600 shrink-0" />
+                                <span className="truncate">{t.driverName}</span>
+                              </div>
+                              <div className="text-[11px] text-slate-500 font-mono mt-0.5 flex items-center gap-1">
+                                <IconPhone className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                                <span>{t.driverPhone}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-slate-400 italic text-xs mt-0.5 block">Unassigned</span>
+                          )}
+                        </div>
+
+                        {/* Total Fare */}
+                        <div className="col-span-2 sm:col-span-1 flex flex-col justify-center sm:items-end">
+                          <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block sm:text-right">Total Fare</span>
+                          <div className="text-base font-extrabold text-slate-900 tracking-tight sm:text-right">
+                            ₹{t.estimatedFare?.toLocaleString('en-IN')}
+                          </div>
+                          <div className="text-[11px] text-slate-500 font-medium sm:text-right">
+                            Adv: ₹{t.advanceAmount?.toLocaleString('en-IN')} • Bal: ₹{t.balanceAmount?.toLocaleString('en-IN')}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Toggle View All / View Details Button */}
+                      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                        {/* Driver Payout Badge in collapsed view */}
+                        <div>
+                          {t.driverName && (
+                            isDriverPaid ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span>✓</span>
+                                <span>Driver Paid</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                <span>!</span>
+                                <span>Driver Unpaid (₹{totalDriverEarning.toLocaleString('en-IN')})</span>
+                              </span>
+                            )
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => toggleCardExpand(t.id)}
+                          className="text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3.5 py-1.5 rounded-full inline-flex items-center gap-1.5 transition shrink-0 shadow-2xs cursor-pointer"
+                        >
+                          <span>{isExpanded ? 'Hide Details' : 'View All Details'}</span>
+                          <IconChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
+
+                      {/* Expanded Section (reveals all financial details and action buttons) */}
+                      {isExpanded && (
+                        <div className="mt-3 pt-3 border-t border-dashed border-slate-200 space-y-3 bg-slate-50/70 -mx-3.5 sm:-mx-4 -mb-3.5 sm:-mb-4 p-3.5 sm:p-4 rounded-b-2xl">
+                          {/* 1. Advance & Balance Grid */}
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                              <span className="text-[10px] text-slate-400 uppercase font-bold block">Advance</span>
+                              <div className="font-extrabold text-slate-900 text-sm mt-0.5">₹{t.advanceAmount?.toLocaleString('en-IN')}</div>
+                              {t.advancePaymentStatus === PaymentStatus.PAID ? (
+                                <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1 mt-0.5">
+                                  <span>✓</span> Paid
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-amber-700 font-bold mt-0.5 block">Due</span>
+                              )}
+                            </div>
+
+                            <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                              <span className="text-[10px] text-slate-400 uppercase font-bold block">Balance</span>
+                              <div className="font-extrabold text-slate-900 text-sm mt-0.5">₹{t.balanceAmount?.toLocaleString('en-IN')}</div>
+                              {t.balancePaymentStatus === PaymentStatus.PAID ? (
+                                <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1 mt-0.5">
+                                  <span>✓</span> Paid ({t.balancePayment?.paymentMethod || 'Cash'})
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 mt-0.5 block">Due at drop</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 2. Tolls & Parking (if any) */}
+                          {(t.tollAmount > 0 || t.parkingAmount > 0) && (
+                            <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between text-xs">
+                              <div>
+                                <span className="text-[10px] text-slate-400 uppercase font-bold block">Tolls & Parking</span>
+                                <div className="flex gap-2 text-[11px] mt-0.5">
+                                  {t.tollAmount > 0 && <span className="text-amber-800 font-semibold font-mono">Toll: ₹{t.tollAmount.toLocaleString('en-IN')}</span>}
+                                  {t.parkingAmount > 0 && <span className="text-sky-800 font-semibold font-mono">Park: ₹{t.parkingAmount.toLocaleString('en-IN')}</span>}
                                 </div>
                               </div>
-
-                              {/* Instant 1-Click Toggle Button */}
-                              <div>
-                                {isDriverPaid ? (
-                                  <button
-                                    type="button"
-                                    disabled={isProcessing}
-                                    onClick={() => handleToggleDriverPayment(t.id, 'PENDING')}
-                                    className="w-full px-2 py-1 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-800 border border-slate-300 hover:border-rose-300 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 disabled:opacity-50 shadow-2xs"
-                                  >
-                                    {isProcessing ? (
-                                      <span>Updating...</span>
-                                    ) : (
-                                      <>
-                                        <span>✗</span> Mark Driver Unpaid
-                                      </>
-                                    )}
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    disabled={isProcessing}
-                                    onClick={() => handleToggleDriverPayment(t.id, 'PAID')}
-                                    className="w-full px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black rounded-lg transition shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
-                                  >
-                                    {isProcessing ? (
-                                      <span>Updating...</span>
-                                    ) : (
-                                      <>
-                                        <span className="text-xs">✓</span> Mark Driver Paid
-                                      </>
-                                    )}
-                                  </button>
-                                )}
+                              <div className="text-sm font-black text-emerald-700">
+                                +₹{(t.tollAmount + t.parkingAmount).toLocaleString('en-IN')}
                               </div>
                             </div>
-                          ) : (
-                            <span className="text-slate-400 italic text-[11px]">No driver assigned</span>
                           )}
-                        </td>
 
-                        {/* Status */}
-                        <td className="py-3 px-4">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                              t.status === 'TRIP_COMPLETED'
-                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                : t.status === 'CANCELLED'
-                                ? 'bg-rose-100 text-rose-800 border-rose-300'
-                                : 'bg-blue-100 text-blue-800 border-blue-300'
-                            }`}
-                          >
-                            {t.status.replace('_', ' ')}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          {/* 3. Driver Payout Breakdown */}
+                          {t.driverName && (
+                            <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs space-y-1.5 text-xs">
+                              <div className="flex justify-between items-center font-bold text-slate-900 border-b border-slate-100 pb-1.5">
+                                <span>Driver Payout Breakdown</span>
+                                <span className="text-xs font-black text-slate-900">Total: ₹{totalDriverEarning.toLocaleString('en-IN')}</span>
+                              </div>
+                              <div className="flex justify-between text-slate-500 text-[11px]">
+                                <span>Allowance</span>
+                                <span className="font-semibold text-slate-700">₹{(t.driverAllowance || 0).toLocaleString('en-IN')}</span>
+                              </div>
+                              <div className="flex justify-between text-slate-500 text-[11px]">
+                                <span>Payee</span>
+                                <span className="font-semibold text-slate-700">₹{(t.driverPayeeAmount || 0).toLocaleString('en-IN')}</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 4. Action Buttons */}
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleShareWhatsAppReceipt(t)}
+                              className="flex-1 min-w-[130px] px-3 py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                            >
+                              <IconFileText className="w-3.5 h-3.5 text-slate-700" />
+                              <span>WhatsApp Receipt</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditModal(t)}
+                              className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-200/60 text-amber-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                            >
+                              <IconEdit className="w-3.5 h-3.5 text-amber-700" />
+                              <span>Edit</span>
+                            </button>
+
+                            {t.driverName && (
+                              isDriverPaid ? (
+                                <button
+                                  type="button"
+                                  disabled={isProcessing}
+                                  onClick={() => handleToggleDriverPayment(t.id, 'PENDING')}
+                                  className="px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
+                                >
+                                  <span>Mark Unpaid</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={isProcessing}
+                                  onClick={() => handleToggleDriverPayment(t.id, 'PAID')}
+                                  className="flex-1 min-w-[140px] px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs disabled:opacity-50 cursor-pointer"
+                                >
+                                  {isProcessing ? (
+                                    <span>...</span>
+                                  ) : (
+                                    <>
+                                      <IconCheck className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+                                      <span>Mark Driver Paid</span>
+                                    </>
+                                  )}
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
 
           {/* Pagination Footer */}
-          <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs text-slate-600">
+          <div className="px-6 py-4 bg-white border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500">
             <div>
-              Showing {transactions.length} of {pagination.totalCount} transactions
+              Showing <span className="font-semibold text-slate-700">
+                {transactions.length > 0 ? (page - 1) * pagination.limit + 1 : 0} – {Math.min(page * pagination.limit, pagination.totalCount)}
+              </span> of <span className="font-semibold text-slate-700">{pagination.totalCount}</span> bookings
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-1.5 items-center">
               <button
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="px-3 py-1 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-50 text-slate-700 rounded transition shadow-2xs font-medium"
+                className="w-7 h-7 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 text-slate-700 rounded-lg transition flex items-center justify-center shadow-2xs"
+                aria-label="Previous page"
               >
-                Previous
+                <IconChevronLeft className="w-3.5 h-3.5 text-slate-600" />
               </button>
-              <span className="px-2 py-1 font-semibold text-slate-700">
-                Page {page} of {pagination.totalPages}
-              </span>
+              {Array.from({ length: Math.min(pagination.totalPages || 1, 5) }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`w-7 h-7 rounded-lg text-xs font-bold transition flex items-center justify-center ${
+                    page === p
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
               <button
-                disabled={page >= pagination.totalPages}
+                disabled={page >= (pagination.totalPages || 1)}
                 onClick={() => setPage((p) => p + 1)}
-                className="px-3 py-1 bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-50 text-slate-700 rounded transition shadow-2xs font-medium"
+                className="w-7 h-7 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 text-slate-700 rounded-lg transition flex items-center justify-center shadow-2xs"
+                aria-label="Next page"
               >
-                Next
+                <IconChevronRight className="w-3.5 h-3.5 text-slate-600" />
               </button>
             </div>
           </div>

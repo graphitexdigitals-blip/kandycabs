@@ -57,19 +57,8 @@ export async function POST(req: NextRequest) {
       !existingUser.driver.deletedAt
     );
 
-    // If request is from Driver App, reject unregistered numbers immediately
-    if (body.role === 'DRIVER' && (!existingUser || !isDriver)) {
-      const res = NextResponse.json(
-        {
-          success: false,
-          message: 'No active driver account found with this number. Please contact admin to register as a driver partner.',
-          isRegistered: false,
-          isDriver: false,
-        },
-        { status: 403 }
-      );
-      return setCorsHeaders(res);
-    }
+    // Allow both existing drivers and new driver partner registrations
+    const isNewDriver = body.role === 'DRIVER' && (!existingUser || !isDriver);
 
     const otp = generateOtp(4);
     const otpHash = await hashOtp(otp);

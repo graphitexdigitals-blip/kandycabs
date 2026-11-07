@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'expo-router';
+import { getExpiringDocuments } from '../lib/documentExpiry';
 
 export interface NotificationItem {
   id: string;
@@ -47,6 +49,7 @@ export function NotificationsModal({
   onSelectDispatch,
   onSelectBooking,
 }: NotificationsModalProps) {
+  const router = useRouter();
   const { t } = useTranslation();
   const [selectedFilter, setSelectedFilter] = useState<'ALL' | 'DISPATCH' | 'TRIP' | 'SYSTEM'>('ALL');
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
@@ -101,19 +104,53 @@ export function NotificationsModal({
       });
     });
 
-    // 4. KYC / Verification Status
+    // 4. KYC / Verification Status & Expiring Document Reminders
     if (driver) {
       const isApproved = driver.verificationStatus === 'APPROVED';
+      const isRejected = driver.verificationStatus === 'REJECTED';
       list.push({
-        id: `kyc-status-${driver.id}`,
+        id: `kyc-status-${driver.id}-${driver.verificationStatus || 'PENDING'}`,
         type: 'KYC',
-        title: isApproved ? 'Driver Profile Verified & Active' : 'Profile Under Review by Admin',
-        message: isApproved
+        title: isRejected
+          ? 'KYC Verification Rejected by Admin'
+          : isApproved
+          ? 'Driver Profile Verified & Active'
+          : 'Profile Under Review by Admin',
+        message: isRejected
+          ? `Reason from Admin: ${driver.rejectionReason || 'Please fix and re-upload required documents'}`
+          : isApproved
           ? 'Your documents have been verified. You are eligible to accept ride assignments.'
           : 'Your driver documents are being reviewed. Please keep documents updated.',
-        subMessage: `License: ${driver.licenseNumber || 'Active'} • Vehicle: ${driver?.vehicle?.plateNumber || 'KA-01-SD-2002'}`,
+        subMessage: isRejected
+          ? 'Action required: Tap to update details and re-submit'
+          : `License: ${driver.licenseNumber || 'Active'} • Vehicle: ${driver?.vehicle?.plateNumber || 'KA-01-SD-2002'}`,
         timestamp: new Date().toISOString(),
-        isRead: readIds.has(`kyc-status-${driver.id}`),
+        isRead: readIds.has(`kyc-status-${driver.id}-${driver.verificationStatus || 'PENDING'}`),
+        actionText: isApproved ? undefined : isRejected ? 'Fix Documents' : 'View Documents',
+        payload: { route: '/documents' },
+      });
+
+      // 4b. Auto Expiring Documents Reminders (Active until updated with a future date)
+      const expiringDocs = Array.isArray(driver.expiringDocuments)
+        ? driver.expiringDocuments
+        : (driver.docDates ? getExpiringDocuments(driver.docDates, 5) : []);
+
+      expiringDocs.forEach((ed: any) => {
+        const isExp = ed.status === 'EXPIRED';
+        const notifId = `doc-expiry-${ed.docKey}-${ed.validTo}`;
+        list.push({
+          id: notifId,
+          type: 'KYC',
+          title: isExp ? `🚨 Document Expired: ${ed.docName}` : `⚠️ Document Expiring Soon: ${ed.docName}`,
+          message: isExp
+            ? `Your ${ed.docName} expired on ${ed.expiryDateFormatted}. Commercial vehicle compliance requires an active document. Please upload the renewed copy immediately.`
+            : `Your ${ed.docName} expires on ${ed.expiryDateFormatted} (${ed.label}). Please upload the renewed copy before it expires to avoid dispatch suspension.`,
+          subMessage: `Document: ${ed.docName}${ed.docNumber ? ' • No: ' + ed.docNumber : ''}`,
+          timestamp: new Date().toISOString(),
+          isRead: readIds.has(notifId),
+          actionText: 'Update Now',
+          payload: { isExpiry: true, route: '/documents' },
+        });
       });
     }
 
@@ -157,11 +194,17 @@ export function NotificationsModal({
     } else if (item.type === 'TRIP' && item.payload?.bookingId && onSelectBooking) {
       onClose();
       onSelectBooking(item.payload.bookingId);
+    } else if (item.type === 'KYC' || item.payload?.route === '/documents') {
+      onClose();
+      router.push('/documents');
     }
   };
 
-  const renderTypeIcon = (type: NotificationItem['type']) => {
-    switch (type) {
+  const renderTypeIcon = (item: NotificationItem) => {
+    if (item.payload?.isExpiry) {
+      return <Ionicons name="warning" size={20} color="#ea580c" />;
+    }
+    switch (item.type) {
       case 'DISPATCH':
         return <Ionicons name="car-sport" size={20} color="#ea580c" />;
       case 'TRIP':
@@ -247,7 +290,7 @@ export function NotificationsModal({
                 onPress={() => handleItemPress(item)}
                 activeOpacity={0.8}
               >
-                <View style={styles.iconCircle}>{renderTypeIcon(item.type)}</View>
+                <View style={styles.iconCircle}>{renderTypeIcon(item)}</View>
 
                 <View style={styles.cardContent}>
                   <View style={styles.cardTopRow}>

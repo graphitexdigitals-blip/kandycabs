@@ -7,6 +7,7 @@ import {
   VehicleCategory,
   FuelType,
 } from '@kandy-cabs/shared';
+import { getExpiringDocuments } from '@/lib/documentExpiry';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
     const whereClause: any = {
       deletedAt: null,
     };
-    if (status !== 'ALL') {
+    if (status !== 'ALL' && status !== 'EXPIRING') {
       whereClause.verificationStatus = status;
     }
 
@@ -40,44 +41,121 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const formattedDrivers = drivers.map((d) => ({
-      driverId: d.id,
-      userId: d.userId,
-      fullName: d.user.fullName,
-      phone: d.user.phone,
-      licenseNumber: d.licenseNumber,
-      profilePhotoUrl: d.profilePhotoUrl,
-      licenseDocUrl: d.licenseDocUrl,
-      rcDocUrl: d.rcDocUrl,
-      insuranceDocUrl: d.insuranceDocUrl,
-      vehiclePhotos: d.vehiclePhotos || [],
-      verificationStatus: d.verificationStatus,
-      adminNotes: d.adminNotes,
-      onlineStatus: d.onlineStatus,
-      payoutMethod: d.payoutMethod || 'BANK',
-      bankAccountHolderName: d.bankAccountHolderName || null,
-      bankAccountNumber: d.bankAccountNumber || null,
-      bankIfsc: d.bankIfsc || null,
-      bankName: d.bankName || null,
-      payoutUpiId: d.payoutUpiId || null,
-      payoutPhone: d.payoutPhone || null,
-      payoutEmail: d.payoutEmail || null,
-      payoutStatus: d.payoutStatus || 'PENDING',
-      vehicle: d.vehicles[0] || null,
-      createdAt: d.user.createdAt.toISOString(),
-    }));
+    const formattedDrivers = drivers.map((d) => {
+      let docDates: Record<string, any> = {};
+      let extraDocs: Record<string, string> = {};
+
+      let carModel: string | null = null;
+      let carriageCapacity: string | null = null;
+
+      if (d.adminNotes) {
+        const modelMatch = d.adminNotes.match(/\[Car Model:\s*([^\]]+)\]/);
+        if (modelMatch && modelMatch[1]) carModel = modelMatch[1].trim();
+
+        const carriageMatch = d.adminNotes.match(/\[Luggage\/Carriage:\s*([^\]]+)\]/);
+        if (carriageMatch && carriageMatch[1]) carriageCapacity = carriageMatch[1].trim();
+
+        const datesMatch = d.adminNotes.match(/\[DocDates:\s*(\{.*?\})\]/);
+        if (datesMatch && datesMatch[1]) {
+          try {
+            docDates = JSON.parse(datesMatch[1]);
+          } catch {}
+        }
+
+        const extraMatch = d.adminNotes.match(/\[ExtraDocs:\s*(\{.*?\})\]/);
+        if (extraMatch && extraMatch[1]) {
+          try {
+            extraDocs = JSON.parse(extraMatch[1]);
+            if (!docDates || Object.keys(docDates).length === 0) {
+              if (extraDocs.docDates) docDates = extraDocs.docDates;
+            }
+          } catch {}
+        }
+      }
+
+      let multiVehicles: any[] = [];
+      if (d.adminNotes) {
+        const multiMatch = d.adminNotes.match(/\[MultiVehicles:\s*(\[[\s\S]*?\])\]/);
+        if (multiMatch && multiMatch[1]) {
+          try {
+            multiVehicles = JSON.parse(multiMatch[1]);
+          } catch {}
+        }
+      }
+
+      const expiringDocuments = getExpiringDocuments(docDates, 5);
+
+      return {
+        driverId: d.id,
+        userId: d.userId,
+        fullName: d.user.fullName,
+        phone: d.user.phone,
+        licenseNumber: d.licenseNumber,
+        profilePhotoUrl: d.profilePhotoUrl,
+        licenseDocUrl: d.licenseDocUrl,
+        rcDocUrl: d.rcDocUrl,
+        insuranceDocUrl: d.insuranceDocUrl,
+        aadhaarDocUrl: extraDocs.aadhaarDocUrl || null,
+        panDocUrl: extraDocs.panDocUrl || null,
+        fitnessDocUrl: extraDocs.fitnessDocUrl || null,
+        taxDocUrl: extraDocs.taxDocUrl || null,
+        permitDocUrl: extraDocs.permitDocUrl || null,
+        pucDocUrl: extraDocs.pucDocUrl || null,
+        vehiclePhotos: d.vehiclePhotos || [],
+        verificationStatus: d.verificationStatus,
+        adminNotes: d.adminNotes,
+        onlineStatus: d.onlineStatus,
+        payoutMethod: d.payoutMethod || 'BANK',
+        bankAccountHolderName: d.bankAccountHolderName || null,
+        bankAccountNumber: d.bankAccountNumber || null,
+        bankIfsc: d.bankIfsc || null,
+        bankName: d.bankName || null,
+        payoutUpiId: d.payoutUpiId || null,
+        payoutPhone: d.payoutPhone || null,
+        payoutEmail: d.payoutEmail || null,
+        payoutStatus: d.payoutStatus || 'PENDING',
+        carModel,
+        carriageCapacity,
+        vehicle: d.vehicles[0] || null,
+        vehicles: d.vehicles,
+        vehiclesList: multiVehicles.length > 0 ? multiVehicles : (d.vehicles.length > 0 ? d.vehicles.map((v, i) => ({
+          id: v.id || `veh-${i + 1}`,
+          plateNumber: v.plateNumber && v.plateNumber !== 'PENDING' && !v.plateNumber.startsWith('KA 01 TR 0000') ? v.plateNumber : '',
+          category: v.category || 'SEDAN',
+          carModel: carModel || '',
+          fuelType: v.fuelType || 'DIESEL',
+          carriageCapacity: carriageCapacity || 'No',
+          rcDocUrl: d.rcDocUrl || null,
+          insuranceDocUrl: d.insuranceDocUrl || null,
+          fitnessDocUrl: extraDocs.fitnessDocUrl || null,
+          taxDocUrl: extraDocs.taxDocUrl || null,
+          permitDocUrl: extraDocs.permitDocUrl || null,
+          pucDocUrl: extraDocs.pucDocUrl || null,
+          docDates: (docDates && Object.keys(docDates).length > 0) ? docDates : (extraDocs.docDates || {}),
+        })) : []),
+        docDates,
+        expiringDocuments,
+        hasExpiringDocs: expiringDocuments.length > 0,
+        createdAt: d.user.createdAt.toISOString(),
+      };
+    });
 
     const counts = {
       all: formattedDrivers.length,
       pending: formattedDrivers.filter((d) => d.verificationStatus === 'PENDING').length,
       approved: formattedDrivers.filter((d) => d.verificationStatus === 'APPROVED').length,
       rejected: formattedDrivers.filter((d) => d.verificationStatus === 'REJECTED').length,
+      expiringSoon: formattedDrivers.filter((d) => d.hasExpiringDocs).length,
     };
+
+    const finalDrivers = status === 'EXPIRING'
+      ? formattedDrivers.filter((d) => d.hasExpiringDocs)
+      : formattedDrivers;
 
     return NextResponse.json({
       success: true,
       counts,
-      drivers: formattedDrivers,
+      drivers: finalDrivers,
     });
   } catch (error: any) {
     console.error('Error fetching vehicle evidence:', error);

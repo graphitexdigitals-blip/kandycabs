@@ -94,16 +94,27 @@ export async function POST(req: NextRequest) {
     );
 
     let user = existingUser;
+    const isDriverRole = body.role === 'DRIVER';
 
     if (!user) {
       user = await prisma.user.create({
         data: {
           phone: normalizedPhone,
-          fullName: fullName?.trim() || '',
-          roles: [UserRole.CUSTOMER],
-          customer: {
-            create: {},
-          },
+          fullName: fullName?.trim() || (isDriverRole ? 'New Driver Partner' : ''),
+          roles: isDriverRole ? [UserRole.DRIVER] : [UserRole.CUSTOMER],
+          customer: isDriverRole
+            ? undefined
+            : {
+                create: {},
+              },
+          driver: isDriverRole
+            ? {
+                create: {
+                  licenseNumber: 'PENDING',
+                  verificationStatus: 'PENDING',
+                },
+              }
+            : undefined,
         },
         include: {
           customer: true,
@@ -117,7 +128,7 @@ export async function POST(req: NextRequest) {
       }
 
       // If logging into customer app or user has no customer profile, ensure CUSTOMER role is added
-      if (body.role !== 'DRIVER' && !user.roles.includes(UserRole.CUSTOMER)) {
+      if (!isDriverRole && !user.roles.includes(UserRole.CUSTOMER)) {
         updateData.roles = [...user.roles, UserRole.CUSTOMER];
       }
 
@@ -130,7 +141,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Ensure customer record exists if logging in as customer or has CUSTOMER role
-      if (!user.customer && (body.role !== 'DRIVER' || user.roles.includes(UserRole.CUSTOMER))) {
+      if (!user.customer && (!isDriverRole || user.roles.includes(UserRole.CUSTOMER))) {
         await prisma.customer.create({
           data: { userId: user.id },
         });
@@ -150,8 +161,8 @@ export async function POST(req: NextRequest) {
     }
 
     // If logging into the Driver App, ensure active driver record exists
-    if (body.role === 'DRIVER') {
-      if (!user.driver || user.driver.deletedAt || user.deletedAt) {
+    if (isDriverRole) {
+      if (user.deletedAt || (user.driver && user.driver.deletedAt)) {
         const res = NextResponse.json(
           {
             success: false,
@@ -160,6 +171,26 @@ export async function POST(req: NextRequest) {
           { status: 403 }
         );
         return setCorsHeaders(res);
+      }
+
+      if (!user.driver) {
+        await prisma.driver.create({
+          data: {
+            userId: user.id,
+            licenseNumber: 'PENDING',
+            verificationStatus: 'PENDING',
+          },
+        });
+        if (!user.roles.includes(UserRole.DRIVER)) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { roles: [...user.roles, UserRole.DRIVER] },
+          });
+        }
+        user = await prisma.user.findUnique({
+          where: { id: user.id },
+          include: { customer: true, driver: true },
+        });
       }
     }
 

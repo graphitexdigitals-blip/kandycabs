@@ -42,29 +42,92 @@ export async function GET(req: NextRequest) {
 
     let carModel: string | null = null;
     let carriageCapacity: string | null = null;
+    let extraDocs: Record<string, string> = {};
+    let docDates: Record<string, any> = {};
+    let multiVehicles: any[] = [];
+
     if (driver.adminNotes) {
+      const multiMatch = driver.adminNotes.match(/\[MultiVehicles:\s*(\[[\s\S]*?\])\]/);
+      if (multiMatch && multiMatch[1]) {
+        try {
+          multiVehicles = JSON.parse(multiMatch[1]);
+        } catch {}
+      }
+
       const modelMatch = driver.adminNotes.match(/\[Car Model:\s*([^\]]+)\]/);
       if (modelMatch && modelMatch[1]) carModel = modelMatch[1].trim();
 
       const carriageMatch = driver.adminNotes.match(/\[Luggage\/Carriage:\s*([^\]]+)\]/);
       if (carriageMatch && carriageMatch[1]) carriageCapacity = carriageMatch[1].trim();
+
+      const datesMatch = driver.adminNotes.match(/\[DocDates:\s*(\{.*?\})\]/);
+      if (datesMatch && datesMatch[1]) {
+        try {
+          docDates = JSON.parse(datesMatch[1]);
+        } catch {}
+      }
+
+      const extraMatch = driver.adminNotes.match(/\[ExtraDocs:\s*(\{.*?\})\]/);
+      if (extraMatch && extraMatch[1]) {
+        try {
+          extraDocs = JSON.parse(extraMatch[1]);
+        } catch {}
+      }
+    }
+
+    let rejectionReason: string | null = null;
+    if (driver.adminNotes) {
+      const rejMatch = driver.adminNotes.match(/\[RejectionReason:\s*([^\]]+)\]/);
+      if (rejMatch && rejMatch[1]) {
+        rejectionReason = rejMatch[1].replace(/\[.*?\]/g, '').trim();
+      } else if (driver.verificationStatus === 'REJECTED') {
+        const cleanNotes = driver.adminNotes.replace(/\[.*?\]/g, '').trim();
+        if (cleanNotes) rejectionReason = cleanNotes;
+      }
     }
 
     const response = NextResponse.json(
       {
         success: true,
         documents: {
+          fullName: driver.user?.fullName || '',
           licenseNumber: driver.licenseNumber,
           profilePhotoUrl: driver.profilePhotoUrl,
           licenseDocUrl: driver.licenseDocUrl,
           rcDocUrl: driver.rcDocUrl,
           insuranceDocUrl: driver.insuranceDocUrl,
+          aadhaarDocUrl: extraDocs.aadhaarDocUrl || null,
+          panDocUrl: extraDocs.panDocUrl || null,
+          fitnessDocUrl: extraDocs.fitnessDocUrl || null,
+          taxDocUrl: extraDocs.taxDocUrl || null,
+          permitDocUrl: extraDocs.permitDocUrl || null,
+          pucDocUrl: extraDocs.pucDocUrl || null,
+          extraDocs,
+          docDates: (docDates && Object.keys(docDates).length > 0) ? docDates : (extraDocs.docDates || {}),
           vehiclePhotos: driver.vehiclePhotos || [],
           verificationStatus: driver.verificationStatus,
+          rejectionReason,
           adminNotes: driver.adminNotes,
           carModel,
           carriageCapacity,
           vehicle: driver.vehicles[0] || null,
+          vehicles: multiVehicles.length > 0 ? multiVehicles : (
+            driver.vehicles.length > 0 ? driver.vehicles.map((v, i) => ({
+              id: v.id || `veh-${i + 1}`,
+              plateNumber: v.plateNumber && v.plateNumber !== 'PENDING' && !v.plateNumber.startsWith('KA 01 TR 0000') ? v.plateNumber : '',
+              category: v.category || 'SEDAN',
+              carModel: carModel || '',
+              fuelType: v.fuelType || 'DIESEL',
+              carriageCapacity: carriageCapacity || 'No',
+              rcDocUrl: driver.rcDocUrl || null,
+              insuranceDocUrl: driver.insuranceDocUrl || null,
+              fitnessDocUrl: extraDocs.fitnessDocUrl || null,
+              taxDocUrl: extraDocs.taxDocUrl || null,
+              permitDocUrl: extraDocs.permitDocUrl || null,
+              pucDocUrl: extraDocs.pucDocUrl || null,
+              docDates: (docDates && Object.keys(docDates).length > 0) ? docDates : (extraDocs.docDates || {}),
+            })) : []
+          ),
         },
       },
       { status: 200 }
@@ -93,11 +156,20 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const {
+      fullName,
       licenseNumber,
       profilePhotoUrl,
       licenseDocUrl,
       rcDocUrl,
       insuranceDocUrl,
+      aadhaarDocUrl,
+      panDocUrl,
+      fitnessDocUrl,
+      taxDocUrl,
+      permitDocUrl,
+      pucDocUrl,
+      docDates: reqDocDates,
+      extraDocs: reqExtraDocs,
       vehiclePhotos = [],
       plateNumber,
       category,
@@ -111,7 +183,8 @@ export async function POST(req: NextRequest) {
     };
 
     if (licenseNumber !== undefined && licenseNumber !== null) {
-      dataToUpdate.licenseNumber = String(licenseNumber).trim().toUpperCase();
+      const cleanLicense = String(licenseNumber).trim().toUpperCase();
+      dataToUpdate.licenseNumber = cleanLicense || 'PENDING';
     }
     if (profilePhotoUrl !== undefined) {
       dataToUpdate.profilePhotoUrl = profilePhotoUrl;
@@ -143,6 +216,66 @@ export async function POST(req: NextRequest) {
       dataToUpdate.adminNotes = notesToUpdate;
     }
 
+    // Persist additional KYC & compliance documents in adminNotes
+    let existingExtraDocs: Record<string, string> = {};
+    const extraMatch = notesToUpdate.match(/\[ExtraDocs:\s*(\{.*?\})\]/);
+    if (extraMatch && extraMatch[1]) {
+      try {
+        existingExtraDocs = JSON.parse(extraMatch[1]);
+      } catch {}
+    }
+    const mergedExtraDocs = {
+      ...existingExtraDocs,
+      ...(reqExtraDocs || {}),
+      ...(aadhaarDocUrl !== undefined ? { aadhaarDocUrl } : {}),
+      ...(panDocUrl !== undefined ? { panDocUrl } : {}),
+      ...(fitnessDocUrl !== undefined ? { fitnessDocUrl } : {}),
+      ...(taxDocUrl !== undefined ? { taxDocUrl } : {}),
+      ...(permitDocUrl !== undefined ? { permitDocUrl } : {}),
+      ...(pucDocUrl !== undefined ? { pucDocUrl } : {}),
+    };
+    if (Object.keys(mergedExtraDocs).length > 0) {
+      const extraTag = `[ExtraDocs: ${JSON.stringify(mergedExtraDocs)}]`;
+      notesToUpdate = notesToUpdate.replace(/\[ExtraDocs:[^\]]+\]/g, '').trim();
+      notesToUpdate = notesToUpdate ? `${notesToUpdate} ${extraTag}` : extraTag;
+      dataToUpdate.adminNotes = notesToUpdate;
+    }
+
+    if (reqDocDates && typeof reqDocDates === 'object') {
+      let existingDocDates: Record<string, any> = {};
+      const datesMatch = notesToUpdate.match(/\[DocDates:\s*(\{.*?\})\]/);
+      if (datesMatch && datesMatch[1]) {
+        try {
+          existingDocDates = JSON.parse(datesMatch[1]);
+        } catch {}
+      }
+      const mergedDocDates = { ...existingDocDates, ...reqDocDates };
+      const datesTag = `[DocDates: ${JSON.stringify(mergedDocDates)}]`;
+      notesToUpdate = notesToUpdate.replace(/\[DocDates:[^\]]+\]/g, '').trim();
+      notesToUpdate = notesToUpdate ? `${notesToUpdate} ${datesTag}` : datesTag;
+      dataToUpdate.adminNotes = notesToUpdate;
+    }
+
+    // Multi-vehicle array support
+    const reqVehicles = Array.isArray(body.vehicles) && body.vehicles.length > 0 ? body.vehicles : null;
+    if (reqVehicles) {
+      const multiVehiclesTag = `[MultiVehicles: ${JSON.stringify(reqVehicles)}]`;
+      notesToUpdate = notesToUpdate.replace(/\[MultiVehicles:[\s\S]*?\]/g, '').trim();
+      notesToUpdate = notesToUpdate ? `${notesToUpdate} ${multiVehiclesTag}` : multiVehiclesTag;
+      dataToUpdate.adminNotes = notesToUpdate;
+    }
+
+    if (fullName !== undefined && fullName !== null && String(fullName).trim()) {
+      try {
+        await prisma.user.update({
+          where: { id: session.userId },
+          data: { fullName: String(fullName).trim() },
+        });
+      } catch (userErr) {
+        console.warn('Could not update user fullName:', userErr);
+      }
+    }
+
     const updatedDriver = await prisma.driver.update({
       where: { id: session.driverId },
       data: dataToUpdate,
@@ -167,7 +300,40 @@ export async function POST(req: NextRequest) {
       }
     };
 
-    if (updatedDriver.vehicles.length > 0) {
+    if (reqVehicles && reqVehicles.length > 0) {
+      for (let i = 0; i < reqVehicles.length; i++) {
+        const vItem = reqVehicles[i];
+        const vCategory = vItem.category || 'SEDAN';
+        const vFuel = vItem.fuelType || 'DIESEL';
+        const vPlate = vItem.plateNumber ? String(vItem.plateNumber).trim().toUpperCase() : 'PENDING';
+        const vSeats = getSeatCountForCategory(vCategory);
+
+        if (i < updatedDriver.vehicles.length) {
+          await prisma.vehicle.update({
+            where: { id: updatedDriver.vehicles[i].id },
+            data: {
+              category: vCategory,
+              fuelType: vFuel,
+              seatCount: vSeats,
+              plateNumber: vPlate,
+            },
+          });
+        } else {
+          await prisma.vehicle.create({
+            data: {
+              driverId: session.driverId,
+              category: vCategory,
+              fuelType: vFuel,
+              seatCount: vSeats,
+              plateNumber: vPlate,
+              baseFarePerKm: 14.0,
+              extraKmRate: 14.0,
+              driverAllowance: 300.0,
+            },
+          });
+        }
+      }
+    } else if (updatedDriver.vehicles.length > 0) {
       const vId = updatedDriver.vehicles[0].id;
       const vehicleData: any = {};
       if (plateNumber) vehicleData.plateNumber = String(plateNumber).trim().toUpperCase();

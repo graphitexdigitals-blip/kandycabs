@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@kandy-cabs/db';
 import { BookingStatus, DriverVerificationStatus } from '@kandy-cabs/shared';
 import { getAdminSession } from '@/lib/auth';
+import { getExpiringDocuments } from '@/lib/documentExpiry';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
       paymentsSummary,
       recentBookings,
       recentAuditLogs,
+      activeDriversWithNotes,
     ] = await Promise.all([
       // 1. Grouped booking status counts
       prisma.booking.groupBy({
@@ -102,6 +104,17 @@ export async function GET(req: NextRequest) {
           },
         },
       }),
+
+      // 9. Drivers with document notes for auto-expiry reminder tracking
+      prisma.driver.findMany({
+        where: { deletedAt: null, adminNotes: { not: null } },
+        select: {
+          id: true,
+          adminNotes: true,
+          user: { select: { fullName: true, phone: true } },
+          vehicles: { select: { plateNumber: true } },
+        },
+      }),
     ]);
 
     // Aggregate booking counts
@@ -133,6 +146,45 @@ export async function GET(req: NextRequest) {
     const pendingKycDrivers = driverCountsMap[DriverVerificationStatus.PENDING] || 0;
     const approvedDrivers = driverCountsMap[DriverVerificationStatus.APPROVED] || 0;
 
+    // Evaluate expiring & expired documents across all drivers (threshold <= 5 days)
+    const expiringDrivers: Array<{
+      driverId: string;
+      fullName: string;
+      phone: string;
+      plateNumber?: string;
+      expiringCount: number;
+      expiringDocuments: any[];
+    }> = [];
+
+    for (const d of (activeDriversWithNotes || [])) {
+      if (!d.adminNotes) continue;
+      let docDates: Record<string, any> = {};
+      const datesMatch = d.adminNotes.match(/\[DocDates:\s*(\{.*?\})\]/);
+      if (datesMatch && datesMatch[1]) {
+        try { docDates = JSON.parse(datesMatch[1]); } catch {}
+      }
+      if (!docDates || Object.keys(docDates).length === 0) {
+        const extraMatch = d.adminNotes.match(/\[ExtraDocs:\s*(\{.*?\})\]/);
+        if (extraMatch && extraMatch[1]) {
+          try {
+            const extra = JSON.parse(extraMatch[1]);
+            if (extra.docDates) docDates = extra.docDates;
+          } catch {}
+        }
+      }
+      const expiring = getExpiringDocuments(docDates, 5);
+      if (expiring.length > 0) {
+        expiringDrivers.push({
+          driverId: d.id,
+          fullName: d.user?.fullName || 'Driver',
+          phone: d.user?.phone || '',
+          plateNumber: d.vehicles?.[0]?.plateNumber,
+          expiringCount: expiring.length,
+          expiringDocuments: expiring,
+        });
+      }
+    }
+
     const grossRevenue = Number(paymentsSummary._sum?.estimatedFare || 0);
     const advanceCollected = Number(paymentsSummary._sum?.advanceAmount || 0);
 
@@ -155,6 +207,8 @@ export async function GET(req: NextRequest) {
           online: onlineDrivers,
           pendingKyc: pendingKycDrivers,
           approved: approvedDrivers,
+          expiringDocumentsCount: expiringDrivers.length,
+          expiringDrivers,
         },
         fleets: {
           categoriesCount: totalFleets,

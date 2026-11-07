@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@kandy-cabs/db';
 import { getDriverSession } from '@/lib/driver-auth';
-import { BookingStatus } from '@kandy-cabs/shared';
+import { BookingStatus, DriverVerificationStatus } from '@kandy-cabs/shared';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
 import { RealtimeEvents } from '@/lib/realtime-events';
 
@@ -18,6 +18,17 @@ export async function POST(req: NextRequest) {
       const res = NextResponse.json(
         { error: 'Unauthorized', message: 'Driver authentication required' },
         { status: 401 }
+      );
+      return setCorsHeaders(res);
+    }
+
+    if (session.driver.verificationStatus !== DriverVerificationStatus.APPROVED) {
+      const res = NextResponse.json(
+        {
+          success: false,
+          message: 'Your account is pending admin verification. You cannot run trips until approved by Admin.',
+        },
+        { status: 403 }
       );
       return setCorsHeaders(res);
     }

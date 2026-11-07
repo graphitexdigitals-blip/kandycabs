@@ -5,6 +5,23 @@ import Link from 'next/link';
 import { AdminNavbar } from '@/components/AdminNavbar';
 import { BookingStatus, DriverVerificationStatus, getSupabaseClient } from '@kandy-cabs/shared';
 import { parseIntermediateStops } from '@/lib/bookingHelpers';
+import {
+  IconDashboard,
+  IconBookings,
+  IconMap,
+  IconPayments,
+  IconShield,
+  IconCar,
+  IconTag,
+  IconFileText,
+  IconRefresh,
+  IconAlert,
+  IconSparkles,
+  IconPinPickup,
+  IconPinDropoff,
+  IconWallet,
+  IconClock,
+} from '@/components/Icons';
 
 export const dynamic = 'force-dynamic';
 
@@ -152,345 +169,374 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
       <AdminNavbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-2.5 sm:py-4 space-y-2.5 sm:space-y-3.5">
         {/* Top Header & Quick Action Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-          <div className="space-y-1">
-            <div className="flex items-center space-x-2">
-              <span className="text-xl">⚡</span>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Operations Control Center</h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 uppercase">
-                Realtime Overview
+        <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-xs">
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center space-x-1.5 min-w-0">
+              <IconSparkles className="w-4 h-4 text-[#f97316] shrink-0" />
+              <h1 className="text-[13.5px] sm:text-base font-bold text-slate-900 tracking-tight truncate">Operations Control Center</h1>
+            </div>
+
+            <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-slate-100/90 border border-slate-200/60 text-slate-700 text-[10px] sm:text-xs font-mono font-medium shrink-0">
+              <span className={`w-1.5 h-1.5 rounded-full ${realtimeActive ? 'bg-emerald-500 animate-ping' : 'bg-emerald-500'}`} />
+              <span suppressHydrationWarning>
+                {mounted && lastRefreshed ? lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : 'Syncing...'}
               </span>
             </div>
-            <p className="text-xs text-slate-500">
-              Live monitoring, dispatch queue, fleet operations, KYC verification, and financial summaries.
-            </p>
           </div>
 
-          <div className="flex items-center space-x-3 text-xs">
-            <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-700">
-              <span className={`w-2 h-2 rounded-full ${realtimeActive ? 'bg-emerald-500 animate-ping' : 'bg-emerald-500'}`} />
-              <span className="font-mono text-[11px]" suppressHydrationWarning>
-                Updated: {mounted && lastRefreshed ? lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Syncing...'}
-              </span>
-            </div>
-
+          <div className="flex items-center justify-end gap-1.5 sm:gap-2 mt-2 sm:mt-2.5 text-xs">
             <button
               onClick={() => fetchDashboardStats(false)}
               disabled={loading || refreshing}
-              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center space-x-1.5 transition disabled:opacity-50 shadow-xs"
+              className="px-2.5 py-1 rounded-lg border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-[11px] sm:text-xs flex items-center space-x-1.5 shadow-2xs transition disabled:opacity-50"
             >
-              <span className={refreshing ? 'animate-spin' : ''}>🔄</span>
-              <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+              <IconRefresh className={`w-3 h-3 text-slate-600 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>{refreshing ? '...' : 'Refresh'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => fetchDashboardStats(true)}
+              className="px-2.5 py-1 rounded-lg bg-[#ea580c] hover:bg-[#c2410c] text-white font-semibold text-[11px] sm:text-xs flex items-center space-x-1.5 shadow-xs transition"
+            >
+              <IconRefresh className="w-3 h-3 text-white" />
+              <span>Realtime</span>
             </button>
           </div>
         </div>
 
-        {/* 4 Primary Top KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Action Required (Pending Admin) */}
+        {/* Document Expiry Urgent Alert Banner */}
+        {((data as any)?.stats?.drivers?.expiringDocumentsCount || 0) > 0 && (
+          <div className="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 border border-amber-400/50 rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <IconAlert className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-xs sm:text-sm font-black text-amber-950 uppercase tracking-tight">
+                    Document Expiry Notice: {(data as any)?.stats?.drivers?.expiringDocumentsCount} Driver{((data as any)?.stats?.drivers?.expiringDocumentsCount || 0) > 1 ? 's' : ''} Require Attention
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white uppercase tracking-wider">
+                    ≤ 5 Days Expiry Warning
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-amber-900/80 mt-0.5">
+                  Vehicles or licenses have documents expiring within 5 days or expired (Insurance, FC, Tax, Permit, PUC, DL). Push & in-app alerts are active until updated.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/vehicle-evidence?status=EXPIRING"
+              className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-xs"
+            >
+              <span>Review Expiring Documents</span>
+              <span>→</span>
+            </Link>
+          </div>
+        )}
+
+        {/* 4 Primary Top KPI Cards (Compact and responsive for mobile & tablet) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+          {/* Card 1: Needs Dispatch */}
           <Link
             href="/bookings?status=PENDING_ADMIN"
-            className="group relative bg-white hover:bg-amber-50/40 border border-amber-200 hover:border-amber-400 rounded-2xl p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+            className="group bg-white hover:bg-slate-50/50 border border-slate-200/80 hover:border-slate-300 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between"
           >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Needs Dispatch</p>
-                <h3 className="text-3xl font-black text-slate-900 mt-1">
-                  {loading ? '...' : stats.bookings.pendingAdmin}
-                </h3>
+            <div>
+              <div className="flex items-center space-x-1 sm:space-x-1.5 text-slate-700 mb-0.5">
+                <IconAlert className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span className="text-[9.5px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-tight truncate">Needs Dispatch</span>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
-                🚨
+              <div className="text-xl sm:text-2xl font-black text-slate-900 my-0.5 sm:my-1">
+                {loading ? '...' : stats.bookings.pendingAdmin}
               </div>
             </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 pt-2.5">
-              <span>Awaiting manual dispatch</span>
-              <span className="text-amber-600 group-hover:translate-x-1 transition-transform font-bold">Action →</span>
+            <div className="flex items-center justify-between text-[9.5px] sm:text-[11px] pt-1.5 border-t border-slate-100 text-slate-500 gap-1">
+              <span className="truncate">Awaiting dispatch</span>
+              <span className="text-[#ea580c] font-bold shrink-0 group-hover:translate-x-0.5 transition-transform">Action →</span>
             </div>
           </Link>
 
-          {/* Card 2: Active Rides on Road */}
+          {/* Card 2: Active Rides */}
           <Link
             href="/live-map"
-            className="group relative bg-white hover:bg-blue-50/40 border border-blue-200 hover:border-blue-400 rounded-2xl p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+            className="group bg-white hover:bg-slate-50/50 border border-slate-200/80 hover:border-slate-300 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between"
           >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700">Active Rides On Road</p>
-                <h3 className="text-3xl font-black text-slate-900 mt-1">
-                  {loading ? '...' : stats.bookings.active}
-                </h3>
+            <div>
+              <div className="flex items-center space-x-1 sm:space-x-1.5 text-slate-700 mb-0.5">
+                <IconCar className="w-3.5 h-3.5 text-slate-800 shrink-0" />
+                <span className="text-[9.5px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-tight truncate">Active Rides</span>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-blue-100 border border-blue-200 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
-                🚗
+              <div className="text-xl sm:text-2xl font-black text-slate-900 my-0.5 sm:my-1">
+                {loading ? '...' : stats.bookings.active}
               </div>
             </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 pt-2.5">
-              <span>
-                <b className="text-emerald-700 font-bold">{stats.drivers.online}</b> Drivers Online
+            <div className="flex items-center justify-between text-[9.5px] sm:text-[11px] pt-1.5 border-t border-slate-100 text-slate-500 gap-1">
+              <span className="truncate flex items-center gap-1 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <span>{stats.drivers.online} Online</span>
               </span>
-              <span className="text-blue-600 group-hover:translate-x-1 transition-transform font-bold">Live Map →</span>
+              <span className="text-[#1e293b] font-bold shrink-0 group-hover:translate-x-0.5 transition-transform">Live Map →</span>
             </div>
           </Link>
 
-          {/* Card 3: Gross Revenue / Financials */}
+          {/* Card 3: Total Volume */}
           <Link
             href="/payments"
-            className="group relative bg-white hover:bg-emerald-50/40 border border-emerald-200 hover:border-emerald-400 rounded-2xl p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+            className="group bg-white hover:bg-slate-50/50 border border-slate-200/80 hover:border-slate-300 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between"
           >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Total Bookings Volume</p>
-                <h3 className="text-3xl font-black text-slate-900 mt-1">
-                  {loading ? '...' : `₹${stats.financials.grossRevenue.toLocaleString('en-IN')}`}
-                </h3>
+            <div>
+              <div className="flex items-center space-x-1 sm:space-x-1.5 text-slate-700 mb-0.5">
+                <IconWallet className="w-3.5 h-3.5 text-slate-800 shrink-0" />
+                <span className="text-[9.5px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-tight truncate">Total Volume</span>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
-                💳
+              <div className="text-[15px] sm:text-xl font-black text-slate-900 my-0.5 sm:my-1 truncate">
+                {loading ? '...' : `₹${stats.financials.grossRevenue.toLocaleString('en-IN')}`}
               </div>
             </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 pt-2.5">
-              <span>
-                ₹{stats.financials.advanceCollected.toLocaleString('en-IN')} Advance Coll.
+            <div className="flex items-center justify-between text-[9.5px] sm:text-[11px] pt-1.5 border-t border-slate-100 text-slate-500 gap-1">
+              <span className="truncate text-emerald-600 font-semibold">
+                ↑ ₹{stats.financials.advanceCollected.toLocaleString('en-IN')} Adv.
               </span>
-              <span className="text-emerald-600 group-hover:translate-x-1 transition-transform font-bold">Payouts →</span>
+              <span className="text-[#1e293b] font-bold shrink-0 group-hover:translate-x-0.5 transition-transform">Payouts →</span>
             </div>
           </Link>
 
-          {/* Card 4: KYC & Drivers */}
+          {/* Card 4: Pending KYC */}
           <Link
             href="/vehicle-evidence"
-            className="group relative bg-white hover:bg-purple-50/40 border border-purple-200 hover:border-purple-400 rounded-2xl p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+            className="group bg-white hover:bg-slate-50/50 border border-slate-200/80 hover:border-slate-300 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between"
           >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-purple-700">Pending Driver KYC</p>
-                <h3 className="text-3xl font-black text-slate-900 mt-1">
-                  {loading ? '...' : stats.drivers.pendingKyc}
-                </h3>
+            <div>
+              <div className="flex items-center space-x-1 sm:space-x-1.5 text-slate-700 mb-0.5">
+                <IconClock className="w-3.5 h-3.5 text-slate-800 shrink-0" />
+                <span className="text-[9.5px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-tight truncate">Pending KYC</span>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-purple-100 border border-purple-200 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
-                🛡️
+              <div className="text-xl sm:text-2xl font-black text-slate-900 my-0.5 sm:my-1">
+                {loading ? '...' : stats.drivers.pendingKyc}
               </div>
             </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 pt-2.5">
-              <span>
-                <b className="text-purple-700 font-bold">{stats.drivers.approved}</b> Approved Drivers
+            <div className="flex items-center justify-between text-[9.5px] sm:text-[11px] pt-1.5 border-t border-slate-100 text-slate-500 gap-1">
+              <span className="truncate flex items-center gap-1 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
+                <span>{stats.drivers.approved} Approved</span>
               </span>
-              <span className="text-purple-600 group-hover:translate-x-1 transition-transform font-bold">Review →</span>
+              <span className="text-[#1e293b] font-bold shrink-0 group-hover:translate-x-0.5 transition-transform">Review →</span>
             </div>
           </Link>
         </div>
 
-        {/* Operational Modules Quick Access Grid */}
+        {/* Operational Modules Quick Access Grid (Horizontal swipe on mobile, 7-col grid on desktop) */}
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
-              <span>🗂️</span>
-              <span>All Admin Dashboards & Operational Modules</span>
-            </h2>
-            <span className="text-xs text-slate-500">Direct navigation to system modules</span>
+          <div className="flex items-center space-x-2 mb-1.5 sm:mb-2">
+            <IconDashboard className="w-3.5 h-3.5 text-slate-800 shrink-0" />
+            <h2 className="text-xs sm:text-sm font-bold text-slate-900">Operational Modules</h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="flex lg:grid overflow-x-auto lg:overflow-visible gap-2 pb-1.5 -mx-2.5 px-2.5 sm:mx-0 sm:px-0 lg:grid-cols-7 no-scrollbar">
             {/* 1. Bookings Management */}
             <Link
               href="/bookings"
-              className="bg-white border border-slate-200 hover:border-amber-400 hover:bg-amber-50/20 p-4 rounded-xl transition duration-150 group shadow-xs hover:shadow-md"
+              className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
+              title="Bookings & Dispatch"
             >
-              <div className="flex items-center space-x-3 mb-2">
-                <span className="text-2xl p-2 rounded-lg bg-amber-50 border border-amber-200 group-hover:bg-amber-100 transition-colors">
-                  📋
-                </span>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-amber-600 transition-colors">Bookings & Dispatch</h4>
-                  <p className="text-[11px] text-slate-500">Total: {stats.bookings.total} bookings</p>
-                </div>
+              <IconBookings
+                className="w-4 h-4 text-slate-800 shrink-0"
+                style={{ width: 16, height: 16, minWidth: 16, minHeight: 16 }}
+              />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Bookings</h4>
+                <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.bookings.total} total</p>
               </div>
-              <p className="text-xs text-slate-500 line-clamp-2">
-                Manage bookings, broadcast dispatch to nearby drivers, manual driver assign, and OTP overrides.
-              </p>
             </Link>
 
             {/* 2. Live Map */}
             <Link
               href="/live-map"
-              className="bg-white border border-slate-200 hover:border-blue-400 hover:bg-blue-50/20 p-4 rounded-xl transition duration-150 group shadow-xs hover:shadow-md"
+              className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
+              title="Live GPS Fleet Map"
             >
-              <div className="flex items-center space-x-3 mb-2">
-                <span className="text-2xl p-2 rounded-lg bg-blue-50 border border-blue-200 group-hover:bg-blue-100 transition-colors">
-                  🗺️
-                </span>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">Live GPS Fleet Map</h4>
-                  <p className="text-[11px] text-slate-500">{stats.drivers.online} drivers currently online</p>
-                </div>
+              <IconMap
+                className="w-4 h-4 text-slate-800 shrink-0"
+                style={{ width: 16, height: 16, minWidth: 16, minHeight: 16 }}
+              />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Live Map</h4>
+                <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.drivers.online} online</p>
               </div>
-              <p className="text-xs text-slate-500 line-clamp-2">
-                Live OpenStreetMap GPS tracking of all drivers, active trip routes, and location breadcrumbs.
-              </p>
             </Link>
 
             {/* 3. Payments */}
             <Link
               href="/payments"
-              className="bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/20 p-4 rounded-xl transition duration-150 group shadow-xs hover:shadow-md"
+              className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
+              title="Payments & Settlements"
             >
-              <div className="flex items-center space-x-3 mb-2">
-                <span className="text-2xl p-2 rounded-lg bg-emerald-50 border border-emerald-200 group-hover:bg-emerald-100 transition-colors">
-                  💳
-                </span>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">Payments & Settlements</h4>
-                  <p className="text-[11px] text-slate-500">Advances, Allowances & Balances</p>
-                </div>
+              <IconPayments
+                className="w-4 h-4 text-slate-800 shrink-0"
+                style={{ width: 16, height: 16, minWidth: 16, minHeight: 16 }}
+              />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Payments</h4>
+                <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">Ledger</p>
               </div>
-              <p className="text-xs text-slate-500 line-clamp-2">
-                Track customer 25% advances, record balance UPI/Cash payments, and manage driver trip allowances.
-              </p>
             </Link>
 
             {/* 4. Vehicle KYC */}
             <Link
               href="/vehicle-evidence"
-              className="bg-white border border-slate-200 hover:border-purple-400 hover:bg-purple-50/20 p-4 rounded-xl transition duration-150 group shadow-xs hover:shadow-md"
+              className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
+              title="Vehicle & Driver KYC"
             >
-              <div className="flex items-center space-x-3 mb-2">
-                <span className="text-2xl p-2 rounded-lg bg-purple-50 border border-purple-200 group-hover:bg-purple-100 transition-colors">
-                  🛡️
-                </span>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-purple-600 transition-colors">Vehicle & Driver KYC</h4>
-                  <p className="text-[11px] text-slate-500">{stats.drivers.pendingKyc} Pending Approvals</p>
-                </div>
+              <IconShield
+                className="w-4 h-4 text-slate-800 shrink-0"
+                style={{ width: 16, height: 16, minWidth: 16, minHeight: 16 }}
+              />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Driver KYC</h4>
+                <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.drivers.pendingKyc} pending</p>
               </div>
-              <p className="text-xs text-slate-500 line-clamp-2">
-                Onboard new drivers, review driving licenses, RC books, insurance papers, and vehicle photos.
-              </p>
             </Link>
 
-            {/* 6. Fleets */}
+            {/* 5. Fleets */}
             <Link
               href="/fleets"
-              className="bg-white border border-slate-200 hover:border-amber-400 hover:bg-amber-50/20 p-4 rounded-xl transition duration-150 group shadow-xs hover:shadow-md"
+              className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
+              title="Fleet Categories"
             >
-              <div className="flex items-center space-x-3 mb-2">
-                <span className="text-2xl p-2 rounded-lg bg-amber-50 border border-amber-200 group-hover:bg-amber-100 transition-colors">
-                  🚐
-                </span>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-amber-600 transition-colors">Fleet Categories</h4>
-                  <p className="text-[11px] text-slate-500">{stats.fleets.categoriesCount} Configured Fleets</p>
-                </div>
+              <IconCar
+                className="w-4 h-4 text-slate-800 shrink-0"
+                style={{ width: 16, height: 16, minWidth: 16, minHeight: 16 }}
+              />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Fleets</h4>
+                <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.fleets.categoriesCount} fleets</p>
               </div>
-              <p className="text-xs text-slate-500 line-clamp-2">
-                Configure Sedan, SUV, Crysta, and Tempo Traveller vehicle models, capacity, and features.
-              </p>
             </Link>
 
-            {/* 7. Pricing Rules */}
+            {/* 6. Pricing Rules */}
             <Link
               href="/pricing"
-              className="bg-white border border-slate-200 hover:border-teal-400 hover:bg-teal-50/20 p-4 rounded-xl transition duration-150 group shadow-xs hover:shadow-md"
+              className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
+              title="Pricing Rules"
             >
-              <div className="flex items-center space-x-3 mb-2">
-                <span className="text-2xl p-2 rounded-lg bg-teal-50 border border-teal-200 group-hover:bg-teal-100 transition-colors">
-                  🏷️
-                </span>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-teal-600 transition-colors">Pricing Rules</h4>
-                  <p className="text-[11px] text-slate-500">{stats.fleets.pricingRulesCount} Active Tariffs</p>
-                </div>
+              <IconTag
+                className="w-4 h-4 text-slate-800 shrink-0"
+                style={{ width: 16, height: 16, minWidth: 16, minHeight: 16 }}
+              />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Pricing</h4>
+                <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.fleets.pricingRulesCount} tariffs</p>
               </div>
-              <p className="text-xs text-slate-500 line-clamp-2">
-                Set per-km rates, min km thresholds, driver allowances, night charges, and GST policies.
-              </p>
             </Link>
 
-            {/* 8. Audit Logs */}
+            {/* 7. Audit Logs */}
             <Link
               href="/audit-logs"
-              className="bg-white border border-slate-200 hover:border-slate-400 hover:bg-slate-50 p-4 rounded-xl transition duration-150 group shadow-xs hover:shadow-md"
+              className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
+              title="Audit Trail"
             >
-              <div className="flex items-center space-x-3 mb-2">
-                <span className="text-2xl p-2 rounded-lg bg-slate-100 border border-slate-200 group-hover:bg-slate-200 transition-colors">
-                  📜
-                </span>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-slate-700 transition-colors">Audit Trail</h4>
-                  <p className="text-[11px] text-slate-500">Full System Activity History</p>
-                </div>
+              <IconFileText
+                className="w-4 h-4 text-slate-800 shrink-0"
+                style={{ width: 16, height: 16, minWidth: 16, minHeight: 16 }}
+              />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Audit Trail</h4>
+                <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">Logs</p>
               </div>
-              <p className="text-xs text-slate-500 line-clamp-2">
-                Inspect immutable system audit trails, driver status changes, dispatch events, and OTP actions.
-              </p>
             </Link>
           </div>
         </div>
 
         {/* 2-Column Split: Recent Bookings & Audit Stream */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
           {/* Column 1: Live Bookings Feed */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+          <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <span className="text-base">📋</span>
-                  <h3 className="text-sm font-bold text-slate-900">Recent Booking Activity</h3>
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <div className="flex items-center space-x-1.5 sm:space-x-2">
+                  <IconBookings className="w-4 h-4 text-slate-800" />
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900">Recent Bookings</h3>
                 </div>
                 <Link
                   href="/bookings"
-                  className="text-xs text-amber-600 hover:text-amber-700 font-bold transition"
+                  className="text-xs font-semibold text-[#ea580c] hover:text-[#c2410c] transition flex items-center gap-1"
                 >
-                  View All Bookings →
+                  View All →
                 </Link>
               </div>
 
               {recentBookings.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 text-xs">
+                <div className="text-center py-6 text-slate-400 text-xs">
                   {loading ? 'Loading bookings...' : 'No bookings found yet.'}
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
                   {recentBookings.map((b: any) => (
-                    <div key={b.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between text-xs">
-                      <div className="space-y-0.5 max-w-[65%]">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-mono font-bold text-amber-700">
+                    <div key={b.id} className="py-2.5 sm:py-3 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs gap-1.5 sm:gap-3">
+                      {/* Trip Details */}
+                      <div className="space-y-0.5 sm:space-y-1 flex-1 min-w-0">
+                        <div className="flex items-center space-x-1.5 sm:space-x-2">
+                          <span className="font-mono font-bold text-[#ea580c] text-xs">
                             {b.humanReadableRef || `#${b.id.slice(0, 8)}`}
                           </span>
-                          <span className="text-[10px] text-slate-600 font-medium uppercase px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+                          <span className="text-[9.5px] sm:text-[10px] text-slate-600 font-medium uppercase px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200/60">
                             {b.category || 'CAB'}
                           </span>
                         </div>
-                        <p className="text-slate-800 truncate font-medium" title={`${b.pickupAddress} ${parseIntermediateStops(b).length > 0 ? `➔ Via: ${parseIntermediateStops(b).join(' ➔ ')}` : ''} ➔ ${b.dropAddress}`}>
-                          <span className="text-emerald-600">📍</span> {b.pickupAddress}
-                          {parseIntermediateStops(b).length > 0 && (
-                            <span className="text-amber-800 font-bold">
-                              {' '}➔ 🟡 Via: {parseIntermediateStops(b).join(' ➔ ')}
-                            </span>
-                          )}
-                          {' '}➔ <span className="text-rose-600">🏁</span> {b.dropAddress}
-                        </p>
-                        <p className="text-[10px] text-slate-500">
-                          Customer: {b.customer?.user?.fullName || b.customer?.user?.phone || 'Guest'}
+
+                        {/* Trip Route: On mobile, 'To:' is arranged below 'From:' */}
+                        <div className="text-slate-800 font-medium text-[11.5px] sm:text-xs leading-tight sm:leading-snug" title={`${b.pickupAddress} ${parseIntermediateStops(b).length > 0 ? `➔ Via: ${parseIntermediateStops(b).join(' ➔ ')}` : ''} ➔ ${b.dropAddress}`}>
+                          {/* Mobile View: stacked lines */}
+                          <div className="sm:hidden space-y-0.5">
+                            <div className="truncate">
+                              <span className="text-slate-900 font-bold">From:</span> <span className="text-slate-700">{b.pickupAddress}</span>
+                            </div>
+                            {parseIntermediateStops(b).length > 0 && (
+                              <div className="truncate text-slate-700">
+                                <span className="text-slate-900 font-bold">Via:</span> {parseIntermediateStops(b).join(', ')}
+                              </div>
+                            )}
+                            <div className="truncate">
+                              <span className="text-slate-900 font-bold">To:</span> <span className="text-slate-700">{b.dropAddress}</span>
+                            </div>
+                          </div>
+
+                          {/* Desktop View: inline row */}
+                          <p className="hidden sm:block truncate">
+                            <span className="text-slate-900 font-bold">From:</span> {b.pickupAddress}
+                            {parseIntermediateStops(b).length > 0 && (
+                              <span className="text-slate-700">
+                                {' '}➔ <span className="text-slate-900 font-bold">Via:</span> {parseIntermediateStops(b).join(' ➔ ')}
+                              </span>
+                            )}
+                            {' '}➔ <span className="text-slate-900 font-bold">To:</span> {b.dropAddress}
+                          </p>
+                        </div>
+
+                        <p className="text-[10.5px] sm:text-[11px] text-slate-400 truncate">
+                          Customer: <span className="text-slate-600 font-medium">{b.customer?.user?.fullName || b.customer?.user?.phone || 'Guest'}</span>
                         </p>
                       </div>
 
-                      <div className="text-right space-y-1">
+                      {/* Status & Fare: Arranged below trip details on mobile, right-aligned on desktop */}
+                      <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 sm:gap-1 pt-1 sm:pt-0 shrink-0">
                         <span
-                          className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded-full border ${getStatusBadge(
+                          className={`inline-block px-2.5 py-0.5 text-[9.5px] sm:text-[10px] font-semibold rounded-full border whitespace-nowrap ${getStatusBadge(
                             b.status
                           )}`}
                         >
                           {getStatusLabel(b.status)}
                         </span>
-                        <div className="font-bold text-slate-900">₹{b.totalFare?.toLocaleString('en-IN') || 0}</div>
+                        <div className="font-extrabold text-slate-900 text-xs sm:text-sm">
+                          ₹{b.totalFare?.toLocaleString('en-IN') || 0}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -498,7 +544,7 @@ export default function AdminDashboardPage() {
               )}
             </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
+            <div className="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-slate-100 flex justify-between items-center text-[11px] sm:text-xs text-slate-500">
               <span>Quick status breakdown:</span>
               <div className="flex items-center space-x-2">
                 <span className="text-emerald-700 font-semibold">{stats.bookings.completed} Completed</span>
@@ -509,42 +555,42 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Column 2: Audit Stream */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+          <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <span className="text-base">📜</span>
-                  <h3 className="text-sm font-bold text-slate-900">Latest System Actions</h3>
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <div className="flex items-center space-x-1.5 sm:space-x-2">
+                  <IconFileText className="w-4 h-4 text-slate-800" />
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900">Latest System Actions</h3>
                 </div>
                 <Link
                   href="/audit-logs"
-                  className="text-xs text-amber-600 hover:text-amber-700 font-bold transition"
+                  className="text-xs font-semibold text-[#ea580c] hover:text-[#c2410c] transition"
                 >
-                  View Full Audit Trail →
+                  View Audit →
                 </Link>
               </div>
 
               {recentAuditLogs.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 text-xs">
+                <div className="text-center py-6 text-slate-400 text-xs">
                   {loading ? 'Loading audit trail...' : 'No audit records logged yet.'}
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
                   {recentAuditLogs.map((log: any) => (
-                    <div key={log.id} className="py-3 first:pt-0 last:pb-0 flex items-start justify-between text-xs">
+                    <div key={log.id} className="py-2.5 sm:py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-2 text-xs">
                       <div className="space-y-0.5 max-w-[70%]">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-semibold text-slate-800">{log.action}</span>
+                        <div className="flex items-center space-x-1.5">
+                          <span className="font-semibold text-slate-800 text-[11.5px] sm:text-xs">{log.action}</span>
                         </div>
-                        <p className="text-[11px] text-slate-500 truncate">
+                        <p className="text-[10.5px] sm:text-[11px] text-slate-500 truncate">
                           Target: {log.entityType} ({log.entityId ? `#${log.entityId.slice(0, 8)}` : 'System'})
                         </p>
-                        <p className="text-[10px] text-slate-400">
+                        <p className="text-[9.5px] sm:text-[10px] text-slate-400">
                           By: {log.actor?.fullName || log.actor?.phone || 'System Automated'}
                         </p>
                       </div>
 
-                      <div className="text-right text-[10px] text-slate-500 font-mono">
+                      <div className="text-right text-[9.5px] sm:text-[10px] text-slate-500 font-mono">
                         {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         <br />
                         {new Date(log.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
@@ -555,10 +601,10 @@ export default function AdminDashboardPage() {
               )}
             </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-100 text-right">
+            <div className="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-slate-100 text-right">
               <Link
                 href="/audit-logs"
-                className="text-xs text-slate-500 hover:text-slate-800 transition"
+                className="text-[11px] sm:text-xs text-slate-400 hover:text-slate-700 transition"
               >
                 Audits are cryptographically preserved & immutable
               </Link>

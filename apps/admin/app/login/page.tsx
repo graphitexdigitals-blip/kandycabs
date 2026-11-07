@@ -90,12 +90,12 @@ function AdminLoginForm() {
 
         {error && (
           <div className="mb-5 rounded-xl bg-red-50 border border-red-200 p-3.5 text-xs text-red-700 font-medium leading-relaxed">
-            ⚠️ {error}
+            {error}
           </div>
         )}
         {message && (
           <div className="mb-5 rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 text-xs text-emerald-800 font-medium leading-relaxed">
-            ✅ {message}
+            {message}
           </div>
         )}
 

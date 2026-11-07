@@ -29,13 +29,26 @@ export async function POST(
       return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
     }
 
-    let finalNotes = driver.adminNotes;
-    if (adminNotes !== undefined && adminNotes !== null && String(adminNotes).trim()) {
-      // If admin provided a specific note (e.g., rejection feedback), preserve vehicle tags while updating note
-      const carModelMatch = driver.adminNotes?.match(/\[Car Model:\s*([^\]]+)\]/);
-      const carriageMatch = driver.adminNotes?.match(/\[Luggage\/Carriage:\s*([^\]]+)\]/);
-      const tags = [carModelMatch ? carModelMatch[0] : '', carriageMatch ? carriageMatch[0] : ''].filter(Boolean).join(' ');
-      finalNotes = tags ? `${adminNotes.trim()} ${tags}` : adminNotes.trim();
+    let finalNotes = driver.adminNotes || '';
+    if (status === DriverVerificationStatus.REJECTED) {
+      const reasonText =
+        adminNotes !== undefined && adminNotes !== null && String(adminNotes).trim()
+          ? String(adminNotes).trim()
+          : 'Documents did not meet verification criteria';
+
+      // Remove existing rejection tags and previous plain text
+      finalNotes = finalNotes.replace(/\[RejectionReason:[^\]]+\]/g, '').trim();
+      const firstBracket = finalNotes.indexOf('[');
+      const existingTags = firstBracket !== -1 ? finalNotes.substring(firstBracket) : '';
+
+      finalNotes = `${reasonText} [RejectionReason: ${reasonText}] ${existingTags}`.trim();
+    } else if (status === DriverVerificationStatus.APPROVED) {
+      // Clear rejection reasons on approval
+      finalNotes = finalNotes.replace(/\[RejectionReason:[^\]]+\]/g, '').trim();
+      const firstBracket = finalNotes.indexOf('[');
+      if (firstBracket !== -1) {
+        finalNotes = finalNotes.substring(firstBracket).trim();
+      }
     }
 
     // Update Driver verification status

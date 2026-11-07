@@ -64,6 +64,9 @@ export async function GET(req: NextRequest) {
         distanceKm: true,
         estimatedFare: true,
         advanceAmount: true,
+        driverPayeeAmount: true,
+        driverAllowance: true,
+        scheduledAt: true,
         status: true,
         customerPhoneReleased: true,
         driverPaymentStatus: true,
@@ -85,6 +88,13 @@ export async function GET(req: NextRequest) {
             user: {
               select: { id: true, fullName: true, phone: true },
             },
+          },
+        },
+        vehicle: {
+          select: {
+            category: true,
+            fuelType: true,
+            plateNumber: true,
           },
         },
         tripEvents: {

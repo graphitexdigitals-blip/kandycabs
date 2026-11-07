@@ -115,7 +115,7 @@ const FLEET_INFO: Record<
     category: VehicleCategory.HATCHBACK,
   },
   SWIFT_DZIRE: {
-    name: 'Swift Dzire',
+    name: 'Sedan Swift Dzire',
     models: 'Maruti Suzuki Dzire or equivalent',
     ratePerKm: 13,
     minKm: 60,
@@ -127,7 +127,7 @@ const FLEET_INFO: Record<
     category: VehicleCategory.SEDAN,
   },
   SEDAN: {
-    name: 'Swift Dzire',
+    name: 'Sedan Swift Dzire',
     models: 'Maruti Suzuki Dzire or equivalent',
     ratePerKm: 13,
     minKm: 60,
@@ -139,7 +139,7 @@ const FLEET_INFO: Record<
     category: VehicleCategory.SEDAN,
   },
   TOYOTA_ETIOS: {
-    name: 'Toyota Etios',
+    name: 'Sedan Toyota Etios',
     models: 'Toyota Etios Diesel with Large Boot Space',
     ratePerKm: 14,
     minKm: 60,

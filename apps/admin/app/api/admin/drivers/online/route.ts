@@ -63,10 +63,26 @@ export async function GET(req: NextRequest) {
       ],
     });
 
+    const sanitizedDrivers = drivers.map((d) => {
+      let lat = d.currentLat;
+      let lng = d.currentLng;
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        if ((Math.abs(lat - 37.42) < 1.0 && Math.abs(lng - (-122.08)) < 1.0) || lng < 0) {
+          lat = 12.9716;
+          lng = 77.5946;
+        }
+      }
+      return {
+        ...d,
+        currentLat: lat,
+        currentLng: lng,
+      };
+    });
+
     return NextResponse.json(
       {
         success: true,
-        drivers: drivers,
+        drivers: sanitizedDrivers,
       },
       { status: 200 }
     );

@@ -11,8 +11,30 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '25', 10)));
     const search = searchParams.get('search')?.trim() || '';
     const status = searchParams.get('status') || 'ALL';
+    const startDate = searchParams.get('startDate')?.trim();
+    const endDate = searchParams.get('endDate')?.trim();
 
     const skip = (page - 1) * limit;
+
+    // Date range filter for bookings and revenue
+    const bookingDateFilter: any = {};
+    const paymentDateFilter: any = { status: PaymentStatus.PAID };
+
+    if (startDate || endDate) {
+      const dateRange: any = {};
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        dateRange.gte = start;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        dateRange.lte = end;
+      }
+      bookingDateFilter.createdAt = dateRange;
+      paymentDateFilter.createdAt = dateRange;
+    }
 
     // 1. Calculate Revenue & Driver Payout Summary via database aggregates
     const [
@@ -27,29 +49,35 @@ export async function GET(req: NextRequest) {
       driverPendingCount,
     ] = await Promise.all([
       prisma.payment.aggregate({
-        where: { status: PaymentStatus.PAID },
+        where: paymentDateFilter,
         _sum: { amount: true },
       }),
-      prisma.booking.count(),
+      prisma.booking.count({
+        where: bookingDateFilter,
+      }),
       prisma.booking.count({
         where: {
+          ...bookingDateFilter,
           advancePaymentStatus: PaymentStatus.PAID,
           balancePaymentStatus: PaymentStatus.PAID,
         },
       }),
       prisma.booking.count({
         where: {
+          ...bookingDateFilter,
           advancePaymentStatus: PaymentStatus.PAID,
           balancePaymentStatus: PaymentStatus.PENDING,
         },
       }),
       prisma.booking.count({
         where: {
+          ...bookingDateFilter,
           advancePaymentStatus: PaymentStatus.PENDING,
         },
       }),
       prisma.booking.aggregate({
         where: {
+          ...bookingDateFilter,
           driverPaymentStatus: PaymentStatus.PAID,
           assignedDriverId: { not: null },
         },
@@ -60,12 +88,14 @@ export async function GET(req: NextRequest) {
       }),
       prisma.booking.count({
         where: {
+          ...bookingDateFilter,
           driverPaymentStatus: PaymentStatus.PAID,
           assignedDriverId: { not: null },
         },
       }),
       prisma.booking.aggregate({
         where: {
+          ...bookingDateFilter,
           driverPaymentStatus: PaymentStatus.PENDING,
           assignedDriverId: { not: null },
         },
@@ -76,6 +106,7 @@ export async function GET(req: NextRequest) {
       }),
       prisma.booking.count({
         where: {
+          ...bookingDateFilter,
           driverPaymentStatus: PaymentStatus.PENDING,
           assignedDriverId: { not: null },
         },
@@ -91,7 +122,7 @@ export async function GET(req: NextRequest) {
       Number(driverPendingAggregate._sum?.driverPayeeAmount || 0);
 
     // 2. Query bookings with payments
-    const whereClause: any = {};
+    const whereClause: any = { ...bookingDateFilter };
 
     if (status === 'PAID') {
       whereClause.advancePaymentStatus = PaymentStatus.PAID;

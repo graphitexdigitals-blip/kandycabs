@@ -65,17 +65,48 @@ export const driverTokenStorage = new MobileTokenStorage();
 
 const SECURE_API_URL_KEY = 'kandy_driver_api_url_v1';
 export const DEFAULT_PROD_URL = 'https://kandycabs-8kew.vercel.app';
-export const DEFAULT_LAN_URL = 'http://192.168.1.5:3000';
+export const DEFAULT_DEV_PORT = '3001';
+export const DEFAULT_LAN_HOST = '192.168.1.5';
+export const DEFAULT_EMULATOR_HOST = '10.0.2.2';
 
-let activeBaseUrl: string =
-  (process.env.EXPO_PUBLIC_API_URL && !process.env.EXPO_PUBLIC_API_URL.includes('kandycabs.vercel.app')
-    ? process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '')
-    : null) || DEFAULT_PROD_URL;
+export function resolveDefaultApiUrl(): string {
+  // If env variable is provided and not pointing to remote Vercel
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envUrl && !envUrl.includes('vercel.app')) {
+    return envUrl.replace(/\/+$/, '');
+  }
+
+  // In development:
+  if (__DEV__) {
+    // 1. Check Expo Metro debugger host
+    const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
+    if (hostUri) {
+      const hostIp = hostUri.split(':')[0];
+      if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1') {
+        return `http://${hostIp}:${DEFAULT_DEV_PORT}`;
+      }
+    }
+
+    // 2. Android Emulator default host loopback
+    if (Platform.OS === 'android') {
+      return `http://${DEFAULT_EMULATOR_HOST}:${DEFAULT_DEV_PORT}`;
+    }
+
+    return `http://localhost:${DEFAULT_DEV_PORT}`;
+  }
+
+  return `http://${DEFAULT_LAN_HOST}:${DEFAULT_DEV_PORT}`;
+}
+
+export const DEFAULT_LAN_URL = resolveDefaultApiUrl();
+
+let activeBaseUrl: string = resolveDefaultApiUrl();
 
 // Hydrate saved custom API URL asynchronously
 SecureStore.getItemAsync(SECURE_API_URL_KEY)
   .then((stored) => {
-    if (stored && stored.startsWith('http')) {
+    // Only accept stored URL if it is not an old unreachable vercel domain in dev
+    if (stored && stored.startsWith('http') && (!__DEV__ || !stored.includes('vercel.app'))) {
       activeBaseUrl = stored.replace(/\/+$/, '');
     }
   })

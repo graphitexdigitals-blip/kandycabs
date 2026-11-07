@@ -5,6 +5,24 @@ import { BookingStatus } from '@kandy-cabs/shared';
 import { reverseGeocodeLocation } from '@/lib/geocoding';
 import { parseIntermediateStops, getBookingMetadata } from '@/lib/bookingHelpers';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
+import {
+  IconX,
+  IconMap,
+  IconPinPickup,
+  IconBuilding,
+  IconUsers,
+  IconPackage,
+  IconPaw,
+  IconPlane,
+  IconMail,
+  IconRadio,
+  IconKey,
+  IconImage,
+  IconCash,
+  IconPayments,
+  IconAlert,
+  IconCar,
+} from '@/components/Icons';
 
 interface BookingDetailDrawerProps {
   bookingId: string | null;
@@ -28,9 +46,13 @@ export function BookingDetailDrawer({
   const [loading, setLoading] = useState(false);
   const [togglingPhone, setTogglingPhone] = useState(false);
   const [driverLocationName, setDriverLocationName] = useState<string>('');
-  const [driverAllowanceVal, setDriverAllowanceVal] = useState<string>('350');
-  const [driverPayeeVal, setDriverPayeeVal] = useState<string>('0');
+  const [driverAllowanceVal, setDriverAllowanceVal] = useState<string>('300');
+  const [driverPayeeVal, setDriverPayeeVal] = useState<string>('4850');
   const [driverPayStatus, setDriverPayStatus] = useState<string>('PENDING');
+  const [kmRateVal, setKmRateVal] = useState<string>('13');
+  const [extraKmRateVal, setExtraKmRateVal] = useState<string>('13');
+  const [vehicleLabelVal, setVehicleLabelVal] = useState<string>('Sedan - Toyota Etios');
+  const [copiedVendorText, setCopiedVendorText] = useState<boolean>(false);
   const [savingDriverPay, setSavingDriverPay] = useState<boolean>(false);
   const [approvingFleet, setApprovingFleet] = useState<boolean>(false);
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
@@ -48,9 +70,20 @@ export function BookingDetailDrawer({
         setData(json);
         const b = json.booking;
         if (b) {
-          setDriverAllowanceVal(b.driverAllowance ? String(b.driverAllowance) : '350');
-          setDriverPayeeVal(b.driverPayeeAmount ? String(b.driverPayeeAmount) : '0');
+          const bata = Number(b.driverAllowance) > 0 ? Number(b.driverAllowance) : 300;
+          setDriverAllowanceVal(String(bata));
+
+          // Automatically calculate vendor cost based on distance if not explicitly set
+          const distance = Number(b.distanceKm) || 0;
+          const autoComputed = Math.round(distance * 13 + bata);
+          const savedVendor = Number(b.driverPayeeAmount || 0);
+          const initialVendor = savedVendor > 0 ? savedVendor : autoComputed;
+
+          setDriverPayeeVal(String(initialVendor));
           setDriverPayStatus(b.driverPaymentStatus || 'PENDING');
+          const vCat = b.vehicle?.category || 'Sedan';
+          const vModel = b.vehicle?.plateNumber ? `Toyota Etios (${b.vehicle.plateNumber})` : 'Toyota Etios';
+          setVehicleLabelVal(`${vCat} - ${vModel}`);
         }
         const drv = json.booking?.assignedDriver;
         if (drv?.currentLat && drv?.currentLng) {
@@ -90,6 +123,104 @@ export function BookingDetailDrawer({
     } finally {
       setSavingDriverPay(false);
     }
+  };
+
+  const buildVendorTripDetails = () => {
+    if (!booking) return '';
+    const d = booking.scheduledAt ? new Date(booking.scheduledAt) : (booking.createdAt ? new Date(booking.createdAt) : new Date());
+
+    const getOrdinal = (n: number) => {
+      const s = ['th', 'st', 'nd', 'rd'];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+
+    const dayOrdinal = getOrdinal(d.getDate());
+    const monthShort = d.toLocaleDateString('en-US', { month: 'short' });
+    const weekdayShort = d.toLocaleDateString('en-US', { weekday: 'short' });
+    const year = d.getFullYear();
+    const pickupDateFormatted = `${dayOrdinal} ${monthShort}, ${weekdayShort} ${year}`;
+
+    // Pickup time
+    const minutes = d.getMinutes();
+    const hours = d.getHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+    const pickupTimeFormatted = minutes === 0 ? `${displayHours} ${ampm}` : `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+
+    // Reporting time: 15 mins before
+    const repDate = new Date(d.getTime() - 15 * 60 * 1000);
+    const repMinutes = repDate.getMinutes();
+    const repHours = repDate.getHours();
+    const repAmpm = repHours >= 12 ? 'PM' : 'AM';
+    const repDisplayHours = repHours % 12 || 12;
+    const reportingTimeFormatted = repMinutes === 0 ? `${repDisplayHours} ${repAmpm}` : `${repDisplayHours}:${repMinutes.toString().padStart(2, '0')} ${repAmpm}`;
+
+    const pickupCity = booking.pickupAddress?.split(',')[0]?.trim() || 'Mangaluru';
+    const dropCity = booking.dropAddress?.split(',')[0]?.trim() || 'Bengaluru';
+    const tripTypeWord = booking.tripType === 'ROUND_TRIP' ? 'round trip' : 'one way';
+    const distanceKm = Math.round(Number(booking.distanceKm) || 0);
+    const kmRate = parseFloat(kmRateVal) || 13;
+    const extraRate = parseFloat(extraKmRateVal) || 13;
+    const driverBata = Math.round(parseFloat(driverAllowanceVal) || 300);
+    const parsedVendor = parseFloat(driverPayeeVal);
+    const vendorCost = !isNaN(parsedVendor) && parsedVendor > 0
+      ? Math.round(parsedVendor)
+      : Math.round(distanceKm * kmRate + driverBata);
+
+    return `TRIP DETAILS 
+
+${pickupCity} to ${dropCity} ${tripTypeWord} drop 
+Km limit: ${distanceKm} Kms
+Pick-up date: ${pickupDateFormatted} 
+Pick-up time: ${pickupTimeFormatted} 
+Reporting time: ${reportingTimeFormatted}
+
+Vehicle Type: ${vehicleLabelVal || 'Sedan - Toyota Etios'}
+
+VENDOR COST ₹${vendorCost} 
+
+Inclusions:
+- Km Price: ₹${kmRate}/ Km
+- Driver Bata: ₹${driverBata}
+
+Exclusions (If applicable):
+- Km Price: ₹${extraRate}/Km after ${distanceKm} Kms
+- Toll
+- Parking`;
+  };
+
+  const handleCopyVendorTripDetails = async () => {
+    const text = buildVendorTripDetails();
+    if (!text) return;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedVendorText(true);
+      setTimeout(() => setCopiedVendorText(false), 2500);
+    } catch (e) {
+      console.error('Failed to copy vendor text:', e);
+    }
+  };
+
+  const handleWhatsAppVendor = () => {
+    const text = buildVendorTripDetails();
+    if (!text) return;
+    const rawPhone = assignedDriver?.user?.phone || '';
+    const cleanPhone = rawPhone.replace(/\D/g, '');
+    const phoneParam = cleanPhone.length >= 10 ? (cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone.slice(-10)}`) : '';
+    const url = phoneParam
+      ? `https://wa.me/${phoneParam}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
   };
 
   const handleApproveFleet = async () => {
@@ -203,16 +334,16 @@ export function BookingDetailDrawer({
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/40 backdrop-blur-xs flex justify-end">
       <div className="w-full max-w-2xl bg-white h-full shadow-2xl overflow-y-auto flex flex-col animate-slide-left">
-        {/* Header */}
-        <div className="p-5 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
-          <div>
-            <div className="flex items-center space-x-2">
-              <h2 className="text-lg font-bold text-slate-900">
+        {/* Header - z-30 sticky to prevent any child cards from painting over */}
+        <div className="sticky top-0 bg-white z-30 border-b border-slate-200 px-3.5 py-2.5 sm:px-5 sm:py-3.5 flex items-center justify-between gap-2 shadow-xs">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <h2 className="text-sm sm:text-base font-extrabold text-slate-900 font-mono tracking-tight shrink-0">
                 {booking?.humanReadableRef || 'Loading...'}
               </h2>
               {booking && (
                 <span
-                  className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
+                  className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-bold whitespace-nowrap ${
                     booking.status === BookingStatus.DRIVER_EN_ROUTE ||
                     booking.status === BookingStatus.TRIP_STARTED
                       ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
@@ -228,34 +359,39 @@ export function BookingDetailDrawer({
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Trip Type: <span className="font-medium text-slate-700">{booking?.tripType}</span>
+            <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 truncate">
+              Trip Type: <span className="font-semibold text-slate-700">{booking?.tripType}</span>
+              {booking?.distanceKm ? ` • ${booking.distanceKm} km` : ''}
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition shrink-0"
+            aria-label="Close drawer"
+            title="Close"
           >
-            ✕
+            <IconX className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content */}
         {loading && !data ? (
-          <div className="p-12 text-center text-sm text-slate-500">Loading trip information...</div>
+          <div className="p-8 text-center text-xs text-slate-500">Loading trip information...</div>
         ) : !booking ? (
-          <div className="p-12 text-center text-sm text-slate-500">Booking details not available.</div>
+          <div className="p-8 text-center text-xs text-slate-500">Booking details not available.</div>
         ) : (
-          <div className="p-6 space-y-6 flex-1">
+          <div className="p-3 sm:p-5 space-y-3 sm:space-y-4 flex-1">
             {/* Quick Action Toolbar */}
-            <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+            <div className="flex flex-wrap gap-1.5 p-2 sm:p-2.5 bg-slate-50 rounded-xl border border-slate-200">
               {booking.status === BookingStatus.PENDING_ADMIN && (
                 <button
                   type="button"
                   onClick={() => onOpenDispatch(booking.id, booking.humanReadableRef)}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs"
+                  className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-xs inline-flex items-center gap-1.5"
                 >
-                  📡 Broadcast Dispatch
+                  <IconRadio className="w-3.5 h-3.5" />
+                  <span>Broadcast Dispatch</span>
                 </button>
               )}
 
@@ -263,9 +399,9 @@ export function BookingDetailDrawer({
                 <button
                   type="button"
                   onClick={() => onOpenDispatch(booking.id, booking.humanReadableRef)}
-                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow-xs"
+                  className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow-xs"
                 >
-                  🔄 Re-dispatch Ride
+                  Re-dispatch Ride
                 </button>
               )}
 
@@ -273,13 +409,13 @@ export function BookingDetailDrawer({
                 type="button"
                 disabled={togglingPhone}
                 onClick={handleTogglePhoneRelease}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
+                className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition ${
                   booking.customerPhoneReleased
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                 }`}
               >
-                {booking.customerPhoneReleased ? '🔓 Customer Phone Released' : '🔒 Release Customer Phone'}
+                {booking.customerPhoneReleased ? 'Phone Released' : 'Release Customer Phone'}
               </button>
 
               {booking.status !== BookingStatus.TRIP_STARTED &&
@@ -288,9 +424,10 @@ export function BookingDetailDrawer({
                   <button
                     type="button"
                     onClick={() => onOpenOtpOverride(booking.id, booking.humanReadableRef)}
-                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg shadow-xs"
+                    className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg shadow-xs inline-flex items-center gap-1.5"
                   >
-                    🔑 Admin OTP Override
+                    <IconKey className="w-3.5 h-3.5" />
+                    <span>OTP Override</span>
                   </button>
                 )}
 
@@ -300,9 +437,9 @@ export function BookingDetailDrawer({
                     type="button"
                     disabled={approvingFleet}
                     onClick={handleApproveFleet}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5"
+                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs"
                   >
-                    <span>✓</span> {approvingFleet ? 'Approving...' : 'Approve Fleet'}
+                    {approvingFleet ? 'Approving...' : 'Approve Fleet'}
                   </button>
                 )}
             </div>
@@ -310,25 +447,50 @@ export function BookingDetailDrawer({
             {/* Fleet Availability Verification Alert Box */}
             {booking.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVAL_REQUESTED' || e.payloadJson?.requiresFleetApproval) &&
               !booking.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVED') && (
-                <div className="p-4 bg-amber-50 border-2 border-amber-400 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                <div className="p-3 bg-amber-50 border-2 border-amber-400 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-xs">
                   <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xl">🚍</span>
+                    <div className="flex items-center space-x-1.5">
+                      <IconAlert className="w-4 h-4 text-amber-700 shrink-0" />
                       <span className="font-black text-xs text-amber-900 uppercase tracking-wide">
                         Fleet Availability Verification Required
                       </span>
                     </div>
-                    <p className="text-xs text-amber-800 mt-1 max-w-xl">
-                      This is a large group vehicle booking (Tempo Traveller / Force Urbania). Please verify fleet availability with your operations manager. Once approved, the customer will be enabled to pay their advance from My Bookings.
+                    <p className="text-[11px] text-amber-800 mt-1 max-w-xl">
+                      Large group vehicle booking (Tempo Traveller / Force Urbania). Please verify fleet availability with operations.
                     </p>
                   </div>
                   <button
                     type="button"
                     disabled={approvingFleet}
                     onClick={handleApproveFleet}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs whitespace-nowrap"
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs whitespace-nowrap"
                   >
-                    {approvingFleet ? 'Approving...' : '✓ Approve Fleet Availability'}
+                    {approvingFleet ? 'Approving...' : 'Approve Fleet'}
+                  </button>
+                </div>
+              )}
+
+            {/* Driver Declined Alert Box */}
+            {booking.tripEvents?.some((e: any) => e.type === 'DRIVER_DECLINED') &&
+              (booking.status === BookingStatus.DISPATCHED || booking.status === BookingStatus.PENDING_ADMIN) && (
+                <div className="p-3 bg-rose-50 border-2 border-rose-300 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-xs">
+                  <div>
+                    <div className="flex items-center space-x-1.5">
+                      <IconAlert className="w-4 h-4 text-rose-700 shrink-0" />
+                      <span className="font-black text-xs text-rose-900 uppercase tracking-wide">
+                        Driver Declined This Assignment
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-rose-800 mt-0.5">
+                      Driver <span className="font-semibold">{booking.tripEvents.find((e: any) => e.type === 'DRIVER_DECLINED')?.payloadJson?.driverName || 'Assigned driver'}</span> declined this ride request. Please re-dispatch to another available driver.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onOpenDispatch(booking.id, booking.humanReadableRef)}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-xs shrink-0 whitespace-nowrap"
+                  >
+                    Re-dispatch Now
                   </button>
                 </div>
               )}
@@ -336,34 +498,38 @@ export function BookingDetailDrawer({
             {/* Pending Driver Override Alert Box */}
             {booking.tripEvents?.some((e: any) => e.type === 'OVERRIDE_REQUESTED') &&
               (booking.status === BookingStatus.DRIVER_ACCEPTED || booking.status === BookingStatus.DRIVER_EN_ROUTE) && (
-                <div className="p-4 bg-amber-50 border-2 border-amber-400 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-pulse">
+                <div className="p-3 bg-amber-50 border-2 border-amber-400 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-xs animate-pulse">
                   <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xl">⚠️</span>
+                    <div className="flex items-center space-x-1.5">
+                      <IconAlert className="w-4 h-4 text-amber-700 shrink-0" />
                       <span className="font-black text-xs text-amber-900 uppercase tracking-wide">
                         Driver Requested Manual Trip Start (OTP Override)
                       </span>
                     </div>
-                    <p className="text-xs text-amber-800 mt-1">
+                    <p className="text-[11px] text-amber-800 mt-0.5">
                       Reason: <span className="font-semibold">{booking.tripEvents.find((e: any) => e.type === 'OVERRIDE_REQUESTED')?.payloadJson?.note || 'Customer phone unreachable / battery dead'}</span>
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => onOpenOtpOverride(booking.id, booking.humanReadableRef)}
-                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-xl shadow-xs shrink-0 transition"
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-lg shadow-xs shrink-0 transition inline-flex items-center gap-1.5"
                   >
-                    🔑 Authorize & Start Trip
+                    <IconKey className="w-3.5 h-3.5" />
+                    <span>Authorize & Start Trip</span>
                   </button>
                 </div>
               )}
 
             {/* FLOW A: Mini Live Tracking Map for Trip */}
             <div className="rounded-xl border border-slate-200 overflow-hidden">
-              <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  🗺️ Flow A: Live Driver GPS & Route
-                </span>
+              <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex justify-between items-center">
+                <div className="flex items-center space-x-1.5">
+                  <IconMap className="w-3.5 h-3.5 text-slate-700 shrink-0" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Live Driver GPS & Route
+                  </span>
+                </div>
                 {assignedDriver ? (
                   <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">
                     GPS Active (Last: {assignedDriver.lastPingAt ? new Date(assignedDriver.lastPingAt).toLocaleTimeString() : 'Recent'})
@@ -373,20 +539,23 @@ export function BookingDetailDrawer({
                 )}
               </div>
 
-              <div className="p-4 bg-slate-900 text-white min-h-[160px] flex flex-col justify-center items-center text-center relative overflow-hidden">
+              <div className="p-3 sm:p-4 bg-slate-900 text-white min-h-[140px] flex flex-col justify-center items-center text-center relative overflow-hidden">
                 {assignedDriver ? (
-                  <div className="space-y-2 z-10 w-full max-w-md">
-                    <div className="inline-flex items-center space-x-2 bg-slate-800/90 px-3 py-1.5 rounded-lg border border-slate-700">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-xs font-mono">
+                  <div className="space-y-2 w-full max-w-md">
+                    <div className="inline-flex items-center space-x-2 bg-slate-800/90 px-2.5 py-1 rounded-lg border border-slate-700">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[11px] sm:text-xs font-mono">
                         {assignedDriver.user.fullName} ({assignedDriver.currentLat?.toFixed(4) || '12.9716'}, {assignedDriver.currentLng?.toFixed(4) || '77.5946'})
                       </span>
                     </div>
 
                     {/* Area / Building Name */}
-                    <div className="bg-slate-800/80 p-2 rounded-lg border border-slate-700/80 text-xs">
-                      <span className="text-slate-400">🏢 Current Location: </span>
-                      <span className="text-emerald-300 font-semibold">
+                    <div className="bg-slate-800/80 p-2 rounded-lg border border-slate-700/80 text-[11px] sm:text-xs">
+                      <span className="inline-flex items-center gap-1 text-slate-400">
+                        <IconBuilding className="w-3 h-3 text-slate-400 shrink-0 inline" />
+                        <span>Current Location: </span>
+                      </span>
+                      <span className="text-emerald-300 font-semibold ml-1">
                         {driverLocationName || 'Resolving area & building...'}
                       </span>
                       {assignedDriver.currentLat && assignedDriver.currentLng && (
@@ -397,21 +566,21 @@ export function BookingDetailDrawer({
                             rel="noopener noreferrer"
                             className="text-[10px] text-sky-400 hover:text-sky-300 underline font-mono inline-block"
                           >
-                            Open in Google Maps ↗
+                            Open in Google Maps
                           </a>
                         </div>
                       )}
                     </div>
 
-                    <p className="text-xs text-slate-400">
+                    <p className="text-[11px] text-slate-400">
                       Breadcrumbs Recorded: <span className="text-white font-bold">{trackingPoints.length}</span> GPS points
                     </p>
                     {trackingPoints.length > 0 && (
-                      <div className="flex justify-center space-x-1 mt-2">
+                      <div className="flex justify-center space-x-1 mt-1.5">
                         {trackingPoints.slice(-8).map((pt, i) => (
                           <div
                             key={pt.id || i}
-                            className="w-1.5 h-6 bg-indigo-400/80 rounded-xs"
+                            className="w-1.5 h-5 bg-indigo-400/80 rounded-xs"
                             title={`Point ${i + 1}: ${pt.lat}, ${pt.lng}`}
                           />
                         ))}
@@ -431,10 +600,10 @@ export function BookingDetailDrawer({
               const meta = getBookingMetadata(booking);
               const stops = meta.intermediateStops;
               return (
-                <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
+                <div className="p-3 sm:p-4 rounded-xl border border-slate-200 bg-white space-y-2.5 sm:space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-base">📍</span>
+                    <div className="flex items-center space-x-1.5">
+                      <IconPinPickup className="w-3.5 h-3.5 text-slate-700 shrink-0" />
                       <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
                         Trip Route & Itinerary
                       </h4>
@@ -445,24 +614,24 @@ export function BookingDetailDrawer({
                       </span>
                       {stops.length > 0 && (
                         <span className="text-[10px] bg-amber-100 text-amber-900 font-extrabold px-2 py-0.5 rounded-md border border-amber-300">
-                          ⚡ {stops.length} Intermediate Drop{stops.length > 1 ? 's' : ''}
+                          {stops.length} Intermediate Drop{stops.length > 1 ? 's' : ''}
                         </span>
                       )}
                       {meta.hasCarrier && (
-                        <span className="text-[10px] bg-emerald-100 text-emerald-900 font-extrabold px-2 py-0.5 rounded-md border border-emerald-300 flex items-center gap-1">
-                          <span>📦</span>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-900 font-extrabold px-2 py-0.5 rounded-md border border-emerald-300 inline-flex items-center gap-1">
+                          <IconPackage className="w-3 h-3" />
                           <span>Roof Carrier Requested</span>
                         </span>
                       )}
                       {meta.hasPet && (
-                        <span className="text-[10px] bg-amber-100 text-amber-900 font-extrabold px-2 py-0.5 rounded-md border border-amber-300 flex items-center gap-1">
-                          <span>🐾</span>
+                        <span className="text-[10px] bg-amber-100 text-amber-900 font-extrabold px-2 py-0.5 rounded-md border border-amber-300 inline-flex items-center gap-1">
+                          <IconPaw className="w-3 h-3" />
                           <span>Pet Friendly{meta.petType ? ` (${meta.petType.charAt(0).toUpperCase() + meta.petType.slice(1).toLowerCase()})` : ''} (+₹{meta.petFee || 500})</span>
                         </span>
                       )}
                       {meta.flightNumber && (
-                        <span className="text-[10px] bg-sky-100 text-sky-900 font-extrabold px-2 py-0.5 rounded-md border border-sky-300 flex items-center gap-1">
-                          <span>✈️</span>
+                        <span className="text-[10px] bg-sky-100 text-sky-900 font-extrabold px-2 py-0.5 rounded-md border border-sky-300 inline-flex items-center gap-1">
+                          <IconPlane className="w-3 h-3" />
                           <span>Flight: {meta.flightNumber}</span>
                         </span>
                       )}
@@ -472,7 +641,7 @@ export function BookingDetailDrawer({
                   {/* Multi-Drop Warning / Info Alert */}
                   {stops.length > 0 && (
                     <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-start gap-2">
-                      <span className="text-sm">ℹ️</span>
+                      <IconAlert className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                       <div>
                         <span className="font-bold block">Customer Selected Multiple Drops / Intermediate Stops:</span>
                         <span className="text-[11px] text-amber-800">
@@ -485,7 +654,7 @@ export function BookingDetailDrawer({
                   {/* Roof Carrier Alert */}
                   {meta.hasCarrier && (
                     <div className="p-2.5 bg-emerald-50/90 border border-emerald-300 rounded-lg text-xs text-emerald-950 flex items-start gap-2 shadow-2xs">
-                      <span className="text-base">📦</span>
+                      <IconPackage className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
                       <div>
                         <span className="font-extrabold block text-emerald-900">Roof Luggage Carrier Requested:</span>
                         <span className="text-[11px] text-emerald-800">
@@ -498,7 +667,7 @@ export function BookingDetailDrawer({
                   {/* Pet Friendly Alert */}
                   {meta.hasPet && (
                     <div className="p-2.5 bg-amber-50/90 border border-amber-300 rounded-lg text-xs text-amber-950 flex items-start gap-2 shadow-2xs">
-                      <span className="text-base">🐾</span>
+                      <IconPaw className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                       <div>
                         <span className="font-extrabold block text-amber-900">
                           Pet-Friendly Trip{meta.petType ? ` (${meta.petType.charAt(0).toUpperCase() + meta.petType.slice(1).toLowerCase()})` : ''}:
@@ -513,7 +682,7 @@ export function BookingDetailDrawer({
                   {/* Airport Flight Alert */}
                   {meta.flightNumber && (
                     <div className="p-2.5 bg-sky-50/90 border border-sky-300 rounded-lg text-xs text-sky-950 flex items-start gap-2 shadow-2xs">
-                      <span className="text-base">✈️</span>
+                      <IconPlane className="w-4 h-4 text-sky-700 shrink-0 mt-0.5" />
                       <div>
                         <span className="font-extrabold block text-sky-900">Airport Transfer Flight Details:</span>
                         <span className="text-[11px] text-sky-800">
@@ -586,56 +755,77 @@ export function BookingDetailDrawer({
 
                   {/* Customer Additional Notes / Luggage / Passengers / Carrier / Pet / Flight / GST / Alt Email */}
                   {(meta.passengers || meta.luggage || meta.hasCarrier || meta.hasPet || meta.flightNumber || meta.gstin || meta.alternateEmail || meta.notes || meta.specialRequirements) && (
-                    <div className="pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
+                    <div className="pt-2.5 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-4 gap-1.5 sm:gap-2 text-xs">
                       {meta.passengers ? (
-                        <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                          <span className="text-[10px] text-slate-500 block font-semibold">👥 Passengers</span>
-                          <span className="font-bold text-slate-800">{meta.passengers} Persons</span>
+                        <div className="bg-slate-50 p-2 sm:p-2.5 rounded-lg border border-slate-200">
+                          <span className="flex items-center gap-1 text-[10px] text-slate-500 font-semibold mb-0.5">
+                            <IconUsers className="w-3 h-3 text-slate-500 shrink-0" />
+                            <span>Passengers</span>
+                          </span>
+                          <span className="font-bold text-slate-800 block">{meta.passengers} Persons</span>
                         </div>
                       ) : null}
                       {meta.luggage ? (
-                        <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                          <span className="text-[10px] text-slate-500 block font-semibold">🧳 Luggage</span>
-                          <span className="font-bold text-slate-800">{meta.luggage}</span>
+                        <div className="bg-slate-50 p-2 sm:p-2.5 rounded-lg border border-slate-200">
+                          <span className="flex items-center gap-1 text-[10px] text-slate-500 font-semibold mb-0.5">
+                            <IconPackage className="w-3 h-3 text-slate-500 shrink-0" />
+                            <span>Luggage</span>
+                          </span>
+                          <span className="font-bold text-slate-800 block">{meta.luggage}</span>
                         </div>
                       ) : null}
                       {meta.hasCarrier ? (
-                        <div className="bg-emerald-50/90 p-2.5 rounded-lg border border-emerald-300">
-                          <span className="text-[10px] text-emerald-800 block font-bold">📦 Roof Carrier</span>
-                          <span className="font-black text-emerald-950">✓ Requested (Rooftop)</span>
+                        <div className="bg-emerald-50/90 p-2 sm:p-2.5 rounded-lg border border-emerald-300">
+                          <span className="flex items-center gap-1 text-[10px] text-emerald-800 font-bold mb-0.5">
+                            <IconPackage className="w-3 h-3 text-emerald-700 shrink-0" />
+                            <span>Roof Carrier</span>
+                          </span>
+                          <span className="font-black text-emerald-950 block">Requested (Rooftop)</span>
                         </div>
                       ) : null}
                       {meta.hasPet ? (
-                        <div className="bg-amber-50/90 p-2.5 rounded-lg border border-amber-300">
-                          <span className="text-[10px] text-amber-800 block font-bold">🐾 Pet Friendly</span>
-                          <span className="font-black text-amber-950">✓ {meta.petType ? meta.petType.charAt(0).toUpperCase() + meta.petType.slice(1).toLowerCase() : 'Yes'} (+₹{meta.petFee || 500})</span>
+                        <div className="bg-amber-50/90 p-2 sm:p-2.5 rounded-lg border border-amber-300">
+                          <span className="flex items-center gap-1 text-[10px] text-amber-800 font-bold mb-0.5">
+                            <IconPaw className="w-3 h-3 text-amber-700 shrink-0" />
+                            <span>Pet Friendly</span>
+                          </span>
+                          <span className="font-black text-amber-950 block">{meta.petType ? meta.petType.charAt(0).toUpperCase() + meta.petType.slice(1).toLowerCase() : 'Yes'} (+₹{meta.petFee || 500})</span>
                         </div>
                       ) : null}
                       {meta.flightNumber ? (
-                        <div className="bg-sky-50/90 p-2.5 rounded-lg border border-sky-300">
-                          <span className="text-[10px] text-sky-800 block font-bold">✈️ Flight Number</span>
-                          <span className="font-black text-sky-950">{meta.flightNumber}</span>
+                        <div className="bg-sky-50/90 p-2 sm:p-2.5 rounded-lg border border-sky-300">
+                          <span className="flex items-center gap-1 text-[10px] text-sky-800 font-bold mb-0.5">
+                            <IconPlane className="w-3 h-3 text-sky-700 shrink-0" />
+                            <span>Flight Number</span>
+                          </span>
+                          <span className="font-black text-sky-950 block">{meta.flightNumber}</span>
                         </div>
                       ) : null}
                       {meta.gstin ? (
-                        <div className="bg-indigo-50/90 p-2.5 rounded-lg border border-indigo-300">
-                          <span className="text-[10px] text-indigo-800 block font-bold">🏢 GSTIN</span>
-                          <span className="font-mono font-black text-indigo-950 text-xs">{meta.gstin}</span>
+                        <div className="bg-indigo-50/90 p-2 sm:p-2.5 rounded-lg border border-indigo-300">
+                          <span className="flex items-center gap-1 text-[10px] text-indigo-800 font-bold mb-0.5">
+                            <IconBuilding className="w-3 h-3 text-indigo-700 shrink-0" />
+                            <span>GSTIN</span>
+                          </span>
+                          <span className="font-mono font-black text-indigo-950 text-xs block">{meta.gstin}</span>
                           {meta.companyName ? (
                             <span className="text-[10px] text-indigo-700 block truncate mt-0.5">{meta.companyName}</span>
                           ) : null}
                         </div>
                       ) : null}
                       {meta.alternateEmail ? (
-                        <div className="bg-sky-50/90 p-2.5 rounded-lg border border-sky-300">
-                          <span className="text-[10px] text-sky-800 block font-bold">✉️ Alternate Email</span>
+                        <div className="bg-sky-50/90 p-2 sm:p-2.5 rounded-lg border border-sky-300">
+                          <span className="flex items-center gap-1 text-[10px] text-sky-800 font-bold mb-0.5">
+                            <IconMail className="w-3 h-3 text-sky-700 shrink-0" />
+                            <span>Alternate Email</span>
+                          </span>
                           <span className="font-bold text-sky-950 truncate block text-[11px]">{meta.alternateEmail}</span>
                         </div>
                       ) : null}
                       {(meta.notes || meta.specialRequirements) ? (
-                        <div className="sm:col-span-4 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                          <span className="text-[10px] text-slate-500 block font-semibold">📝 Special Instructions / Notes</span>
-                          <span className="font-medium text-slate-800">{meta.notes || meta.specialRequirements}</span>
+                        <div className="sm:col-span-4 bg-slate-50 p-2 sm:p-2.5 rounded-lg border border-slate-200">
+                          <span className="text-[10px] text-slate-500 block font-semibold mb-0.5">Special Instructions / Notes</span>
+                          <span className="font-medium text-slate-800 block">{meta.notes || meta.specialRequirements}</span>
                         </div>
                       ) : null}
                     </div>
@@ -645,8 +835,8 @@ export function BookingDetailDrawer({
             })()}
 
             {/* Customer & Route Details */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 rounded-xl border border-slate-200 bg-white">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
+              <div className="p-3 sm:p-4 rounded-xl border border-slate-200 bg-white">
                 <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">Customer Info</h4>
                 <p className="text-sm font-bold text-slate-900">{booking.customer?.user?.fullName}</p>
                 <p className="text-xs text-slate-600 font-mono mt-0.5">{booking.customer?.user?.phone}</p>
@@ -672,12 +862,12 @@ export function BookingDetailDrawer({
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl border border-slate-200 bg-white">
+              <div className="p-3 sm:p-4 rounded-xl border border-slate-200 bg-white">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-xs font-bold uppercase text-slate-500">Assigned Driver</h4>
                   {assignedDriver && (
                     <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                      ⭐ 4.9 Rating
+                      4.9 Rating
                     </span>
                   )}
                 </div>
@@ -719,10 +909,10 @@ export function BookingDetailDrawer({
                           {/* Dual Ratings: Driver & KandyCabs */}
                           <div className="flex items-center gap-2">
                             <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                              ⭐ Driver: {dRating}/5
+                              Driver: {dRating}/5
                             </span>
                             <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                              🚕 KandyCabs: {kRating}/5
+                              KandyCabs: {kRating}/5
                             </span>
                           </div>
 
@@ -764,27 +954,27 @@ export function BookingDetailDrawer({
             </div>
 
             {/* Vehicle Inspection Photos (Trip Start 4 Angles) & Odometer Evidence */}
-            <div className="p-4 rounded-xl border border-sky-200 bg-sky-50/40 space-y-3">
+            <div className="p-3 sm:p-4 rounded-xl border border-sky-200 bg-sky-50/40 space-y-2.5 sm:space-y-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <span className="text-base">📸</span>
+                <div className="flex items-center space-x-1.5">
+                  <IconImage className="w-4 h-4 text-sky-900 shrink-0" />
                   <h4 className="font-bold text-sky-950 text-xs uppercase tracking-wider">
-                    Vehicle Inspection & Odometer Evidence (Trip Start)
+                    Vehicle Inspection & Odometer Evidence
                   </h4>
                 </div>
                 <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-md border border-sky-200">
                   {Array.isArray(booking.vehicleInspectionPhotos) && booking.vehicleInspectionPhotos.length > 0
-                    ? `${booking.vehicleInspectionPhotos.filter(Boolean).length}/4 Photos Attached`
-                    : 'Pending Trip Start'}
+                    ? `${booking.vehicleInspectionPhotos.filter(Boolean).length}/4 Photos`
+                    : 'Pending Start'}
                 </span>
               </div>
 
               {/* 4 Inspection Angles */}
               <div>
-                <span className="text-[11px] font-bold text-slate-700 block mb-1.5">
+                <span className="text-[11px] font-bold text-slate-700 block mb-1">
                   Cab Inspection Photos (4 Angles):
                 </span>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
                   {[
                     { label: 'Front Photo', sub: 'Bumper & Plate', idx: 0 },
                     { label: 'Rear Photo', sub: 'Tail & Boot', idx: 1 },
@@ -797,10 +987,10 @@ export function BookingDetailDrawer({
                     return (
                       <div
                         key={angle.label}
-                        className="bg-white border border-slate-200 rounded-lg p-2 flex flex-col items-center text-center shadow-2xs"
+                        className="bg-white border border-slate-200 rounded-lg p-1.5 sm:p-2 flex flex-col items-center text-center shadow-2xs"
                       >
                         <span className="text-[11px] font-bold text-slate-800">{angle.label}</span>
-                        <span className="text-[9px] text-slate-500 mb-1.5">{angle.sub}</span>
+                        <span className="text-[9px] text-slate-500 mb-1">{angle.sub}</span>
                         {photoUrl ? (
                           <div
                             onClick={() => setPreviewImage({ url: resolveImageUrl(photoUrl), title: angle.label })}
@@ -812,12 +1002,12 @@ export function BookingDetailDrawer({
                               className="w-full h-full object-cover group-hover:scale-105 transition"
                             />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-[10px] font-bold">
-                              🔍 View Full
+                              View Full
                             </div>
                           </div>
                         ) : (
                           <div className="w-full h-20 bg-slate-100 rounded border border-dashed border-slate-300 flex flex-col items-center justify-center text-[10px] text-slate-400 p-1">
-                            <span>📷</span>
+                            <IconImage className="w-4 h-4 text-slate-300 mb-0.5" />
                             <span>Not Captured</span>
                           </div>
                         )}
@@ -828,8 +1018,8 @@ export function BookingDetailDrawer({
               </div>
 
               {/* Odometer Evidence Comparison */}
-              <div className="pt-2 border-t border-sky-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-white border border-slate-200 rounded-lg p-2.5 shadow-2xs">
+              <div className="pt-2 border-t border-sky-100 grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                <div className="bg-white border border-slate-200 rounded-lg p-2 sm:p-2.5 shadow-2xs">
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-[11px] font-bold text-slate-700">Starting Odometer</span>
                     <span className="text-xs font-mono font-black text-emerald-700">
@@ -852,7 +1042,7 @@ export function BookingDetailDrawer({
                         className="w-full h-full object-cover group-hover:scale-105 transition"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-[10px] font-bold">
-                        🔍 View Full
+                        View Full
                       </div>
                     </div>
                   ) : (
@@ -862,7 +1052,7 @@ export function BookingDetailDrawer({
                   )}
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-lg p-2.5 shadow-2xs">
+                <div className="bg-white border border-slate-200 rounded-lg p-2 sm:p-2.5 shadow-2xs">
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-[11px] font-bold text-slate-700">Final Odometer</span>
                     <span className="text-xs font-mono font-black text-indigo-700">
@@ -885,7 +1075,7 @@ export function BookingDetailDrawer({
                         className="w-full h-full object-cover group-hover:scale-105 transition"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-[10px] font-bold">
-                        🔍 View Full
+                        View Full
                       </div>
                     </div>
                   ) : (
@@ -901,15 +1091,15 @@ export function BookingDetailDrawer({
             {(() => {
               const fMeta = getBookingMetadata(booking);
               return (
-                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2 text-xs">
-                  <h4 className="font-bold text-slate-700 uppercase tracking-wider mb-2">Fare & Invoice Breakdown</h4>
+                <div className="p-3 sm:p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5 sm:space-y-2 text-xs">
+                  <h4 className="font-bold text-slate-700 uppercase tracking-wider mb-1.5">Fare & Invoice Breakdown</h4>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Base Estimated Total:</span>
                     <span className="font-bold text-slate-900">₹{Number(booking.estimatedFare).toFixed(2)}</span>
                   </div>
                   {fMeta.hasPet && (
                     <div className="flex justify-between text-amber-800">
-                      <span>🐾 Pet Convenience Fee{fMeta.petType ? ` (${fMeta.petType.charAt(0).toUpperCase() + fMeta.petType.slice(1).toLowerCase()})` : ''}:</span>
+                      <span>Pet Convenience Fee{fMeta.petType ? ` (${fMeta.petType.charAt(0).toUpperCase() + fMeta.petType.slice(1).toLowerCase()})` : ''}:</span>
                       <span className="font-bold">+₹{(fMeta.petFee || 500).toFixed(2)} (Included in Total)</span>
                     </div>
                   )}
@@ -925,13 +1115,13 @@ export function BookingDetailDrawer({
                     <div className="pt-1.5 border-t border-slate-200 space-y-1">
                       {Number(booking.tollAmount || 0) > 0 && (
                         <div className="flex justify-between text-amber-700">
-                          <span>🛣️ Toll Gate Charges (Driver Added):</span>
+                          <span>Toll Gate Charges (Driver Added):</span>
                           <span className="font-bold">+₹{Number(booking.tollAmount).toFixed(2)}</span>
                         </div>
                       )}
                       {Number(booking.parkingAmount || 0) > 0 && (
                         <div className="flex justify-between text-blue-700">
-                          <span>🅿️ Parking Charges (Driver Added):</span>
+                          <span>Parking Charges (Driver Added):</span>
                           <span className="font-bold">+₹{Number(booking.parkingAmount).toFixed(2)}</span>
                         </div>
                       )}
@@ -950,13 +1140,13 @@ export function BookingDetailDrawer({
                     if (!method) return null;
                     const isUpi = method === 'UPI_QR';
                     return (
-                      <div className={`mt-2.5 p-2.5 rounded-lg border flex items-center justify-between text-xs font-bold ${
+                      <div className={`mt-2 p-2 rounded-lg border flex items-center justify-between text-xs font-bold ${
                         isUpi
                           ? 'bg-sky-50 text-sky-950 border-sky-200'
                           : 'bg-emerald-50 text-emerald-950 border-emerald-200'
                       }`}>
                         <span className="flex items-center gap-1.5">
-                          <span>{isUpi ? '📱' : '💵'}</span>
+                          <IconPayments className="w-3.5 h-3.5 text-slate-600 shrink-0" />
                           <span>Balance Collection:</span>
                         </span>
                         <span className={`px-2 py-0.5 rounded-md border text-[10.5px] font-black uppercase tracking-wide ${
@@ -973,52 +1163,57 @@ export function BookingDetailDrawer({
               );
             })()}
 
-            {/* Driver Payment & Allowance Management */}
-            <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/40 space-y-3 text-xs">
+            {/* Vendor Cost & Trip Commercials Management */}
+            <div className="p-3.5 sm:p-4 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3 text-xs">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <span className="text-base">💵</span>
-                  <h4 className="font-bold text-emerald-950 uppercase tracking-wider">
-                    Driver Payee & Allowance Settlement
+                <div className="flex items-center space-x-1.5">
+                  <IconCash className="w-4 h-4 text-indigo-950 shrink-0" />
+                  <h4 className="font-extrabold text-indigo-950 uppercase tracking-wider">
+                    Vendor Cost & Trip Commercials
                   </h4>
                 </div>
                 <span
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-black border flex items-center gap-1 ${
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-black border flex items-center gap-1 ${
                     driverPayStatus === 'PAID'
                       ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-xs'
-                      : 'bg-rose-100 text-rose-800 border-rose-300 shadow-xs'
+                      : 'bg-amber-100 text-amber-800 border-amber-300 shadow-xs'
                   }`}
                 >
-                  {driverPayStatus === 'PAID' ? '✓ PAID' : '✗ NOT PAID'}
+                  {driverPayStatus === 'PAID' ? 'PAID (SETTLED)' : 'VENDOR PENDING'}
                 </span>
               </div>
 
-              <p className="text-[11px] text-slate-600">
-                Configure initial driver allowance (paid at trip acceptance/start) and final payee amount upon trip completion.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* Driver Allowance Input */}
+              {/* Profit & Commercials Quick Summary Bar */}
+              <div className="grid grid-cols-3 gap-2 bg-white p-2.5 rounded-lg border border-indigo-100 text-center shadow-2xs">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    🚗 Driver Allowance (₹)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="50"
-                    value={driverAllowanceVal}
-                    onChange={(e) => setDriverAllowanceVal(e.target.value)}
-                    placeholder="e.g. 350"
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  <span className="text-[9px] text-slate-500 mt-0.5 block">Paid at trip start</span>
+                  <span className="text-[10px] text-slate-500 font-bold block uppercase">Customer Total</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-900 font-mono">
+                    ₹{Number(booking.estimatedFare || 0).toFixed(2)}
+                  </span>
                 </div>
-
-                {/* Driver Final Payee Input */}
+                <div className="border-x border-slate-100">
+                  <span className="text-[10px] text-indigo-600 font-bold block uppercase">Vendor Cost</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-indigo-700 font-mono">
+                    ₹{Number(driverPayeeVal || 0).toFixed(2)}
+                  </span>
+                </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    💰 Driver Final Payee (₹)
+                  <span className="text-[10px] text-emerald-600 font-bold block uppercase">Net Profit Margin</span>
+                  <span className={`text-xs sm:text-sm font-extrabold font-mono ${
+                    (Number(booking.estimatedFare || 0) - Number(driverPayeeVal || 0)) >= 0 ? 'text-emerald-700' : 'text-rose-600'
+                  }`}>
+                    {((Number(booking.estimatedFare || 0) - Number(driverPayeeVal || 0)) >= 0 ? '+' : '')}
+                    ₹{(Number(booking.estimatedFare || 0) - Number(driverPayeeVal || 0)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Commercial Inputs */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {/* Vendor Cost Input */}
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-[11px] font-extrabold text-indigo-950 mb-1">
+                    Vendor Cost (₹) *
                   </label>
                   <input
                     type="number"
@@ -1026,43 +1221,163 @@ export function BookingDetailDrawer({
                     step="50"
                     value={driverPayeeVal}
                     onChange={(e) => setDriverPayeeVal(e.target.value)}
-                    placeholder="e.g. 1800"
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="e.g. 4850"
+                    className="w-full px-2.5 py-1.5 bg-white border border-indigo-300 rounded-lg font-mono font-bold text-xs text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs"
                   />
-                  <span className="text-[9px] text-slate-500 mt-0.5 block">Payable after completion</span>
+                  <span className="text-[9.5px] text-slate-500 mt-0.5 block">Vendor agreed payout</span>
                 </div>
 
-                {/* Settlement Status Selector */}
+                {/* Driver Bata Input */}
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    💳 Payment Status
+                    Driver Bata (₹)
                   </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={driverAllowanceVal}
+                    onChange={(e) => {
+                      const newBata = e.target.value;
+                      setDriverAllowanceVal(newBata);
+                      const dist = Number(booking.distanceKm) || 0;
+                      const newTotal = Math.round(dist * (parseFloat(kmRateVal) || 13) + (parseFloat(newBata) || 0));
+                      setDriverPayeeVal(String(newTotal));
+                    }}
+                    placeholder="e.g. 300"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <span className="text-[9.5px] text-slate-500 mt-0.5 block">Driver allowance / day</span>
+                </div>
+
+                {/* Base Km Rate */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Km Price (₹/Km)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="0.5"
+                    value={kmRateVal}
+                    onChange={(e) => {
+                      const newRate = e.target.value;
+                      setKmRateVal(newRate);
+                      const dist = Number(booking.distanceKm) || 0;
+                      const newTotal = Math.round(dist * (parseFloat(newRate) || 0) + (parseFloat(driverAllowanceVal) || 300));
+                      setDriverPayeeVal(String(newTotal));
+                    }}
+                    placeholder="e.g. 13"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <span className="text-[9.5px] text-slate-500 mt-0.5 block">Base rate inclusion</span>
+                </div>
+
+                {/* Extra Km Price */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Extra (₹/Km)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="0.5"
+                    value={extraKmRateVal}
+                    onChange={(e) => setExtraKmRateVal(e.target.value)}
+                    placeholder="e.g. 13"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <span className="text-[9.5px] text-slate-500 mt-0.5 block">After limit rate</span>
+                </div>
+              </div>
+
+              {/* Vehicle Type override & Auto Calculate row */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end">
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Vehicle Type Display in Vendor Template
+                  </label>
+                  <input
+                    type="text"
+                    value={vehicleLabelVal}
+                    onChange={(e) => setVehicleLabelVal(e.target.value)}
+                    placeholder="e.g. Sedan - Toyota Etios"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const auto = Math.round((Number(booking.distanceKm) || 0) * (parseFloat(kmRateVal) || 13) + (parseFloat(driverAllowanceVal) || 300));
+                      setDriverPayeeVal(String(auto));
+                    }}
+                    className="w-full px-2.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-xs rounded-lg transition text-center shadow-2xs"
+                    title="Calculate: Distance × Km Price + Driver Bata"
+                  >
+                    Compute ({Number(booking.distanceKm || 0)} km × ₹{kmRateVal || 13} + ₹{driverAllowanceVal || 300})
+                  </button>
+                </div>
+              </div>
+
+              {/* Status & Save Button */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-indigo-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-slate-700">Payout Status:</span>
                   <select
                     value={driverPayStatus}
                     onChange={(e) => setDriverPayStatus(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="px-2 py-1 bg-white border border-slate-300 rounded-md text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="PENDING">PENDING</option>
                     <option value="PAID">PAID (Settled)</option>
                   </select>
-                  <span className="text-[9px] text-slate-500 mt-0.5 block">Payout state</span>
                 </div>
-              </div>
 
-              {/* Save Button */}
-              <div className="flex justify-end pt-1">
                 <button
                   type="button"
                   disabled={savingDriverPay}
                   onClick={handleSaveDriverPayment}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center space-x-1.5"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center space-x-1.5"
                 >
-                  {savingDriverPay ? (
-                    <span>Saving...</span>
-                  ) : (
-                    <span>💾 Update Driver Payment</span>
-                  )}
+                  <IconCash className="w-3.5 h-3.5" />
+                  <span>{savingDriverPay ? 'Saving Vendor Cost...' : `Update Vendor Cost (₹${driverPayeeVal || '0'})`}</span>
                 </button>
+              </div>
+
+              {/* Vendor Trip Details Dispatch Template Card */}
+              <div className="mt-3 p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wide text-slate-800">
+                    Vendor WhatsApp / SMS Dispatch Format
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleCopyVendorTripDetails}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs ${
+                        copiedVendorText
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-800 hover:bg-slate-900 text-white'
+                      }`}
+                    >
+                      <span>{copiedVendorText ? 'Copied to Clipboard!' : 'Copy Vendor Trip Details'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleWhatsAppVendor}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <span>WhatsApp</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Preformatted Text Preview Box */}
+                <pre className="p-3 bg-slate-900 text-emerald-400 font-mono text-[11px] rounded-lg whitespace-pre-wrap leading-relaxed overflow-x-auto border border-slate-800 select-all">
+                  {buildVendorTripDetails()}
+                </pre>
               </div>
             </div>
 
@@ -1098,13 +1413,17 @@ export function BookingDetailDrawer({
             className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl relative"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center text-white">
-              <span className="font-bold text-sm">📸 {previewImage.title}</span>
+            <div className="relative px-3.5 py-3 sm:px-4 sm:py-3 border-b border-slate-800 flex items-center text-white pr-12">
+              <IconImage className="w-4 h-4 text-indigo-400 shrink-0 mr-2" />
+              <span className="font-bold text-xs sm:text-sm truncate">{previewImage.title}</span>
               <button
+                type="button"
                 onClick={() => setPreviewImage(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg text-sm"
+                className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition"
+                title="Close"
+                aria-label="Close preview"
               >
-                ✕ Close
+                <IconX className="w-3.5 h-3.5" />
               </button>
             </div>
             <div className="p-4 flex items-center justify-center bg-black/60 max-h-[70vh] overflow-hidden">

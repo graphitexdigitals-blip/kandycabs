@@ -184,7 +184,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
   },
   {
     id: 'SWIFT_DZIRE',
-    name: 'Swift Dzire',
+    name: 'Sedan Swift Dzire',
     models: 'Maruti Suzuki Dzire or equivalent',
     ratePerKm: 13,
     minKm: 60,
@@ -208,7 +208,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
   },
   {
     id: 'TOYOTA_ETIOS',
-    name: 'Toyota Etios',
+    name: 'Sedan Toyota Etios',
     models: 'Toyota Etios Diesel with Large Boot Space',
     ratePerKm: 14,
     minKm: 60,
@@ -394,12 +394,12 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
 
 const getCategoryDisplayName = (item: FleetItem) => {
   if (item.id === 'HATCHBACK') return 'Hatchback';
-  if (item.id === 'SWIFT_DZIRE' || item.id === 'DZIRE') return 'Swift Dzire';
-  if (item.id === 'TOYOTA_ETIOS' || item.id === 'ETIOS' || item.id === 'SEDAN') return 'Toyota Etios';
-  if (item.id === 'SUV_ERTIGA' || item.id === 'ERTIGA' || item.id === 'SUV') return 'SUVs Ertiga';
-  if (item.id === 'SUV_CARENS' || item.id === 'CARENS') return 'SUVs Kia Carens';
-  if (item.id === 'SUV_INNOVA' || item.id === 'INNOVA') return 'SUVs Toyota Innova';
-  if (item.id === 'SUV_CRYSTA' || item.id === 'CRYSTA' || item.id === 'SUV_PREMIUM') return 'SUVs Innova Crysta';
+  if (item.id === 'SWIFT_DZIRE' || item.id === 'DZIRE') return 'Sedan – Swift Dzire';
+  if (item.id === 'TOYOTA_ETIOS' || item.id === 'ETIOS' || item.id === 'SEDAN') return 'Sedan – Toyota Etios';
+  if (item.id === 'SUV_ERTIGA' || item.id === 'ERTIGA' || item.id === 'SUV') return 'SUV – Ertiga';
+  if (item.id === 'SUV_CARENS' || item.id === 'CARENS') return 'SUV – Kia Carens';
+  if (item.id === 'SUV_INNOVA' || item.id === 'INNOVA') return 'SUV – Toyota Innova';
+  if (item.id === 'SUV_CRYSTA' || item.id === 'CRYSTA' || item.id === 'SUV_PREMIUM') return 'SUV – Innova Crysta';
   if (item.id === 'TEMPO_TRAVELER') return 'Tempo Traveller';
   if (item.id === 'URBANIA') return 'Force Urbania';
   return item.name;
@@ -1008,29 +1008,33 @@ export default function SelectCabScreen() {
                           </Text>
                         )}
 
-                        {/* Spec Icons Row: 👤 4 + 1   💼 2   ❄️ A/C */}
+                        {/* Spec Icons Row: 👤 4+1 | 💼 3 | ❄️ A/C */}
                         <View style={[styles.refSpecsRow, isSmallDevice && styles.refSpecsRowSmall]}>
                           <View style={styles.refSpecItem}>
-                            <Ionicons name="person" size={isSmallDevice ? 12.5 : 14} color="#475569" />
+                            <Ionicons name="person" size={isSmallDevice ? 11.5 : 13} color="#475569" />
                             <Text style={[styles.refSpecText, isSmallDevice && styles.refSpecTextSmall]}>{seatsLabel}</Text>
                           </View>
 
+                          <Text style={styles.refSpecDivider}>|</Text>
+
                           <View style={styles.refSpecItem}>
-                            <Ionicons name="briefcase" size={isSmallDevice ? 12.5 : 14} color="#475569" />
+                            <Ionicons name="briefcase" size={isSmallDevice ? 11.5 : 13} color="#475569" />
                             <Text style={[styles.refSpecText, isSmallDevice && styles.refSpecTextSmall]}>{bagsLabel}</Text>
                           </View>
 
+                          <Text style={styles.refSpecDivider}>|</Text>
+
                           <View style={styles.refSpecItem}>
-                            <Ionicons name="snow" size={isSmallDevice ? 12.5 : 14} color="#475569" />
+                            <Ionicons name="snow" size={isSmallDevice ? 11.5 : 13} color="#475569" />
                             <Text style={[styles.refSpecText, isSmallDevice && styles.refSpecTextSmall]}>A/C</Text>
                           </View>
                         </View>
 
-                        {/* Kms Limit: Below 4+1 specs row */}
+                        {/* Included KM: e.g. 628 km included */}
                         <Text style={[styles.refKmsLimitText, isSmallDevice && styles.refKmsLimitTextSmall]} numberOfLines={1}>
-                          {t('selectCab.kmsLimit', {
+                          {t('selectCab.kmIncluded', {
                             km: Math.max(item.minKm, Math.round(estimatedKm)),
-                            defaultValue: `${Math.max(item.minKm, Math.round(estimatedKm))} Kms Limit`,
+                            defaultValue: `${Math.max(item.minKm, Math.round(estimatedKm))} km included`,
                           })}
                         </Text>
                       </View>
@@ -1054,21 +1058,22 @@ export default function SelectCabScreen() {
                           <Text style={[styles.refSelectBtnText, isSmallDevice && styles.refSelectBtnTextSmall]}>
                             {t('selectCab.selectBtn', { defaultValue: 'Select' })}
                           </Text>
-                          <Ionicons name="chevron-forward" size={isSmallDevice ? 11 : 13} color="#ffffff" />
+                          <Ionicons name="chevron-forward" size={isSmallDevice ? 11 : 12.5} color="#ffffff" />
                         </TouchableOpacity>
                       </View>
                     </View>
                   </View>
                 </View>
 
-                {/* Fuel Option Checkboxes: Arranged below car image & content, starting from car image section */}
+                {/* Fuel Option Selection: Radio-style row */}
                 {item.fuelTypes && item.fuelTypes.length > 0 && (
                   <View style={[styles.refFuelRow, isSmallDevice && styles.refFuelRowSmall]}>
                     {item.fuelTypes.map((fuel) => {
                       const isSelectedFuel = (selectedFuels[item.id] || item.fuelTypes[0]) === fuel;
+                      const isDiesel = fuel.toUpperCase() === 'DIESEL';
                       const displayFuel =
                         fuel.toUpperCase() === 'CNG' || fuel.toUpperCase().includes('CNG')
-                          ? 'CNG/Petrol'
+                          ? 'CNG / Petrol'
                           : fuel.toUpperCase() === 'PETROL'
                             ? 'Petrol'
                             : 'Diesel';
@@ -1086,7 +1091,7 @@ export default function SelectCabScreen() {
                           hitSlop={{ top: 4, bottom: 4, left: 3, right: 3 }}
                         >
                           <Ionicons
-                            name={isSelectedFuel ? 'checkbox' : 'square-outline'}
+                            name={isSelectedFuel ? 'radio-button-on' : 'radio-button-off'}
                             size={isSmallDevice ? 13.5 : 15.5}
                             color={isSelectedFuel ? 'rgb(240, 117, 15)' : '#64748b'}
                           />
@@ -1106,9 +1111,9 @@ export default function SelectCabScreen() {
                   </View>
                 )}
 
-                {/* 1. TOP ADD-ONS ROW: Additional Requirements (left) and Roof Carrier (right) */}
+                {/* TOP ADD-ONS ROW: Add Requirements (left) | (divider) | Roof Carrier (right) */}
                 <View style={styles.refAddReqRowSection}>
-                  {/* Additional Requirements Button */}
+                  {/* Add Requirements Button */}
                   <TouchableOpacity
                     style={[styles.refCardAddReqBtn, isSmallDevice && styles.refCardAddReqBtnSmall]}
                     onPress={() => onSelectCabItem(item, true)}
@@ -1117,66 +1122,70 @@ export default function SelectCabScreen() {
                   >
                     <Ionicons
                       name="options-outline"
-                      size={isSmallDevice ? 13.5 : 15.5}
+                      size={isSmallDevice ? 13 : 15}
                       color="rgb(240, 117, 15)"
                     />
                     <Text
                       style={[styles.refCardAddReqText, isSmallDevice && styles.refCardAddReqTextSmall]}
                       numberOfLines={1}
                     >
-                      {isSmallDevice ? 'Add Requirements' : 'Additional Requirements'}
+                      {t('selectCab.addRequirements', { defaultValue: 'Add Requirements' })}
                     </Text>
                   </TouchableOpacity>
 
-                  {/* Roof Carrier Checkbox (Below Select Button on the Right - hidden on Dzire Diesel) */}
+                  {/* Vertical Divider & Roof Carrier */}
                   {showRoofCarrier ? (
-                    <TouchableOpacity
-                      style={[
-                        styles.refCarrierCheckBtn,
-                        !item.hasCarrier && styles.refCarrierCheckBtnDisabled,
-                      ]}
-                      onPress={() => {
-                        if (item.hasCarrier) {
-                          toggleCarrier(item.id);
-                        }
-                      }}
-                      activeOpacity={item.hasCarrier ? 0.7 : 1}
-                      disabled={!item.hasCarrier}
-                      hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                    >
-                      <Ionicons
-                        name={
-                          !item.hasCarrier
-                            ? 'square-outline'
-                            : selectedCarriers[item.id]
-                              ? 'checkbox'
-                              : 'square-outline'
-                        }
-                        size={isSmallDevice ? 15 : 17}
-                        color={
-                          !item.hasCarrier
-                            ? '#cbd5e1'
-                            : selectedCarriers[item.id]
-                              ? 'rgb(240, 117, 15)'
-                              : '#64748b'
-                        }
-                      />
-                      <Text
+                    <>
+                      <View style={styles.refAddReqDivider} />
+
+                      <TouchableOpacity
                         style={[
-                          styles.refCarrierLabel,
-                          isSmallDevice && styles.refCarrierLabelSmall,
-                          selectedCarriers[item.id] && styles.refCarrierLabelActive,
-                          !item.hasCarrier && styles.refCarrierLabelDisabled,
+                          styles.refCarrierCheckBtn,
+                          !item.hasCarrier && styles.refCarrierCheckBtnDisabled,
                         ]}
-                        numberOfLines={1}
+                        onPress={() => {
+                          if (item.hasCarrier) {
+                            toggleCarrier(item.id);
+                          }
+                        }}
+                        activeOpacity={item.hasCarrier ? 0.7 : 1}
+                        disabled={!item.hasCarrier}
+                        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                       >
-                        Roof Carrier
-                      </Text>
-                    </TouchableOpacity>
+                        <Ionicons
+                          name={
+                            !item.hasCarrier
+                              ? 'radio-button-off'
+                              : selectedCarriers[item.id]
+                                ? 'radio-button-on'
+                                : 'radio-button-off'
+                          }
+                          size={isSmallDevice ? 14 : 16}
+                          color={
+                            !item.hasCarrier
+                              ? '#cbd5e1'
+                              : selectedCarriers[item.id]
+                                ? 'rgb(240, 117, 15)'
+                                : '#64748b'
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.refCarrierLabel,
+                            isSmallDevice && styles.refCarrierLabelSmall,
+                            selectedCarriers[item.id] && styles.refCarrierLabelActive,
+                            !item.hasCarrier && styles.refCarrierLabelDisabled,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          Roof Carrier
+                        </Text>
+                      </TouchableOpacity>
+                    </>
                   ) : null}
                 </View>
 
-                {/* 2. BOTTOM DETAILS ROW: View Details ⌵ / Hide Details ⌃ (placed below Additional Requirements) */}
+                {/* BOTTOM DETAILS ROW: View Details ⌵ / Hide Details ⌃ */}
                 <View style={styles.refCardBottomRow}>
                   <TouchableOpacity
                     style={styles.refViewDetailsBtn}
@@ -1191,7 +1200,7 @@ export default function SelectCabScreen() {
                     </Text>
                     <Ionicons
                       name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                      size={isSmallDevice ? 14 : 16}
+                      size={isSmallDevice ? 13 : 15}
                       color="#2563eb"
                       style={{ marginLeft: 2 }}
                     />
@@ -1997,18 +2006,18 @@ const styles = StyleSheet.create({
   },
   refCabCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 13,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingTop: 9,
-    paddingBottom: 7,
-    paddingLeft: 13,
-    paddingRight: 13,
-    marginBottom: 9,
+    paddingTop: 8,
+    paddingBottom: 6,
+    paddingLeft: 10,
+    paddingRight: 10,
+    marginBottom: 8,
     shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1.5 },
     shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowRadius: 5,
     elevation: 2,
     overflow: 'hidden',
   },
@@ -2025,7 +2034,7 @@ const styles = StyleSheet.create({
   refCardMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 66,
+    minHeight: 52,
     paddingBottom: 0,
   },
 
@@ -2034,27 +2043,27 @@ const styles = StyleSheet.create({
      Separated so width, height & paddings can be adjusted freely
      ============================================================ */
   carImageSectionLeft: {
-    width: 88,
+    width: 82,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    marginRight: 6,
+    marginRight: 8,
     paddingTop: 0,
     paddingBottom: 0,
     paddingHorizontal: 0,
   },
   carImageSectionLeftSmall: {
-    width: 80,
-    marginRight: 4,
+    width: 74,
+    marginRight: 6,
   },
   carImageWrapperLeft: {
     width: '100%',
-    height: 62,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
   carImageWrapperLeftSmall: {
-    height: 56,
+    height: 48,
   },
   carImage: {
     width: '100%',
@@ -2126,10 +2135,10 @@ const styles = StyleSheet.create({
   },
   refVehicleName: {
     fontFamily: APP_FONT,
-    fontSize: 16.5,
+    fontSize: 16,
     fontWeight: '800',
-    color: 'rgb(22, 34, 50)',
-    lineHeight: 21,
+    color: '#0f172a',
+    lineHeight: 20,
     letterSpacing: -0.1,
     flexShrink: 1,
   },
@@ -2169,74 +2178,79 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: 5,
-    marginTop: 3,
-    marginBottom: 2,
-    maxWidth: '100%',
-  },
-  refSpecsRowSmall: {
     gap: 4,
     marginTop: 2,
     marginBottom: 1,
     maxWidth: '100%',
   },
+  refSpecsRowSmall: {
+    gap: 3,
+    marginTop: 1,
+    marginBottom: 1,
+    maxWidth: '100%',
+  },
+  refSpecDivider: {
+    color: '#cbd5e1',
+    fontSize: 11,
+    fontWeight: '400',
+    marginHorizontal: 1,
+  },
   refSpecItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 2.5,
   },
   refSpecText: {
     fontFamily: APP_FONT,
-    fontSize: 12.5,
+    fontSize: 11.5,
     fontWeight: '700',
     color: '#334155',
     letterSpacing: 0,
   },
   refSpecTextSmall: {
-    fontSize: 11,
+    fontSize: 10.5,
   },
   refFuelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'nowrap',
     gap: 12,
-    paddingLeft: 2,
-    paddingRight: 2,
-    marginTop: 3,
-    marginBottom: 2,
+    paddingHorizontal: 2,
+    marginTop: 4,
+    marginBottom: 3,
   },
   refFuelRowSmall: {
     gap: 8,
-    marginTop: 2,
-    marginBottom: 1,
+    marginTop: 3,
+    marginBottom: 2,
   },
   refFuelCheckboxBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4.5,
-    paddingVertical: 2.5,
+    paddingVertical: 2,
     paddingHorizontal: 1,
   },
   refFuelCheckboxBtnActive: {},
   refFuelText: {
     fontFamily: APP_FONT,
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
-    color: '#475569',
+    color: '#334155',
     letterSpacing: -0.1,
   },
   refFuelTextSmall: {
-    fontSize: 11.5,
+    fontSize: 11,
   },
   refFuelTextActive: {
-    color: 'rgb(22, 34, 50)',
+    color: '#0f172a',
     fontWeight: '800',
   },
   refCarrierCheckBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingVertical: 3,
+    paddingVertical: 2,
   },
   refActionCarrierCheckBtn: {
     flexDirection: 'row',
@@ -2256,13 +2270,13 @@ const styles = StyleSheet.create({
   },
   refCarrierLabel: {
     fontFamily: APP_FONT,
-    fontSize: 13.5,
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#334155',
     letterSpacing: 0.1,
   },
   refCarrierLabelSmall: {
-    fontSize: 12,
+    fontSize: 11.5,
   },
   refCarrierLabelActive: {
     color: 'rgb(240, 117, 15)',
@@ -2274,74 +2288,79 @@ const styles = StyleSheet.create({
   refCardAddReqBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1.2,
+    gap: 5,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 11,
-    paddingVertical: 5.5,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 7,
+    alignSelf: 'center',
   },
   refCardAddReqBtnSmall: {
-    paddingHorizontal: 8,
-    paddingVertical: 4.5,
-    borderRadius: 7,
-    gap: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+    gap: 4,
   },
   refCardAddReqText: {
     fontFamily: APP_FONT,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
-    color: 'rgb(22, 34, 50)',
+    color: '#1e293b',
     letterSpacing: 0.1,
   },
   refCardAddReqTextSmall: {
-    fontSize: 11.5,
+    fontSize: 11,
   },
   refAddReqRowSection: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    paddingTop: 6,
+    paddingHorizontal: 2,
+    paddingTop: 5,
     paddingBottom: 3,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
-    marginTop: 4,
-    gap: 6,
+    marginTop: 3,
+  },
+  refAddReqDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: '#e2e8f0',
+    marginHorizontal: 8,
   },
   refCardBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
-    paddingTop: 5,
-    paddingBottom: 4,
-    marginTop: 2,
+    paddingHorizontal: 2,
+    paddingTop: 4,
+    paddingBottom: 2,
+    marginTop: 1,
   },
   refViewDetailsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     alignSelf: 'center',
-    paddingVertical: 3,
-    paddingHorizontal: 12,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
   },
   refViewDetailsText: {
     fontFamily: APP_FONT,
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '700',
     color: '#2563eb',
-    letterSpacing: 0.6,
+    letterSpacing: 0.3,
   },
   refViewDetailsTextSmall: {
-    fontSize: 12.5,
-    letterSpacing: 0.4,
+    fontSize: 12,
+    letterSpacing: 0.2,
   },
   refActionCol: {
-    width: 88,
+    width: 86,
     alignItems: 'flex-end',
     justifyContent: 'center',
     flexShrink: 0,
@@ -2349,27 +2368,27 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   refActionColSmall: {
-    width: 80,
+    width: 78,
     marginLeft: 2,
   },
   refPriceBlock: {
     alignItems: 'flex-end',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   refPriceText: {
     fontFamily: APP_FONT,
-    fontSize: 17.5,
+    fontSize: 17,
     fontWeight: '800',
-    color: 'rgb(22, 34, 50)',
-    lineHeight: 21,
+    color: '#0f172a',
+    lineHeight: 20,
     letterSpacing: 0.1,
     textAlign: 'right',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   refPriceTextSmall: {
     fontSize: 15,
     lineHeight: 18,
-    marginBottom: 3,
+    marginBottom: 2,
   },
   refGstText: {
     fontFamily: APP_FONT,
@@ -2384,31 +2403,31 @@ const styles = StyleSheet.create({
   refKmsLimitText: {
     fontFamily: APP_FONT,
     fontSize: 11.5,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#334155',
     textAlign: 'left',
     letterSpacing: 0.1,
-    marginTop: 3,
-    marginBottom: 1,
+    marginTop: 2,
+    marginBottom: 0,
   },
   refKmsLimitTextSmall: {
     fontSize: 10.5,
-    marginTop: 2,
+    marginTop: 1,
   },
   refSelectBtn: {
     backgroundColor: 'rgb(240, 117, 15)',
-    borderRadius: 8,
-    paddingHorizontal: 7,
+    borderRadius: 7,
+    paddingHorizontal: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
     width: '100%',
-    height: 29,
+    height: 27,
   },
   refSelectBtnSmall: {
-    height: 26,
-    paddingHorizontal: 5,
+    height: 25,
+    paddingHorizontal: 6,
   },
   refSelectBtnText: {
     fontFamily: APP_FONT,

@@ -44,7 +44,16 @@ export default function DriverOnboardingScreen() {
           setPlateNumber(res.driver.vehicle.plateNumber || '');
           setCategory(res.driver.vehicle.category);
         }
-        if (res.driver.verificationStatus === DriverVerificationStatus.APPROVED) {
+        const d = res.driver;
+        const docsSubmitted = !!(
+          d.licenseDocUrl ||
+          d.rcDocUrl ||
+          d.profilePhotoUrl ||
+          d.insuranceDocUrl ||
+          (d.licenseNumber && d.licenseNumber !== 'PENDING') ||
+          (d.vehicle?.plateNumber && d.vehicle.plateNumber !== 'PENDING')
+        );
+        if (d.verificationStatus === DriverVerificationStatus.APPROVED || (d.verificationStatus === DriverVerificationStatus.PENDING && docsSubmitted)) {
           router.replace('/dashboard');
         }
       }

@@ -204,6 +204,14 @@ class LocationTrackerService {
     }
   }
 
+  // Normalize Android emulator Googleplex GPS coordinates to Karnataka / Bengaluru hub
+  private normalizeCoordinates(lat: number, lng: number): { lat: number; lng: number } {
+    if ((Math.abs(lat - 37.42) < 1.0 && Math.abs(lng - (-122.08)) < 1.0) || lng < 0) {
+      return { lat: 12.9716, lng: 77.5946 };
+    }
+    return { lat, lng };
+  }
+
   // Calculate distance between two lat/lng points in meters
   private getDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371000;
@@ -383,7 +391,8 @@ class LocationTrackerService {
 
   public async handleBackgroundLocationUpdate(locationObj: Location.LocationObject) {
     if (!locationObj || !locationObj.coords) return;
-    const { latitude, longitude } = locationObj.coords;
+    const rawCoords = locationObj.coords;
+    const { lat: latitude, lng: longitude } = this.normalizeCoordinates(rawCoords.latitude, rawCoords.longitude);
 
     this.currentLat = latitude;
     this.currentLng = longitude;
@@ -420,7 +429,8 @@ class LocationTrackerService {
         maxAge: 600000, // up to 10 min cache
       });
       if (lastKnown && lastKnown.coords) {
-        const { latitude, longitude } = lastKnown.coords;
+        const rawCoords = lastKnown.coords;
+        const { lat: latitude, lng: longitude } = this.normalizeCoordinates(rawCoords.latitude, rawCoords.longitude);
         if (__DEV__) {
           console.log(`[LocationTracker] Acquired lastKnown location: lat=${latitude}, lng=${longitude}`);
         }
@@ -456,7 +466,8 @@ class LocationTrackerService {
       const loc = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (loc && loc.coords) {
-        const { latitude, longitude } = loc.coords;
+        const rawCoords = loc.coords;
+        const { lat: latitude, lng: longitude } = this.normalizeCoordinates(rawCoords.latitude, rawCoords.longitude);
         if (__DEV__) {
           console.log(`[LocationTracker] Acquired live single-shot location: lat=${latitude}, lng=${longitude}`);
         }
@@ -513,7 +524,9 @@ class LocationTrackerService {
         },
         (loc) => {
           if (loc && loc.coords) {
-            const { latitude, longitude, accuracy: coordAccuracy } = loc.coords;
+            const rawCoords = loc.coords;
+            const { lat: latitude, lng: longitude } = this.normalizeCoordinates(rawCoords.latitude, rawCoords.longitude);
+            const coordAccuracy = rawCoords.accuracy;
 
             // Accuracy filter: ignore noisy fixes (> 300m uncertainty)
             if (coordAccuracy != null && coordAccuracy > 300) {

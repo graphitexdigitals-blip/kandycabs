@@ -148,27 +148,35 @@ export default function LiveLeafletMap({
       const activeIds = new Set<string>();
 
       drivers.forEach((driver) => {
-        const lat = driver.currentLat;
-        const lng = driver.currentLng;
+        let lat = driver.currentLat;
+        let lng = driver.currentLng;
 
         if (typeof lat !== 'number' || typeof lng !== 'number') return;
+        // Normalize Android emulator default coordinates (Googleplex 37.42, -122.08) or negative longitudes to Karnataka hub
+        if ((Math.abs(lat - 37.42) < 1.0 && Math.abs(lng - (-122.08)) < 1.0) || lng < 0) {
+          lat = 12.9716;
+          lng = 77.5946;
+        }
         validDriverLatLngs.push([lat, lng]);
         activeIds.add(driver.id);
 
         const isSelected = selectedDriver?.id === driver.id;
         const vehicle = driver.vehicles[0];
-        const hasActiveTrip = driver.assignedBookings.length > 0;
-        const isTripStarted = hasActiveTrip && driver.assignedBookings[0].status === 'TRIP_STARTED';
+        const activeTripBooking = driver.assignedBookings.find((b) => b.status === 'TRIP_STARTED');
+        const enRouteBooking = !activeTripBooking && driver.assignedBookings.find((b) => b.status === 'DRIVER_EN_ROUTE');
 
-        const statusColor = isTripStarted
+        const isTripInProgress = Boolean(activeTripBooking);
+        const isEnRoute = Boolean(enRouteBooking);
+
+        const statusColor = isTripInProgress
           ? '#f59e0b'
-          : hasActiveTrip
+          : isEnRoute
           ? '#3b82f6'
           : '#10b981';
 
-        const statusText = isTripStarted
+        const statusText = isTripInProgress
           ? 'Trip in Progress'
-          : hasActiveTrip
+          : isEnRoute
           ? 'En-Route'
           : 'Idle / Available';
 
@@ -389,39 +397,6 @@ export default function LiveLeafletMap({
     <div className="relative w-full h-full min-h-[550px] flex-1 bg-slate-950 overflow-hidden">
       {/* Map Container */}
       <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" style={{ zIndex: 1 }} />
-
-      {/* Floating Control HUD */}
-      <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-2 pointer-events-auto">
-        <div className="bg-slate-900/90 border border-slate-700 px-3 py-1.5 rounded-xl text-[11px] font-mono text-slate-300 backdrop-blur-md shadow-lg flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>OpenStreetMap Leaflet Live</span>
-        </div>
-
-        <button
-          onClick={handleResetView}
-          className="bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl backdrop-blur-md transition shadow-lg flex items-center gap-1.5"
-          title="Fit bounds to all active drivers"
-        >
-          <span>🎯 Recenter Fleet</span>
-        </button>
-
-        {selectedDriver && typeof selectedDriver.currentLat === 'number' && typeof selectedDriver.currentLng === 'number' && (
-          <button
-            onClick={() => handleFocusDriver(selectedDriver)}
-            className="bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl backdrop-blur-md transition shadow-lg flex items-center gap-1.5"
-            title="Pan camera to selected driver"
-          >
-            <span>📍 Focus: {selectedDriver.user.fullName.split(' ')[0]}</span>
-          </button>
-        )}
-
-        <button
-          onClick={() => setMapTheme(mapTheme === 'hot' ? 'osm' : 'hot')}
-          className="bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl backdrop-blur-md transition shadow-lg flex items-center gap-1.5"
-        >
-          <span>{mapTheme === 'hot' ? '🗺️ Standard OSM' : '🎨 Humanitarian OSM (HOT)'}</span>
-        </button>
-      </div>
 
       {/* Map Pulse Style Definition */}
       <style jsx global>{`

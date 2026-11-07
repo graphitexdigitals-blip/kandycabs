@@ -15,4 +15,5 @@ export * from './supabase/client';
 export * from './utils/logger';
 export * from './utils/distance';
 export * from './utils/polyfill';
+export * from './utils/documentExpiry';
 

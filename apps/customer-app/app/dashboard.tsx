@@ -177,7 +177,7 @@ const VEHICLE_TYPES = [
   },
   {
     category: VehicleCategory.SEDAN,
-    name: 'Swift Dzire',
+    name: 'Sedan Swift Dzire',
     models: 'Maruti Suzuki Dzire or equivalent',
     rate: '₹13/km',
     capacity: '4 Pax',

@@ -56,7 +56,23 @@ export default function DriverAppIndex() {
           try {
             await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(statusRes.driver));
           } catch (_) {}
-          router.replace('/dashboard');
+          const d = statusRes.driver;
+          const docsSubmitted = !!(
+            d.licenseDocUrl ||
+            d.rcDocUrl ||
+            d.profilePhotoUrl ||
+            d.insuranceDocUrl ||
+            (d.licenseNumber && d.licenseNumber !== 'PENDING') ||
+            (d.vehicle?.plateNumber && d.vehicle.plateNumber !== 'PENDING' && !d.vehicle.plateNumber.startsWith('KA 01 TR 0000')) ||
+            (d.vehicles && d.vehicles.length > 0 && d.vehicles[0]?.plateNumber && d.vehicles[0]?.plateNumber !== 'PENDING')
+          );
+          const hasSubmitted = d.verificationStatus === 'APPROVED' || (d.verificationStatus === 'PENDING' && docsSubmitted);
+
+          if (hasSubmitted) {
+            router.replace('/dashboard');
+          } else {
+            router.replace('/documents');
+          }
           return;
         } else if (
           statusRes?.success === false &&
