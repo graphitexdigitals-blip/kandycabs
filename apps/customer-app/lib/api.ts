@@ -157,13 +157,11 @@ export const customerTokenStorage = new MobileTokenStorage();
 import Constants from 'expo-constants';
 
 export function getDynamicBaseUrl(): string {
-  if (process.env.EXPO_PUBLIC_API_URL && !process.env.EXPO_PUBLIC_API_URL.includes('kandycabs.vercel.app')) {
-    return process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envUrl && envUrl.startsWith('http')) {
+    return envUrl.replace(/\/+$/, '');
   }
-  if (__DEV__) {
-    return Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
-  }
-  return 'http://192.168.1.5:3000';
+  return 'https://kandycabs-8kew.vercel.app';
 }
 
 export const customerApiClient = new KandyApiClient({
