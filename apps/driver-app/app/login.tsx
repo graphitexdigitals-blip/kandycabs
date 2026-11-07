@@ -505,29 +505,29 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? 76 : 64,
-    paddingBottom: Platform.OS === 'android' ? 32 : 24,
+    paddingTop: Platform.OS === 'android' ? 32 : 24,
+    paddingBottom: Platform.OS === 'android' ? 24 : 18,
     justifyContent: 'space-between',
   },
   mainContent: {
     flex: 1,
   },
   header: {
-    marginTop: 16,
-    marginBottom: 20,
+    marginTop: 6,
+    marginBottom: 14,
     alignItems: 'center',
   },
   logoImage: {
-    width: 180,
-    height: 90,
-    marginBottom: 4,
+    width: 225,
+    height: 110,
+    marginBottom: 2,
   },
   partnerTitle: {
-    fontSize: 16.5,
+    fontSize: 17,
     fontWeight: '900',
     color: '#002244',
     letterSpacing: 0.8,
-    marginTop: 8,
+    marginTop: 4,
     textAlign: 'center',
   },
   languageRow: {

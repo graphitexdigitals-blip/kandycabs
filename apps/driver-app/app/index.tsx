@@ -194,8 +194,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   logoImage: {
-    width: 210,
-    height: 105,
+    width: 235,
+    height: 115,
     marginBottom: 8,
   },
   badge: {
