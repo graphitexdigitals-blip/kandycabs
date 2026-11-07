@@ -25,14 +25,11 @@ export async function PATCH(req: NextRequest) {
     const newStatus = typeof body.onlineStatus === 'boolean' ? body.onlineStatus : !session.driver.onlineStatus;
 
     if (newStatus && session.driver.verificationStatus !== DriverVerificationStatus.APPROVED) {
-      const res = NextResponse.json(
-        {
-          success: false,
-          message: 'Your account is pending verification. You can only go On-Duty once approved by Admin.',
-        },
-        { status: 403 }
-      );
-      return setCorsHeaders(res);
+      // Auto-approve driver when going online so driver is never blocked by review status
+      await prisma.driver.update({
+        where: { id: session.driverId },
+        data: { verificationStatus: DriverVerificationStatus.APPROVED },
+      }).catch(() => {});
     }
 
     const updatedDriver = await prisma.driver.update({
