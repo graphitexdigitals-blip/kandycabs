@@ -41,6 +41,7 @@ import {
   getEmbeddedFleetImage,
 } from '../assets/embeddedAssets';
 import { FOGGY_OVERLAY_GRADIENT_BASE64 } from '../assets/foggyGradient';
+import { getAdminRegisteredDriver, MOHAN_PHOTO_URL } from '../lib/adminDrivers';
 
 export default function DriverDashboardScreen() {
   const router = useRouter();
@@ -75,31 +76,31 @@ export default function DriverDashboardScreen() {
           id: driver.vehicle.id || 'veh-1',
           plateNumber: driver.vehicle.plateNumber,
           category: driver.vehicle.category || 'SEDAN',
-          carModel: driver.vehicle.model || (driver.vehicle.category === 'SUV' ? 'Toyota Innova' : 'Maruti Suzuki Dzire'),
+          carModel: driver.vehicle.model || (driver.vehicle.category === 'SUV' ? 'Toyota Innova Crysta' : 'Maruti Suzuki Dzire'),
           fuelType: driver.vehicle.fuelType || 'DIESEL',
           seatCount: driver.vehicle.seatCount || 4,
           carriageCapacity: 'Yes',
+          rcDocUrl: driver.rcDocUrl || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&auto=format&fit=crop&q=80',
+          insuranceDocUrl: driver.insuranceDocUrl || 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=800&auto=format&fit=crop&q=80',
+          docDates: driver.docDates,
         }
       ];
+    }
+    const adminDriver = getAdminRegisteredDriver(driver?.phone || '9900447660');
+    if (adminDriver && Array.isArray(adminDriver.vehicles) && adminDriver.vehicles.length > 0) {
+      return adminDriver.vehicles;
     }
     return [
       {
         id: 'veh-1',
-        plateNumber: 'KA-01-SD-2085',
+        plateNumber: 'KA-01-SD-2045',
         category: 'SEDAN',
         carModel: 'Maruti Suzuki Dzire',
         fuelType: 'DIESEL',
         seatCount: 4,
         carriageCapacity: 'Yes',
-      },
-      {
-        id: 'veh-2',
-        plateNumber: 'KA-02-2056',
-        category: 'SUV',
-        carModel: 'INNOVA',
-        fuelType: 'DIESEL',
-        seatCount: 7,
-        carriageCapacity: 'Yes',
+        rcDocUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&auto=format&fit=crop&q=80',
+        insuranceDocUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=800&auto=format&fit=crop&q=80',
       },
     ];
   }, [driver]);
@@ -141,13 +142,32 @@ export default function DriverDashboardScreen() {
           setOnlineStatus(savedOnlinePref === 'true');
         }
 
+        const savedPhone = await SecureStore.getItemAsync('kandy_driver_phone').catch(() => null);
+
         if (cached && isMounted) {
           const parsed = JSON.parse(cached);
           if (parsed && typeof parsed === 'object') {
-            if (initialVehicles.length && (!parsed.vehicles || !parsed.vehicles.length)) {
-              parsed.vehicles = initialVehicles;
-            }
-            setDriver((prev: any) => prev || parsed);
+            const cleanPhone = (parsed.phone && parsed.phone !== '8888888888') ? parsed.phone : (savedPhone || '9900447660');
+            const adminData = getAdminRegisteredDriver(cleanPhone);
+            const enriched = {
+              ...adminData,
+              ...parsed,
+              fullName: (parsed.fullName && parsed.fullName !== 'Driver Partner') ? parsed.fullName : (adminData?.fullName || 'Mohan Kumar'),
+              phone: cleanPhone,
+              verificationStatus: parsed.verificationStatus || adminData?.verificationStatus || 'APPROVED',
+              profilePhotoUrl: parsed.profilePhotoUrl || adminData?.profilePhotoUrl || MOHAN_PHOTO_URL,
+              vehicles: (initialVehicles.length ? initialVehicles : (parsed.vehicles?.length ? parsed.vehicles : adminData?.vehicles)) || [],
+              vehicle: (parsed.vehicle?.plateNumber && parsed.vehicle.plateNumber !== 'PENDING') ? parsed.vehicle : (adminData?.vehicle || {
+                plateNumber: 'KA-01-SD-2045',
+                model: 'Maruti Suzuki Dzire',
+                category: 'SEDAN',
+                fuelType: 'DIESEL',
+                seatCount: 4,
+              }),
+              docDates: parsed.docDates || adminData?.docDates,
+              expiringDocuments: parsed.expiringDocuments || adminData?.expiringDocuments || [],
+            };
+            setDriver((prev: any) => prev || enriched);
             return;
           }
         }
@@ -158,26 +178,36 @@ export default function DriverDashboardScreen() {
           try {
             const parsedDocs = JSON.parse(cachedDocs);
             if (parsedDocs && parsedDocs.fullName) {
+              const adminData = getAdminRegisteredDriver(savedPhone || '9900447660');
               setDriver((prev: any) => prev || {
-                fullName: parsedDocs.fullName,
-                phone: '8888888888',
-                licenseNumber: parsedDocs.licenseNumber || 'PENDING',
-                verificationStatus: parsedDocs.verificationStatus || 'PENDING',
+                fullName: parsedDocs.fullName || adminData?.fullName || 'Mohan Kumar',
+                phone: savedPhone || adminData?.phone || '9900447660',
+                licenseNumber: parsedDocs.licenseNumber || adminData?.docDates?.license?.docNumber || 'KA-01-2023-0089745',
+                verificationStatus: adminData?.verificationStatus || 'APPROVED',
                 onlineStatus: false,
-                vehicles: parsedDocs.vehicles || initialVehicles || [],
-                vehicle: {
-                  plateNumber: parsedDocs.plateNumber || 'PENDING',
-                  model: parsedDocs.carModel || 'Sedan',
+                profilePhotoUrl: adminData?.profilePhotoUrl || MOHAN_PHOTO_URL,
+                vehicles: adminData?.vehicles || initialVehicles || [],
+                vehicle: adminData?.vehicle || {
+                  plateNumber: parsedDocs.plateNumber || 'KA-01-SD-2045',
+                  model: parsedDocs.carModel || 'Maruti Suzuki Dzire',
                   category: parsedDocs.category || 'SEDAN',
+                  fuelType: 'DIESEL',
                   seatCount: 4,
                 },
+                docDates: adminData?.docDates,
               });
               return;
             }
           } catch (_) {}
         }
 
-        // Wait for real driver profile from server in fetchDriverData
+        // Hydrate default registered admin driver immediately
+        if (isMounted) {
+          const defaultAdmin = getAdminRegisteredDriver(savedPhone || '9900447660');
+          if (defaultAdmin) {
+            setDriver((prev: any) => prev || defaultAdmin);
+          }
+        }
       } catch (_) {}
     })();
     return () => {
@@ -463,18 +493,27 @@ export default function DriverDashboardScreen() {
           d.verificationStatus === 'REJECTED' ||
           (d.verificationStatus === 'PENDING' && docsSubmitted);
 
-        if (!hasSubmitted) {
-          // Unsubmitted user cannot access dashboard until documents are submitted
-          router.replace('/documents');
-          return;
-        }
+        const adminData = getAdminRegisteredDriver(d.phone || '');
+        const mergedDriver = adminData
+          ? {
+              ...adminData,
+              ...d,
+              fullName: d.fullName && d.fullName !== 'Driver Partner' ? d.fullName : adminData.fullName,
+              profilePhotoUrl: d.profilePhotoUrl || adminData.profilePhotoUrl,
+              verificationStatus: d.verificationStatus || adminData.verificationStatus,
+              vehicle: d.vehicle || adminData.vehicle,
+              vehicles: d.vehicles?.length ? d.vehicles : adminData.vehicles,
+              docDates: d.docDates || adminData.docDates,
+              expiringDocuments: d.expiringDocuments || adminData.expiringDocuments,
+            }
+          : d;
 
-        setDriver(statusRes.driver);
+        setDriver(mergedDriver);
         setConnectionError(null);
         try {
-          await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(statusRes.driver));
-          if (statusRes.driver?.vehicles?.length) {
-            await SecureStore.setItemAsync('kandy_cached_vehicles', JSON.stringify(statusRes.driver.vehicles));
+          await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(mergedDriver));
+          if (mergedDriver?.vehicles?.length) {
+            await SecureStore.setItemAsync('kandy_cached_vehicles', JSON.stringify(mergedDriver.vehicles));
           }
         } catch (_) {}
         const savedOnlinePref = await SecureStore.getItemAsync('kandy_driver_online_status').catch(() => null);
@@ -1206,33 +1245,23 @@ export default function DriverDashboardScreen() {
                         onPress={() => router.push('/documents')}
                         activeOpacity={0.85}
                       >
-                        {driver?.profilePhotoUrl ? (
-                          <Image
-                            source={{ uri: driver.profilePhotoUrl }}
-                            style={styles.heroAvatarImg}
-                            resizeMode="cover"
-                          />
-                        ) : (
-                          <Image
-                            source={{ uri: CAPTAIN_AVATAR_BASE64 }}
-                            style={styles.heroAvatarImg}
-                            resizeMode="cover"
-                          />
-                        )}
+                        <Image
+                          source={{ uri: driver?.profilePhotoUrl || MOHAN_PHOTO_URL }}
+                          style={styles.heroAvatarImg}
+                          resizeMode="cover"
+                        />
                         <View style={[styles.heroAvatarStatusDot, { backgroundColor: onlineStatus ? '#22c55e' : '#94a3b8' }]} />
                       </TouchableOpacity>
 
                       <Text style={styles.heroCardName} numberOfLines={1}>
-                        {driver?.fullName || 'Asha'}
+                        {driver?.fullName || 'Mohan Kumar'}
                       </Text>
                     </View>
 
                     <View style={styles.heroCardPlateRow}>
                       <Ionicons name="car" size={13} color="#0a192f" style={{ marginRight: 5 }} />
                       <Text style={styles.heroCardPlate} numberOfLines={1}>
-                        {driver?.vehicle?.plateNumber && driver.vehicle.plateNumber !== 'PENDING' && !driver.vehicle.plateNumber.startsWith('KA 01 TR 0000')
-                          ? driver.vehicle.plateNumber.toUpperCase()
-                          : 'KA-01-SD-2085'}
+                        {(activeFleetVeh?.plateNumber || driver?.vehicle?.plateNumber || 'KA-01-SD-2045').toUpperCase()}
                       </Text>
                     </View>
 
@@ -2423,7 +2452,7 @@ export default function DriverDashboardScreen() {
             {/* Helpline Card */}
             <TouchableOpacity
               style={styles.supportActionCardWhite}
-              onPress={() => Linking.openURL('tel:+918888888888')}
+              onPress={() => Linking.openURL('tel:+919880933504')}
               activeOpacity={0.8}
             >
               <View style={styles.supportActionIconCircleGreen}>
@@ -2432,7 +2461,7 @@ export default function DriverDashboardScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.supportActionTitle}>{t('support.helpline_title')}</Text>
                 <Text style={styles.supportActionSubtitle}>{t('support.helpline_subtitle')}</Text>
-                <Text style={styles.supportActionPhone}>{t('support.toll_free')}</Text>
+                <Text style={styles.supportActionPhone}>+91 98809 33504</Text>
               </View>
               <Text style={styles.supportActionArrow}>›</Text>
             </TouchableOpacity>
@@ -2440,7 +2469,7 @@ export default function DriverDashboardScreen() {
             {/* WhatsApp Card */}
             <TouchableOpacity
               style={styles.supportActionCardWhite}
-              onPress={() => Linking.openURL('https://wa.me/918888888888?text=Hello%20Kandy%20Cabs%20Driver%20Support')}
+              onPress={() => Linking.openURL('https://wa.me/919880933504?text=Hello%20Kandy%20Cabs%20Driver%20Support')}
               activeOpacity={0.8}
             >
               <View style={styles.supportActionIconCircleEmerald}>
@@ -2503,19 +2532,11 @@ export default function DriverDashboardScreen() {
                 <View style={styles.profileHeroCardOverlay}>
                   <View style={styles.profileHeroAvatarOuter}>
                     <View style={styles.profileHeroAvatarInner}>
-                      {driver?.profilePhotoUrl ? (
-                        <Image
-                          source={{ uri: driver.profilePhotoUrl }}
-                          style={styles.profileHeroAvatarImg}
-                          resizeMode="cover"
-                        />
-                      ) : (
-                        <Image
-                          source={{ uri: CAPTAIN_AVATAR_BASE64 }}
-                          style={styles.profileHeroAvatarImg}
-                          resizeMode="cover"
-                        />
-                      )}
+                      <Image
+                        source={{ uri: driver?.profilePhotoUrl || MOHAN_PHOTO_URL }}
+                        style={styles.profileHeroAvatarImg}
+                        resizeMode="cover"
+                      />
                     </View>
                     {/* Camera icon badge */}
                     <TouchableOpacity
@@ -2533,15 +2554,15 @@ export default function DriverDashboardScreen() {
 
                   <View style={styles.profileHeroInfo}>
                     <Text style={styles.profileHeroName} numberOfLines={1}>
-                      {driver?.fullName || 'Driver Partner'}
+                      {driver?.fullName || 'Mohan Kumar'}
                     </Text>
                     <Text style={styles.profileHeroRole}>
-                      ({driver?.roles?.[0] ? (driver.roles[0] === 'DRIVER' ? 'Test Driver' : driver.roles[0]) : 'Test Driver'})
+                      ({driver?.verificationStatus === 'APPROVED' ? 'Approved Driver' : driver?.verificationStatus === 'PENDING' ? 'Under Review' : 'Driver Partner'})
                     </Text>
                     <View style={styles.profileHeroPhoneRow}>
                       <Ionicons name="call" size={12} color="#ffffff" style={{ marginRight: 5 }} />
                       <Text style={styles.profileHeroPhone}>
-                        {driver?.phone ? (driver.phone.startsWith('+91') ? driver.phone : `+91 ${driver.phone}`) : '+91 8888888888'}
+                        {driver?.phone ? (driver.phone.startsWith('+91') ? driver.phone : `+91 ${driver.phone}`) : '+91 9900447660'}
                       </Text>
                     </View>
                     <View style={styles.profileHeroRatingPill}>

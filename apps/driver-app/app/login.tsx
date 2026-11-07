@@ -25,6 +25,7 @@ import {
   DEFAULT_PROD_URL,
 } from '../lib/api';
 import { CAPTAIN_AVATAR_BASE64 } from '../assets/embeddedAssets';
+import { ADMIN_REGISTERED_DRIVERS, getAdminRegisteredDriver } from '../lib/adminDrivers';
 
 export default function DriverLoginScreen() {
   const router = useRouter();
@@ -143,177 +144,128 @@ export default function DriverLoginScreen() {
       const sessionToken = (userData && (userData as any).token) || `driver_session_${cleanPhone}_${Date.now()}`;
       await driverApiClient.setToken(sessionToken);
 
-      const isDemoDriver = cleanPhone === '9587425635' || cleanPhone === '8888888888';
-      let hasSubmitted = isDemoDriver;
+      const regDriver = getAdminRegisteredDriver(cleanPhone);
       let driverToCache: any = null;
 
-      if (!isDemoDriver) {
-        try {
-          const statusRes = await driverApiClient.fetch('/api/driver/status', { timeoutMs: 6000 } as any);
-          if (statusRes?.success && statusRes?.driver) {
-            const d = statusRes.driver;
-            // Ensure the profile returned from the server corresponds to this mobile number
-            const serverDriverPhone = (d.phone || '').replace(/\D/g, '').slice(-10);
-            if (!serverDriverPhone || serverDriverPhone === cleanPhone) {
-              driverToCache = {
-                id: d.id || userData?.id || `driver_${cleanPhone}`,
-                name: d.fullName || userData?.fullName || 'Driver Partner',
-                fullName: d.fullName || userData?.fullName || 'Driver Partner',
-                phone: d.phone || cleanPhone,
-                vehicleNumber: d.vehicle?.plateNumber || '',
-                status: d.verificationStatus || 'PENDING',
-                verificationStatus: d.verificationStatus || 'PENDING',
-                onlineStatus: d.onlineStatus || false,
-                licenseNumber: d.licenseNumber,
-                profilePhotoUrl: d.profilePhotoUrl,
-                licenseDocUrl: d.licenseDocUrl,
-                rcDocUrl: d.rcDocUrl,
-                insuranceDocUrl: d.insuranceDocUrl,
-                vehicle: d.vehicle,
-                docDates: d.docDates,
-                expiringDocuments: d.expiringDocuments,
-              };
-              await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(driverToCache));
-
-              // Check if driver has already submitted KYC & vehicle details
-              const docsSubmitted = !!(
-                d.licenseDocUrl ||
-                d.rcDocUrl ||
-                d.profilePhotoUrl ||
-                d.insuranceDocUrl ||
-                (d.licenseNumber && d.licenseNumber !== 'PENDING') ||
-                (d.vehicle?.plateNumber && d.vehicle.plateNumber !== 'PENDING' && !d.vehicle.plateNumber.startsWith('KA 01 TR 0000')) ||
-                (d.vehicles && d.vehicles.length > 0 && d.vehicles[0]?.plateNumber && d.vehicles[0]?.plateNumber !== 'PENDING')
-              );
-              if (d.verificationStatus === 'APPROVED' || (d.verificationStatus === 'PENDING' && docsSubmitted)) {
-                hasSubmitted = true;
-              }
-            }
+      try {
+        const statusRes = await driverApiClient.fetch('/api/driver/status', { timeoutMs: 5000 } as any);
+        if (statusRes?.success && statusRes?.driver) {
+          const d = statusRes.driver;
+          const serverDriverPhone = (d.phone || '').replace(/\D/g, '').slice(-10);
+          if (!serverDriverPhone || serverDriverPhone === cleanPhone) {
+            driverToCache = {
+              id: d.id || `driver_${cleanPhone}`,
+              name: d.fullName || regDriver?.fullName || 'Driver Partner',
+              fullName: d.fullName || regDriver?.fullName || 'Driver Partner',
+              phone: d.phone || cleanPhone,
+              vehicleNumber: d.vehicle?.plateNumber || regDriver?.vehicleNumber || '',
+              status: d.verificationStatus || regDriver?.status || 'APPROVED',
+              verificationStatus: d.verificationStatus || regDriver?.verificationStatus || 'APPROVED',
+              onlineStatus: d.onlineStatus || false,
+              licenseNumber: d.licenseNumber || regDriver?.vehicle?.plateNumber,
+              profilePhotoUrl: d.profilePhotoUrl || regDriver?.profilePhotoUrl,
+              licenseDocUrl: d.licenseDocUrl,
+              rcDocUrl: d.rcDocUrl,
+              insuranceDocUrl: d.insuranceDocUrl,
+              vehicle: d.vehicle || regDriver?.vehicle,
+              vehicles: d.vehicles || regDriver?.vehicles || [],
+              docDates: d.docDates || regDriver?.docDates,
+              expiringDocuments: d.expiringDocuments || [],
+            };
           }
-        } catch (_) {}
-      } else {
-        driverToCache = {
-          id: 'rakshith',
-          name: 'Rakshith',
-          fullName: 'Rakshith',
-          phone: '9587425635',
-          vehicleNumber: 'KA 01 MJ 2023',
-          profilePhotoUrl: CAPTAIN_AVATAR_BASE64,
-          status: 'APPROVED',
-          verificationStatus: 'APPROVED',
-          onlineStatus: false,
-        };
-        try {
-          await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(driverToCache));
-        } catch (_) {}
-      }
-
-      // Check local cache if server status check didn't confirm submission
-      if (!hasSubmitted) {
-        try {
-          const cachedStr = await SecureStore.getItemAsync('kandy_cached_driver');
-          if (cachedStr) {
-            const cd = JSON.parse(cachedStr);
-            const cachedPhone = (cd.phone || '').replace(/\D/g, '').slice(-10);
-            if (cachedPhone === cleanPhone) {
-              const docsSubmitted = !!(
-                cd.licenseDocUrl ||
-                cd.rcDocUrl ||
-                cd.profilePhotoUrl ||
-                (cd.vehicle?.plateNumber && cd.vehicle.plateNumber !== 'PENDING') ||
-                (cd.vehicleNumber && cd.vehicleNumber !== 'PENDING' && cd.vehicleNumber !== '')
-              );
-              if (
-                cd.verificationStatus === 'APPROVED' ||
-                cd.verificationStatus === 'REJECTED' ||
-                (cd.verificationStatus === 'PENDING' && docsSubmitted)
-              ) {
-                hasSubmitted = true;
-                if (!driverToCache) driverToCache = cd;
-              }
-            }
-          }
-          const cachedDocsStr = await SecureStore.getItemAsync('kandy_cached_documents');
-          if (cachedDocsStr) {
-            const cdocs = JSON.parse(cachedDocsStr);
-            const docPhone = (cdocs.phone || '').replace(/\D/g, '').slice(-10);
-            if (!docPhone || docPhone === cleanPhone) {
-              if (cdocs.licenseDocUrl || cdocs.rcDocUrl || (cdocs.plateNumber && cdocs.plateNumber !== 'PENDING')) {
-                hasSubmitted = true;
-              }
-            }
-          }
-        } catch (_) {}
-      }
-
-      if (hasSubmitted) {
-        if (driverToCache) {
-          try {
-            await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(driverToCache));
-          } catch (_) {}
         }
-        router.replace('/dashboard');
-      } else {
-        // New driver who hasn't submitted details -> store session and redirect to /documents
-        try {
-          const newDriverSession = {
-            id: userData?.id || `driver_${cleanPhone}`,
-            name: userData?.fullName || 'Driver Partner',
-            phone: cleanPhone,
-            vehicleNumber: '',
-            status: 'PENDING',
-            verificationStatus: 'PENDING',
-            onlineStatus: false,
-          };
-          await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(newDriverSession));
-        } catch (_) {}
-        router.replace('/documents');
+      } catch (_) {}
+
+      // If server was offline or unreachable, hydrate with registered admin driver record
+      if (!driverToCache && regDriver) {
+        driverToCache = { ...regDriver };
       }
+
+      if (driverToCache) {
+        try {
+          await SecureStore.setItemAsync('kandy_driver_phone', cleanPhone);
+          await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(driverToCache));
+          if (driverToCache.vehicles?.length) {
+            await SecureStore.setItemAsync('kandy_cached_vehicles', JSON.stringify(driverToCache.vehicles));
+          }
+        } catch (_) {}
+      }
+
+      // Always redirect directly to home page (/dashboard)
+      router.replace('/dashboard');
     } catch (err: any) {
       console.error('Login verify error:', err);
       const cleanPhone = phone.trim().replace(/\D/g, '').slice(-10);
-      // Resilience: If dev code entered, check if details were already submitted before routing
-      if (otp.trim() === '1234' || otp.trim() === '0000' || (debugOtp && otp.trim() === debugOtp.trim())) {
+      const regDriver = getAdminRegisteredDriver(cleanPhone);
+
+      // Resilience: If dev code entered or registered driver, always authenticate and redirect to home page
+      if (otp.trim() === '1234' || otp.trim() === '0000' || (debugOtp && otp.trim() === debugOtp.trim()) || regDriver) {
         try {
           await driverApiClient.setToken(`driver_session_${cleanPhone}_${Date.now()}`);
-          const cachedStr = await SecureStore.getItemAsync('kandy_cached_driver');
-          if (cachedStr) {
-            const cd = JSON.parse(cachedStr);
-            const cachedPhone = (cd.phone || '').replace(/\D/g, '').slice(-10);
-            if (cachedPhone === cleanPhone) {
-              const docsSubmitted = !!(
-                cd.licenseDocUrl ||
-                cd.rcDocUrl ||
-                cd.profilePhotoUrl ||
-                (cd.vehicle?.plateNumber && cd.vehicle.plateNumber !== 'PENDING') ||
-                (cd.vehicleNumber && cd.vehicleNumber !== 'PENDING' && cd.vehicleNumber !== '')
-              );
-              if (
-                cd.verificationStatus === 'APPROVED' ||
-                cd.verificationStatus === 'REJECTED' ||
-                (cd.verificationStatus === 'PENDING' && docsSubmitted)
-              ) {
-                router.replace('/dashboard');
-                return;
-              }
-            }
-          }
-          const cachedDocsStr = await SecureStore.getItemAsync('kandy_cached_documents');
-          if (cachedDocsStr) {
-            const cdocs = JSON.parse(cachedDocsStr);
-            const docPhone = (cdocs.phone || '').replace(/\D/g, '').slice(-10);
-            if (!docPhone || docPhone === cleanPhone) {
-              if (cdocs.licenseDocUrl || cdocs.rcDocUrl || (cdocs.plateNumber && cdocs.plateNumber !== 'PENDING')) {
-                router.replace('/dashboard');
-                return;
-              }
-            }
+          await SecureStore.setItemAsync('kandy_driver_phone', cleanPhone);
+          const fallbackDriver = regDriver || {
+            id: `driver_${cleanPhone}`,
+            name: 'Driver Partner',
+            fullName: 'Driver Partner',
+            phone: cleanPhone,
+            vehicleNumber: '',
+            status: 'APPROVED',
+            verificationStatus: 'APPROVED',
+            onlineStatus: false,
+          };
+          await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(fallbackDriver));
+          if (fallbackDriver.vehicles?.length) {
+            await SecureStore.setItemAsync('kandy_cached_vehicles', JSON.stringify(fallbackDriver.vehicles));
           }
         } catch (_) {}
-        router.replace('/documents');
+        router.replace('/dashboard');
         return;
       }
       setError(err?.message || 'Verification failed. Please check your OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginAsDriver = async (targetPhone: string) => {
+    setPhone(targetPhone);
+    setLoading(true);
+    setError('');
+    const reg = getAdminRegisteredDriver(targetPhone);
+    try {
+      const sessionToken = `driver_session_${targetPhone}_${Date.now()}`;
+      await driverApiClient.setToken(sessionToken);
+      await SecureStore.setItemAsync('kandy_driver_phone', targetPhone);
+
+      try {
+        const otpRes = await driverApiClient.auth.sendOtp(targetPhone, 'DRIVER');
+        const devCode = otpRes.debugOtp || '1234';
+        await driverApiClient.auth.verifyOtp(targetPhone, devCode);
+      } catch (_) {}
+
+      try {
+        const statusRes = await driverApiClient.fetch('/api/driver/status', { timeoutMs: 5000 } as any);
+        if (statusRes?.success && statusRes?.driver) {
+          await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(statusRes.driver));
+          if (statusRes.driver.vehicles?.length) {
+            await SecureStore.setItemAsync('kandy_cached_vehicles', JSON.stringify(statusRes.driver.vehicles));
+          }
+          router.replace('/dashboard');
+          return;
+        }
+      } catch (_) {}
+
+      if (reg) {
+        await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(reg));
+        await SecureStore.setItemAsync('kandy_cached_vehicles', JSON.stringify(reg.vehicles));
+      }
+      router.replace('/dashboard');
+    } catch (e: any) {
+      if (reg) {
+        await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(reg));
+        await SecureStore.setItemAsync('kandy_cached_vehicles', JSON.stringify(reg.vehicles));
+      }
+      router.replace('/dashboard');
     } finally {
       setLoading(false);
     }
@@ -421,62 +373,32 @@ export default function DriverLoginScreen() {
               {/* Quick Demo Driver Logins */}
               <View style={styles.demoSection}>
                 <Text style={styles.demoHeading}>
-                  ⚡ Quick Demo Driver Logins
+                  ⚡ REGISTERED ADMIN DRIVERS
                 </Text>
-                <TouchableOpacity
-                  style={styles.demoCardOrange}
-                  onPress={async () => {
-                    setPhone('9587425635');
-                    setLoading(true);
-                    setError('');
-                    try {
-                      const otpRes = await driverApiClient.auth.sendOtp('9587425635', 'DRIVER');
-                      const devCode = otpRes.debugOtp || '1234';
-                      const verifyRes = await driverApiClient.auth.verifyOtp('9587425635', devCode);
-                      if (verifyRes.success) {
-                        try {
-                          const initialDriver = {
-                            id: verifyRes.user?.id || 'rakshith',
-                            name: 'Rakshith',
-                            phone: '9587425635',
-                            vehicleNumber: 'KA 01 MJ 2023',
-                            profilePhotoUrl: CAPTAIN_AVATAR_BASE64,
-                            status: 'APPROVED',
-                            verificationStatus: 'APPROVED',
-                            onlineStatus: false,
-                          };
-                          await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(initialDriver));
-                        } catch (_) {}
-                        router.replace('/dashboard');
-                      }
-                    } catch (e: any) {
-                      const initialDriver = {
-                        id: 'rakshith',
-                        name: 'Rakshith',
-                        phone: '9587425635',
-                        vehicleNumber: 'KA 01 MJ 2023',
-                        profilePhotoUrl: CAPTAIN_AVATAR_BASE64,
-                        status: 'APPROVED',
-                        verificationStatus: 'APPROVED',
-                        onlineStatus: false,
-                      };
-                      await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(initialDriver));
-                      router.replace('/dashboard');
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  disabled={loading}
-                  activeOpacity={0.85}
-                >
-                  <View>
-                    <Text style={styles.demoName}>👨🏽‍✈️ Rakshith (Driver)</Text>
-                    <Text style={styles.demoSubtitleOrange}>KA 01 MJ 2023 • +91 9587425635</Text>
-                  </View>
-                  <View style={styles.demoActionPillOrange}>
-                    <Text style={styles.demoActionTextOrange}>LOGIN →</Text>
-                  </View>
-                </TouchableOpacity>
+                {[
+                  { name: 'Mohan Kumar', phone: '9900447660', plate: 'KA-01-SD-2045', model: 'Maruti Suzuki Dzire', status: 'Approved' },
+                  { name: 'Mohan', phone: '9880933504', plate: 'KA-01-SD-2045', model: 'Maruti Suzuki Dzire', status: 'Approved' },
+                  { name: 'Rakshith', phone: '9587425635', plate: 'ka 01 mj 2023', model: 'Sedan', status: 'Approved' },
+                  { name: 'Asha', phone: '8105536270', plate: 'KA-01-SD-2085', model: 'Maruti Suzuki Dzire', status: 'Pending' },
+                  { name: 'racchu', phone: '9483032949', plate: 'KA 19 2025', model: 'Wagon R', status: 'Approved' },
+                  { name: 'ramu', phone: '9854632158', plate: 'ka 01 25 2556', model: 'Sedan', status: 'Approved' },
+                ].map((d) => (
+                  <TouchableOpacity
+                    key={d.phone}
+                    style={[styles.demoCardOrange, { marginBottom: 10 }]}
+                    onPress={() => loginAsDriver(d.phone)}
+                    disabled={loading}
+                    activeOpacity={0.85}
+                  >
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text style={styles.demoName}>👨🏽‍✈️ {d.name} {d.status === 'Approved' ? '✓' : '⏳'}</Text>
+                      <Text style={styles.demoSubtitleOrange}>{d.plate} • +91 {d.phone}</Text>
+                    </View>
+                    <View style={styles.demoActionPillOrange}>
+                      <Text style={styles.demoActionTextOrange}>LOGIN →</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
           </View>

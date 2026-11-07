@@ -77,18 +77,18 @@ export default function PayoutDetailsScreen() {
 
   const handleDemoFill = () => {
     if (payoutMethod === 'BANK') {
-      setBankAccountHolderName('Ramesh Kumar');
+      setBankAccountHolderName('Mohan Kumar');
       setBankAccountNumber('50100428912345');
       setConfirmAccountNumber('50100428912345');
       setBankIfsc('HDFC0001234');
       setBankName('HDFC Bank');
-      setPayoutPhone('918888888888');
-      setPayoutEmail('ramesh.driver@kandycabs.in');
+      setPayoutPhone('919900447660');
+      setPayoutEmail('mohan.driver@kandycabs.in');
     } else {
-      setUpiFullName('Ramesh Kumar');
-      setPayoutUpiId('rameshkumar@oksbi');
-      setPayoutPhone('918888888888');
-      setPayoutEmail('ramesh.driver@kandycabs.in');
+      setUpiFullName('Mohan Kumar');
+      setPayoutUpiId('mohankumar@oksbi');
+      setPayoutPhone('919900447660');
+      setPayoutEmail('mohan.driver@kandycabs.in');
     }
     Alert.alert('⚡ Demo Values Filled', `Filled demo ${payoutMethod === 'BANK' ? 'Bank Account' : 'UPI'} details.`);
   };
