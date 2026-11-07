@@ -34,24 +34,12 @@ import { NotificationsModal } from '../components/NotificationsModal';
 import { LinearGradient } from '../components/SafeLinearGradient';
 import { getTripInProcessSync, getTripInProcess, setTripInProcess, subscribeTripState } from '../lib/tripState';
 import { getExpiringDocuments } from '../lib/documentExpiry';
-
-const getFleetVehicleImage = (categoryStr?: string, modelStr?: string) => {
-  const cat = (categoryStr || '').toUpperCase();
-  const mod = (modelStr || '').toUpperCase();
-  if (cat.includes('CRYSTA') || mod.includes('CRYSTA') || mod.includes('INNOVA')) {
-    return require('../assets/images/fleet-crysta.png');
-  }
-  if (cat.includes('SUV') || mod.includes('ERTIGA') || mod.includes('XL6')) {
-    return require('../assets/images/fleet-suv.png');
-  }
-  if (cat.includes('TRAVELLER') || cat.includes('TEMPO')) {
-    return require('../assets/images/fleet-traveller.png');
-  }
-  if (cat.includes('HATCHBACK') || mod.includes('WAGON') || mod.includes('SWIFT') || mod.includes('I10')) {
-    return require('../assets/images/fleet-hatchback.png');
-  }
-  return require('../assets/images/fleet-sedan.png');
-};
+import {
+  CAPTAIN_AVATAR_BASE64,
+  HERO_BANNER_INNOVA_BASE64,
+  HERO_DRIVER_CARD_BASE64,
+  getEmbeddedFleetImage,
+} from '../assets/embeddedAssets';
 
 export default function DriverDashboardScreen() {
   const router = useRouter();
@@ -1196,7 +1184,7 @@ export default function DriverDashboardScreen() {
             {/* 1. HERO DRIVER CARD (MATCHING REFERENCE DESIGN WITH SPACIOUS INNOVA & TRANSLUCENT FOG) */}
             <View style={styles.heroCardOuter}>
               <ImageBackground
-                source={require('../assets/images/hero-banner-innova-clean.jpg')}
+                source={{ uri: HERO_BANNER_INNOVA_BASE64 }}
                 style={styles.heroCardBg}
                 imageStyle={{ borderRadius: 24, resizeMode: 'cover' }}
               >
@@ -1232,7 +1220,7 @@ export default function DriverDashboardScreen() {
                         />
                       ) : (
                         <Image
-                          source={require('../assets/images/captain-avatar.png')}
+                          source={{ uri: CAPTAIN_AVATAR_BASE64 }}
                           style={styles.heroAvatarImg}
                           resizeMode="cover"
                         />
@@ -2513,7 +2501,7 @@ export default function DriverDashboardScreen() {
             {/* 1. Driver Hero Card */}
             <View style={styles.profileHeroCardOuter}>
               <ImageBackground
-                source={require('../assets/images/hero-driver-card-navy-2x.png')}
+                source={{ uri: HERO_DRIVER_CARD_BASE64 }}
                 style={styles.profileHeroCardBg}
                 imageStyle={{ borderRadius: 20, resizeMode: 'cover' }}
               >
@@ -2528,7 +2516,7 @@ export default function DriverDashboardScreen() {
                         />
                       ) : (
                         <Image
-                          source={require('../assets/images/captain-avatar.png')}
+                          source={{ uri: CAPTAIN_AVATAR_BASE64 }}
                           style={styles.profileHeroAvatarImg}
                           resizeMode="cover"
                         />
@@ -2756,7 +2744,7 @@ export default function DriverDashboardScreen() {
                         <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{category} • {seatCount} • {fuel}</Text>
                       </View>
                       <Image
-                        source={getFleetVehicleImage(veh.category, veh.carModel || veh.model)}
+                        source={{ uri: getEmbeddedFleetImage(veh.category, veh.carModel || veh.model) }}
                         style={{ width: 80, height: 42 }}
                         resizeMode="contain"
                       />

@@ -24,6 +24,7 @@ import {
   DEFAULT_LAN_URL,
   DEFAULT_PROD_URL,
 } from '../lib/api';
+import { CAPTAIN_AVATAR_BASE64 } from '../assets/embeddedAssets';
 
 export default function DriverLoginScreen() {
   const router = useRouter();
@@ -197,6 +198,7 @@ export default function DriverLoginScreen() {
           fullName: 'Rakshith',
           phone: '9587425635',
           vehicleNumber: 'KA 01 MJ 2023',
+          profilePhotoUrl: CAPTAIN_AVATAR_BASE64,
           status: 'APPROVED',
           verificationStatus: 'APPROVED',
           onlineStatus: false,
@@ -438,6 +440,7 @@ export default function DriverLoginScreen() {
                             name: 'Rakshith',
                             phone: '9587425635',
                             vehicleNumber: 'KA 01 MJ 2023',
+                            profilePhotoUrl: CAPTAIN_AVATAR_BASE64,
                             status: 'APPROVED',
                             verificationStatus: 'APPROVED',
                             onlineStatus: false,
@@ -452,6 +455,7 @@ export default function DriverLoginScreen() {
                         name: 'Rakshith',
                         phone: '9587425635',
                         vehicleNumber: 'KA 01 MJ 2023',
+                        profilePhotoUrl: CAPTAIN_AVATAR_BASE64,
                         status: 'APPROVED',
                         verificationStatus: 'APPROVED',
                         onlineStatus: false,
