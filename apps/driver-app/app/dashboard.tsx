@@ -721,62 +721,33 @@ export default function DriverDashboardScreen() {
       await SecureStore.setItemAsync('kandy_driver_online_status', val ? 'true' : 'false');
     } catch (_) {}
 
-    // 2. Hardware / Location Permission Checks
+    // 2. Hardware / Location Permission Checks (Graceful & Non-blocking)
     if (val) {
       if (gpsState.status === 'SERVICES_DISABLED') {
-        setOnlineStatus(prevStatus);
         Alert.alert(
-          'Location Services Required',
-          'GPS/Location Services are currently disabled on your device. Please enable GPS in your device settings to go online and receive ride dispatches.',
+          'Location Services Recommended',
+          'GPS/Location Services are currently disabled on your device. Please enable GPS in your device settings to receive real-time ride dispatches along your route.',
           [
-            { text: 'Cancel', style: 'cancel' },
+            { text: 'Later', style: 'cancel' },
             {
               text: 'Open Settings',
               onPress: () => locationTracker.openLocationSettings(),
             },
           ]
         );
-        isTogglingDutyRef.current = false;
-        return;
+      } else if (gpsState.status === 'PERMISSION_DENIED' || gpsState.status === 'NOT_STARTED') {
+        try {
+          await locationTracker.requestPermissions();
+        } catch (_) {}
       }
 
-      if (gpsState.status === 'PERMISSION_DENIED' || gpsState.status === 'NOT_STARTED') {
-        const permResult = await locationTracker.requestPermissions();
-        if (!permResult.granted) {
-          setOnlineStatus(prevStatus);
-          if (permResult.status === 'SERVICES_DISABLED') {
-            Alert.alert(
-              'Location Services Required',
-              'GPS/Location Services are currently disabled on your device. Please enable GPS in your device settings to go online and receive ride dispatches.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Open Settings',
-                  onPress: () => locationTracker.openLocationSettings(),
-                },
-              ]
-            );
-          } else {
-            Alert.alert(
-              'Location Permission Required',
-              'Location permission is required to detect nearby ride dispatches and navigate routes.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Settings',
-                  onPress: () => Linking.openSettings(),
-                },
-              ]
-            );
-          }
-          isTogglingDutyRef.current = false;
-          return;
-        }
-      }
-
-      locationTracker.startIdleTracking();
+      try {
+        locationTracker.startIdleTracking();
+      } catch (_) {}
     } else {
-      locationTracker.stopTracking();
+      try {
+        locationTracker.stopTracking();
+      } catch (_) {}
     }
 
     // 3. Background server synchronization with resilient offline tolerance
