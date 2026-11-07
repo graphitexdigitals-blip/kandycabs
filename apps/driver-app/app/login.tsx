@@ -376,12 +376,7 @@ export default function DriverLoginScreen() {
                   ⚡ REGISTERED ADMIN DRIVERS
                 </Text>
                 {[
-                  { name: 'Mohan Kumar', phone: '9900447660', plate: 'KA-01-SD-2045', model: 'Maruti Suzuki Dzire', status: 'Approved' },
-                  { name: 'Mohan', phone: '9880933504', plate: 'KA-01-SD-2045', model: 'Maruti Suzuki Dzire', status: 'Approved' },
                   { name: 'Rakshith', phone: '9587425635', plate: 'ka 01 mj 2023', model: 'Sedan', status: 'Approved' },
-                  { name: 'Asha', phone: '8105536270', plate: 'KA-01-SD-2085', model: 'Maruti Suzuki Dzire', status: 'Pending' },
-                  { name: 'racchu', phone: '9483032949', plate: 'KA 19 2025', model: 'Wagon R', status: 'Approved' },
-                  { name: 'ramu', phone: '9854632158', plate: 'ka 01 25 2556', model: 'Sedan', status: 'Approved' },
                 ].map((d) => (
                   <TouchableOpacity
                     key={d.phone}
