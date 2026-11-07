@@ -35,6 +35,24 @@ import { LinearGradient } from '../components/SafeLinearGradient';
 import { getTripInProcessSync, getTripInProcess, setTripInProcess, subscribeTripState } from '../lib/tripState';
 import { getExpiringDocuments } from '../lib/documentExpiry';
 
+const getFleetVehicleImage = (categoryStr?: string, modelStr?: string) => {
+  const cat = (categoryStr || '').toUpperCase();
+  const mod = (modelStr || '').toUpperCase();
+  if (cat.includes('CRYSTA') || mod.includes('CRYSTA') || mod.includes('INNOVA')) {
+    return require('../assets/images/fleet-crysta.png');
+  }
+  if (cat.includes('SUV') || mod.includes('ERTIGA') || mod.includes('XL6')) {
+    return require('../assets/images/fleet-suv.png');
+  }
+  if (cat.includes('TRAVELLER') || cat.includes('TEMPO')) {
+    return require('../assets/images/fleet-traveller.png');
+  }
+  if (cat.includes('HATCHBACK') || mod.includes('WAGON') || mod.includes('SWIFT') || mod.includes('I10')) {
+    return require('../assets/images/fleet-hatchback.png');
+  }
+  return require('../assets/images/fleet-sedan.png');
+};
+
 export default function DriverDashboardScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ openNotifications?: string }>();
@@ -1213,9 +1231,11 @@ export default function DriverDashboardScreen() {
                           resizeMode="cover"
                         />
                       ) : (
-                        <View style={styles.heroAvatarFallback}>
-                          <Ionicons name="person" size={26} color="#0f2744" />
-                        </View>
+                        <Image
+                          source={require('../assets/images/captain-avatar.png')}
+                          style={styles.heroAvatarImg}
+                          resizeMode="cover"
+                        />
                       )}
                       <View style={[styles.heroAvatarStatusDot, { backgroundColor: onlineStatus ? '#22c55e' : '#94a3b8' }]} />
                     </TouchableOpacity>
@@ -2507,9 +2527,11 @@ export default function DriverDashboardScreen() {
                           resizeMode="cover"
                         />
                       ) : (
-                        <View style={styles.profileHeroAvatarFallback}>
-                          <Ionicons name="person" size={34} color="#0f2744" />
-                        </View>
+                        <Image
+                          source={require('../assets/images/captain-avatar.png')}
+                          style={styles.profileHeroAvatarImg}
+                          resizeMode="cover"
+                        />
                       )}
                     </View>
                     {/* Camera icon badge */}
@@ -2714,6 +2736,30 @@ export default function DriverDashboardScreen() {
                           </View>
                         )}
                       </View>
+                    </View>
+
+                    {/* Vehicle Fleet Preview Card */}
+                    <View style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      backgroundColor: '#f8fafc',
+                      borderRadius: 12,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      marginBottom: 10,
+                      borderWidth: 1,
+                      borderColor: '#e2e8f0',
+                    }}>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#0f2744' }}>{model}</Text>
+                        <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{category} • {seatCount} • {fuel}</Text>
+                      </View>
+                      <Image
+                        source={getFleetVehicleImage(veh.category, veh.carModel || veh.model)}
+                        style={{ width: 80, height: 42 }}
+                        resizeMode="contain"
+                      />
                     </View>
 
                     {/* Specifications Columns */}
