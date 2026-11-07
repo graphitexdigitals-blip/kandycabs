@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 
     let carModel: string | null = null;
     let carriageCapacity: string | null = null;
-    let extraDocs: Record<string, string> = {};
+    let extraDocs: Record<string, any> = {};
     let docDates: Record<string, any> = {};
     let multiVehicles: any[] = [];
 
@@ -217,7 +217,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Persist additional KYC & compliance documents in adminNotes
-    let existingExtraDocs: Record<string, string> = {};
+    let existingExtraDocs: Record<string, any> = {};
     const extraMatch = notesToUpdate.match(/\[ExtraDocs:\s*(\{.*?\})\]/);
     if (extraMatch && extraMatch[1]) {
       try {

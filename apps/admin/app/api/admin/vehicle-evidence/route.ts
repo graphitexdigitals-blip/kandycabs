@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 
     const formattedDrivers = drivers.map((d) => {
       let docDates: Record<string, any> = {};
-      let extraDocs: Record<string, string> = {};
+      let extraDocs: Record<string, any> = {};
 
       let carModel: string | null = null;
       let carriageCapacity: string | null = null;
