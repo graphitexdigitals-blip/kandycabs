@@ -127,18 +127,11 @@ export default function DriverLoginScreen() {
 
       const cleanPhone = phone.trim().replace(/\D/g, '').slice(-10);
 
-      // Invalidate any old session token and cache from a different phone number
-      const oldCached = await SecureStore.getItemAsync('kandy_cached_driver').catch(() => null);
-      if (oldCached) {
-        try {
-          const parsed = JSON.parse(oldCached);
-          const oldPhone = (parsed.phone || '').replace(/\D/g, '').slice(-10);
-          if (oldPhone && oldPhone !== cleanPhone) {
-            await SecureStore.deleteItemAsync('kandy_cached_driver').catch(() => {});
-            await SecureStore.deleteItemAsync('kandy_cached_documents').catch(() => {});
-          }
-        } catch (_) {}
-      }
+      // Invalidate any old session token and cache from previous drivers
+      await SecureStore.deleteItemAsync('kandy_cached_driver').catch(() => {});
+      await SecureStore.deleteItemAsync('kandy_cached_vehicles').catch(() => {});
+      await SecureStore.deleteItemAsync('kandy_cached_documents').catch(() => {});
+      await SecureStore.setItemAsync('kandy_driver_phone', cleanPhone);
 
       // ALWAYS set the session token specifically for THIS logging-in phone number!
       const sessionToken = (userData && (userData as any).token) || `driver_session_${cleanPhone}_${Date.now()}`;
@@ -155,12 +148,12 @@ export default function DriverLoginScreen() {
           if (!serverDriverPhone || serverDriverPhone === cleanPhone) {
             driverToCache = {
               id: d.id || `driver_${cleanPhone}`,
-              name: d.fullName || regDriver?.fullName || 'Driver Partner',
-              fullName: d.fullName || regDriver?.fullName || 'Driver Partner',
+              name: d.fullName || regDriver?.fullName || '',
+              fullName: d.fullName || regDriver?.fullName || '',
               phone: d.phone || cleanPhone,
               vehicleNumber: d.vehicle?.plateNumber || regDriver?.vehicleNumber || '',
-              status: d.verificationStatus || regDriver?.status || 'APPROVED',
-              verificationStatus: d.verificationStatus || regDriver?.verificationStatus || 'APPROVED',
+              status: d.verificationStatus || regDriver?.status || 'PENDING',
+              verificationStatus: d.verificationStatus || regDriver?.verificationStatus || 'PENDING',
               onlineStatus: d.onlineStatus || false,
               licenseNumber: d.licenseNumber || regDriver?.vehicle?.plateNumber,
               profilePhotoUrl: d.profilePhotoUrl || regDriver?.profilePhotoUrl,
@@ -176,49 +169,92 @@ export default function DriverLoginScreen() {
         }
       } catch (_) {}
 
-      // If server was offline or unreachable, hydrate with registered admin driver record
+      // If registered admin driver
       if (!driverToCache && regDriver) {
         driverToCache = { ...regDriver };
       }
 
-      if (driverToCache) {
+      // Check if driver is already verified or has submitted documents
+      const isApprovedOrSubmitted = Boolean(
+        regDriver ||
+        (driverToCache && (
+          driverToCache.verificationStatus === 'APPROVED' ||
+          driverToCache.licenseDocUrl ||
+          driverToCache.rcDocUrl ||
+          driverToCache.insuranceDocUrl ||
+          (driverToCache.licenseNumber && driverToCache.licenseNumber !== 'PENDING') ||
+          (driverToCache.vehicles && driverToCache.vehicles.length > 0 && driverToCache.vehicles[0]?.plateNumber && driverToCache.vehicles[0]?.plateNumber !== 'PENDING')
+        ))
+      );
+
+      if (isApprovedOrSubmitted && driverToCache) {
         try {
-          await SecureStore.setItemAsync('kandy_driver_phone', cleanPhone);
           await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(driverToCache));
           if (driverToCache.vehicles?.length) {
             await SecureStore.setItemAsync('kandy_cached_vehicles', JSON.stringify(driverToCache.vehicles));
           }
         } catch (_) {}
+        // Existing registered driver in admin panel -> redirect to dashboard
+        router.replace('/dashboard');
+      } else {
+        // NEW USER / NEW DRIVER:
+        // Not in admin panel -> redirect to documents page to upload all KYC & vehicle details
+        const newDriverProfile = {
+          id: `driver_${cleanPhone}`,
+          name: '',
+          fullName: '',
+          phone: cleanPhone,
+          vehicleNumber: '',
+          status: 'PENDING',
+          verificationStatus: 'PENDING',
+          onlineStatus: false,
+          vehicles: [],
+        };
+        try {
+          await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(newDriverProfile));
+        } catch (_) {}
+        router.replace('/documents');
       }
-
-      // Always redirect directly to home page (/dashboard)
-      router.replace('/dashboard');
     } catch (err: any) {
       console.error('Login verify error:', err);
       const cleanPhone = phone.trim().replace(/\D/g, '').slice(-10);
       const regDriver = getAdminRegisteredDriver(cleanPhone);
 
-      // Resilience: If dev code entered or registered driver, always authenticate and redirect to home page
+      // Resilience: If dev code entered or registered driver
       if (otp.trim() === '1234' || otp.trim() === '0000' || (debugOtp && otp.trim() === debugOtp.trim()) || regDriver) {
         try {
+          await SecureStore.deleteItemAsync('kandy_cached_driver').catch(() => {});
+          await SecureStore.deleteItemAsync('kandy_cached_vehicles').catch(() => {});
+          await SecureStore.deleteItemAsync('kandy_cached_documents').catch(() => {});
           await driverApiClient.setToken(`driver_session_${cleanPhone}_${Date.now()}`);
           await SecureStore.setItemAsync('kandy_driver_phone', cleanPhone);
-          const fallbackDriver = regDriver || {
-            id: `driver_${cleanPhone}`,
-            name: 'Driver Partner',
-            fullName: 'Driver Partner',
-            phone: cleanPhone,
-            vehicleNumber: '',
-            status: 'APPROVED',
-            verificationStatus: 'APPROVED',
-            onlineStatus: false,
-          };
-          await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(fallbackDriver));
-          if (fallbackDriver.vehicles?.length) {
-            await SecureStore.setItemAsync('kandy_cached_vehicles', JSON.stringify(fallbackDriver.vehicles));
+
+          if (regDriver) {
+            await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(regDriver));
+            if (regDriver.vehicles?.length) {
+              await SecureStore.setItemAsync('kandy_cached_vehicles', JSON.stringify(regDriver.vehicles));
+            }
+            router.replace('/dashboard');
+            return;
+          } else {
+            // New driver not in admin panel -> go to documents upload
+            const newDriverProfile = {
+              id: `driver_${cleanPhone}`,
+              name: '',
+              fullName: '',
+              phone: cleanPhone,
+              vehicleNumber: '',
+              status: 'PENDING',
+              verificationStatus: 'PENDING',
+              onlineStatus: false,
+              vehicles: [],
+            };
+            await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(newDriverProfile));
+            router.replace('/documents');
+            return;
           }
         } catch (_) {}
-        router.replace('/dashboard');
+        router.replace('/documents');
         return;
       }
       setError(err?.message || 'Verification failed. Please check your OTP.');

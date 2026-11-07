@@ -86,23 +86,12 @@ export default function DriverDashboardScreen() {
         }
       ];
     }
-    const adminDriver = getAdminRegisteredDriver(driver?.phone || '9900447660');
+    const cleanPhone = (driver?.phone || '').replace(/\D/g, '').slice(-10);
+    const adminDriver = cleanPhone ? getAdminRegisteredDriver(cleanPhone) : null;
     if (adminDriver && Array.isArray(adminDriver.vehicles) && adminDriver.vehicles.length > 0) {
       return adminDriver.vehicles;
     }
-    return [
-      {
-        id: 'veh-1',
-        plateNumber: 'KA-01-SD-2045',
-        category: 'SEDAN',
-        carModel: 'Maruti Suzuki Dzire',
-        fuelType: 'DIESEL',
-        seatCount: 4,
-        carriageCapacity: 'Yes',
-        rcDocUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&auto=format&fit=crop&q=80',
-        insuranceDocUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=800&auto=format&fit=crop&q=80',
-      },
-    ];
+    return [];
   }, [driver]);
 
   const safeFleetIdx = Math.min(selectedFleetVehicleIndex, Math.max(0, registeredFleets.length - 1));
@@ -147,26 +136,36 @@ export default function DriverDashboardScreen() {
         if (cached && isMounted) {
           const parsed = JSON.parse(cached);
           if (parsed && typeof parsed === 'object') {
-            const cleanPhone = (parsed.phone && parsed.phone !== '8888888888') ? parsed.phone : (savedPhone || '9900447660');
-            const adminData = getAdminRegisteredDriver(cleanPhone);
+            const cleanPhone = (parsed.phone && parsed.phone !== '8888888888') ? parsed.phone.replace(/\D/g, '').slice(-10) : (savedPhone ? savedPhone.replace(/\D/g, '').slice(-10) : '');
+            const adminData = cleanPhone ? getAdminRegisteredDriver(cleanPhone) : null;
             const enriched = {
               ...adminData,
               ...parsed,
-              fullName: (parsed.fullName && parsed.fullName !== 'Driver Partner') ? parsed.fullName : (adminData?.fullName || 'Mohan Kumar'),
+              fullName: parsed.fullName || adminData?.fullName || '',
               phone: cleanPhone,
-              verificationStatus: parsed.verificationStatus || adminData?.verificationStatus || 'APPROVED',
-              profilePhotoUrl: parsed.profilePhotoUrl || adminData?.profilePhotoUrl || MOHAN_PHOTO_URL,
+              verificationStatus: parsed.verificationStatus || adminData?.verificationStatus || 'PENDING',
+              profilePhotoUrl: parsed.profilePhotoUrl || adminData?.profilePhotoUrl,
               vehicles: (initialVehicles.length ? initialVehicles : (parsed.vehicles?.length ? parsed.vehicles : adminData?.vehicles)) || [],
-              vehicle: (parsed.vehicle?.plateNumber && parsed.vehicle.plateNumber !== 'PENDING') ? parsed.vehicle : (adminData?.vehicle || {
-                plateNumber: 'KA-01-SD-2045',
-                model: 'Maruti Suzuki Dzire',
-                category: 'SEDAN',
-                fuelType: 'DIESEL',
-                seatCount: 4,
-              }),
+              vehicle: (parsed.vehicle?.plateNumber && parsed.vehicle.plateNumber !== 'PENDING') ? parsed.vehicle : (adminData?.vehicle || null),
               docDates: parsed.docDates || adminData?.docDates,
               expiringDocuments: parsed.expiringDocuments || adminData?.expiringDocuments || [],
             };
+
+            // If this is a new driver and documents have not been submitted, redirect to /documents
+            const isSubmitted = Boolean(
+              adminData ||
+              enriched.verificationStatus === 'APPROVED' ||
+              enriched.licenseDocUrl ||
+              enriched.rcDocUrl ||
+              (enriched.licenseNumber && enriched.licenseNumber !== 'PENDING') ||
+              (enriched.vehicles && enriched.vehicles.length > 0 && enriched.vehicles[0]?.plateNumber && enriched.vehicles[0]?.plateNumber !== 'PENDING')
+            );
+
+            if (!isSubmitted) {
+              router.replace('/documents');
+              return;
+            }
+
             setDriver((prev: any) => prev || enriched);
             return;
           }
@@ -178,18 +177,19 @@ export default function DriverDashboardScreen() {
           try {
             const parsedDocs = JSON.parse(cachedDocs);
             if (parsedDocs && parsedDocs.fullName) {
-              const adminData = getAdminRegisteredDriver(savedPhone || '9900447660');
+              const cleanSavedPhone = savedPhone ? savedPhone.replace(/\D/g, '').slice(-10) : '';
+              const adminData = cleanSavedPhone ? getAdminRegisteredDriver(cleanSavedPhone) : null;
               setDriver((prev: any) => prev || {
-                fullName: parsedDocs.fullName || adminData?.fullName || 'Mohan Kumar',
-                phone: savedPhone || adminData?.phone || '9900447660',
-                licenseNumber: parsedDocs.licenseNumber || adminData?.docDates?.license?.docNumber || 'KA-01-2023-0089745',
-                verificationStatus: adminData?.verificationStatus || 'APPROVED',
+                fullName: parsedDocs.fullName || adminData?.fullName || '',
+                phone: cleanSavedPhone || adminData?.phone || '',
+                licenseNumber: parsedDocs.licenseNumber || adminData?.docDates?.license?.docNumber || 'PENDING',
+                verificationStatus: adminData?.verificationStatus || 'PENDING',
                 onlineStatus: false,
-                profilePhotoUrl: adminData?.profilePhotoUrl || MOHAN_PHOTO_URL,
+                profilePhotoUrl: adminData?.profilePhotoUrl,
                 vehicles: adminData?.vehicles || initialVehicles || [],
                 vehicle: adminData?.vehicle || {
-                  plateNumber: parsedDocs.plateNumber || 'KA-01-SD-2045',
-                  model: parsedDocs.carModel || 'Maruti Suzuki Dzire',
+                  plateNumber: parsedDocs.plateNumber || 'PENDING',
+                  model: parsedDocs.carModel || 'Sedan',
                   category: parsedDocs.category || 'SEDAN',
                   fuelType: 'DIESEL',
                   seatCount: 4,
@@ -201,11 +201,16 @@ export default function DriverDashboardScreen() {
           } catch (_) {}
         }
 
-        // Hydrate default registered admin driver immediately
-        if (isMounted) {
-          const defaultAdmin = getAdminRegisteredDriver(savedPhone || '9900447660');
+        // Hydrate registered admin driver if current phone is explicitly in registry
+        if (isMounted && savedPhone) {
+          const cleanSavedPhone = savedPhone.replace(/\D/g, '').slice(-10);
+          const defaultAdmin = getAdminRegisteredDriver(cleanSavedPhone);
           if (defaultAdmin) {
             setDriver((prev: any) => prev || defaultAdmin);
+          } else {
+            // New driver without cache -> redirect to documents
+            router.replace('/documents');
+            return;
           }
         }
       } catch (_) {}
@@ -493,7 +498,15 @@ export default function DriverDashboardScreen() {
           d.verificationStatus === 'REJECTED' ||
           (d.verificationStatus === 'PENDING' && docsSubmitted);
 
-        const adminData = getAdminRegisteredDriver(d.phone || '');
+        const cleanPhone = (d.phone || '').replace(/\D/g, '').slice(-10);
+        const adminData = cleanPhone ? getAdminRegisteredDriver(cleanPhone) : null;
+
+        if (!hasSubmitted && !adminData) {
+          // New driver must submit KYC documents & details first
+          router.replace('/documents');
+          return;
+        }
+
         const mergedDriver = adminData
           ? {
               ...adminData,
@@ -1246,7 +1259,7 @@ export default function DriverDashboardScreen() {
                         activeOpacity={0.85}
                       >
                         <Image
-                          source={{ uri: driver?.profilePhotoUrl || MOHAN_PHOTO_URL }}
+                          source={{ uri: driver?.profilePhotoUrl || CAPTAIN_AVATAR_BASE64 }}
                           style={styles.heroAvatarImg}
                           resizeMode="cover"
                         />
@@ -1254,14 +1267,14 @@ export default function DriverDashboardScreen() {
                       </TouchableOpacity>
 
                       <Text style={styles.heroCardName} numberOfLines={1}>
-                        {driver?.fullName || 'Mohan Kumar'}
+                        {driver?.fullName || (driver?.phone ? `Partner (${driver.phone.replace(/\D/g, '').slice(-4)})` : 'Driver Partner')}
                       </Text>
                     </View>
 
                     <View style={styles.heroCardPlateRow}>
                       <Ionicons name="car" size={13} color="#0a192f" style={{ marginRight: 5 }} />
                       <Text style={styles.heroCardPlate} numberOfLines={1}>
-                        {(activeFleetVeh?.plateNumber || driver?.vehicle?.plateNumber || 'KA-01-SD-2045').toUpperCase()}
+                        {(activeFleetVeh?.plateNumber || driver?.vehicle?.plateNumber || (driver?.verificationStatus === 'APPROVED' ? 'KA-01-SD-2045' : 'PENDING')).toUpperCase()}
                       </Text>
                     </View>
 
@@ -2533,7 +2546,7 @@ export default function DriverDashboardScreen() {
                   <View style={styles.profileHeroAvatarOuter}>
                     <View style={styles.profileHeroAvatarInner}>
                       <Image
-                        source={{ uri: driver?.profilePhotoUrl || MOHAN_PHOTO_URL }}
+                        source={{ uri: driver?.profilePhotoUrl || CAPTAIN_AVATAR_BASE64 }}
                         style={styles.profileHeroAvatarImg}
                         resizeMode="cover"
                       />
@@ -2554,7 +2567,7 @@ export default function DriverDashboardScreen() {
 
                   <View style={styles.profileHeroInfo}>
                     <Text style={styles.profileHeroName} numberOfLines={1}>
-                      {driver?.fullName || 'Mohan Kumar'}
+                      {driver?.fullName || (driver?.phone ? `Partner (${driver.phone.replace(/\D/g, '').slice(-4)})` : 'Driver Partner')}
                     </Text>
                     <Text style={styles.profileHeroRole}>
                       ({driver?.verificationStatus === 'APPROVED' ? 'Approved Driver' : driver?.verificationStatus === 'PENDING' ? 'Under Review' : 'Driver Partner'})
@@ -2562,7 +2575,7 @@ export default function DriverDashboardScreen() {
                     <View style={styles.profileHeroPhoneRow}>
                       <Ionicons name="call" size={12} color="#ffffff" style={{ marginRight: 5 }} />
                       <Text style={styles.profileHeroPhone}>
-                        {driver?.phone ? (driver.phone.startsWith('+91') ? driver.phone : `+91 ${driver.phone}`) : '+91 9900447660'}
+                        {driver?.phone ? (driver.phone.startsWith('+91') ? driver.phone : `+91 ${driver.phone}`) : ''}
                       </Text>
                     </View>
                     <View style={styles.profileHeroRatingPill}>
@@ -2679,7 +2692,23 @@ export default function DriverDashboardScreen() {
               </View>
 
               {/* Each cab rendered in its own dedicated box/section */}
-              {registeredFleets.map((veh: any, idx: number) => {
+              {registeredFleets.length === 0 ? (
+                <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                  <Ionicons name="car-outline" size={36} color="#94a3b8" style={{ marginBottom: 8 }} />
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#1e293b', marginBottom: 4 }}>No Vehicle Added Yet</Text>
+                  <Text style={{ fontSize: 12, color: '#64748b', textAlign: 'center', marginBottom: 14, paddingHorizontal: 20 }}>
+                    Please add your cab details and vehicle documents for Admin verification.
+                  </Text>
+                  <TouchableOpacity
+                    style={{ backgroundColor: '#002244', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 8 }}
+                    onPress={() => router.push({ pathname: '/documents', params: { addNewVehicle: 'true' } })}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>+ Add Vehicle</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                registeredFleets.map((veh: any, idx: number) => {
                 const plate = (veh.plateNumber || veh.vehicleNumber || `KA-01-SD-${2085 + idx}`).toUpperCase();
                 const rawModel = (veh.carModel || veh.model || '').trim();
                 const isGenericModel = !rawModel || rawModel.toUpperCase() === 'SEDAN' || rawModel.toUpperCase() === 'SUV' || rawModel.toUpperCase() === 'HATCHBACK';
@@ -2858,7 +2887,7 @@ export default function DriverDashboardScreen() {
                     </TouchableOpacity>
                   </View>
                 );
-              })}
+              }))}
             </View>
 
             {/* 5. Settlement & Payout Account Card */}
