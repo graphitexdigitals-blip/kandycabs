@@ -346,10 +346,7 @@ export default function AdminDashboardPage() {
               className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
               title="Bookings & Dispatch"
             >
-              <IconBookings
-                className="w-4 h-4 text-slate-800 shrink-0"
-                style={{ width: 16, height: 16, minWidth: 16, minHeight: 16 }}
-              />
+              <IconBookings className="w-4 h-4 text-slate-800 shrink-0" />
               <div className="min-w-0 flex-1">
                 <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Bookings</h4>
                 <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.bookings.total} total</p>
@@ -362,10 +359,7 @@ export default function AdminDashboardPage() {
               className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
               title="Live GPS Fleet Map"
             >
-              <IconMap
-                className="w-4 h-4 text-slate-800 shrink-0"
-                style={{ width: 16, height: 16, minWidth: 16, minHeight: 16 }}
-              />
+              <IconMap className="w-4 h-4 text-slate-800 shrink-0" />
               <div className="min-w-0 flex-1">
                 <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Live Map</h4>
                 <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.drivers.online} online</p>
@@ -378,10 +372,7 @@ export default function AdminDashboardPage() {
               className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
               title="Payments & Settlements"
             >
-              <IconPayments
-                className="w-4 h-4 text-slate-800 shrink-0"
-                style={{ width: 16, height: 16, minWidth: 16, minHeight: 16 }}
-              />
+              <IconPayments className="w-4 h-4 text-slate-800 shrink-0" />
               <div className="min-w-0 flex-1">
                 <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Payments</h4>
                 <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">Ledger</p>
@@ -394,10 +385,7 @@ export default function AdminDashboardPage() {
               className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
               title="Vehicle & Driver KYC"
             >
-              <IconShield
-                className="w-4 h-4 text-slate-800 shrink-0"
-                style={{ width: 16, height: 16, minWidth: 16, minHeight: 16 }}
-              />
+              <IconShield className="w-4 h-4 text-slate-800 shrink-0" />
               <div className="min-w-0 flex-1">
                 <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Driver KYC</h4>
                 <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.drivers.pendingKyc} pending</p>
@@ -410,10 +398,7 @@ export default function AdminDashboardPage() {
               className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
               title="Fleet Categories"
             >
-              <IconCar
-                className="w-4 h-4 text-slate-800 shrink-0"
-                style={{ width: 16, height: 16, minWidth: 16, minHeight: 16 }}
-              />
+              <IconCar className="w-4 h-4 text-slate-800 shrink-0" />
               <div className="min-w-0 flex-1">
                 <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Fleets</h4>
                 <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.fleets.categoriesCount} fleets</p>
@@ -426,10 +411,7 @@ export default function AdminDashboardPage() {
               className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
               title="Pricing Rules"
             >
-              <IconTag
-                className="w-4 h-4 text-slate-800 shrink-0"
-                style={{ width: 16, height: 16, minWidth: 16, minHeight: 16 }}
-              />
+              <IconTag className="w-4 h-4 text-slate-800 shrink-0" />
               <div className="min-w-0 flex-1">
                 <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Pricing</h4>
                 <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.fleets.pricingRulesCount} tariffs</p>
@@ -442,14 +424,12 @@ export default function AdminDashboardPage() {
               className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
               title="Audit Trail"
             >
-              <IconFileText
-                className="w-4 h-4 text-slate-800 shrink-0"
-                style={{ width: 16, height: 16, minWidth: 16, minHeight: 16 }}
-              />
+              <IconFileText className="w-4 h-4 text-slate-800 shrink-0" />
               <div className="min-w-0 flex-1">
                 <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Audit Trail</h4>
                 <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">Logs</p>
               </div>
+            </Link>
             </Link>
           </div>
         </div>

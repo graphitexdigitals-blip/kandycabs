@@ -1,9 +1,10 @@
 import React from 'react';
 
-interface IconProps {
+interface IconProps extends React.SVGProps<SVGSVGElement> {
   className?: string;
   size?: number;
   strokeWidth?: number;
+  style?: React.CSSProperties;
 }
 
 export function IconDashboard({ className = 'w-4 h-4', size, strokeWidth = 2 }: IconProps) {
