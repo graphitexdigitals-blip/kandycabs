@@ -31,7 +31,7 @@ import { SUPPORTED_LANGUAGES, changeAppLanguage } from '../lib/i18n';
 import { SlideToAccept } from '../components/SlideToAccept';
 import { LanguageSelectionModal } from '../components/LanguageSelectionModal';
 import { NotificationsModal } from '../components/NotificationsModal';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../components/SafeLinearGradient';
 import { getTripInProcessSync, getTripInProcess, setTripInProcess, subscribeTripState } from '../lib/tripState';
 import { getExpiringDocuments } from '../lib/documentExpiry';
 
