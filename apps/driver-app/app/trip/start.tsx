@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -170,6 +170,8 @@ export default function DriverTripStartScreen() {
   const [driverSelfieUri, setDriverSelfieUri] = useState<string | null>(null);
   const [selfieLocation, setSelfieLocation] = useState<{ lat: number; lng: number; time: string } | null>(null);
   const [activeAttachmentIdx, setActiveAttachmentIdx] = useState<number>(0);
+  const [currentVerificationStep, setCurrentVerificationStep] = useState<1 | 2>(1);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // Automatically cleanse any external unsplash demo images so original local reference samples are restored
   useEffect(() => {
@@ -274,6 +276,15 @@ export default function DriverTripStartScreen() {
     (driverSelfieUri ? 1 : 0) +
     (odometerImageUri && startingOdometer ? 1 : 0);
 
+  const vehicleAttachedCount = inspectionPhotos.filter(Boolean).length;
+  const isVehicleEvidenceDone = vehicleAttachedCount === 4;
+  const step2AttachedCount =
+    (driverSelfieUri ? 1 : 0) +
+    (odometerImageUri && startingOdometer ? 1 : 0);
+  const isStep2Done = Boolean(
+    driverSelfieUri && odometerImageUri && startingOdometer
+  );
+
   const handlePickInspectionPhoto = async (index: number, mode: 'camera' | 'library') => {
     try {
       const pickerOptions: ImagePicker.ImagePickerOptions = {
@@ -312,7 +323,11 @@ export default function DriverTripStartScreen() {
         });
 
         // Automatically slide to next attachment
-        if (index < 5) {
+        if (currentVerificationStep === 1) {
+          if (index < 3) {
+            setActiveAttachmentIdx(index + 1);
+          }
+        } else if (index < 5) {
           setActiveAttachmentIdx(index + 1);
         }
       }
@@ -335,17 +350,28 @@ export default function DriverTripStartScreen() {
   };
 
   const handleFillDemoInspectionPhotos = () => {
-    setInspectionPhotos([
-      'demo_front',
-      'demo_rear',
-      'demo_side',
-      'demo_inside',
-    ]);
-    setDriverSelfieUri('demo_selfie');
-    setOdometerImageUri('demo_odometer');
-    setStartingOdometer('42850');
-    setActiveAttachmentIdx(0);
-    Alert.alert('⚡ Demo Evidence Loaded', 'All previous sample vehicle photos, driver selfie & starting odometer loaded!');
+    if (currentVerificationStep === 1) {
+      setInspectionPhotos([
+        'demo_front',
+        'demo_rear',
+        'demo_side',
+        'demo_inside',
+      ]);
+      setActiveAttachmentIdx(0);
+      Alert.alert(
+        '⚡ Demo Vehicle Evidence Loaded',
+        'All 4 vehicle angles loaded! Click "PROCEED TO STEP 2" below to enter Customer OTP & Odometer.'
+      );
+    } else {
+      setDriverSelfieUri('demo_selfie');
+      setOdometerImageUri('demo_odometer');
+      setStartingOdometer('42850');
+      setActiveAttachmentIdx(4);
+      Alert.alert(
+        '⚡ Demo Step 2 Evidence Loaded',
+        'Driver selfie & starting odometer reading loaded!'
+      );
+    }
   };
 
 
@@ -747,9 +773,17 @@ export default function DriverTripStartScreen() {
           <View style={styles.headerTextCol}>
             <View style={styles.headerStepBadgeRow}>
               <View style={styles.headerLiveDot} />
-              <Text style={styles.headerLiveRadarText}>{t('trip_flow.start_verification')}</Text>
+              <Text style={styles.headerLiveRadarText}>
+                {currentVerificationStep === 1
+                  ? '• STEP 1: VEHICLE EVIDENCE'
+                  : '• STEP 2: PASSENGER OTP & METER'}
+              </Text>
             </View>
-            <Text style={styles.headerMainTitle}>{t('trip_flow.verify_inspection')}</Text>
+            <Text style={styles.headerMainTitle}>
+              {currentVerificationStep === 1
+                ? 'Vehicle Evidence Inspection'
+                : t('trip_flow.verify_inspection')}
+            </Text>
           </View>
         </View>
 
@@ -817,7 +851,107 @@ export default function DriverTripStartScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* 2-Step Verification Stepper Tab Bar */}
+      <View style={styles.twoStepTabBar}>
+        <TouchableOpacity
+          style={[
+            styles.stepTabItem,
+            currentVerificationStep === 1 && styles.stepTabItemActive,
+          ]}
+          onPress={() => {
+            setCurrentVerificationStep(1);
+            if (activeAttachmentIdx >= 4) setActiveAttachmentIdx(0);
+          }}
+          activeOpacity={0.8}
+        >
+          <View
+            style={[
+              styles.stepTabBadge,
+              isVehicleEvidenceDone
+                ? styles.stepTabBadgeDone
+                : currentVerificationStep === 1
+                ? styles.stepTabBadgeActive
+                : styles.stepTabBadgeInactive,
+            ]}
+          >
+            {isVehicleEvidenceDone ? (
+              <Ionicons name="checkmark" size={13} color="#ffffff" />
+            ) : (
+              <Text style={styles.stepTabBadgeNum}>1</Text>
+            )}
+          </View>
+          <View style={styles.stepTabTextCol}>
+            <Text
+              style={[
+                styles.stepTabMainText,
+                currentVerificationStep === 1 && styles.stepTabMainTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              1. Vehicle Evidence
+            </Text>
+            <Text style={styles.stepTabSubText}>
+              {vehicleAttachedCount}/4 Photos {isVehicleEvidenceDone ? '✓' : ''}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.stepTabDivider} />
+
+        <TouchableOpacity
+          style={[
+            styles.stepTabItem,
+            currentVerificationStep === 2 && styles.stepTabItemActive,
+            !isVehicleEvidenceDone && styles.stepTabItemDisabled,
+          ]}
+          onPress={() => {
+            if (!isVehicleEvidenceDone) {
+              Alert.alert(
+                'Complete Vehicle Evidence First',
+                'Please capture all 4 vehicle photos (Front, Rear, Side, Inside) before proceeding to Passenger OTP, Selfie and Odometer verification.'
+              );
+              return;
+            }
+            setCurrentVerificationStep(2);
+            if (activeAttachmentIdx < 4) setActiveAttachmentIdx(4);
+          }}
+          activeOpacity={0.8}
+        >
+          <View
+            style={[
+              styles.stepTabBadge,
+              isStep2Done && isOtpVerified
+                ? styles.stepTabBadgeDone
+                : currentVerificationStep === 2
+                ? styles.stepTabBadgeActive
+                : styles.stepTabBadgeInactive,
+            ]}
+          >
+            {isStep2Done && isOtpVerified ? (
+              <Ionicons name="checkmark" size={13} color="#ffffff" />
+            ) : (
+              <Text style={styles.stepTabBadgeNum}>2</Text>
+            )}
+          </View>
+          <View style={styles.stepTabTextCol}>
+            <Text
+              style={[
+                styles.stepTabMainText,
+                currentVerificationStep === 2 && styles.stepTabMainTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              2. OTP, Selfie & Meter
+            </Text>
+            <Text style={styles.stepTabSubText}>
+              {isOtpVerified ? 'OTP Verified ✓' : 'OTP & Meter'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollArea}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -830,510 +964,795 @@ export default function DriverTripStartScreen() {
           </View>
         ) : null}
 
-        {/* Passenger Information Card (Separate Section Box) */}
-        {booking && (
-          <View style={styles.passengerCard}>
-            <View style={styles.passengerHeaderTopRow}>
-              <Ionicons name="information-circle-outline" size={14} color="#64748b" />
-              <Text style={styles.passengerSubtitleTop}>{t('trip_flow.confirm_passenger_info')}</Text>
-            </View>
-
-            <View style={styles.passengerMainRow}>
-              <View style={styles.passengerLeftContent}>
-                <View style={styles.passengerAvatarSolid}>
-                  <Ionicons name="person" size={20} color="#ffffff" />
+        {/* STEP 1: VEHICLE EVIDENCE ONLY (No OTP, Selfie, or Odometer) */}
+        {currentVerificationStep === 1 && (
+          <>
+            <View style={styles.step1Banner}>
+              <View style={styles.step1BannerHeader}>
+                <View style={styles.step1BannerIconBox}>
+                  <Ionicons name="camera" size={18} color="#0284c7" />
                 </View>
-                <View style={styles.passengerInfoCol}>
-                  <Text style={styles.passengerName} numberOfLines={1}>
-                    {booking.customer?.user?.fullName || 'Customer'}
+                <View style={styles.step1BannerTextCol}>
+                  <Text style={styles.step1BannerTitle}>Step 1: Vehicle Evidence (4 Angles)</Text>
+                  <Text style={styles.step1BannerDesc}>
+                    Mandatory 4 vehicle angles required before passenger pickup. Customer OTP, driver selfie & odometer unlock in Step 2.
                   </Text>
-                  <Text style={styles.passengerSubtitle}>{t('trip_flow.confirmed_passenger')}</Text>
                 </View>
               </View>
-
-              {booking.customerPhoneReleased && booking.customer?.user?.phone ? (
-                <TouchableOpacity
-                  style={styles.callNowBtnWhite}
-                  activeOpacity={0.8}
-                  onPress={() => Linking.openURL(`tel:${booking.customer.user.phone}`)}
-                >
-                  <Ionicons name="call" size={15} color="#16a34a" />
-                  <Text style={styles.callNowBtnText}>{t('trip_flow.call_now')}</Text>
-                </TouchableOpacity>
-              ) : null}
             </View>
 
-            {!booking.customerPhoneReleased && (
-              <View style={styles.phoneProtectedBox}>
-                <Ionicons name="shield-checkmark" size={14} color="#64748b" />
-                <Text style={styles.phoneProtectedText}>
-                  {t('trip_flow.phone_locked_policy')}
-                </Text>
-              </View>
-            )}
-          </View>
+            {/* Step 1 Unified Verification Card */}
+            {(() => {
+              const vehicleItems = verificationAttachments.slice(0, 4);
+              const safeIdx = activeAttachmentIdx >= 0 && activeAttachmentIdx < 4 ? activeAttachmentIdx : 0;
+              const activeItem = vehicleItems[safeIdx] || vehicleItems[0];
+              const isCurrentAttached = isAttachmentCompleted(safeIdx);
+              const currentPhotoUri = getAttachmentPhotoUri(safeIdx);
+
+              return (
+                <View style={styles.card}>
+                  {/* Card Header Row */}
+                  <View style={styles.cardHeaderRowBetween}>
+                    <View style={styles.cardHeaderLeftGroup}>
+                      <View style={[styles.cardHeaderIconCircle, { backgroundColor: '#0284c7' }]}>
+                        <Ionicons name="car-sport" size={16} color="#ffffff" />
+                      </View>
+                      <View style={styles.cardHeaderTextCol}>
+                        <Text style={styles.cardHeaderTitle}>Vehicle Evidence Photos *</Text>
+                        <Text style={styles.cardHeaderSubtitle}>
+                          {vehicleAttachedCount} of 4 mandatory vehicle photos completed
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.demoFillMiniBtn}
+                      onPress={handleFillDemoInspectionPhotos}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="flash" size={11} color="#ea580c" />
+                      <Text style={styles.demoFillMiniBtnText}>Demo</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Progress Bar Track */}
+                  <View style={styles.progressBarTrack}>
+                    <View
+                      style={[
+                        styles.progressBarFill,
+                        { width: `${Math.round((vehicleAttachedCount / 4) * 100)}%` },
+                        isVehicleEvidenceDone && styles.progressBarFillComplete,
+                      ]}
+                    />
+                  </View>
+
+                  {/* Active Viewfinder (Top Focused View) */}
+                  <View style={styles.focusedViewfinderWrapper}>
+                    <View style={styles.viewfinderHeaderRow}>
+                      <View style={styles.viewfinderStepTag}>
+                        <Text style={styles.viewfinderStepTagText}>
+                          {activeItem.shortTitle.toUpperCase()} ({safeIdx + 1}/4)
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.viewfinderStatusPill,
+                          isCurrentAttached ? styles.pillGreen : styles.pillAmber,
+                        ]}
+                      >
+                        <Ionicons
+                          name={isCurrentAttached ? 'checkmark-circle' : 'time-outline'}
+                          size={12}
+                          color={isCurrentAttached ? '#16a34a' : '#d97706'}
+                        />
+                        <Text
+                          style={
+                            isCurrentAttached
+                              ? styles.pillTextGreen
+                              : styles.pillTextAmber
+                          }
+                        >
+                          {isCurrentAttached ? 'Attached' : 'Required'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Viewfinder Preview Box */}
+                    <TouchableOpacity
+                      style={styles.viewfinderPhotoBox}
+                      onPress={() => handleInspectionOptions(safeIdx)}
+                      activeOpacity={0.9}
+                    >
+                      <Image
+                        source={
+                          currentPhotoUri &&
+                          !currentPhotoUri.startsWith('demo_') &&
+                          !currentPhotoUri.includes('images.unsplash.com')
+                            ? { uri: currentPhotoUri }
+                            : activeItem.sampleSource
+                        }
+                        style={styles.viewfinderPhotoImage}
+                        resizeMode="cover"
+                      />
+
+                      {isCurrentAttached ? (
+                        <>
+                          <View style={styles.heroAttachedRibbon}>
+                            <Ionicons name="checkmark-circle" size={13} color="#ffffff" />
+                            <Text style={styles.heroAttachedRibbonText}>✓ PHOTO ATTACHED</Text>
+                          </View>
+                          <View style={styles.heroRetakeOverlayBtn}>
+                            <Ionicons name="camera-reverse" size={12} color="#ffffff" />
+                            <Text style={styles.heroRetakeOverlayText}>Tap to Retake</Text>
+                          </View>
+                        </>
+                      ) : (
+                        <>
+                          <View style={styles.viewfinderCenterCameraCircle}>
+                            <Ionicons name="camera" size={24} color="#ffffff" />
+                          </View>
+                          <View style={styles.sampleGuideOverlay}>
+                            <Ionicons name="eye-outline" size={12} color="#ffffff" />
+                            <Text style={styles.sampleGuideOverlayText}>Reference Guide • Tap to capture</Text>
+                          </View>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Section: WHAT ALL SHOULD BE ATTACHED (Slidable Strip for 4 Vehicle Angles) */}
+                  <View style={styles.slidableStripSection}>
+                    <View style={styles.slidableStripHeader}>
+                      <Text style={styles.slidableStripTitle}>4 VEHICLE ANGLES REQUIRED</Text>
+                      <Text style={styles.slidableStripSub}>Slide & tap to view or retake</Text>
+                    </View>
+
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.slidableScrollContent}
+                    >
+                      {vehicleItems.map((item, idx) => {
+                        const isSelected = idx === safeIdx;
+                        const isDone = isAttachmentCompleted(idx);
+                        const thumbUri = getAttachmentPhotoUri(idx);
+
+                        return (
+                          <TouchableOpacity
+                            key={item.id}
+                            style={[
+                              styles.slidableAttachmentCard,
+                              isSelected && styles.slidableAttachmentCardSelected,
+                            ]}
+                            onPress={() => setActiveAttachmentIdx(idx)}
+                            activeOpacity={0.8}
+                          >
+                            <View style={styles.slidableThumbBox}>
+                              <Image
+                                source={
+                                  thumbUri &&
+                                  !thumbUri.startsWith('demo_') &&
+                                  !thumbUri.includes('images.unsplash.com')
+                                    ? { uri: thumbUri }
+                                    : item.sampleSource
+                                }
+                                style={styles.slidableThumbImage}
+                                resizeMode="cover"
+                              />
+                              <View
+                                style={[
+                                  styles.slidableThumbBadge,
+                                  isDone ? styles.badgeGreen : styles.badgeMuted,
+                                ]}
+                              >
+                                <Ionicons
+                                  name={isDone ? 'checkmark-circle' : 'camera-outline'}
+                                  size={11}
+                                  color="#ffffff"
+                                />
+                              </View>
+                            </View>
+
+                            <Text
+                              style={[
+                                styles.slidableItemTitle,
+                                isSelected && styles.slidableItemTitleSelected,
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {item.shortTitle}
+                            </Text>
+
+                            <Text
+                              style={[
+                                styles.slidableItemStatus,
+                                isDone ? styles.textGreen : styles.textMuted,
+                              ]}
+                            >
+                              {isDone ? 'Attached' : 'Required'}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                </View>
+              );
+            })()}
+          </>
         )}
 
-        {/* Admin Authorization Notice OR Customer Pickup OTP Card (Separate Section Box) */}
-        {isAdminAuthorized ? (
-          <View style={styles.authorizedBox}>
-            <View style={styles.authorizedHeader}>
-              <Ionicons name="checkmark-circle" size={18} color="#34d399" />
-              <Text style={styles.authorizedTitle}>{t('trip_flow.admin_auth_title')}</Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.card}>
-            <View style={styles.cardHeaderRow}>
-              <View style={styles.otpHeaderBadge}>
-                <Ionicons name="shield-checkmark" size={22} color="#ea580c" />
-              </View>
-              <View style={styles.otpHeaderDivider} />
-              <View style={styles.cardHeaderTextCol}>
-                <Text style={styles.cardHeaderTitle}>
-                  {t('trip_flow.customer_pickup_otp')} <Text style={styles.requiredAsterisk}>*</Text>
-                </Text>
-                <Text style={styles.cardHeaderSubtitle}>{t('trip_flow.enter_otp_shared')}</Text>
-              </View>
-            </View>
-
-            {/* Visual 4-Digit Box Container */}
-            <View style={styles.otpRowContainer}>
-              <View style={styles.otpBoxesWrapper}>
-                {[0, 1, 2, 3].map((idx) => {
-                  const digit = pickupOtp[idx] || '';
-                  const isFocused = pickupOtp.length === idx;
-                  const isFilled = Boolean(digit);
-                  return (
-                    <View
-                      key={idx}
-                      style={[
-                        styles.otpBox,
-                        isFocused && styles.otpBoxActive,
-                        isFilled && styles.otpBoxFilled,
-                      ]}
-                    >
-                      {isFocused && !digit && !isOtpVerified ? (
-                        <View style={styles.otpCursor} />
-                      ) : (
-                        <Text style={styles.otpDigit}>
-                          {digit}
-                        </Text>
-                      )}
-                    </View>
-                  );
-                })}
-
-                {/* Invisible Overlay Input to handle touch and keyboard only over the 4 boxes */}
-                <TextInput
-                  style={styles.hiddenOtpInput}
-                  value={pickupOtp}
-                  onChangeText={(val) => {
-                    const clean = val.replace(/\D/g, '').slice(0, 4);
-                    setPickupOtp(clean);
-                    if (isOtpVerified) setIsOtpVerified(false);
-                    setError('');
-                  }}
-                  keyboardType="number-pad"
-                  maxLength={4}
-                  caretHidden={true}
-                  editable={!isOtpVerified}
-                />
-              </View>
-
-              {/* Verify OTP Button */}
-              <TouchableOpacity
-                style={[
-                  styles.verifyOtpBtn,
-                  isOtpVerified && styles.verifyOtpBtnVerified,
-                ]}
-                onPress={handleVerifyOtp}
-                disabled={pickupOtp.length < 4 || isVerifyingOtp || isOtpVerified}
-                activeOpacity={0.85}
-              >
-                {isVerifyingOtp ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : isOtpVerified ? (
-                  <View style={styles.verifyOtpContentRow}>
-                    <Ionicons name="checkmark-circle" size={17} color="#10b981" />
-                    <Text style={styles.verifyOtpTextVerified}>{t('trip_flow.otp_verified')}</Text>
-                  </View>
-                ) : (
-                  <View style={styles.verifyOtpContentRow}>
-                    <Ionicons
-                      name="checkmark-circle-outline"
-                      size={16}
-                      color="#ffffff"
-                    />
-                    <Text style={styles.verifyOtpText}>
-                      {t('trip_flow.verify_otp')}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Admin Override / Info Banner */}
+        {/* STEP 2: PASSENGER OTP, DRIVER SELFIE & ODOMETER */}
+        {currentVerificationStep === 2 && (
+          <>
+            {/* Quick Switcher Back to Step 1 */}
             <TouchableOpacity
-              style={[
-                styles.overrideLinkBanner,
-                overrideRequested && styles.overrideLinkBannerRequested,
-              ]}
-              onPress={handleRequestAdminOverride}
-              disabled={overrideRequesting}
+              style={styles.backToStep1Btn}
+              onPress={() => {
+                setCurrentVerificationStep(1);
+                setActiveAttachmentIdx(0);
+              }}
               activeOpacity={0.8}
             >
-              <View style={styles.overrideBannerLeft}>
-                <Ionicons
-                  name={overrideRequested ? 'alert-circle' : 'information-circle-outline'}
-                  size={17}
-                  color={overrideRequested ? '#b45309' : '#2563eb'}
-                />
-                <View
-                  style={[
-                    styles.overrideDividerBlue,
-                    overrideRequested && { backgroundColor: '#fde68a' },
-                  ]}
-                />
-                <Text
-                  style={[
-                    styles.overrideLinkText,
-                    overrideRequested && { color: '#92400e', fontWeight: '700' },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {overrideRequesting
-                    ? t('trip_flow.requesting_override')
-                    : overrideRequested
-                    ? t('trip_flow.override_requested')
-                    : t('trip_flow.verify_before_starting')}
-                </Text>
+              <View style={styles.backToStep1Left}>
+                <Ionicons name="arrow-back" size={14} color="#0284c7" />
+                <Text style={styles.backToStep1Text}>Review Vehicle Evidence (4/4 Completed)</Text>
               </View>
-              <Ionicons
-                name={overrideRequested ? 'close-circle' : 'chevron-forward'}
-                size={16}
-                color={overrideRequested ? '#b45309' : '#2563eb'}
-              />
+              <View style={styles.step1DoneBadge}>
+                <Ionicons name="checkmark-circle" size={12} color="#16a34a" />
+                <Text style={styles.step1DoneBadgeText}>Attached</Text>
+              </View>
             </TouchableOpacity>
-          </View>
-        )}
 
-        {/* Unified Verification Card: Vehicle Uploads First + Slidable What Should Be Attached */}
-        {(() => {
-          const activeItem = verificationAttachments[activeAttachmentIdx] || verificationAttachments[0];
-          const isCurrentAttached = isAttachmentCompleted(activeAttachmentIdx);
-          const currentPhotoUri = getAttachmentPhotoUri(activeAttachmentIdx);
-
-          return (
-            <View style={styles.card}>
-              {/* Card Header Row */}
-              <View style={styles.cardHeaderRowBetween}>
-                <View style={styles.cardHeaderLeftGroup}>
-                  <View style={[styles.cardHeaderIconCircle, { backgroundColor: '#0284c7' }]}>
-                    <Ionicons name="car-sport" size={16} color="#ffffff" />
-                  </View>
-                  <View style={styles.cardHeaderTextCol}>
-                    <Text style={styles.cardHeaderTitle}>Vehicle & Trip Evidence Uploads *</Text>
-                    <Text style={styles.cardHeaderSubtitle}>
-                      {totalAttachedCount} of 6 mandatory attachments completed
-                    </Text>
-                  </View>
+            {/* Passenger Information Card (Separate Section Box) */}
+            {booking && (
+              <View style={styles.passengerCard}>
+                <View style={styles.passengerHeaderTopRow}>
+                  <Ionicons name="information-circle-outline" size={14} color="#64748b" />
+                  <Text style={styles.passengerSubtitleTop}>{t('trip_flow.confirm_passenger_info')}</Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.demoFillMiniBtn}
-                  onPress={handleFillDemoInspectionPhotos}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="flash" size={11} color="#ea580c" />
-                  <Text style={styles.demoFillMiniBtnText}>Demo</Text>
-                </TouchableOpacity>
-              </View>
 
-              {/* Progress Bar Track */}
-              <View style={styles.progressBarTrack}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    { width: `${Math.round((totalAttachedCount / 6) * 100)}%` },
-                    totalAttachedCount === 6 && styles.progressBarFillComplete,
-                  ]}
-                />
-              </View>
-
-              {/* Active Viewfinder (Top Focused View) */}
-              <View style={styles.focusedViewfinderWrapper}>
-                <View style={styles.viewfinderHeaderRow}>
-                  <View style={styles.viewfinderStepTag}>
-                    <Text style={styles.viewfinderStepTagText}>
-                      {activeItem.shortTitle.toUpperCase()} ({activeAttachmentIdx + 1}/6)
-                    </Text>
+                <View style={styles.passengerMainRow}>
+                  <View style={styles.passengerLeftContent}>
+                    <View style={styles.passengerAvatarSolid}>
+                      <Ionicons name="person" size={20} color="#ffffff" />
+                    </View>
+                    <View style={styles.passengerInfoCol}>
+                      <Text style={styles.passengerName} numberOfLines={1}>
+                        {booking.customer?.user?.fullName || 'Customer'}
+                      </Text>
+                      <Text style={styles.passengerSubtitle}>{t('trip_flow.confirmed_passenger')}</Text>
+                    </View>
                   </View>
-                  <View
-                    style={[
-                      styles.viewfinderStatusPill,
-                      isCurrentAttached ? styles.pillGreen : styles.pillAmber,
-                    ]}
-                  >
-                    <Ionicons
-                      name={isCurrentAttached ? 'checkmark-circle' : 'time-outline'}
-                      size={12}
-                      color={isCurrentAttached ? '#16a34a' : '#d97706'}
-                    />
-                    <Text
-                      style={
-                        isCurrentAttached
-                          ? styles.pillTextGreen
-                          : styles.pillTextAmber
-                      }
+
+                  {booking.customerPhoneReleased && booking.customer?.user?.phone ? (
+                    <TouchableOpacity
+                      style={styles.callNowBtnWhite}
+                      activeOpacity={0.8}
+                      onPress={() => Linking.openURL(`tel:${booking.customer.user.phone}`)}
                     >
-                      {isCurrentAttached ? 'Attached' : 'Required'}
-                    </Text>
-                  </View>
+                      <Ionicons name="call" size={15} color="#16a34a" />
+                      <Text style={styles.callNowBtnText}>{t('trip_flow.call_now')}</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
 
-                {/* Viewfinder Preview Box */}
-                <TouchableOpacity
-                  style={styles.viewfinderPhotoBox}
-                  onPress={() => {
-                    if (activeItem.type === 'inspection') {
-                      handleInspectionOptions(activeItem.index);
-                    } else if (activeItem.type === 'selfie') {
-                      handleOpenSelfieCamera();
-                    } else if (activeItem.type === 'odometer') {
-                      handleOpenCamera();
-                    }
-                  }}
-                  activeOpacity={0.9}
-                >
-                  <Image
-                    source={
-                      currentPhotoUri &&
-                      !currentPhotoUri.startsWith('demo_') &&
-                      !currentPhotoUri.includes('images.unsplash.com')
-                        ? { uri: currentPhotoUri }
-                        : activeItem.sampleSource
-                    }
-                    style={styles.viewfinderPhotoImage}
-                    resizeMode="cover"
-                  />
-
-                  {isCurrentAttached ? (
-                    <>
-                      <View style={styles.heroAttachedRibbon}>
-                        <Ionicons name="checkmark-circle" size={13} color="#ffffff" />
-                        <Text style={styles.heroAttachedRibbonText}>✓ PHOTO ATTACHED</Text>
-                      </View>
-                      <View style={styles.heroRetakeOverlayBtn}>
-                        <Ionicons name="camera-reverse" size={12} color="#ffffff" />
-                        <Text style={styles.heroRetakeOverlayText}>Tap to Retake</Text>
-                      </View>
-                    </>
-                  ) : (
-                    <>
-                      <View style={styles.viewfinderCenterCameraCircle}>
-                        <Ionicons name="camera" size={24} color="#ffffff" />
-                      </View>
-                      <View style={styles.sampleGuideOverlay}>
-                        <Ionicons name="eye-outline" size={12} color="#ffffff" />
-                        <Text style={styles.sampleGuideOverlayText}>Reference Guide • Tap to capture</Text>
-                      </View>
-                    </>
-                  )}
-
-                  {/* Watermark for selfie / odometer */}
-                  {activeItem.type === 'selfie' && selfieLocation && (
-                    <View style={styles.gpsWatermarkOverlay}>
-                      <Text style={styles.gpsWatermarkCoords}>
-                        📍 {`${selfieLocation.lat.toFixed(4)}° N, ${selfieLocation.lng.toFixed(4)}° E • ${selfieLocation.time}`}
-                      </Text>
-                    </View>
-                  )}
-                  {activeItem.type === 'odometer' && photoLocation && (
-                    <View style={styles.gpsWatermarkOverlay}>
-                      <Text style={styles.gpsWatermarkCoords}>
-                        📍 {`${photoLocation.lat.toFixed(4)}° N, ${photoLocation.lng.toFixed(4)}° E • ${photoLocation.time}`}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                {/* If Odometer is selected, show numeric KM input & OCR banner */}
-                {activeItem.type === 'odometer' && (
-                  <View style={styles.odometerInputWrapper}>
-                    <View style={styles.odometerInputContainer}>
-                      <Ionicons name="speedometer-outline" size={18} color="#6366f1" style={styles.odometerIcon} />
-                      <TextInput
-                        style={styles.odometerTextInput}
-                        value={startingOdometer}
-                        onChangeText={(val) => {
-                          setStartingOdometer(val);
-                          if (bookingId) setTripStartDraft(bookingId, { startingOdometer: val });
-                        }}
-                        keyboardType="decimal-pad"
-                        placeholder="Enter starting km (e.g. 42850)"
-                        placeholderTextColor="#94a3b8"
-                      />
-                      <View style={styles.odometerKmBadge}>
-                        <Text style={styles.odometerKmText}>KM</Text>
-                      </View>
-                    </View>
-
-                    {ocrScanning ? (
-                      <View style={styles.ocrScanningBanner}>
-                        <ActivityIndicator size="small" color="#0284c7" />
-                        <Text style={styles.ocrScanningText}>Auto-reading gauge numbers...</Text>
-                      </View>
-                    ) : ocrResultText.status === 'success' ? (
-                      <View style={styles.ocrSuccessBanner}>
-                        <Ionicons name="checkmark-circle" size={13} color="#16a34a" />
-                        <Text style={styles.ocrSuccessText}>{ocrResultText.message}</Text>
-                      </View>
-                    ) : null}
+                {!booking.customerPhoneReleased && (
+                  <View style={styles.phoneProtectedBox}>
+                    <Ionicons name="shield-checkmark" size={14} color="#64748b" />
+                    <Text style={styles.phoneProtectedText}>
+                      {t('trip_flow.phone_locked_policy')}
+                    </Text>
                   </View>
                 )}
               </View>
+            )}
 
-              {/* Section: WHAT ALL SHOULD BE ATTACHED (Slidable Strip Below) */}
-              <View style={styles.slidableStripSection}>
-                <View style={styles.slidableStripHeader}>
-                  <Text style={styles.slidableStripTitle}>WHAT ALL SHOULD BE ATTACHED</Text>
-                  <Text style={styles.slidableStripSub}>Slide & tap to view or retake</Text>
+            {/* Admin Authorization Notice OR Customer Pickup OTP Card */}
+            {isAdminAuthorized ? (
+              <View style={styles.authorizedBox}>
+                <View style={styles.authorizedHeader}>
+                  <Ionicons name="checkmark-circle" size={18} color="#34d399" />
+                  <Text style={styles.authorizedTitle}>{t('trip_flow.admin_auth_title')}</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.card}>
+                <View style={styles.cardHeaderRow}>
+                  <View style={styles.otpHeaderBadge}>
+                    <Ionicons name="shield-checkmark" size={22} color="#ea580c" />
+                  </View>
+                  <View style={styles.otpHeaderDivider} />
+                  <View style={styles.cardHeaderTextCol}>
+                    <Text style={styles.cardHeaderTitle}>
+                      {t('trip_flow.customer_pickup_otp')} <Text style={styles.requiredAsterisk}>*</Text>
+                    </Text>
+                    <Text style={styles.cardHeaderSubtitle}>{t('trip_flow.enter_otp_shared')}</Text>
+                  </View>
                 </View>
 
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.slidableScrollContent}
-                >
-                  {verificationAttachments.map((item, idx) => {
-                    const isSelected = idx === activeAttachmentIdx;
-                    const isDone = isAttachmentCompleted(idx);
-                    const thumbUri = getAttachmentPhotoUri(idx);
+                {/* Visual 4-Digit Box Container */}
+                <View style={styles.otpRowContainer}>
+                  <View style={styles.otpBoxesWrapper}>
+                    {[0, 1, 2, 3].map((idx) => {
+                      const digit = pickupOtp[idx] || '';
+                      const isFocused = pickupOtp.length === idx;
+                      const isFilled = Boolean(digit);
+                      return (
+                        <View
+                          key={idx}
+                          style={[
+                            styles.otpBox,
+                            isFocused && styles.otpBoxActive,
+                            isFilled && styles.otpBoxFilled,
+                          ]}
+                        >
+                          {isFocused && !digit && !isOtpVerified ? (
+                            <View style={styles.otpCursor} />
+                          ) : (
+                            <Text style={styles.otpDigit}>
+                              {digit}
+                            </Text>
+                          )}
+                        </View>
+                      );
+                    })}
 
-                    return (
-                      <TouchableOpacity
-                        key={item.id}
+                    {/* Invisible Overlay Input to handle touch and keyboard only over the 4 boxes */}
+                    <TextInput
+                      style={styles.hiddenOtpInput}
+                      value={pickupOtp}
+                      onChangeText={(val) => {
+                        const clean = val.replace(/\D/g, '').slice(0, 4);
+                        setPickupOtp(clean);
+                        if (isOtpVerified) setIsOtpVerified(false);
+                        setError('');
+                      }}
+                      keyboardType="number-pad"
+                      maxLength={4}
+                      caretHidden={true}
+                      editable={!isOtpVerified}
+                    />
+                  </View>
+
+                  {/* Verify OTP Button */}
+                  <TouchableOpacity
+                    style={[
+                      styles.verifyOtpBtn,
+                      isOtpVerified && styles.verifyOtpBtnVerified,
+                    ]}
+                    onPress={handleVerifyOtp}
+                    disabled={pickupOtp.length < 4 || isVerifyingOtp || isOtpVerified}
+                    activeOpacity={0.85}
+                  >
+                    {isVerifyingOtp ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : isOtpVerified ? (
+                      <View style={styles.verifyOtpContentRow}>
+                        <Ionicons name="checkmark-circle" size={17} color="#10b981" />
+                        <Text style={styles.verifyOtpTextVerified}>{t('trip_flow.otp_verified')}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.verifyOtpContentRow}>
+                        <Ionicons
+                          name="checkmark-circle-outline"
+                          size={16}
+                          color="#ffffff"
+                        />
+                        <Text style={styles.verifyOtpText}>
+                          {t('trip_flow.verify_otp')}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Admin Override / Info Banner */}
+                <TouchableOpacity
+                  style={[
+                    styles.overrideLinkBanner,
+                    overrideRequested && styles.overrideLinkBannerRequested,
+                  ]}
+                  onPress={handleRequestAdminOverride}
+                  disabled={overrideRequesting}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.overrideBannerLeft}>
+                    <Ionicons
+                      name={overrideRequested ? 'alert-circle' : 'information-circle-outline'}
+                      size={17}
+                      color={overrideRequested ? '#b45309' : '#2563eb'}
+                    />
+                    <View
+                      style={[
+                        styles.overrideDividerBlue,
+                        overrideRequested && { backgroundColor: '#fde68a' },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.overrideLinkText,
+                        overrideRequested && { color: '#92400e', fontWeight: '700' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {overrideRequesting
+                        ? t('trip_flow.requesting_override')
+                        : overrideRequested
+                        ? t('trip_flow.override_requested')
+                        : t('trip_flow.verify_before_starting')}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={overrideRequested ? 'close-circle' : 'chevron-forward'}
+                    size={16}
+                    color={overrideRequested ? '#b45309' : '#2563eb'}
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Step 2 Verification Card: Driver Selfie & Starting Odometer */}
+            {(() => {
+              const step2Items = verificationAttachments.slice(4, 6);
+              const safeIdx = activeAttachmentIdx >= 4 && activeAttachmentIdx <= 5 ? activeAttachmentIdx : 4;
+              const activeItem = verificationAttachments[safeIdx];
+              const isCurrentAttached = isAttachmentCompleted(safeIdx);
+              const currentPhotoUri = getAttachmentPhotoUri(safeIdx);
+
+              return (
+                <View style={styles.card}>
+                  {/* Card Header Row */}
+                  <View style={styles.cardHeaderRowBetween}>
+                    <View style={styles.cardHeaderLeftGroup}>
+                      <View style={[styles.cardHeaderIconCircle, { backgroundColor: '#0284c7' }]}>
+                        <Ionicons name="speedometer" size={16} color="#ffffff" />
+                      </View>
+                      <View style={styles.cardHeaderTextCol}>
+                        <Text style={styles.cardHeaderTitle}>Driver Selfie & Starting Odometer *</Text>
+                        <Text style={styles.cardHeaderSubtitle}>
+                          {step2AttachedCount} of 2 mandatory attachments completed
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.demoFillMiniBtn}
+                      onPress={handleFillDemoInspectionPhotos}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="flash" size={11} color="#ea580c" />
+                      <Text style={styles.demoFillMiniBtnText}>Demo</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Progress Bar Track */}
+                  <View style={styles.progressBarTrack}>
+                    <View
+                      style={[
+                        styles.progressBarFill,
+                        { width: `${Math.round((step2AttachedCount / 2) * 100)}%` },
+                        isStep2Done && styles.progressBarFillComplete,
+                      ]}
+                    />
+                  </View>
+
+                  {/* Active Viewfinder (Top Focused View) */}
+                  <View style={styles.focusedViewfinderWrapper}>
+                    <View style={styles.viewfinderHeaderRow}>
+                      <View style={styles.viewfinderStepTag}>
+                        <Text style={styles.viewfinderStepTagText}>
+                          {activeItem.shortTitle.toUpperCase()} ({safeIdx === 4 ? '1/2' : '2/2'})
+                        </Text>
+                      </View>
+                      <View
                         style={[
-                          styles.slidableAttachmentCard,
-                          isSelected && styles.slidableAttachmentCardSelected,
+                          styles.viewfinderStatusPill,
+                          isCurrentAttached ? styles.pillGreen : styles.pillAmber,
                         ]}
-                        onPress={() => setActiveAttachmentIdx(idx)}
-                        activeOpacity={0.8}
                       >
-                        <View style={styles.slidableThumbBox}>
-                          <Image
-                            source={
-                              thumbUri &&
-                              !thumbUri.startsWith('demo_') &&
-                              !thumbUri.includes('images.unsplash.com')
-                                ? { uri: thumbUri }
-                                : item.sampleSource
-                            }
-                            style={styles.slidableThumbImage}
-                            resizeMode="cover"
+                        <Ionicons
+                          name={isCurrentAttached ? 'checkmark-circle' : 'time-outline'}
+                          size={12}
+                          color={isCurrentAttached ? '#16a34a' : '#d97706'}
+                        />
+                        <Text
+                          style={
+                            isCurrentAttached
+                              ? styles.pillTextGreen
+                              : styles.pillTextAmber
+                          }
+                        >
+                          {isCurrentAttached ? 'Attached' : 'Required'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Viewfinder Preview Box */}
+                    <TouchableOpacity
+                      style={styles.viewfinderPhotoBox}
+                      onPress={() => {
+                        if (activeItem.type === 'selfie') {
+                          handleOpenSelfieCamera();
+                        } else if (activeItem.type === 'odometer') {
+                          handleOpenCamera();
+                        }
+                      }}
+                      activeOpacity={0.9}
+                    >
+                      <Image
+                        source={
+                          currentPhotoUri &&
+                          !currentPhotoUri.startsWith('demo_') &&
+                          !currentPhotoUri.includes('images.unsplash.com')
+                            ? { uri: currentPhotoUri }
+                            : activeItem.sampleSource
+                        }
+                        style={styles.viewfinderPhotoImage}
+                        resizeMode="cover"
+                      />
+
+                      {isCurrentAttached ? (
+                        <>
+                          <View style={styles.heroAttachedRibbon}>
+                            <Ionicons name="checkmark-circle" size={13} color="#ffffff" />
+                            <Text style={styles.heroAttachedRibbonText}>✓ PHOTO ATTACHED</Text>
+                          </View>
+                          <View style={styles.heroRetakeOverlayBtn}>
+                            <Ionicons name="camera-reverse" size={12} color="#ffffff" />
+                            <Text style={styles.heroRetakeOverlayText}>Tap to Retake</Text>
+                          </View>
+                        </>
+                      ) : (
+                        <>
+                          <View style={styles.viewfinderCenterCameraCircle}>
+                            <Ionicons name="camera" size={24} color="#ffffff" />
+                          </View>
+                          <View style={styles.sampleGuideOverlay}>
+                            <Ionicons name="eye-outline" size={12} color="#ffffff" />
+                            <Text style={styles.sampleGuideOverlayText}>Reference Guide • Tap to capture</Text>
+                          </View>
+                        </>
+                      )}
+
+                      {/* Watermark for selfie / odometer */}
+                      {activeItem.type === 'selfie' && selfieLocation && (
+                        <View style={styles.gpsWatermarkOverlay}>
+                          <Text style={styles.gpsWatermarkCoords}>
+                            📍 {`${selfieLocation.lat.toFixed(4)}° N, ${selfieLocation.lng.toFixed(4)}° E • ${selfieLocation.time}`}
+                          </Text>
+                        </View>
+                      )}
+                      {activeItem.type === 'odometer' && photoLocation && (
+                        <View style={styles.gpsWatermarkOverlay}>
+                          <Text style={styles.gpsWatermarkCoords}>
+                            📍 {`${photoLocation.lat.toFixed(4)}° N, ${photoLocation.lng.toFixed(4)}° E • ${photoLocation.time}`}
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+
+                    {/* If Odometer is selected, show numeric KM input & OCR banner */}
+                    {activeItem.type === 'odometer' && (
+                      <View style={styles.odometerInputWrapper}>
+                        <View style={styles.odometerInputContainer}>
+                          <Ionicons name="speedometer-outline" size={18} color="#6366f1" style={styles.odometerIcon} />
+                          <TextInput
+                            style={styles.odometerTextInput}
+                            value={startingOdometer}
+                            onChangeText={(val) => {
+                              setStartingOdometer(val);
+                              if (bookingId) setTripStartDraft(bookingId, { startingOdometer: val });
+                            }}
+                            keyboardType="decimal-pad"
+                            placeholder="Enter starting km (e.g. 42850)"
+                            placeholderTextColor="#94a3b8"
                           />
-                          <View
-                            style={[
-                              styles.slidableThumbBadge,
-                              isDone ? styles.badgeGreen : styles.badgeMuted,
-                            ]}
-                          >
-                            <Ionicons
-                              name={isDone ? 'checkmark-circle' : 'camera-outline'}
-                              size={11}
-                              color="#ffffff"
-                            />
+                          <View style={styles.odometerKmBadge}>
+                            <Text style={styles.odometerKmText}>KM</Text>
                           </View>
                         </View>
 
-                        <Text
-                          style={[
-                            styles.slidableItemTitle,
-                            isSelected && styles.slidableItemTitleSelected,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {item.shortTitle}
-                        </Text>
+                        {ocrScanning ? (
+                          <View style={styles.ocrScanningBanner}>
+                            <ActivityIndicator size="small" color="#0284c7" />
+                            <Text style={styles.ocrScanningText}>Auto-reading gauge numbers...</Text>
+                          </View>
+                        ) : ocrResultText.status === 'success' ? (
+                          <View style={styles.ocrSuccessBanner}>
+                            <Ionicons name="checkmark-circle" size={13} color="#16a34a" />
+                            <Text style={styles.ocrSuccessText}>{ocrResultText.message}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    )}
+                  </View>
 
-                        <Text
-                          style={[
-                            styles.slidableItemStatus,
-                            isDone ? styles.textGreen : styles.textMuted,
-                          ]}
-                        >
-                          {isDone ? 'Attached' : 'Required'}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            </View>
-          );
-        })()}
+                  {/* Section: WHAT ALL SHOULD BE ATTACHED (Slidable Strip for Step 2: Selfie & Odometer) */}
+                  <View style={styles.slidableStripSection}>
+                    <View style={styles.slidableStripHeader}>
+                      <Text style={styles.slidableStripTitle}>STEP 2 VERIFICATIONS</Text>
+                      <Text style={styles.slidableStripSub}>Slide & tap to view or retake</Text>
+                    </View>
+
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.slidableScrollContent}
+                    >
+                      {step2Items.map((item) => {
+                        const idx = item.id === 'selfie' ? 4 : 5;
+                        const isSelected = idx === safeIdx;
+                        const isDone = isAttachmentCompleted(idx);
+                        const thumbUri = getAttachmentPhotoUri(idx);
+
+                        return (
+                          <TouchableOpacity
+                            key={item.id}
+                            style={[
+                              styles.slidableAttachmentCard,
+                              isSelected && styles.slidableAttachmentCardSelected,
+                            ]}
+                            onPress={() => setActiveAttachmentIdx(idx)}
+                            activeOpacity={0.8}
+                          >
+                            <View style={styles.slidableThumbBox}>
+                              <Image
+                                source={
+                                  thumbUri &&
+                                  !thumbUri.startsWith('demo_') &&
+                                  !thumbUri.includes('images.unsplash.com')
+                                    ? { uri: thumbUri }
+                                    : item.sampleSource
+                                }
+                                style={styles.slidableThumbImage}
+                                resizeMode="cover"
+                              />
+                              <View
+                                style={[
+                                  styles.slidableThumbBadge,
+                                  isDone ? styles.badgeGreen : styles.badgeMuted,
+                                ]}
+                              >
+                                <Ionicons
+                                  name={isDone ? 'checkmark-circle' : 'camera-outline'}
+                                  size={11}
+                                  color="#ffffff"
+                                />
+                              </View>
+                            </View>
+
+                            <Text
+                              style={[
+                                styles.slidableItemTitle,
+                                isSelected && styles.slidableItemTitleSelected,
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {item.shortTitle}
+                            </Text>
+
+                            <Text
+                              style={[
+                                styles.slidableItemStatus,
+                                isDone ? styles.textGreen : styles.textMuted,
+                              ]}
+                            >
+                              {isDone ? 'Attached' : 'Required'}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                </View>
+              );
+            })()}
+          </>
+        )}
       </ScrollView>
 
       {/* Pinned Bottom Action Bar */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <TouchableOpacity
-          style={[
-            styles.yellowPrimaryButton,
-            totalAttachedCount === 6 && Boolean(isOtpVerified || isAdminAuthorized) && styles.yellowPrimaryButtonReady,
-            loading && styles.startButtonDisabled,
-          ]}
-          onPress={() => {
-            if (!isAdminAuthorized && pickupOtp.length < 4) {
-              setError('Please enter the 4-digit pickup OTP');
-              return;
-            }
-
-            // If not all 6 are attached, open/jump to next missing
-            if (totalAttachedCount < 6) {
-              const nextMissing = verificationAttachments.findIndex((_, idx) => !isAttachmentCompleted(idx));
-              const targetIdx = nextMissing >= 0 ? nextMissing : activeAttachmentIdx;
-              setActiveAttachmentIdx(targetIdx);
-              const targetItem = verificationAttachments[targetIdx];
-              if (targetItem.type === 'inspection') {
-                handleInspectionOptions(targetItem.index);
-              } else if (targetItem.type === 'selfie') {
-                handleOpenSelfieCamera();
-              } else if (targetItem.type === 'odometer') {
-                if (!odometerImageUri) {
-                  handleOpenCamera();
-                } else if (!startingOdometer) {
-                  setError('Please enter the starting odometer reading in KM');
-                }
+        {currentVerificationStep === 1 ? (
+          <TouchableOpacity
+            style={[
+              styles.yellowPrimaryButton,
+              isVehicleEvidenceDone && styles.yellowPrimaryButtonReady,
+              loading && styles.startButtonDisabled,
+            ]}
+            onPress={() => {
+              if (!isVehicleEvidenceDone) {
+                // Find next missing vehicle photo (0..3)
+                const nextMissingVehicleIdx = [0, 1, 2, 3].find((idx) => !inspectionPhotos[idx]);
+                const targetIdx = nextMissingVehicleIdx !== undefined ? nextMissingVehicleIdx : (activeAttachmentIdx < 4 ? activeAttachmentIdx : 0);
+                setActiveAttachmentIdx(targetIdx);
+                handleInspectionOptions(targetIdx);
+                return;
               }
-              return;
-            }
 
-            if (!startingOdometer) {
-              setActiveAttachmentIdx(5);
-              setError('Please enter the starting odometer reading');
-              return;
-            }
+              // Step 1 done -> advance to Step 2
+              setCurrentVerificationStep(2);
+              setActiveAttachmentIdx(4);
+              scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+            }}
+            disabled={loading}
+            activeOpacity={0.88}
+          >
+            {loading ? (
+              <ActivityIndicator color="#0f172a" size="small" />
+            ) : (
+              <>
+                <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
+                  {!isVehicleEvidenceDone
+                    ? `Capture ${verificationAttachments[activeAttachmentIdx < 4 ? activeAttachmentIdx : 0]?.shortTitle || 'Vehicle Photo'} (${vehicleAttachedCount}/4) →`
+                    : 'PROCEED TO STEP 2: OTP & TRIP LAUNCH →'}
+                </Text>
+                <Ionicons name="arrow-forward" size={20} color="#0f172a" />
+              </>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[
+              styles.yellowPrimaryButton,
+              isStep2Done && Boolean(isOtpVerified || isAdminAuthorized) && styles.yellowPrimaryButtonReady,
+              loading && styles.startButtonDisabled,
+            ]}
+            onPress={() => {
+              if (!isAdminAuthorized && pickupOtp.length < 4) {
+                setError('Please enter the 4-digit pickup OTP from the customer');
+                return;
+              }
 
-            handleStartTrip();
-          }}
-          disabled={loading}
-          activeOpacity={0.88}
-        >
-          {loading ? (
-            <ActivityIndicator color="#0f172a" size="small" />
-          ) : (
-            <>
-              <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
-                {totalAttachedCount < 6
-                  ? `Capture ${verificationAttachments[activeAttachmentIdx]?.shortTitle || 'Photo'} (${totalAttachedCount}/6) →`
-                  : !startingOdometer
-                  ? 'Enter Starting Odometer Reading →'
-                  : 'CONFIRM & START TRIP →'}
-              </Text>
-              <Ionicons name="arrow-forward" size={20} color="#0f172a" />
-            </>
-          )}
-        </TouchableOpacity>
+              if (!isAdminAuthorized && !isOtpVerified) {
+                handleVerifyOtp();
+                return;
+              }
+
+              if (!driverSelfieUri) {
+                setActiveAttachmentIdx(4);
+                handleOpenSelfieCamera();
+                return;
+              }
+
+              if (!odometerImageUri) {
+                setActiveAttachmentIdx(5);
+                handleOpenCamera();
+                return;
+              }
+
+              if (!startingOdometer) {
+                setActiveAttachmentIdx(5);
+                setError('Please enter the starting odometer reading in KM');
+                return;
+              }
+
+              handleStartTrip();
+            }}
+            disabled={loading}
+            activeOpacity={0.88}
+          >
+            {loading ? (
+              <ActivityIndicator color="#0f172a" size="small" />
+            ) : (
+              <>
+                <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
+                  {!isAdminAuthorized && pickupOtp.length < 4
+                    ? 'Enter Customer Pickup OTP (4 Digits) →'
+                    : !isAdminAuthorized && !isOtpVerified
+                    ? 'Verify Customer Pickup OTP →'
+                    : !driverSelfieUri
+                    ? 'Capture Driver Selfie (1/2) →'
+                    : !odometerImageUri
+                    ? 'Capture Starting Odometer Photo (2/2) →'
+                    : !startingOdometer
+                    ? 'Enter Starting Odometer Reading →'
+                    : 'CONFIRM & START TRIP →'}
+                </Text>
+                <Ionicons name="arrow-forward" size={20} color="#0f172a" />
+              </>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -1531,6 +1950,149 @@ const styles = StyleSheet.create({
     width: 1,
     height: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  twoStepTabBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  stepTabItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 8,
+  },
+  stepTabItemActive: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#93c5fd',
+  },
+  stepTabItemDisabled: {
+    opacity: 0.65,
+  },
+  stepTabBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepTabBadgeDone: {
+    backgroundColor: '#16a34a',
+  },
+  stepTabBadgeActive: {
+    backgroundColor: '#2563eb',
+  },
+  stepTabBadgeInactive: {
+    backgroundColor: '#94a3b8',
+  },
+  stepTabBadgeNum: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  stepTabTextCol: {
+    flex: 1,
+  },
+  stepTabMainText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#475569',
+  },
+  stepTabMainTextActive: {
+    color: '#1d4ed8',
+    fontWeight: '900',
+  },
+  stepTabSubText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 1,
+  },
+  stepTabDivider: {
+    width: 10,
+  },
+  step1Banner: {
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 8,
+  },
+  step1BannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  step1BannerIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#e0f2fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  step1BannerTextCol: {
+    flex: 1,
+  },
+  step1BannerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0369a1',
+  },
+  step1BannerDesc: {
+    fontSize: 11,
+    color: '#0c4a6e',
+    fontWeight: '500',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  backToStep1Btn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+  },
+  backToStep1Left: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  backToStep1Text: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#0284c7',
+  },
+  step1DoneBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 3,
+  },
+  step1DoneBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#15803d',
   },
   scrollArea: {
     flex: 1,
