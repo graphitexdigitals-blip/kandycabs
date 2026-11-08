@@ -184,7 +184,7 @@ const VEHICLE_TYPES = [
     luggage: '3 Bags',
     badge: 'Most Popular',
     badgeColor: '#f59e0b',
-    fuelTypes: ['CNG', 'PETROL'],
+    fuelTypes: ['DIESEL'],
   },
   {
     category: VehicleCategory.SUV,
@@ -352,6 +352,7 @@ export default function CustomerDashboardScreen() {
       if (fuels.length > 0) return fuels;
     }
     if (selectedCategory === VehicleCategory.HATCHBACK) return ['CNG'];
+    if (selectedCategory === VehicleCategory.SEDAN) return ['DIESEL'];
     if (selectedCategory === VehicleCategory.SUV_PREMIUM) return ['PETROL', 'DIESEL'];
     if (selectedCategory === VehicleCategory.TEMPO_TRAVELER) return ['DIESEL'];
     return ['CNG', 'PETROL', 'DIESEL'];

@@ -195,10 +195,10 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     purpose: 'Comfortable sedan for families & business travel',
     passengers: 4,
     luggage: 3,
-    fuelTypes: ['CNG', 'PETROL', 'DIESEL'],
-    hasCarrier: true,
-    carrierCapacityText: 'Roof Carrier Available',
-    carrierExcludedReason: '',
+    fuelTypes: ['DIESEL'],
+    hasCarrier: false,
+    carrierCapacityText: '',
+    carrierExcludedReason: 'Sedan Class (Large Dedicated Boot Trunk - No Roof Carrier)',
     features: [
       '4 Passengers Capacity',
       '3 Large Trunk Luggage Bags',
@@ -569,11 +569,11 @@ export default function SelectCabScreen() {
 
             return {
               ...def,
-              fuelTypes: def.id === 'HATCHBACK' ? ['CNG'] : def.fuelTypes,
-              hasCarrier: live.hasCarrier !== undefined ? Boolean(live.hasCarrier) : def.hasCarrier,
-              carrierCapacityText: live.carrierCapacityText || def.carrierCapacityText,
+              fuelTypes: def.id === 'HATCHBACK' ? ['CNG'] : def.id === 'SWIFT_DZIRE' ? ['DIESEL'] : def.fuelTypes,
+              hasCarrier: def.id === 'SWIFT_DZIRE' ? false : (live.hasCarrier !== undefined ? Boolean(live.hasCarrier) : def.hasCarrier),
+              carrierCapacityText: def.id === 'SWIFT_DZIRE' ? '' : (live.carrierCapacityText || def.carrierCapacityText),
               carrierExcludedCars: live.carrierExcludedCars || '',
-              carrierExcludedReason: live.carrierExcludedReason || def.carrierExcludedReason,
+              carrierExcludedReason: def.id === 'SWIFT_DZIRE' ? 'Sedan Class (Large Dedicated Boot Trunk - No Roof Carrier)' : (live.carrierExcludedReason || def.carrierExcludedReason),
             };
           });
           setFleetList(merged);
