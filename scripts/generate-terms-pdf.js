@@ -488,3 +488,4 @@ const html = `<!DOCTYPE html>
 const htmlPath = path.join(__dirname, 'terms-multilingual.html');
 fs.writeFileSync(htmlPath, html, 'utf8');
 console.log('HTML written to:', htmlPath);
+

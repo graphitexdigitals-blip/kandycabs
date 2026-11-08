@@ -26,6 +26,13 @@ enum VehicleCategory {
   SUV
   SUV_PREMIUM
   TEMPO_TRAVELER
+  SWIFT_DZIRE
+  TOYOTA_ETIOS
+  SUV_ERTIGA
+  SUV_CARENS
+  SUV_INNOVA
+  SUV_CRYSTA
+  URBANIA
 }
 
 enum FuelType {
@@ -333,6 +340,7 @@ model FleetCategory {
   carrierCapacityText   String?         @default("Up to 50 kg / 2 extra bags")
   carrierExcludedCars   String?         @default("Tata Tiago (No Carrier / Boot space only)")
   carrierExcludedReason String?         @default("No Roof Carrier Allowed (Boot Space Only)")
+  isContactOnly         Boolean         @default(false)
   cngRate               Decimal?        @default(11.0) @db.Decimal(10, 2)
   petrolRate            Decimal?        @default(12.0) @db.Decimal(10, 2)
   dieselRate            Decimal?        @default(13.0) @db.Decimal(10, 2)

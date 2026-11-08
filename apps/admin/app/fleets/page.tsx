@@ -80,10 +80,10 @@ export default function AdminFleetsPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2">
-              <span>🚐</span> Fleet Vehicle Categories & Specs
+              <span>🚐</span> Fleet Vehicle Categories & Specs ({fleets.length} Total)
             </h1>
             <p className="text-xs text-slate-500 mt-1">
-              Configure vehicle classes, seating, boot luggage, supported fuels (CNG, Petrol, Diesel), and roof carrier availability/exclusions.
+              Configure vehicle classes, seating, boot luggage, supported fuels (CNG, Petrol, Diesel), and roof carrier availability. Total 09 fleets: 7 with instant online booking and 2 (Tempo Traveller & Force Urbania) designated for Contact & Book.
             </p>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -153,13 +153,24 @@ export default function AdminFleetsPage() {
                       <h3 className="text-lg font-bold text-slate-900 mt-1">{fleet.name}</h3>
                       <p className="text-xs text-slate-500 mt-0.5">{fleet.description || 'No description provided'}</p>
                     </div>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                        fleet.isActive ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-rose-100 text-rose-800 border-rose-300'
-                      }`}
-                    >
-                      {fleet.isActive ? 'Active' : 'Inactive'}
-                    </span>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                          fleet.isActive ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-rose-100 text-rose-800 border-rose-300'
+                        }`}
+                      >
+                        {fleet.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                      {fleet.isContactOnly || fleet.category === 'TEMPO_TRAVELER' || fleet.category === 'URBANIA' ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 border border-amber-600 shadow-2xs flex items-center gap-1">
+                          <span>📞</span> Contact & Book Only
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
+                          <span>⚡</span> Online Booking
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Vehicle Physical Capacities */}
@@ -485,6 +496,25 @@ export default function AdminFleetsPage() {
                     <span className="text-[10px] text-rose-700 mt-1 block">Displayed to customers explaining why carrier is excluded for this category.</span>
                   </div>
                 )}
+              </div>
+
+              {/* Contact Only Toggle */}
+              <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200 space-y-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isContactOnly"
+                    checked={editingFleet.isContactOnly || editingFleet.category === 'TEMPO_TRAVELER' || editingFleet.category === 'URBANIA'}
+                    onChange={(e) => setEditingFleet({ ...editingFleet, isContactOnly: e.target.checked })}
+                    className="w-4 h-4 accent-amber-600 rounded"
+                  />
+                  <label htmlFor="isContactOnly" className="text-amber-950 font-bold cursor-pointer text-xs flex items-center gap-1">
+                    <span>📞</span> Contact & Book Only (Requires Quote & Phone/WhatsApp Inquiry)
+                  </label>
+                </div>
+                <p className="text-[10px] text-amber-800 pl-6">
+                  When enabled, customers cannot book directly online. Instead, they will be prompted to contact dispatch via WhatsApp or phone call for tailored quoting and commercial permit scheduling.
+                </p>
               </div>
 
               {/* Active Toggle */}

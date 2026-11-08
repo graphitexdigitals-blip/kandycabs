@@ -16,6 +16,13 @@ export enum VehicleCategory {
   SUV = 'SUV',
   SUV_PREMIUM = 'SUV_PREMIUM',
   TEMPO_TRAVELER = 'TEMPO_TRAVELER',
+  SWIFT_DZIRE = 'SWIFT_DZIRE',
+  TOYOTA_ETIOS = 'TOYOTA_ETIOS',
+  SUV_ERTIGA = 'SUV_ERTIGA',
+  SUV_CARENS = 'SUV_CARENS',
+  SUV_INNOVA = 'SUV_INNOVA',
+  SUV_CRYSTA = 'SUV_CRYSTA',
+  URBANIA = 'URBANIA',
 }
 
 export enum FuelType {
@@ -73,13 +80,18 @@ export interface FleetCategoryItem {
   description?: string | null;
   seatCount: number;
   luggageCount: number;
-  cngRate: number;
-  petrolRate: number;
-  dieselRate: number;
-  extraKmRate: number;
-  driverAllowance: number;
-  nightCharge: number;
-  minRoundTripKmPerDay: number;
+  cngRate?: number;
+  petrolRate?: number;
+  dieselRate?: number;
+  extraKmRate?: number;
+  driverAllowance?: number;
+  nightCharge?: number;
+  minRoundTripKmPerDay?: number;
+  hasCarrier?: boolean;
+  carrierCapacityText?: string | null;
+  carrierExcludedCars?: string | null;
+  carrierExcludedReason?: string | null;
+  isContactOnly?: boolean;
   imageUrl?: string | null;
   isActive: boolean;
 }

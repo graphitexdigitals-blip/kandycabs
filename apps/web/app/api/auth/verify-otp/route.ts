@@ -194,6 +194,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (!user) {
+      const res = NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
+      return setCorsHeaders(res);
+    }
+
     // Generate JWT token
     const token = await signAuthToken({
       userId: user.id,

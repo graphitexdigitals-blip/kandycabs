@@ -233,6 +233,38 @@ const FLEET_DATA = [
       </svg>
     ),
   },
+  {
+    category: VehicleCategory.URBANIA,
+    name: 'Force Urbania',
+    models: '10 / 13 / 17 Seater • Ultra Luxury Van',
+    image: '/images/fleet-urbania.webp',
+    ratePerKm: '₹32',
+    ratePerKmUnit: '/ km',
+    capacity: '10-17 Passengers',
+    luggage: '10+ Luggage Bags',
+    idealFor: 'Executive VIP groups, corporate delegations & luxury tours',
+    badge: 'LUXURY VAN',
+    badgeBg: 'bg-amber-100 text-amber-900 border border-amber-300',
+    cardBg: 'bg-[#FFFDF7]',
+    cardBorder: 'border-amber-200/90 hover:border-amber-400',
+    rateBadge: 'bg-amber-200/70 text-amber-900',
+    iconBg: 'bg-amber-100 text-amber-800 border border-amber-300',
+    idealForBg: 'bg-amber-50 text-amber-900 border border-amber-200',
+    checkColor: 'text-amber-800',
+    badgeIcon: (
+      <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
+        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+      </svg>
+    ),
+    icon: (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
 ];
 
 export default function HomePage() {
@@ -1699,14 +1731,27 @@ export default function HomePage() {
 
                 {/* CTA Button */}
                 <div className="pt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleStartBooking(car.category)}
-                    className="w-full py-2.5 bg-[#0B1730] hover:bg-slate-800 active:scale-95 text-white font-bold text-xs rounded-xl transition duration-150 flex items-center justify-center gap-1.5 shadow-xs"
-                  >
-                    <span>Select {car.name}</span>
-                    <span>→</span>
-                  </button>
+                  {car.category === VehicleCategory.TEMPO_TRAVELER || car.category === VehicleCategory.URBANIA ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const msg = encodeURIComponent(`Hello Kandy Cabs, I would like to inquire & book ${car.name} for group travel. Please share available models and custom quote.`);
+                        window.open(`https://wa.me/919606998846?text=${msg}`, '_blank');
+                      }}
+                      className="w-full py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 active:scale-95 text-white font-extrabold text-xs rounded-xl transition duration-150 flex items-center justify-center gap-1.5 shadow-xs"
+                    >
+                      <span>📞 Contact & Book {car.name}</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleStartBooking(car.category)}
+                      className="w-full py-2.5 bg-[#0B1730] hover:bg-slate-800 active:scale-95 text-white font-bold text-xs rounded-xl transition duration-150 flex items-center justify-center gap-1.5 shadow-xs"
+                    >
+                      <span>Select {car.name}</span>
+                      <span>→</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -1783,15 +1828,28 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Bottom Row: Select Button */}
+                {/* Bottom Row: Select / Contact Button */}
                 <div className="flex justify-end pt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleStartBooking(car.category)}
-                    className="px-6 py-2.5 bg-[#0B1730] hover:bg-slate-800 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-xl transition duration-150 flex items-center justify-center gap-1.5 shadow-xs"
-                  >
-                    <span>Select →</span>
-                  </button>
+                  {car.category === VehicleCategory.TEMPO_TRAVELER || car.category === VehicleCategory.URBANIA ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const msg = encodeURIComponent(`Hello Kandy Cabs, I would like to inquire & book ${car.name} for group travel. Please share available models and custom quote.`);
+                        window.open(`https://wa.me/919606998846?text=${msg}`, '_blank');
+                      }}
+                      className="px-6 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 active:scale-95 text-white font-extrabold text-xs sm:text-sm rounded-xl transition duration-150 flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                    >
+                      <span>📞 Contact & Book</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleStartBooking(car.category)}
+                      className="px-6 py-2.5 bg-[#0B1730] hover:bg-slate-800 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-xl transition duration-150 flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                    >
+                      <span>Select →</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

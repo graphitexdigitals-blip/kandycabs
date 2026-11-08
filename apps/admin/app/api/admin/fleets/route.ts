@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     let fleetCategories = await prisma.fleetCategory.findMany({
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ seatCount: 'asc' }, { createdAt: 'asc' }],
     });
 
     // If database table is empty, seed defaults from VEHICLE_RATES with carrier metadata
@@ -74,6 +74,7 @@ export async function GET() {
       carrierCapacityText: f.carrierCapacityText || 'Up to 50 kg / 2 extra bags',
       carrierExcludedCars: f.carrierExcludedCars || (f.category === 'HATCHBACK' ? 'Tata Tiago (No Carrier / Boot Space Only)' : ''),
       carrierExcludedReason: f.carrierExcludedReason || 'No Roof Carrier Allowed (Boot Space Only)',
+      isContactOnly: Boolean(f.isContactOnly || f.category === 'TEMPO_TRAVELER' || f.category === 'URBANIA'),
       imageUrl: f.imageUrl,
       isActive: f.isActive,
     }));
@@ -104,9 +105,14 @@ export async function POST(req: NextRequest) {
       carrierCapacityText,
       carrierExcludedCars,
       carrierExcludedReason,
+      isContactOnly = false,
       imageUrl,
       isActive = true,
     } = body;
+
+    const contactOnlyValue = Boolean(
+      isContactOnly || category === 'TEMPO_TRAVELER' || category === 'URBANIA'
+    );
 
     const fleet = await prisma.fleetCategory.upsert({
       where: { category },
@@ -122,6 +128,7 @@ export async function POST(req: NextRequest) {
         carrierCapacityText: hasCarrier ? carrierCapacityText || 'Up to 50 kg / 2 extra bags' : null,
         carrierExcludedCars: carrierExcludedCars ? carrierExcludedCars.trim() : null,
         carrierExcludedReason: !hasCarrier ? carrierExcludedReason || 'No Roof Carrier Allowed (Boot Space Only)' : null,
+        isContactOnly: contactOnlyValue,
         imageUrl,
         isActive: Boolean(isActive),
       },
@@ -138,6 +145,7 @@ export async function POST(req: NextRequest) {
         carrierCapacityText: hasCarrier ? carrierCapacityText || 'Up to 50 kg / 2 extra bags' : null,
         carrierExcludedCars: carrierExcludedCars ? carrierExcludedCars.trim() : null,
         carrierExcludedReason: !hasCarrier ? carrierExcludedReason || 'No Roof Carrier Allowed (Boot Space Only)' : null,
+        isContactOnly: contactOnlyValue,
         imageUrl,
         isActive: Boolean(isActive),
       },

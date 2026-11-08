@@ -12,7 +12,7 @@ export async function GET() {
   try {
     const fleetCategories = await prisma.fleetCategory.findMany({
       where: { isActive: true },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ seatCount: 'asc' }, { createdAt: 'asc' }],
     });
 
     const formatted = fleetCategories.map((f: any) => {
@@ -20,6 +20,12 @@ export async function GET() {
       if (f.cngEnabled) fuels.push('CNG');
       if (f.petrolEnabled) fuels.push('PETROL');
       if (f.dieselEnabled) fuels.push('DIESEL');
+
+      const isContactOnly = Boolean(
+        f.isContactOnly ||
+        f.category === 'TEMPO_TRAVELER' ||
+        f.category === 'URBANIA'
+      );
 
       return {
         id: f.category,
@@ -29,10 +35,14 @@ export async function GET() {
         seatCount: f.seatCount,
         luggageCount: f.luggageCount,
         fuelTypes: fuels,
+        cngEnabled: Boolean(f.cngEnabled),
+        petrolEnabled: Boolean(f.petrolEnabled),
+        dieselEnabled: Boolean(f.dieselEnabled),
         hasCarrier: Boolean(f.hasCarrier),
         carrierCapacityText: f.carrierCapacityText || '',
         carrierExcludedCars: f.carrierExcludedCars || '',
         carrierExcludedReason: f.carrierExcludedReason || '',
+        isContactOnly,
         imageUrl: f.imageUrl,
         isActive: f.isActive,
       };

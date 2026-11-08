@@ -11,6 +11,7 @@ import {
   Alert,
   Image,
   Modal,
+  Linking,
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -154,6 +155,7 @@ interface FleetItem {
   carrierCapacityText: string;
   carrierExcludedCars?: string;
   carrierExcludedReason?: string;
+  isContactOnly?: boolean;
   features: string[];
 }
 
@@ -247,6 +249,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     hasCarrier: true,
     carrierCapacityText: 'Roof Carrier Available',
     carrierExcludedCars: '',
+    isContactOnly: false,
     features: [
       '6 Passengers Capacity',
       '4 Large Bags + Roof Carrier Option',
@@ -271,6 +274,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     hasCarrier: true,
     carrierCapacityText: 'Roof Carrier Available',
     carrierExcludedCars: '',
+    isContactOnly: false,
     features: [
       '6 Passengers Capacity',
       '4 Large Bags + Roof Carrier Option',
@@ -295,6 +299,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     hasCarrier: true,
     carrierCapacityText: 'Roof Carrier Available',
     carrierExcludedCars: '',
+    isContactOnly: false,
     features: [
       '7 Passengers Capacity',
       '5 Luggage Bags + Top Carrier Option',
@@ -319,6 +324,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     hasCarrier: true,
     carrierCapacityText: 'Roof Carrier Available',
     carrierExcludedCars: '',
+    isContactOnly: false,
     features: [
       '7 Passengers Capacity',
       '5 Luggage Bags + Top Carrier',
@@ -343,6 +349,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     hasCarrier: true,
     carrierCapacityText: 'Roof Carrier Available',
     carrierExcludedCars: '',
+    isContactOnly: true,
     features: [
       '12 - 17 Passengers Capacity',
       '10+ Heavy Luggage Capacity (Roof Carrier)',
@@ -367,6 +374,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     hasCarrier: true,
     carrierCapacityText: 'Spacious Boot & Roof Luggage Space',
     carrierExcludedCars: '',
+    isContactOnly: true,
     features: [
       '10 - 17 Passengers Capacity',
       '10+ Heavy Luggage Capacity',
@@ -574,6 +582,7 @@ export default function SelectCabScreen() {
               carrierCapacityText: def.id === 'SWIFT_DZIRE' ? '' : (live.carrierCapacityText || def.carrierCapacityText),
               carrierExcludedCars: live.carrierExcludedCars || '',
               carrierExcludedReason: def.id === 'SWIFT_DZIRE' ? 'Sedan Class (Large Dedicated Boot Trunk - No Roof Carrier)' : (live.carrierExcludedReason || def.carrierExcludedReason),
+              isContactOnly: Boolean(live.isContactOnly !== undefined ? live.isContactOnly : (def.id === 'TEMPO_TRAVELER' || def.id === 'URBANIA')),
             };
           });
           setFleetList(merged);
@@ -1040,28 +1049,55 @@ export default function SelectCabScreen() {
                         </Text>
                       </View>
 
-                      {/* Right Column: Fare and Select Button */}
-                      <View style={[styles.refActionCol, isSmallDevice && styles.refActionColSmall]}>
-                        <Text
-                          style={[styles.refPriceText, isSmallDevice && styles.refPriceTextSmall]}
-                          numberOfLines={1}
-                          adjustsFontSizeToFit={true}
-                          minimumFontScale={0.8}
-                        >
-                          ₹ {totalFare.toLocaleString('en-IN')}
-                        </Text>
-
-                        <TouchableOpacity
-                          style={[styles.refSelectBtn, isSmallDevice && styles.refSelectBtnSmall]}
-                          onPress={() => onSelectCabItem(item, false)}
-                          activeOpacity={0.85}
-                        >
-                          <Text style={[styles.refSelectBtnText, isSmallDevice && styles.refSelectBtnTextSmall]}>
-                            {t('selectCab.selectBtn', { defaultValue: 'Select' })}
+                        {/* Right Column: Fare and Select / Contact Button */}
+                        <View style={[styles.refActionCol, isSmallDevice && styles.refActionColSmall]}>
+                          <Text
+                            style={[styles.refPriceText, isSmallDevice && styles.refPriceTextSmall]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit={true}
+                            minimumFontScale={0.8}
+                          >
+                            ₹ {totalFare.toLocaleString('en-IN')}
                           </Text>
-                          <Ionicons name="chevron-forward" size={isSmallDevice ? 11 : 12.5} color="#ffffff" />
-                        </TouchableOpacity>
-                      </View>
+
+                          {item.isContactOnly || item.id === 'TEMPO_TRAVELER' || item.id === 'TRAVELLER' || item.id === 'URBANIA' ? (
+                            <TouchableOpacity
+                              style={[
+                                styles.refSelectBtn,
+                                isSmallDevice && styles.refSelectBtnSmall,
+                                {
+                                  backgroundColor: 'rgb(240, 117, 15)',
+                                  paddingHorizontal: isSmallDevice ? 7 : 9,
+                                  minWidth: isSmallDevice ? 94 : 105,
+                                },
+                              ]}
+                              onPress={() => onSelectCabItem(item, false)}
+                              activeOpacity={0.85}
+                            >
+                              <Ionicons name="call" size={isSmallDevice ? 10.5 : 12} color="#ffffff" style={{ marginRight: 3 }} />
+                              <Text
+                                style={[
+                                  styles.refSelectBtnText,
+                                  isSmallDevice && styles.refSelectBtnTextSmall,
+                                  { fontSize: isSmallDevice ? 10 : 11.5, fontWeight: '800' },
+                                ]}
+                              >
+                                Contact & Book
+                              </Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <TouchableOpacity
+                              style={[styles.refSelectBtn, isSmallDevice && styles.refSelectBtnSmall]}
+                              onPress={() => onSelectCabItem(item, false)}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={[styles.refSelectBtnText, isSmallDevice && styles.refSelectBtnTextSmall]}>
+                                {t('selectCab.selectBtn', { defaultValue: 'Select' })}
+                              </Text>
+                              <Ionicons name="chevron-forward" size={isSmallDevice ? 11 : 12.5} color="#ffffff" />
+                            </TouchableOpacity>
+                          )}
+                        </View>
                     </View>
                   </View>
                 </View>
@@ -1621,12 +1657,12 @@ export default function SelectCabScreen() {
             {/* Header */}
             <View style={styles.fleetNoticeHeader}>
               <View style={styles.fleetNoticeIconBox}>
-                <Ionicons name="bus" size={24} color="rgb(240, 117, 15)" />
+                <Ionicons name="call" size={22} color="rgb(240, 117, 15)" />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.fleetNoticeTitle}>Fleet Availability Check</Text>
+                <Text style={styles.fleetNoticeTitle}>Contact & Book Fleet</Text>
                 <Text style={styles.fleetNoticeSub}>
-                  {pendingFleetItem?.item.name || 'Group Vehicle'} (Large Fleet)
+                  {pendingFleetItem?.item.name || 'Group Vehicle'} • Special Route & Quote
                 </Text>
               </View>
               <TouchableOpacity
@@ -1704,6 +1740,50 @@ export default function SelectCabScreen() {
 
             {/* Bottom Actions */}
             <View style={styles.fleetNoticeActions}>
+              {/* Direct Instant Contact CTAs */}
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#16a34a',
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    gap: 6,
+                  }}
+                  onPress={() => {
+                    const text = encodeURIComponent(
+                      `Hello Kandy Cabs, I would like to inquire & book ${pendingFleetItem?.item.name || 'Large Vehicle'} for trip from ${typeof pickup === 'string' ? pickup : ''} to ${typeof drop === 'string' ? drop : ''} on ${pickupDate}. Please provide immediate availability and customized quote.`
+                    );
+                    Linking.openURL(`https://wa.me/919606998846?text=${text}`);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="logo-whatsapp" size={17} color="#ffffff" />
+                  <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 12.5 }}>WhatsApp Us</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#0f172a',
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    gap: 6,
+                  }}
+                  onPress={() => Linking.openURL('tel:+919606998846')}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="call" size={15} color="#ffffff" />
+                  <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 12.5 }}>Call Us</Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity
                 style={styles.fleetNoticeProceedBtn}
                 onPress={() => {
@@ -1716,7 +1796,7 @@ export default function SelectCabScreen() {
                 }}
                 activeOpacity={0.88}
               >
-                <Text style={styles.fleetNoticeProceedText}>Book Now (Pay on Approval) →</Text>
+                <Text style={styles.fleetNoticeProceedText}>Submit Booking Request (Pay on Approval) →</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
