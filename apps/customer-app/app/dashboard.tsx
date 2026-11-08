@@ -173,7 +173,7 @@ const VEHICLE_TYPES = [
     luggage: '2 Bags',
     badge: 'Budget Choice',
     badgeColor: '#10b981',
-    fuelTypes: ['CNG', 'PETROL'],
+    fuelTypes: ['CNG'],
   },
   {
     category: VehicleCategory.SEDAN,
@@ -351,7 +351,7 @@ export default function CustomerDashboardScreen() {
       if (fleet.dieselEnabled) fuels.push('DIESEL');
       if (fuels.length > 0) return fuels;
     }
-    if (selectedCategory === VehicleCategory.HATCHBACK) return ['CNG', 'PETROL'];
+    if (selectedCategory === VehicleCategory.HATCHBACK) return ['CNG'];
     if (selectedCategory === VehicleCategory.SUV_PREMIUM) return ['PETROL', 'DIESEL'];
     if (selectedCategory === VehicleCategory.TEMPO_TRAVELER) return ['DIESEL'];
     return ['CNG', 'PETROL', 'DIESEL'];

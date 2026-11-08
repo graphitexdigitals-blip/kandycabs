@@ -171,7 +171,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     purpose: 'Budget city & short outstation trips',
     passengers: 4,
     luggage: 2,
-    fuelTypes: ['CNG', 'PETROL'],
+    fuelTypes: ['CNG'],
     hasCarrier: true,
     carrierCapacityText: 'Roof Carrier Available',
     carrierExcludedCars: 'Tata Tiago (No Roof Carrier - Boot space only)',
@@ -569,6 +569,7 @@ export default function SelectCabScreen() {
 
             return {
               ...def,
+              fuelTypes: def.id === 'HATCHBACK' ? ['CNG'] : def.fuelTypes,
               hasCarrier: live.hasCarrier !== undefined ? Boolean(live.hasCarrier) : def.hasCarrier,
               carrierCapacityText: live.carrierCapacityText || def.carrierCapacityText,
               carrierExcludedCars: live.carrierExcludedCars || '',
