@@ -160,7 +160,7 @@ interface FleetItem {
 const DEFAULT_FLEET_DATA: FleetItem[] = [
   {
     id: 'HATCHBACK',
-    name: 'Hatchback',
+    name: 'Compact',
     models: 'Toyota Glanza, WagonR, Tiago or equivalent',
     ratePerKm: 11,
     minKm: 50,
@@ -393,7 +393,7 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
 }
 
 const getCategoryDisplayName = (item: FleetItem) => {
-  if (item.id === 'HATCHBACK') return 'Hatchback';
+  if (item.id === 'HATCHBACK') return 'Compact';
   if (item.id === 'SWIFT_DZIRE' || item.id === 'DZIRE') return 'Sedan – Swift Dzire';
   if (item.id === 'TOYOTA_ETIOS' || item.id === 'ETIOS' || item.id === 'SEDAN') return 'Sedan – Toyota Etios';
   if (item.id === 'SUV_ERTIGA' || item.id === 'ERTIGA' || item.id === 'SUV') return 'SUV – Ertiga';
