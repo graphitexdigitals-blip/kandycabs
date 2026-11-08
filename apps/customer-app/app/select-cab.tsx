@@ -1125,8 +1125,8 @@ export default function SelectCabScreen() {
                     hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                   >
                     <Ionicons
-                      name="options-outline"
-                      size={isSmallDevice ? 13 : 15}
+                      name="add"
+                      size={isSmallDevice ? 15 : 17}
                       color="rgb(240, 117, 15)"
                     />
                     <Text
