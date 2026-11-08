@@ -1111,11 +1111,15 @@ export default function SelectCabScreen() {
                   </View>
                 )}
 
-                {/* TOP ADD-ONS ROW: Add Requirements (left) | (divider) | Roof Carrier (right) */}
+                {/* TOP ADD-ONS ROW: Add Requirements (left) & Roof Carrier (right) */}
                 <View style={styles.refAddReqRowSection}>
                   {/* Add Requirements Button */}
                   <TouchableOpacity
-                    style={[styles.refCardAddReqBtn, isSmallDevice && styles.refCardAddReqBtnSmall]}
+                    style={[
+                      styles.refCardAddReqBtn,
+                      !showRoofCarrier && { flex: undefined, alignSelf: 'flex-start' },
+                      isSmallDevice && styles.refCardAddReqBtnSmall,
+                    ]}
                     onPress={() => onSelectCabItem(item, true)}
                     activeOpacity={0.7}
                     hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
@@ -1133,57 +1137,53 @@ export default function SelectCabScreen() {
                     </Text>
                   </TouchableOpacity>
 
-                  {/* Vertical Divider & Roof Carrier */}
+                  {/* Roof Carrier (No line separator, widened box) */}
                   {showRoofCarrier ? (
-                    <>
-                      <View style={styles.refAddReqDivider} />
-
-                      <TouchableOpacity
+                    <TouchableOpacity
+                      style={[
+                        styles.refCarrierCheckBtn,
+                        isSmallDevice && styles.refCarrierCheckBtnSmall,
+                        selectedCarriers[item.id] && styles.refCarrierCheckBtnActive,
+                        !item.hasCarrier && styles.refCarrierCheckBtnDisabled,
+                      ]}
+                      onPress={() => {
+                        if (item.hasCarrier) {
+                          toggleCarrier(item.id);
+                        }
+                      }}
+                      activeOpacity={item.hasCarrier ? 0.7 : 1}
+                      disabled={!item.hasCarrier}
+                      hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                    >
+                      <Ionicons
+                        name={
+                          !item.hasCarrier
+                            ? 'radio-button-off'
+                            : selectedCarriers[item.id]
+                              ? 'radio-button-on'
+                              : 'radio-button-off'
+                        }
+                        size={isSmallDevice ? 14 : 16}
+                        color={
+                          !item.hasCarrier
+                            ? '#cbd5e1'
+                            : selectedCarriers[item.id]
+                              ? 'rgb(240, 117, 15)'
+                              : '#64748b'
+                        }
+                      />
+                      <Text
                         style={[
-                          styles.refCarrierCheckBtn,
-                          isSmallDevice && styles.refCarrierCheckBtnSmall,
-                          selectedCarriers[item.id] && styles.refCarrierCheckBtnActive,
-                          !item.hasCarrier && styles.refCarrierCheckBtnDisabled,
+                          styles.refCarrierLabel,
+                          isSmallDevice && styles.refCarrierLabelSmall,
+                          selectedCarriers[item.id] && styles.refCarrierLabelActive,
+                          !item.hasCarrier && styles.refCarrierLabelDisabled,
                         ]}
-                        onPress={() => {
-                          if (item.hasCarrier) {
-                            toggleCarrier(item.id);
-                          }
-                        }}
-                        activeOpacity={item.hasCarrier ? 0.7 : 1}
-                        disabled={!item.hasCarrier}
-                        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                        numberOfLines={1}
                       >
-                        <Ionicons
-                          name={
-                            !item.hasCarrier
-                              ? 'radio-button-off'
-                              : selectedCarriers[item.id]
-                                ? 'radio-button-on'
-                                : 'radio-button-off'
-                          }
-                          size={isSmallDevice ? 14 : 16}
-                          color={
-                            !item.hasCarrier
-                              ? '#cbd5e1'
-                              : selectedCarriers[item.id]
-                                ? 'rgb(240, 117, 15)'
-                                : '#64748b'
-                          }
-                        />
-                        <Text
-                          style={[
-                            styles.refCarrierLabel,
-                            isSmallDevice && styles.refCarrierLabelSmall,
-                            selectedCarriers[item.id] && styles.refCarrierLabelActive,
-                            !item.hasCarrier && styles.refCarrierLabelDisabled,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          Roof Carrier
-                        </Text>
-                      </TouchableOpacity>
-                    </>
+                        Roof Carrier
+                      </Text>
+                    </TouchableOpacity>
                   ) : null}
                 </View>
 
@@ -2249,22 +2249,25 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   refCarrierCheckBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    justifyContent: 'center',
+    gap: 6,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
+    paddingHorizontal: 12,
+    paddingVertical: 5.5,
+    borderRadius: 8,
+    minHeight: 34,
+  },
+  refCarrierCheckBtnSmall: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 7,
-    alignSelf: 'center',
-  },
-  refCarrierCheckBtnSmall: {
-    paddingHorizontal: 6,
-    paddingVertical: 3.5,
-    borderRadius: 6,
     gap: 4,
+    minHeight: 30,
   },
   refCarrierCheckBtnActive: {
     borderColor: 'rgba(240, 117, 15, 0.45)',
@@ -2306,22 +2309,25 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
   },
   refCardAddReqBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    justifyContent: 'center',
+    gap: 6,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
+    paddingHorizontal: 12,
+    paddingVertical: 5.5,
+    borderRadius: 8,
+    minHeight: 34,
+  },
+  refCardAddReqBtnSmall: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 7,
-    alignSelf: 'center',
-  },
-  refCardAddReqBtnSmall: {
-    paddingHorizontal: 6,
-    paddingVertical: 3.5,
-    borderRadius: 6,
     gap: 4,
+    minHeight: 30,
   },
   refCardAddReqText: {
     fontFamily: APP_FONT,
@@ -2336,7 +2342,7 @@ const styles = StyleSheet.create({
   refAddReqRowSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
     paddingHorizontal: 2,
     paddingTop: 5,
     paddingBottom: 3,
