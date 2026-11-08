@@ -1141,6 +1141,8 @@ export default function SelectCabScreen() {
                       <TouchableOpacity
                         style={[
                           styles.refCarrierCheckBtn,
+                          isSmallDevice && styles.refCarrierCheckBtnSmall,
+                          selectedCarriers[item.id] && styles.refCarrierCheckBtnActive,
                           !item.hasCarrier && styles.refCarrierCheckBtnDisabled,
                         ]}
                         onPress={() => {
@@ -2249,8 +2251,24 @@ const styles = StyleSheet.create({
   refCarrierCheckBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 7,
+    alignSelf: 'center',
+  },
+  refCarrierCheckBtnSmall: {
+    paddingHorizontal: 6,
+    paddingVertical: 3.5,
+    borderRadius: 6,
     gap: 4,
-    paddingVertical: 2,
+  },
+  refCarrierCheckBtnActive: {
+    borderColor: 'rgba(240, 117, 15, 0.45)',
+    backgroundColor: '#fffaf5',
   },
   refActionCarrierCheckBtn: {
     flexDirection: 'row',
@@ -2267,16 +2285,18 @@ const styles = StyleSheet.create({
   },
   refCarrierCheckBtnDisabled: {
     opacity: 0.55,
+    backgroundColor: '#f8fafc',
+    borderColor: '#f1f5f9',
   },
   refCarrierLabel: {
     fontFamily: APP_FONT,
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#334155',
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1e293b',
     letterSpacing: 0.1,
   },
   refCarrierLabelSmall: {
-    fontSize: 11.5,
+    fontSize: 11,
   },
   refCarrierLabelActive: {
     color: 'rgb(240, 117, 15)',
