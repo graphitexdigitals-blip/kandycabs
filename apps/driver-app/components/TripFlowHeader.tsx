@@ -11,7 +11,8 @@ interface TripFlowHeaderProps {
 
 export function TripFlowHeader({ currentStep }: TripFlowHeaderProps) {
   const insets = useSafeAreaInsets();
-  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
+  // With non-translucent Android status bar, top inset is already accounted for by the OS
+  const topPad = Platform.OS === 'android' ? 6 : Math.max(insets.top, 6);
 
   const steps = [
     { num: 1, label: 'Pickup', icon: 'location-sharp' as const },
@@ -20,7 +21,7 @@ export function TripFlowHeader({ currentStep }: TripFlowHeaderProps) {
   ];
 
   return (
-    <View style={[styles.headerContainer, { paddingTop: topInset + 8 }]}>
+    <View style={[styles.headerContainer, { paddingTop: topPad }]}>
       {/* 3-Step Connected Progress Stepper Bar Only */}
       <View style={styles.stepperWrapper}>
         {steps.map((step, idx) => {
@@ -41,9 +42,9 @@ export function TripFlowHeader({ currentStep }: TripFlowHeaderProps) {
                   ]}
                 >
                   {isCompleted ? (
-                    <Ionicons name="checkmark" size={16} color="#ffffff" style={styles.checkIcon} />
+                    <Ionicons name="checkmark" size={15} color="#ffffff" style={styles.checkIcon} />
                   ) : isActive ? (
-                    <Ionicons name={step.icon} size={15} color="#ffffff" />
+                    <Ionicons name={step.icon} size={14} color="#ffffff" />
                   ) : (
                     <Text style={styles.pendingNumText}>{step.num}</Text>
                   )}
@@ -84,13 +85,13 @@ const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: '#ffffff',
     paddingHorizontal: 20,
-    paddingBottom: 10,
+    paddingBottom: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 3,
+    shadowRadius: 2,
     elevation: 2,
   },
   stepperWrapper: {
@@ -101,33 +102,33 @@ const styles = StyleSheet.create({
   },
   stepNode: {
     alignItems: 'center',
-    width: 64,
+    width: 60,
   },
   stepCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   circleCompleted: {
     backgroundColor: '#ea580c',
     shadowColor: '#ea580c',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    elevation: 2,
   },
   circleActive: {
     backgroundColor: '#ea580c',
-    borderWidth: 3,
+    borderWidth: 2.5,
     borderColor: '#ffedd5',
     shadowColor: '#ea580c',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
   },
   circlePending: {
     backgroundColor: '#f8fafc',
@@ -138,12 +139,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   pendingNumText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#94a3b8',
   },
   stepLabel: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.1,
   },
@@ -160,15 +161,15 @@ const styles = StyleSheet.create({
   },
   lineContainer: {
     flex: 1,
-    height: 20,
+    height: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 14,
     paddingHorizontal: 2,
   },
   line: {
     width: '100%',
-    height: 3,
+    height: 2.5,
     borderRadius: 1.5,
   },
   lineCompleted: {
