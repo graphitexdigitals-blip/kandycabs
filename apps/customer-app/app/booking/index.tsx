@@ -408,6 +408,7 @@ export default function BookingFunnelScreen() {
   const specialReqParam = (params.specialRequirements as string) || '';
   const openRequirementsParam = params.openRequirements === 'true';
   const [showRequirementsModal, setShowRequirementsModal] = useState<boolean>(openRequirementsParam);
+  const [showTravellersRequiredModal, setShowTravellersRequiredModal] = useState<boolean>(false);
 
   const [passengerCount, setPassengerCount] = useState<number>(() => {
     const p = Number(params.passengers);
@@ -1501,17 +1502,7 @@ export default function BookingFunnelScreen() {
   // Proceed to Step 2
   const handleProceedToStep2 = () => {
     if (passengerCount <= 0) {
-      Alert.alert(
-        t('additionalRequirements.travellersRequiredTitle', { defaultValue: 'Select Travellers' }),
-        t('additionalRequirements.travellersRequiredMsg', {
-          defaultValue: 'Please select the number of travellers and luggage before continuing.',
-        }),
-        [
-          {
-            text: t('common.ok', { defaultValue: 'OK' }),
-          },
-        ]
-      );
+      setShowTravellersRequiredModal(true);
       return;
     }
 
@@ -3334,6 +3325,67 @@ export default function BookingFunnelScreen() {
         }}
       />
 
+      {/* Travellers & Luggage Required Alert Modal */}
+      <Modal
+        visible={showTravellersRequiredModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowTravellersRequiredModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowTravellersRequiredModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.travellersAlertCard}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={styles.travellersAlertTitle}>
+              {t('additionalRequirements.travellersRequiredTitle', { defaultValue: 'Select Travellers' })}
+            </Text>
+
+            <Text style={styles.travellersAlertBody}>
+              {t('additionalRequirements.travellersRequiredPromptPart1', { defaultValue: 'Please select the number of ' })}
+              <Text style={styles.travellersAlertBold}>
+                {t('additionalRequirements.travellersBoldWord', { defaultValue: 'travellers' })}
+              </Text>
+              {t('additionalRequirements.andWord', { defaultValue: ' and ' })}
+              <Text style={styles.travellersAlertBold}>
+                {t('additionalRequirements.luggageBoldWord', { defaultValue: 'luggage' })}
+              </Text>
+              {t('additionalRequirements.travellersRequiredPromptPart2', { defaultValue: ' before continuing.' })}
+            </Text>
+
+            <View style={styles.travellersAlertActions}>
+              <TouchableOpacity
+                style={styles.travellersAlertCancelBtn}
+                onPress={() => setShowTravellersRequiredModal(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.travellersAlertCancelText}>
+                  {t('common.cancel', { defaultValue: 'Cancel' })}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.travellersAlertSelectBtn}
+                onPress={() => {
+                  setShowTravellersRequiredModal(false);
+                  setShowRequirementsModal(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.travellersAlertSelectText}>
+                  {t('additionalRequirements.selectBtn', { defaultValue: 'Select' })}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Luggage Selection Modal */}
       <Modal
         visible={showLuggageModal}
@@ -4977,6 +5029,64 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 5,
+  },
+  travellersAlertCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    paddingHorizontal: 24,
+    paddingTop: 22,
+    paddingBottom: 18,
+    width: '100%',
+    maxWidth: 360,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  travellersAlertTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 12,
+  },
+  travellersAlertBody: {
+    fontSize: 15,
+    lineHeight: 23,
+    color: '#334155',
+    marginBottom: 20,
+  },
+  travellersAlertBold: {
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  travellersAlertActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 12,
+  },
+  travellersAlertCancelBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+  },
+  travellersAlertCancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+    textTransform: 'uppercase',
+  },
+  travellersAlertSelectBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+    backgroundColor: 'rgba(240, 117, 15, 0.12)',
+  },
+  travellersAlertSelectText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: 'rgb(240, 117, 15)',
+    textTransform: 'uppercase',
   },
   modalHeader: {
     flexDirection: 'row',
