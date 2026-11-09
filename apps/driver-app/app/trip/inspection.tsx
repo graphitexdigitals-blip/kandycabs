@@ -171,7 +171,7 @@ export default function DriverVehicleInspectionScreen() {
       'http://10.0.2.2:3000/inspection/inside.jpg',
     ]);
     setCurrentAngleIndex(3);
-    Alert.alert('Demo Photos Loaded', '4 consistent vehicle inspection angles loaded! You can now tap Save & Unlock Start Trip.');
+    Alert.alert('Demo Photos Loaded', '4 consistent vehicle inspection angles loaded! You can now tap Save Inspection.');
   };
 
   const attachedCount = photos.filter(Boolean).length;
@@ -501,7 +501,7 @@ export default function DriverVehicleInspectionScreen() {
               <View style={styles.ctaIconCircle}>
                 <Ionicons name="checkmark-sharp" size={15} color="#059669" />
               </View>
-              <Text style={styles.submitButtonText}>SAVE INSPECTION & UNLOCK START TRIP</Text>
+              <Text style={styles.submitButtonText}>SAVE INSPECTION</Text>
               <Ionicons name="arrow-forward" size={17} color="#ffffff" />
             </>
           ) : !photos[currentAngleIndex] ? (
