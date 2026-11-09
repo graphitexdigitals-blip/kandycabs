@@ -46,31 +46,32 @@ if (Test-Path $loginHeroFile) {
 # Update native app launcher icons (Adaptive Foregrounds, Legacy Square & Round across all densities)
 $androidIconsDir = Join-Path $root "apps\customer-app\android_icons"
 if (Test-Path $androidIconsDir) {
-    $iconMap = @{
-        "res_QZ.png" = "res/QZ.png"
-        "res_zr.png" = "res/zr.png"
-        "res_Em.png" = "res/Em.png"
-        "res_Lf.png" = "res/Lf.png"
-        "res_as.png" = "res/as.png"
-        "res_9w.png" = "res/9w.png"
-        "res_yn.png" = "res/yn.png"
-        "res_FS.png" = "res/FS.png"
-        "res_RJ.png" = "res/RJ.png"
-        "res_o-.png" = "res/o-.png"
-        "res_zR.png" = "res/zR.png"
-        "res_8c.png" = "res/8c.png"
-        "res_wb.png" = "res/wb.png"
-        "res_fO.png" = "res/fO.png"
-        "res_Gc.png" = "res/Gc.png"
-    }
+    $iconList = @(
+        @{ file = "res_QZ.png"; target = "res/QZ.png" },
+        @{ file = "res_zr.png"; target = "res/zr.png" },
+        @{ file = "res_Em.png"; target = "res/Em.png" },
+        @{ file = "res_Lf.png"; target = "res/Lf.png" },
+        @{ file = "res_as.png"; target = "res/as.png" },
+        @{ file = "res_9w.png"; target = "res/9w.png" },
+        @{ file = "res_yn.png"; target = "res/yn.png" },
+        @{ file = "res_FS.png"; target = "res/FS.png" },
+        @{ file = "res_RJ.png"; target = "res/RJ.png" },
+        @{ file = "res_o-.png"; target = "res/o-.png" },
+        @{ file = "res_zR.png"; target = "res/zR.png" },
+        @{ file = "res_8c.png"; target = "res/8c.png" },
+        @{ file = "res_wb.png"; target = "res/wb.png" },
+        @{ file = "res_fO.png"; target = "res/fO.png" },
+        @{ file = "res_Gc.png"; target = "res/Gc.png" }
+    )
 
-    foreach ($file in $iconMap.Keys) {
-        $srcPath = Join-Path $androidIconsDir $file
-        $targetEntry = $iconMap[$file]
+    foreach ($item in $iconList) {
+        $srcPath = Join-Path $androidIconsDir $item.file
+        $targetEntry = $item.target
         if (Test-Path $srcPath) {
             $existing = $zip.GetEntry($targetEntry)
             if ($null -ne $existing) { $existing.Delete() }
             [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $srcPath, $targetEntry)
+            Write-Output "Updated launcher icon resource: $targetEntry"
         }
     }
     Write-Output "Updated all 15 native Android launcher icon densities in APK res/!"
