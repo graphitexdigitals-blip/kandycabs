@@ -20,6 +20,7 @@ import { driverApiClient } from '../../lib/api';
 import { locationTracker } from '../../lib/location-tracker';
 import { SlideToAccept } from '../../components/SlideToAccept';
 import { setTripPickupReached } from '../../lib/tripState';
+import { TripFlowHeader } from '../../components/TripFlowHeader';
 
 export default function DriverEnRouteScreen() {
   const router = useRouter();
@@ -186,33 +187,12 @@ export default function DriverEnRouteScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
-      {/* Top Header Bar */}
-      <View style={[styles.topHeaderBar, { paddingTop: topInset + 6 }]}>
-        <View style={styles.headerLeftGroup}>
-          <TouchableOpacity
-            style={styles.headerBackBtn}
-            onPress={() => router.replace('/dashboard')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="arrow-back" size={20} color="#0f172a" />
-          </TouchableOpacity>
-
-          <View style={styles.headerDividerV} />
-
-          <View style={styles.headerTextCol}>
-            <View style={styles.headerStepBadgeRow}>
-              <View style={styles.headerLiveDot} />
-              <Text style={styles.headerLiveRadarText}>LIVE RADAR</Text>
-            </View>
-            <Text style={styles.headerMainTitle}>En Route to Pickup</Text>
-          </View>
-        </View>
-
-        <View style={styles.headerRefCapsule}>
-          <Ionicons name="car" size={15} color="#2563eb" />
-          <Text style={styles.headerRefText}>{booking.humanReadableRef}</Text>
-        </View>
-      </View>
+      {/* 3-Step Flow Header: 1. Pickup (Active) -> 2. OTP -> 3. Drop (No back button) */}
+      <TripFlowHeader
+        currentStep={1}
+        bookingRef={booking.humanReadableRef}
+        statusLabel={isArrived ? 'ARRIVED AT PICKUP' : 'EN ROUTE TO PICKUP'}
+      />
 
       <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Pickup Header Section */}

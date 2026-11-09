@@ -22,6 +22,7 @@ import { reverseGeocodeAddress } from '../../lib/reverse-geocoding';
 import { driverApiClient } from '../../lib/api';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from '../../components/SafeLinearGradient';
+import { TripFlowHeader } from '../../components/TripFlowHeader';
 import { useTranslation } from 'react-i18next';
 import {
   setTripInProcess,
@@ -306,40 +307,12 @@ export default function DriverTripCompleteScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
-      {/* Top Header Bar */}
-      <View style={[styles.topHeaderBar, { paddingTop: topInset + 6 }]}>
-        <View style={styles.headerLeftGroup}>
-          <TouchableOpacity
-            style={styles.headerBackBtn}
-            onPress={() => {
-              if (router.canGoBack()) {
-                router.back();
-              } else {
-                router.replace('/dashboard');
-              }
-            }}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="arrow-back" size={20} color="#0f172a" />
-          </TouchableOpacity>
-
-          <View style={styles.headerDividerV} />
-
-          <View style={styles.headerTextCol}>
-            <View style={styles.headerStepBadgeRow}>
-              <View style={styles.headerLiveDot} />
-              <Text style={styles.headerLiveRadarText}>{t('complete_trip.trip_active_caps')}</Text>
-            </View>
-            <Text style={styles.headerMainTitle}>{t('trip_flow.final_odometer')}</Text>
-            <Text style={styles.headerSubtitleText}>{t('trip_flow.final_odometer_desc')}</Text>
-          </View>
-        </View>
-
-        <View style={styles.headerRefCapsule}>
-          <Ionicons name="car" size={15} color="#2563eb" />
-          <Text style={styles.headerRefText}>{booking?.humanReadableRef || 'TRIP'}</Text>
-        </View>
-      </View>
+      {/* 3-Step Flow Header: 1. Pickup (✓) -> 2. OTP (✓) -> 3. Drop (Active) (No back button) */}
+      <TripFlowHeader
+        currentStep={3}
+        bookingRef={booking?.humanReadableRef}
+        statusLabel="FINAL DROP & COMPLETE"
+      />
 
       <ScrollView
         style={styles.scrollArea}

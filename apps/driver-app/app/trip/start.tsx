@@ -37,6 +37,7 @@ import {
 } from '../../lib/tripState';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from '../../components/SafeLinearGradient';
+import { TripFlowHeader } from '../../components/TripFlowHeader';
 import { useTranslation } from 'react-i18next';
 
 const ODOMETER_SAMPLE = require('../../assets/images/inspection/odometer_sample.jpg');
@@ -751,34 +752,12 @@ export default function DriverTripStartScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
-      {/* Top Header Bar */}
-      <View style={[styles.topHeaderBar, { paddingTop: Platform.OS === 'android' ? 10 : topInset + 6 }]}>
-        <View style={styles.headerLeftGroup}>
-          <TouchableOpacity
-            style={styles.headerBackBtn}
-            onPress={handleGoBack}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="arrow-back" size={20} color="#0f172a" />
-          </TouchableOpacity>
-
-          <View style={styles.headerTextCol}>
-            <View style={styles.headerStepBadgeRow}>
-              <View style={styles.headerLiveDot} />
-              <Text style={styles.headerLiveRadarText}>
-                {currentVerificationStep === 1
-                  ? '• STEP 1: SELFIE & VEHICLE'
-                  : '• STEP 2: CUSTOMER OTP & METER'}
-              </Text>
-            </View>
-            <Text style={styles.headerMainTitle}>
-              {currentVerificationStep === 1
-                ? 'Selfie & Vehicle Inspection'
-                : t('trip_flow.verify_inspection')}
-            </Text>
-          </View>
-        </View>
-      </View>
+      {/* 3-Step Flow Header: 1. Pickup (✓ Confirmed) -> 2. OTP (Active) -> 3. Drop (No back button) */}
+      <TripFlowHeader
+        currentStep={2}
+        bookingRef={booking?.humanReadableRef}
+        statusLabel="VERIFY OTP & METER"
+      />
 
       <ScrollView
         ref={scrollViewRef}

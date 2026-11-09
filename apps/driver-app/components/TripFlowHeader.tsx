@@ -1,0 +1,283 @@
+import React from 'react';
+import { StyleSheet, View, Text, Platform, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+
+interface TripFlowHeaderProps {
+  currentStep: 1 | 2 | 3; // 1: Pickup, 2: OTP, 3: Drop
+  bookingRef?: string;
+  statusLabel?: string;
+}
+
+export function TripFlowHeader({ currentStep, bookingRef, statusLabel }: TripFlowHeaderProps) {
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
+
+  const steps = [
+    { num: 1, label: 'Pickup', icon: 'location-sharp' as const },
+    { num: 2, label: 'OTP', icon: 'key' as const },
+    { num: 3, label: 'Drop', icon: 'flag' as const },
+  ];
+
+  const getStatusBadge = () => {
+    if (statusLabel) return statusLabel;
+    if (currentStep === 1) return 'PICKUP ARRIVAL';
+    if (currentStep === 2) return 'VERIFY OTP';
+    return 'TRIP TO DROP';
+  };
+
+  return (
+    <View style={[styles.headerContainer, { paddingTop: topInset + 6 }]}>
+      {/* Top Meta Row: Reference & Status Capsule */}
+      <View style={styles.topMetaRow}>
+        <View style={styles.refCapsule}>
+          <Ionicons name="car" size={13} color="#ea580c" />
+          <Text style={styles.refText}>{bookingRef || 'TRIP'}</Text>
+        </View>
+
+        <View style={styles.statusPill}>
+          <View
+            style={[
+              styles.statusDot,
+              currentStep === 1
+                ? styles.dotAmber
+                : currentStep === 2
+                ? styles.dotBlue
+                : styles.dotGreen,
+            ]}
+          />
+          <Text
+            style={[
+              styles.statusText,
+              currentStep === 1
+                ? styles.textAmber
+                : currentStep === 2
+                ? styles.textBlue
+                : styles.textGreen,
+            ]}
+          >
+            {getStatusBadge()}
+          </Text>
+        </View>
+      </View>
+
+      {/* 3-Step Connected Progress Stepper Bar */}
+      <View style={styles.stepperWrapper}>
+        {steps.map((step, idx) => {
+          const isCompleted = currentStep > step.num;
+          const isActive = currentStep === step.num;
+          const isPending = currentStep < step.num;
+
+          return (
+            <React.Fragment key={step.num}>
+              {/* Step Circle & Label */}
+              <View style={styles.stepNode}>
+                <View
+                  style={[
+                    styles.stepCircle,
+                    isCompleted && styles.circleCompleted,
+                    isActive && styles.circleActive,
+                    isPending && styles.circlePending,
+                  ]}
+                >
+                  {isCompleted ? (
+                    <Ionicons name="checkmark" size={16} color="#ffffff" style={styles.checkIcon} />
+                  ) : isActive ? (
+                    <Ionicons name={step.icon} size={15} color="#ffffff" />
+                  ) : (
+                    <Text style={styles.pendingNumText}>{step.num}</Text>
+                  )}
+                </View>
+
+                <Text
+                  style={[
+                    styles.stepLabel,
+                    isCompleted && styles.labelCompleted,
+                    isActive && styles.labelActive,
+                    isPending && styles.labelPending,
+                  ]}
+                >
+                  {step.label}
+                </Text>
+              </View>
+
+              {/* Connecting Line between steps */}
+              {idx < steps.length - 1 && (
+                <View style={styles.lineContainer}>
+                  <View
+                    style={[
+                      styles.line,
+                      currentStep > idx + 1 ? styles.lineCompleted : styles.linePending,
+                    ]}
+                  />
+                </View>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  headerContainer: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  topMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  refCapsule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7ed',
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    gap: 5,
+  },
+  refText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#ea580c',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    letterSpacing: 0.3,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 5,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  dotAmber: {
+    backgroundColor: '#ea580c',
+  },
+  dotBlue: {
+    backgroundColor: '#2563eb',
+  },
+  dotGreen: {
+    backgroundColor: '#16a34a',
+  },
+  statusText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  textAmber: {
+    color: '#ea580c',
+  },
+  textBlue: {
+    color: '#2563eb',
+  },
+  textGreen: {
+    color: '#16a34a',
+  },
+  stepperWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+  },
+  stepNode: {
+    alignItems: 'center',
+    width: 64,
+  },
+  stepCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  circleCompleted: {
+    backgroundColor: '#ea580c',
+    shadowColor: '#ea580c',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  circleActive: {
+    backgroundColor: '#ea580c',
+    borderWidth: 3,
+    borderColor: '#ffedd5',
+    shadowColor: '#ea580c',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  circlePending: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+  },
+  checkIcon: {
+    fontWeight: '900',
+  },
+  pendingNumText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94a3b8',
+  },
+  stepLabel: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    letterSpacing: 0.1,
+  },
+  labelCompleted: {
+    color: '#0f172a',
+    fontWeight: '800',
+  },
+  labelActive: {
+    color: '#ea580c',
+    fontWeight: '900',
+  },
+  labelPending: {
+    color: '#94a3b8',
+  },
+  lineContainer: {
+    flex: 1,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 18,
+    paddingHorizontal: 2,
+  },
+  line: {
+    width: '100%',
+    height: 3,
+    borderRadius: 1.5,
+  },
+  lineCompleted: {
+    backgroundColor: '#ea580c',
+  },
+  linePending: {
+    backgroundColor: '#e2e8f0',
+  },
+});
