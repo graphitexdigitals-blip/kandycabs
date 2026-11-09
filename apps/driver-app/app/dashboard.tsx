@@ -1785,39 +1785,34 @@ export default function DriverDashboardScreen() {
                               </View>
                               <View style={styles.dispatchReqsRow}>
                                 {reqs.map((r, rIdx) => (
-                                  <View
-                                    key={`curr-req-${rIdx}`}
-                                    style={[
-                                      styles.reqPill,
-                                      r.type === 'highlight' && styles.reqPillHighlight,
-                                      r.type === 'warning' && styles.reqPillWarning,
-                                      r.type === 'info' && styles.reqPillInfo,
-                                    ]}
-                                  >
-                                    <Ionicons
-                                      name={r.icon as any}
-                                      size={12}
-                                      color={
-                                        r.type === 'highlight'
-                                          ? '#c2410c'
-                                          : r.type === 'warning'
-                                          ? '#b45309'
-                                          : r.type === 'info'
-                                          ? '#2563eb'
-                                          : '#334155'
-                                      }
-                                    />
-                                    <Text
-                                      style={[
-                                        styles.reqPillText,
-                                        r.type === 'highlight' && styles.reqPillTextHighlight,
-                                        r.type === 'warning' && styles.reqPillTextWarning,
-                                        r.type === 'info' && styles.reqPillTextInfo,
-                                      ]}
-                                    >
-                                      {r.label}
-                                    </Text>
-                                  </View>
+                                  <React.Fragment key={`curr-req-${rIdx}`}>
+                                    {rIdx > 0 && <View style={styles.reqLineSeparator} />}
+                                    <View style={styles.reqPill}>
+                                      <Ionicons
+                                        name={r.icon as any}
+                                        size={12}
+                                        color={
+                                          r.type === 'highlight'
+                                            ? '#c2410c'
+                                            : r.type === 'warning'
+                                            ? '#b45309'
+                                            : r.type === 'info'
+                                            ? '#2563eb'
+                                            : '#334155'
+                                        }
+                                      />
+                                      <Text
+                                        style={[
+                                          styles.reqPillText,
+                                          r.type === 'highlight' && styles.reqPillTextHighlight,
+                                          r.type === 'warning' && styles.reqPillTextWarning,
+                                          r.type === 'info' && styles.reqPillTextInfo,
+                                        ]}
+                                      >
+                                        {r.label}
+                                      </Text>
+                                    </View>
+                                  </React.Fragment>
                                 ))}
                               </View>
                               {note ? (
@@ -2098,39 +2093,34 @@ export default function DriverDashboardScreen() {
                               </View>
                               <View style={styles.dispatchReqsRow}>
                                 {reqs.map((r, rIdx) => (
-                                  <View
-                                    key={`up-req-${rIdx}`}
-                                    style={[
-                                      styles.reqPill,
-                                      r.type === 'highlight' && styles.reqPillHighlight,
-                                      r.type === 'warning' && styles.reqPillWarning,
-                                      r.type === 'info' && styles.reqPillInfo,
-                                    ]}
-                                  >
-                                    <Ionicons
-                                      name={r.icon as any}
-                                      size={12}
-                                      color={
-                                        r.type === 'highlight'
-                                          ? '#c2410c'
-                                          : r.type === 'warning'
-                                          ? '#b45309'
-                                          : r.type === 'info'
-                                          ? '#2563eb'
-                                          : '#334155'
-                                      }
-                                    />
-                                    <Text
-                                      style={[
-                                        styles.reqPillText,
-                                        r.type === 'highlight' && styles.reqPillTextHighlight,
-                                        r.type === 'warning' && styles.reqPillTextWarning,
-                                        r.type === 'info' && styles.reqPillTextInfo,
-                                      ]}
-                                    >
-                                      {r.label}
-                                    </Text>
-                                  </View>
+                                  <React.Fragment key={`up-req-${rIdx}`}>
+                                    {rIdx > 0 && <View style={styles.reqLineSeparator} />}
+                                    <View style={styles.reqPill}>
+                                      <Ionicons
+                                        name={r.icon as any}
+                                        size={12}
+                                        color={
+                                          r.type === 'highlight'
+                                            ? '#c2410c'
+                                            : r.type === 'warning'
+                                            ? '#b45309'
+                                            : r.type === 'info'
+                                            ? '#2563eb'
+                                            : '#334155'
+                                        }
+                                      />
+                                      <Text
+                                        style={[
+                                          styles.reqPillText,
+                                          r.type === 'highlight' && styles.reqPillTextHighlight,
+                                          r.type === 'warning' && styles.reqPillTextWarning,
+                                          r.type === 'info' && styles.reqPillTextInfo,
+                                        ]}
+                                      >
+                                        {r.label}
+                                      </Text>
+                                    </View>
+                                  </React.Fragment>
                                 ))}
                               </View>
                               {note ? (
@@ -2451,39 +2441,34 @@ export default function DriverDashboardScreen() {
                             </View>
                             <View style={styles.dispatchReqsRow}>
                               {reqs.map((r, rIdx) => (
-                                <View
-                                  key={`req-${rIdx}`}
-                                  style={[
-                                    styles.reqPill,
-                                    r.type === 'highlight' && styles.reqPillHighlight,
-                                    r.type === 'warning' && styles.reqPillWarning,
-                                    r.type === 'info' && styles.reqPillInfo,
-                                  ]}
-                                >
-                                  <Ionicons
-                                    name={r.icon as any}
-                                    size={12}
-                                    color={
-                                      r.type === 'highlight'
-                                        ? '#c2410c'
-                                        : r.type === 'warning'
-                                        ? '#b45309'
-                                        : r.type === 'info'
-                                        ? '#2563eb'
-                                        : '#334155'
-                                    }
-                                  />
-                                  <Text
-                                    style={[
-                                      styles.reqPillText,
-                                      r.type === 'highlight' && styles.reqPillTextHighlight,
-                                      r.type === 'warning' && styles.reqPillTextWarning,
-                                      r.type === 'info' && styles.reqPillTextInfo,
-                                    ]}
-                                  >
-                                    {r.label}
-                                  </Text>
-                                </View>
+                                <React.Fragment key={`req-${rIdx}`}>
+                                  {rIdx > 0 && <View style={styles.reqLineSeparator} />}
+                                  <View style={styles.reqPill}>
+                                    <Ionicons
+                                      name={r.icon as any}
+                                      size={12}
+                                      color={
+                                        r.type === 'highlight'
+                                          ? '#c2410c'
+                                          : r.type === 'warning'
+                                          ? '#b45309'
+                                          : r.type === 'info'
+                                          ? '#2563eb'
+                                          : '#334155'
+                                      }
+                                    />
+                                    <Text
+                                      style={[
+                                        styles.reqPillText,
+                                        r.type === 'highlight' && styles.reqPillTextHighlight,
+                                        r.type === 'warning' && styles.reqPillTextWarning,
+                                        r.type === 'info' && styles.reqPillTextInfo,
+                                      ]}
+                                    >
+                                      {r.label}
+                                    </Text>
+                                  </View>
+                                </React.Fragment>
                               ))}
                             </View>
                             {note ? (
@@ -4375,9 +4360,11 @@ const styles = StyleSheet.create({
   },
   dispatchReqsSection: {
     paddingHorizontal: 2,
-    paddingVertical: 5,
+    paddingVertical: 7,
     marginTop: 6,
-    marginBottom: 2,
+    marginBottom: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
   },
   dispatchReqsHeaderRow: {
     flexDirection: 'row',
@@ -4395,41 +4382,35 @@ const styles = StyleSheet.create({
   dispatchReqsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    alignItems: 'center',
+    gap: 2,
   },
   reqPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    gap: 5,
+    paddingVertical: 3,
   },
-  reqPillHighlight: {
-    backgroundColor: '#fff7ed',
-    borderColor: '#fed7aa',
-  },
-  reqPillWarning: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#fde68a',
-  },
-  reqPillInfo: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#bfdbfe',
+  reqPillHighlight: {},
+  reqPillWarning: {},
+  reqPillInfo: {},
+  reqLineSeparator: {
+    width: 1,
+    height: 12,
+    backgroundColor: '#cbd5e1',
+    marginHorizontal: 8,
+    alignSelf: 'center',
   },
   reqPillText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: '#334155',
   },
   reqPillTextHighlight: {
-    color: '#9a3412',
+    color: '#c2410c',
   },
   reqPillTextWarning: {
-    color: '#92400e',
+    color: '#b45309',
   },
   reqPillTextInfo: {
     color: '#1d4ed8',

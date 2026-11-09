@@ -119,39 +119,34 @@ export const BroadcastCard = memo(function BroadcastCard({
             </View>
             <View style={styles.reqsRow}>
               {reqs.map((r, rIdx) => (
-                <View
-                  key={`b-req-${rIdx}`}
-                  style={[
-                    styles.reqPill,
-                    r.type === 'highlight' && styles.reqPillHighlight,
-                    r.type === 'warning' && styles.reqPillWarning,
-                    r.type === 'info' && styles.reqPillInfo,
-                  ]}
-                >
-                  <Ionicons
-                    name={r.icon as any}
-                    size={11}
-                    color={
-                      r.type === 'highlight'
-                        ? '#c2410c'
-                        : r.type === 'warning'
-                        ? '#b45309'
-                        : r.type === 'info'
-                        ? '#2563eb'
-                        : '#334155'
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.reqPillText,
-                      r.type === 'highlight' && styles.reqPillTextHighlight,
-                      r.type === 'warning' && styles.reqPillTextWarning,
-                      r.type === 'info' && styles.reqPillTextInfo,
-                    ]}
-                  >
-                    {r.label}
-                  </Text>
-                </View>
+                <React.Fragment key={`b-req-${rIdx}`}>
+                  {rIdx > 0 && <View style={styles.reqLineSeparator} />}
+                  <View style={styles.reqPill}>
+                    <Ionicons
+                      name={r.icon as any}
+                      size={12}
+                      color={
+                        r.type === 'highlight'
+                          ? '#fdba74'
+                          : r.type === 'warning'
+                          ? '#fde047'
+                          : r.type === 'info'
+                          ? '#93c5fd'
+                          : '#cbd5e1'
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.reqPillText,
+                        r.type === 'highlight' && styles.reqPillTextHighlight,
+                        r.type === 'warning' && styles.reqPillTextWarning,
+                        r.type === 'info' && styles.reqPillTextInfo,
+                      ]}
+                    >
+                      {r.label}
+                    </Text>
+                  </View>
+                </React.Fragment>
               ))}
             </View>
             {note ? (
@@ -457,35 +452,29 @@ const styles = StyleSheet.create({
   reqsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    alignItems: 'center',
+    gap: 2,
   },
   reqPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(30, 41, 59, 0.85)',
-    borderWidth: 1,
-    borderColor: '#475569',
-    borderRadius: 7,
-    paddingHorizontal: 7,
-    paddingVertical: 3.5,
+    paddingVertical: 2,
   },
-  reqPillHighlight: {
-    backgroundColor: 'rgba(234, 88, 12, 0.18)',
-    borderColor: 'rgba(251, 146, 60, 0.5)',
-  },
-  reqPillWarning: {
-    backgroundColor: 'rgba(217, 119, 6, 0.18)',
-    borderColor: 'rgba(251, 191, 36, 0.5)',
-  },
-  reqPillInfo: {
-    backgroundColor: 'rgba(37, 99, 235, 0.18)',
-    borderColor: 'rgba(96, 165, 250, 0.5)',
+  reqPillHighlight: {},
+  reqPillWarning: {},
+  reqPillInfo: {},
+  reqLineSeparator: {
+    width: 1,
+    height: 12,
+    backgroundColor: 'rgba(148, 163, 184, 0.4)',
+    marginHorizontal: 8,
+    alignSelf: 'center',
   },
   reqPillText: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#e2e8f0',
+    color: '#cbd5e1',
   },
   reqPillTextHighlight: {
     color: '#fdba74',

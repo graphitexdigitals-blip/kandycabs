@@ -491,41 +491,36 @@ export default function DriverTripActiveScreen() {
                     <Ionicons name="options-outline" size={13} color="#64748b" />
                     <Text style={styles.reqsHeadingActive}>CUSTOMER REQUIREMENTS</Text>
                   </View>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
                     {reqs.map((r, rIdx) => (
-                      <View
-                        key={`act-req-${rIdx}`}
-                        style={[
-                          styles.reqPillActive,
-                          r.type === 'highlight' && styles.reqPillHighlightActive,
-                          r.type === 'warning' && styles.reqPillWarningActive,
-                          r.type === 'info' && styles.reqPillInfoActive,
-                        ]}
-                      >
-                        <Ionicons
-                          name={r.icon as any}
-                          size={12}
-                          color={
-                            r.type === 'highlight'
-                              ? '#c2410c'
-                              : r.type === 'warning'
-                              ? '#b45309'
-                              : r.type === 'info'
-                              ? '#2563eb'
-                              : '#334155'
-                          }
-                        />
-                        <Text
-                          style={[
-                            styles.reqPillTextActive,
-                            r.type === 'highlight' && styles.reqPillTextHighlightActive,
-                            r.type === 'warning' && styles.reqPillTextWarningActive,
-                            r.type === 'info' && styles.reqPillTextInfoActive,
-                          ]}
-                        >
-                          {r.label}
-                        </Text>
-                      </View>
+                      <React.Fragment key={`act-req-${rIdx}`}>
+                        {rIdx > 0 && <View style={styles.reqLineSeparatorActive} />}
+                        <View style={styles.reqPillActive}>
+                          <Ionicons
+                            name={r.icon as any}
+                            size={12}
+                            color={
+                              r.type === 'highlight'
+                                ? '#c2410c'
+                                : r.type === 'warning'
+                                ? '#b45309'
+                                : r.type === 'info'
+                                ? '#2563eb'
+                                : '#334155'
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.reqPillTextActive,
+                              r.type === 'highlight' && styles.reqPillTextHighlightActive,
+                              r.type === 'warning' && styles.reqPillTextWarningActive,
+                              r.type === 'info' && styles.reqPillTextInfoActive,
+                            ]}
+                          >
+                            {r.label}
+                          </Text>
+                        </View>
+                      </React.Fragment>
                     ))}
                   </View>
                   {note ? (
@@ -1242,27 +1237,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
-  reqPillHighlightActive: {
-    backgroundColor: '#fff7ed',
-    borderColor: '#fed7aa',
-  },
-  reqPillWarningActive: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#fde68a',
-  },
-  reqPillInfoActive: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#bfdbfe',
+  reqPillHighlightActive: {},
+  reqPillWarningActive: {},
+  reqPillInfoActive: {},
+  reqLineSeparatorActive: {
+    width: 1,
+    height: 12,
+    backgroundColor: '#cbd5e1',
+    marginHorizontal: 8,
+    alignSelf: 'center',
   },
   reqPillTextActive: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '700',
     color: '#334155',
   },
