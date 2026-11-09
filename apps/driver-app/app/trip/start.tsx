@@ -1039,21 +1039,24 @@ export default function DriverTripStartScreen() {
                 </View>
               </View>
             ) : (
-              <View style={styles.card}>
+              <View style={styles.otpCard}>
+                {/* Header Row */}
                 <View style={styles.cardHeaderRow}>
-                  <View style={styles.otpHeaderBadge}>
-                    <Ionicons name="shield-checkmark" size={22} color="#ea580c" />
+                  <View style={styles.orangeShieldWrapper}>
+                    <Ionicons name="shield" size={32} color="#f97316" />
+                    <View style={styles.shieldCheckOverlay}>
+                      <Ionicons name="checkmark" size={17} color="#ffffff" style={{ fontWeight: '900' }} />
+                    </View>
                   </View>
-                  <View style={styles.otpHeaderDivider} />
                   <View style={styles.cardHeaderTextCol}>
-                    <Text style={styles.cardHeaderTitle}>
-                      {t('trip_flow.customer_pickup_otp')} <Text style={styles.requiredAsterisk}>*</Text>
+                    <Text style={styles.otpHeaderTitle}>
+                      Customer Pickup OTP <Text style={styles.requiredAsterisk}>*</Text>
                     </Text>
-                    <Text style={styles.cardHeaderSubtitle}>{t('trip_flow.enter_otp_shared')}</Text>
+                    <Text style={styles.otpHeaderSubtitle}>Enter the OTP shared by the customer</Text>
                   </View>
                 </View>
 
-                {/* Visual 4-Digit Box Container */}
+                {/* Visual 4-Digit Box Container + Verify Button */}
                 <View style={styles.otpRowContainer}>
                   <View style={styles.otpBoxesWrapper}>
                     {[0, 1, 2, 3].map((idx) => {
@@ -1112,63 +1115,52 @@ export default function DriverTripStartScreen() {
                     ) : isOtpVerified ? (
                       <View style={styles.verifyOtpContentRow}>
                         <Ionicons name="checkmark-circle" size={17} color="#10b981" />
-                        <Text style={styles.verifyOtpTextVerified}>{t('trip_flow.otp_verified')}</Text>
+                        <Text style={styles.verifyOtpTextVerified}>Verified</Text>
                       </View>
                     ) : (
                       <View style={styles.verifyOtpContentRow}>
                         <Ionicons
                           name="checkmark-circle-outline"
-                          size={16}
+                          size={18}
                           color="#ffffff"
                         />
                         <Text style={styles.verifyOtpText}>
-                          {t('trip_flow.verify_otp')}
+                          Verify
                         </Text>
                       </View>
                     )}
                   </TouchableOpacity>
                 </View>
 
-                {/* Admin Override / Info Banner */}
+                {/* Driver Help / Admin Override Banner */}
                 <TouchableOpacity
                   style={[
-                    styles.overrideLinkBanner,
-                    overrideRequested && styles.overrideLinkBannerRequested,
+                    styles.otpHelpBanner,
+                    overrideRequested && styles.otpHelpBannerRequested,
                   ]}
                   onPress={handleRequestAdminOverride}
                   disabled={overrideRequesting}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.overrideBannerLeft}>
+                  <View style={styles.otpHelpLeft}>
                     <Ionicons
-                      name={overrideRequested ? 'alert-circle' : 'information-circle-outline'}
-                      size={17}
-                      color={overrideRequested ? '#b45309' : '#2563eb'}
+                      name="information-circle-outline"
+                      size={19}
+                      color="#0284c7"
+                      style={{ marginRight: 8 }}
                     />
-                    <View
-                      style={[
-                        styles.overrideDividerBlue,
-                        overrideRequested && { backgroundColor: '#fde68a' },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.overrideLinkText,
-                        overrideRequested && { color: '#92400e', fontWeight: '700' },
-                      ]}
-                      numberOfLines={1}
-                    >
+                    <Text style={styles.otpHelpText}>
                       {overrideRequesting
-                        ? t('trip_flow.requesting_override')
+                        ? 'Requesting Help...'
                         : overrideRequested
-                        ? t('trip_flow.override_requested')
-                        : t('trip_flow.verify_before_starting')}
+                        ? 'Help Requested from Admin'
+                        : 'No OTP? Ask Driver Help'}
                     </Text>
                   </View>
                   <Ionicons
                     name={overrideRequested ? 'close-circle' : 'chevron-forward'}
-                    size={16}
-                    color={overrideRequested ? '#b45309' : '#2563eb'}
+                    size={17}
+                    color="#0284c7"
                   />
                 </TouchableOpacity>
               </View>
@@ -1698,6 +1690,69 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 8,
   },
+  otpCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#e8edf5',
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  orangeShieldWrapper: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginRight: 10,
+  },
+  shieldCheckOverlay: {
+    position: 'absolute',
+    top: 8.5,
+    left: 9.5,
+  },
+  otpHeaderTitle: {
+    fontSize: 16.5,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.2,
+  },
+  otpHeaderSubtitle: {
+    fontSize: 12.5,
+    color: '#64748b',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  otpHelpBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f0f7ff',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  otpHelpBannerRequested: {
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  otpHelpLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  otpHelpText: {
+    color: '#0369a1',
+    fontSize: 13,
+    fontWeight: '700',
+    flex: 1,
+  },
   otpHeaderBadge: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -1771,18 +1826,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
-    marginTop: 4,
+    marginBottom: 16,
+    marginTop: 18,
+    gap: 8,
   },
   otpBoxesWrapper: {
     flexDirection: 'row',
-    gap: 7,
+    gap: 8,
     flex: 1,
   },
   otpBox: {
     flex: 1,
-    height: 48,
-    borderRadius: 14,
+    height: 54,
+    borderRadius: 16,
     backgroundColor: '#ffffff',
     borderWidth: 1.2,
     borderColor: '#e2e8f0',
@@ -1790,12 +1846,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   otpBoxActive: {
-    borderColor: '#0c2253',
-    borderWidth: 2,
+    borderColor: '#0f172a',
+    borderWidth: 1.8,
     backgroundColor: '#ffffff',
   },
   otpBoxFilled: {
     borderColor: '#cbd5e1',
+    borderWidth: 1.2,
     backgroundColor: '#ffffff',
   },
   otpCursor: {
@@ -1805,7 +1862,7 @@ const styles = StyleSheet.create({
     borderRadius: 1,
   },
   otpDigit: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
     color: '#0f172a',
   },
@@ -1817,27 +1874,26 @@ const styles = StyleSheet.create({
     color: '#0f172a',
   },
   verifyOtpBtn: {
-    height: 48,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    backgroundColor: '#0c2253',
+    height: 54,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    backgroundColor: '#0a192f',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
-    elevation: 3,
-    shadowColor: '#0c2253',
+    shadowColor: '#0a192f',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
+    elevation: 3,
   },
   verifyOtpBtnActive: {
-    backgroundColor: '#0c2253',
-    borderColor: '#0c2253',
+    backgroundColor: '#0a192f',
   },
   verifyOtpBtnVerified: {
     backgroundColor: '#ecfdf5',
-    borderWidth: 1.2,
-    borderColor: '#a7f3d0',
+    borderWidth: 1.5,
+    borderColor: '#10b981',
     shadowColor: '#10b981',
     shadowOpacity: 0.15,
   },
@@ -1847,7 +1903,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   verifyOtpText: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '800',
     color: '#ffffff',
     letterSpacing: 0.2,
