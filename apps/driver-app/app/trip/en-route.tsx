@@ -191,89 +191,6 @@ export default function DriverEnRouteScreen() {
       <TripFlowHeader currentStep={1} />
 
       <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Pickup Header Section */}
-        <View style={styles.pickupHeaderSection}>
-          <View style={styles.statusBadgeRow}>
-            <View style={isArrived ? styles.greenPulseDot : isNearPickup ? styles.amberPulseDot : styles.greenPulseDot} />
-            <Text style={styles.statusBadgeText}>
-              {isArrived ? 'ARRIVED AT PICKUP' : isNearPickup ? 'NEAR PICKUP LOCATION' : 'EN ROUTE TO PICKUP'}
-            </Text>
-          </View>
-          <Text style={styles.pickupDestinationTitle} numberOfLines={2}>
-            {booking.pickupAddress || 'Customer Location'}
-          </Text>
-          <Text style={styles.pickupInstructionsSubtitle}>
-            Drive to this pickup point. After reaching {booking.pickupAddress || 'the pickup location'}, click ARRIVED AT PICKUP below.
-          </Text>
-        </View>
-
-        {/* Live Distance & Geofence Status Card */}
-        {distanceMeters !== null && (
-          <View
-            style={[
-              styles.proximityRadarCard,
-              isArrived
-                ? styles.proximityCardArrived
-                : isNearPickup
-                ? styles.proximityCardNear
-                : styles.proximityCardNormal,
-            ]}
-          >
-            <View style={styles.proximityHeaderRow}>
-              <View
-                style={[
-                  styles.proximityPulseDot,
-                  isArrived
-                    ? styles.dotGreen
-                    : isNearPickup
-                    ? styles.dotAmber
-                    : styles.dotBlue,
-                ]}
-              />
-              <Text
-                style={[
-                  styles.proximityStatusTitle,
-                  isArrived
-                    ? styles.textGreen
-                    : isNearPickup
-                    ? styles.textAmber
-                    : styles.textBlue,
-                ]}
-              >
-                {isArrived
-                  ? '🎯 GEOFENCE: ARRIVED AT PICKUP'
-                  : isNearPickup
-                  ? '🚕 GEOFENCE: NEAR PICKUP (<120m)'
-                  : '📡 LIVE GPS DISTANCE TO PICKUP'}
-              </Text>
-            </View>
-
-            <View style={styles.proximityDistanceRow}>
-              <Text
-                style={[
-                  styles.proximityDistanceVal,
-                  isArrived
-                    ? styles.textGreen
-                    : isNearPickup
-                    ? styles.textAmber
-                    : styles.textBlue,
-                ]}
-              >
-                {distanceMeters > 1000
-                  ? `${(distanceMeters / 1000).toFixed(1)} km`
-                  : `${distanceMeters} m`}
-              </Text>
-              <Text style={styles.proximityDistanceSub}>
-                {isArrived
-                  ? 'Customer OTP revealed. Click button below to start ride.'
-                  : isNearPickup
-                  ? 'Customer notified: "Driver is nearby. Please be ready."'
-                  : 'Geofenced triggers: ~100m notify customer, ~50m reveal OTP.'}
-              </Text>
-            </View>
-          </View>
-        )}
-
         {/* Map Preview Card */}
         <View style={styles.mapCard}>
           <View style={styles.mapCanvas}>
@@ -582,6 +499,7 @@ const styles = StyleSheet.create({
   },
   mapCard: {
     marginHorizontal: 16,
+    marginTop: 14,
     backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 8,
