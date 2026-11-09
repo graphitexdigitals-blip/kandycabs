@@ -1,19 +1,51 @@
 $ErrorActionPreference = "Stop"
 $env:PATH = "C:\nvm4w\nodejs;$env:PATH"
 $root = "D:\Rakshith\Graphitex Digitals\client websites\kandycabs\kandycabs website\kandycabs updated"
-Set-Location $root
-
-Write-Output "== STEP 1: EXPORTING METRO BUNDLE =="
-Set-Location "$root\apps\customer-app"
-$env:EXPO_PUBLIC_API_URL = "http://192.168.1.5:3000"
-& "C:\nvm4w\nodejs\npx.cmd" expo export:embed --entry-file index.js --platform android --dev false --bundle-output dist_bundle\index.android.bundle --assets-dest dist_bundle
-
-Write-Output "== STEP 2: COMPILING HERMES BYTECODE =="
-Set-Location $root
+$distDir = "$root\apps\customer-app\dist_bundle"
+$bundleFile = "$distDir\index.android.bundle"
+$hbcFile = "$distDir\index.android.bundle.hbc"
 $hermesc = "$root\node_modules\react-native\sdks\hermesc\win64-bin\hermesc.exe"
-& $hermesc -emit-binary -out "$root\apps\customer-app\dist_bundle\index.android.bundle.hbc" "$root\apps\customer-app\dist_bundle\index.android.bundle"
 
-Write-Output "== STEP 3: REPACKAGING, ZIPALIGNING & SIGNING APK =="
-& powershell -ExecutionPolicy Bypass -File "$root\scripts\update-customer-apk.ps1"
+Set-Location $root
 
-Write-Output "== ALL STEPS COMPLETE! =="
+Write-Host "================================================" -ForegroundColor Cyan
+Write-Host " STEP 1: EXPORTING METRO BUNDLE FOR CUSTOMER APP" -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor Cyan
+
+if (-not (Test-Path $distDir)) {
+    New-Item -ItemType Directory -Path $distDir -Force | Out-Null
+}
+
+$env:EXPO_PUBLIC_API_URL = "https://kandycabs-8kew.vercel.app"
+Write-Host "Using EXPO_PUBLIC_API_URL = $env:EXPO_PUBLIC_API_URL" -ForegroundColor Green
+
+Set-Location "$root\apps\customer-app"
+& "C:\nvm4w\nodejs\npx.cmd" expo export:embed --entry-file index.js --platform android --dev false --bundle-output $bundleFile --assets-dest $distDir
+if ($LASTEXITCODE -ne 0) {
+    throw "Metro export failed with exit code $LASTEXITCODE"
+}
+Write-Host "Metro bundle generated successfully ($((Get-Item $bundleFile).Length) bytes)" -ForegroundColor Green
+
+Write-Host "`n================================================" -ForegroundColor Cyan
+Write-Host " STEP 2: COMPILING HERMES BYTECODE (hermesc)    " -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor Cyan
+
+Set-Location $root
+& $hermesc -emit-binary -out $hbcFile $bundleFile
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path $hbcFile)) {
+    throw "Hermes compilation failed with exit code $LASTEXITCODE"
+}
+Write-Host "Hermes bytecode created: $((Get-Item $hbcFile).Length) bytes" -ForegroundColor Green
+
+Write-Host "`n================================================" -ForegroundColor Cyan
+Write-Host " STEP 3: REPACKAGING, ZIPALIGNING & SIGNING APK " -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor Cyan
+
+& powershell.exe -ExecutionPolicy Bypass -File "$root\scripts\update-customer-apk.ps1"
+if ($LASTEXITCODE -ne 0) {
+    throw "APK update script failed with exit code $LASTEXITCODE"
+}
+
+Write-Host "`n================================================" -ForegroundColor Cyan
+Write-Host " CUSTOMER APK UPDATED SUCCESSFULLY!             " -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor Cyan
