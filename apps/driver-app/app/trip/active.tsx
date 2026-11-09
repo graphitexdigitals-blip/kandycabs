@@ -269,7 +269,7 @@ export default function DriverTripActiveScreen() {
             </Text>
           </View>
 
-          {/* Main Navigation Button with Blue Gradient & Divider */}
+          {/* Main Navigation Button with Blue Gradient */}
           <TouchableOpacity
             style={styles.navButtonWrap}
             onPress={openDropNavigation}
@@ -281,10 +281,7 @@ export default function DriverTripActiveScreen() {
               end={{ x: 0, y: 1 }}
               style={styles.navButtonGradient}
             >
-              <View style={styles.navIconSection}>
-                <Ionicons name="navigate" size={20} color="#ffffff" />
-              </View>
-              <View style={styles.navDividerV} />
+              <Ionicons name="navigate" size={20} color="#ffffff" style={{ marginRight: 10 }} />
               <Text style={styles.navButtonText}>{t('active_trip.navigate_to_drop')}</Text>
               <Ionicons name="chevron-forward" size={19} color="#ffffff" />
             </LinearGradient>
@@ -305,8 +302,7 @@ export default function DriverTripActiveScreen() {
                 end={{ x: 0, y: 1 }}
                 style={styles.breakdownGradient}
               >
-                <Ionicons name="warning" size={18} color="#e11d48" />
-                <View style={styles.breakdownDividerV} />
+                <Ionicons name="warning" size={18} color="#e11d48" style={{ marginRight: 6 }} />
                 <Text
                   style={styles.breakdownPillText}
                   numberOfLines={1}
@@ -330,8 +326,7 @@ export default function DriverTripActiveScreen() {
                 end={{ x: 0, y: 1 }}
                 style={styles.callSupportGradient}
               >
-                <Ionicons name="call" size={18} color="#059669" />
-                <View style={styles.callSupportDividerV} />
+                <Ionicons name="call" size={18} color="#059669" style={{ marginRight: 6 }} />
                 <Text
                   style={styles.callSupportPillText}
                   numberOfLines={1}
@@ -371,8 +366,7 @@ export default function DriverTripActiveScreen() {
             end={{ x: 0, y: 1 }}
             style={styles.completeButtonGradient}
           >
-            <Ionicons name="location-sharp" size={20} color="#ffffff" />
-            <View style={styles.completeDividerV} />
+            <Ionicons name="location-sharp" size={20} color="#ffffff" style={{ marginRight: 10 }} />
             <Text style={styles.completeButtonText}>{t('active_trip.reached_destination')}</Text>
             <Ionicons name="arrow-forward" size={20} color="#ffffff" />
           </LinearGradient>
