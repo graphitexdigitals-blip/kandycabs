@@ -1752,21 +1752,19 @@ export default function DriverDashboardScreen() {
                           {/* Vertical Slash/Divider 2 */}
                           <View style={styles.infoColDivider} />
 
-                          {/* Col 3: Driver Amount & Distance */}
+                          {/* Col 3: Distance & Route Type (Driver Amount hidden once accepted) */}
                           <View style={styles.infoThreeCol}>
                             <View style={styles.infoColHeaderRow}>
-                              <Ionicons name="wallet-outline" size={14} color="#0f2744" />
-                              <Text style={styles.infoColHeaderLabel} numberOfLines={1}>Driver Amount</Text>
+                              <Ionicons name="navigate-outline" size={14} color="#0f2744" />
+                              <Text style={styles.infoColHeaderLabel} numberOfLines={1}>Distance</Text>
                             </View>
                             <Text style={styles.infoFareValBold}>
-                              ₹{Math.round(
-                                Number(currentTrip.driverPayeeAmount || 0) > 0
-                                  ? Number(currentTrip.driverPayeeAmount)
-                                  : (Number(currentTrip.distanceKm || 0) * 13 + (Number(currentTrip.driverAllowance) || 300))
-                              )}
+                              {currentTrip.distanceKm || '--'} km
                             </Text>
                             <Text style={styles.infoColSubPhone}>
-                              {currentTrip.distanceKm || '--'} km • {currentTrip.tripType || 'ONE WAY'}
+                              {currentTrip.tripType
+                                ? (currentTrip.tripType === 'ONE_WAY' ? 'ONEWAY' : currentTrip.tripType.replace(/_/g, ' '))
+                                : 'ONEWAY'}
                             </Text>
                           </View>
                         </View>
@@ -2538,14 +2536,17 @@ export default function DriverDashboardScreen() {
                         <Text style={styles.dispatchPassengerNameDark} numberOfLines={1}>
                           👤 {b?.customer?.user?.fullName || 'Customer'}
                         </Text>
-                        <Text style={styles.dispatchVendorAmountCenter}>
-                          ₹{Math.round(
-                            Number(b?.driverPayeeAmount || 0) > 0
-                              ? Number(b.driverPayeeAmount)
-                              : (Number(b?.distanceKm || 0) * 13 + (Number(b?.driverAllowance) || 300))
-                          )}
-                        </Text>
+                        {!isAccepted && (
+                          <Text style={styles.dispatchVendorAmountCenter}>
+                            ₹{Math.round(
+                              Number(b?.driverPayeeAmount || 0) > 0
+                                ? Number(b.driverPayeeAmount)
+                                : (Number(b?.distanceKm || 0) * 13 + (Number(b?.driverAllowance) || 300))
+                            )}
+                          </Text>
+                        )}
                         <Text style={styles.dispatchTripTypeOrange}>
+                          {isAccepted && b?.distanceKm ? `${b.distanceKm} km • ` : ''}
                           {b?.tripType ? (b.tripType === 'ONE_WAY' ? 'ONEWAY' : b.tripType.replace(/_/g, ' ')) : 'ONEWAY'}
                         </Text>
                       </View>
