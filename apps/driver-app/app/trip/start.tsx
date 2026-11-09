@@ -673,21 +673,6 @@ export default function DriverTripStartScreen() {
     }
   };
 
-  const handleNotReached = async () => {
-    if (bookingId) {
-      await setTripInProcess(bookingId, false);
-      driverApiClient.fetch('/api/driver/trip/en-route', {
-        method: 'POST',
-        body: JSON.stringify({ bookingId, action: 'NOT_REACHED' }),
-      }).catch(() => {});
-    }
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/dashboard');
-    }
-  };
-
   const handleRequestAdminOverride = async () => {
     if (overrideRequested) {
       Alert.alert(
@@ -806,43 +791,10 @@ export default function DriverTripStartScreen() {
             </Text>
           </View>
         </View>
-
-        <TouchableOpacity
-          style={styles.headerHomeBtn}
-          onPress={handleNotReached}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="close-circle" size={14} color="#dc2626" />
-          <Text style={styles.headerHomeText}>{t('trip_flow.not_reached')}</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Top Action Ribbon / Quick Nav */}
       <View style={styles.topActionRibbon}>
-        <TouchableOpacity
-          style={styles.ribbonHomeBtn}
-          onPress={handleNotReached}
-          activeOpacity={0.82}
-        >
-          <View style={styles.ribbonHomeGradient}>
-            <View style={styles.ribbonRedHalo}>
-              <LinearGradient
-                colors={['#ff1722', '#c90410']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={styles.ribbonRedCircle}
-              >
-                <Ionicons name="close" size={13} color="#ffffff" />
-              </LinearGradient>
-            </View>
-            <Text style={styles.ribbonHomeText} numberOfLines={1}>{t('trip_flow.not_reached')}</Text>
-            <View style={styles.ribbonRightGroup}>
-              <View style={styles.ribbonDividerRed} />
-              <Ionicons name="chevron-forward" size={14} color="#881337" />
-            </View>
-          </View>
-        </TouchableOpacity>
-
         <TouchableOpacity
           style={styles.ribbonNavBtn}
           onPress={openPickupNavigation}
@@ -1649,22 +1601,6 @@ const styles = StyleSheet.create({
     marginTop: 1,
     letterSpacing: -0.2,
   },
-  headerHomeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fee2e2',
-    borderWidth: 1,
-    borderColor: '#fca5a5',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    gap: 4,
-  },
-  headerHomeText: {
-    fontSize: 11.5,
-    fontWeight: '800',
-    color: '#dc2626',
-  },
   topActionRibbon: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1674,58 +1610,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
-    gap: 8,
-  },
-  ribbonHomeBtn: {
-    flex: 1,
-    borderRadius: 999,
-    backgroundColor: '#ffffff',
-    shadowColor: '#ef4444',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  ribbonHomeGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: '#fda4af',
-    paddingVertical: 5,
-    paddingHorizontal: 6,
-  },
-  ribbonRedHalo: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#ffd0d6',
-    borderWidth: 1,
-    borderColor: '#ffbec7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ribbonRedCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#b91c1c',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  ribbonHomeText: {
-    flex: 1,
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#881337',
-    textAlign: 'center',
-    paddingHorizontal: 2,
   },
   ribbonNavBtn: {
     flex: 1,
@@ -1768,121 +1652,10 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingRight: 4,
   },
-  ribbonDividerRed: {
-    width: 1,
-    height: 14,
-    backgroundColor: '#fca5a5',
-  },
   ribbonDividerNavy: {
     width: 1,
     height: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
-  },
-  twoStepTabBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  stepTabItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    gap: 8,
-  },
-  stepTabItemActive: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#93c5fd',
-  },
-  stepTabItemDisabled: {
-    opacity: 0.65,
-  },
-  stepTabBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepTabBadgeDone: {
-    backgroundColor: '#16a34a',
-  },
-  stepTabBadgeActive: {
-    backgroundColor: '#2563eb',
-  },
-  stepTabBadgeInactive: {
-    backgroundColor: '#94a3b8',
-  },
-  stepTabBadgeNum: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  stepTabTextCol: {
-    flex: 1,
-  },
-  stepTabMainText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#475569',
-  },
-  stepTabMainTextActive: {
-    color: '#1d4ed8',
-    fontWeight: '900',
-  },
-  stepTabSubText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748b',
-    marginTop: 1,
-  },
-  stepTabDivider: {
-    width: 10,
-  },
-  step1Banner: {
-    backgroundColor: '#f0f9ff',
-    borderWidth: 1,
-    borderColor: '#bae6fd',
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 8,
-  },
-  step1BannerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  step1BannerIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#e0f2fe',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  step1BannerTextCol: {
-    flex: 1,
-  },
-  step1BannerTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0369a1',
-  },
-  step1BannerDesc: {
-    fontSize: 11,
-    color: '#0c4a6e',
-    fontWeight: '500',
-    marginTop: 2,
-    lineHeight: 15,
   },
   backToStep1Btn: {
     flexDirection: 'row',
