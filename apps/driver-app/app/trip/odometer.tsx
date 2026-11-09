@@ -103,6 +103,60 @@ export default function DriverOdometerScreen() {
     }
   };
 
+  const handlePickGalleryImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Gallery access is required to upload odometer photo.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.3,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        setOdometerImageUri(dataUri);
+        setError('');
+        runOdometerOcr(dataUri);
+
+        const latest = locationTracker.getCurrentCoordinates();
+        let locStamp: { lat: number; lng: number; time: string } | null = null;
+        if (latest.lat != null && latest.lng != null) {
+          locStamp = {
+            lat: latest.lat,
+            lng: latest.lng,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          };
+          setPhotoLocation(locStamp);
+        }
+        if (bookingId) {
+          setTripStartDraft(bookingId, {
+            odometerImageUri: dataUri,
+            photoLocation: locStamp,
+          });
+        }
+      }
+    } catch (err: any) {
+      Alert.alert('Gallery Error', err.message || 'Failed to select image');
+    }
+  };
+
+  const handlePhotoAction = () => {
+    Alert.alert(
+      'Starting Odometer Photo',
+      'Choose how you want to upload your odometer photo:',
+      [
+        { text: '📷 Take Photo (Camera)', onPress: handleOpenCamera },
+        { text: '🖼️ Choose from Gallery', onPress: handlePickGalleryImage },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
   const handleOpenCamera = async () => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -241,26 +295,26 @@ export default function DriverOdometerScreen() {
 
             {/* Viewfinder Wrapper */}
             <View style={styles.viewfinderWrapper}>
-              {/* Photo Box */}
+              {/* Top Photo Upload Box (Blank when no photo, shows user photo when uploaded) */}
               <TouchableOpacity
-                style={styles.photoBox}
-                onPress={handleOpenCamera}
-                activeOpacity={0.9}
+                style={[
+                  styles.photoBox,
+                  !odometerImageUri && styles.photoBoxBlank,
+                ]}
+                onPress={handlePhotoAction}
+                activeOpacity={0.88}
               >
-                <Image
-                  source={
-                    odometerImageUri &&
-                    !odometerImageUri.startsWith('demo_') &&
-                    !odometerImageUri.includes('images.unsplash.com')
-                      ? { uri: odometerImageUri }
-                      : ODOMETER_SAMPLE
-                  }
-                  style={styles.photoImage}
-                  resizeMode="cover"
-                />
-
                 {odometerImageUri ? (
                   <>
+                    <Image
+                      source={
+                        odometerImageUri.startsWith('demo_')
+                          ? ODOMETER_SAMPLE
+                          : { uri: odometerImageUri }
+                      }
+                      style={styles.photoImage}
+                      resizeMode="cover"
+                    />
                     <View style={styles.attachedRibbon}>
                       <Ionicons name="checkmark-circle" size={13} color="#ffffff" />
                       <Text style={styles.attachedRibbonText}>✓ PHOTO ATTACHED</Text>
@@ -269,30 +323,47 @@ export default function DriverOdometerScreen() {
                       <Ionicons name="camera-reverse" size={12} color="#ffffff" />
                       <Text style={styles.retakeBtnText}>Tap to Retake</Text>
                     </View>
+
+                    {/* GPS Stamp */}
+                    {photoLocation && (
+                      <View style={styles.gpsStamp}>
+                        <Text style={styles.gpsStampText}>
+                          📍 {`${photoLocation.lat.toFixed(4)}° N, ${photoLocation.lng.toFixed(4)}° E • ${photoLocation.time}`}
+                        </Text>
+                      </View>
+                    )}
                   </>
                 ) : (
-                  <>
-                    <View style={styles.cameraCenterCircle}>
-                      <Ionicons name="camera" size={24} color="#ffffff" />
+                  <View style={styles.blankUploadContent}>
+                    <View style={styles.blankCameraCircle}>
+                      <Ionicons name="camera" size={32} color="#0284c7" />
                     </View>
-                    <View style={styles.guideOverlay}>
-                      <Ionicons name="eye-outline" size={12} color="#ffffff" />
-                      <Text style={styles.guideOverlayText}>Reference Guide • Tap to capture</Text>
-                    </View>
-                  </>
-                )}
-
-                {/* GPS Stamp */}
-                {photoLocation && (
-                  <View style={styles.gpsStamp}>
-                    <Text style={styles.gpsStampText}>
-                      📍 {`${photoLocation.lat.toFixed(4)}° N, ${photoLocation.lng.toFixed(4)}° E • ${photoLocation.time}`}
-                    </Text>
+                    <Text style={styles.blankUploadTitle}>Upload Starting Odometer Photo</Text>
+                    <Text style={styles.blankUploadSubtitle}>Tap here to snap photo or choose from gallery</Text>
                   </View>
                 )}
               </TouchableOpacity>
 
-              {/* KM Input Field */}
+              {/* Reference Guide Image */}
+              <View style={styles.referenceSection}>
+                <View style={styles.referenceHeaderRow}>
+                  <Ionicons name="eye-outline" size={15} color="#0284c7" style={{ marginRight: 6 }} />
+                  <Text style={styles.referenceHeaderTitle}>Reference Guide (Sample)</Text>
+                </View>
+
+                <View style={styles.referenceImageBox}>
+                  <Image
+                    source={ODOMETER_SAMPLE}
+                    style={styles.referenceImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.referenceOverlayBadge}>
+                    <Text style={styles.referenceOverlayBadgeText}>SAMPLE REFERENCE</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* KM Input Field (Arranged Below Reference Image) */}
               <View style={styles.inputWrapper}>
                 <View style={styles.inputContainer}>
                   <Ionicons name="speedometer-outline" size={18} color="#6366f1" style={styles.inputIcon} />
@@ -351,7 +422,7 @@ export default function DriverOdometerScreen() {
 
           <TouchableOpacity
             style={styles.primaryBtn}
-            onPress={!odometerImageUri ? handleOpenCamera : handleProceedToOtp}
+            onPress={!odometerImageUri ? handlePhotoAction : handleProceedToOtp}
             activeOpacity={0.88}
           >
             <Text style={styles.primaryBtnText}>
@@ -454,17 +525,92 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   photoBox: {
-    height: 200,
-    borderRadius: 12,
+    height: 190,
+    borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#0f172a',
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  photoBoxBlank: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+    borderStyle: 'dashed',
+    padding: 16,
+  },
+  blankUploadContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blankCameraCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderWidth: 1.5,
+    borderColor: '#bfdbfe',
+  },
+  blankUploadTitle: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 3,
+  },
+  blankUploadSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 4,
+  },
   photoImage: {
     width: '100%',
     height: '100%',
+  },
+  referenceSection: {
+    marginTop: 14,
+    marginBottom: 4,
+  },
+  referenceHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  referenceHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#334155',
+  },
+  referenceImageBox: {
+    height: 135,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  referenceImage: {
+    width: '100%',
+    height: '100%',
+  },
+  referenceOverlayBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  referenceOverlayBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   cameraCenterCircle: {
     position: 'absolute',
