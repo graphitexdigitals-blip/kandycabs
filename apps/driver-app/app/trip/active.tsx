@@ -260,13 +260,42 @@ export default function DriverTripActiveScreen() {
             {booking.dropAddress || 'Destination Drop Location'}
           </Text>
 
-          <View style={styles.dropInstructionNoteBox}>
-            <View style={styles.dropNavIconBadge}>
-              <Ionicons name="navigate" size={14} color="#ffffff" />
+          {/* Stylized Map Canvas Preview */}
+          <View style={styles.mapCanvas}>
+            {/* Water Coastline Area */}
+            <View style={styles.mapWaterArea} />
+
+            {/* Stylized Roads */}
+            <View style={styles.mapRoadH1} />
+            <View style={styles.mapRoadH2} />
+            <View style={styles.mapRoadDiag1} />
+            <View style={styles.mapRoadDiag2} />
+
+            {/* Curved Blue Route Polyline */}
+            <View style={styles.mapRouteCurve1} />
+            <View style={styles.mapRouteCurve2} />
+
+            {/* Driver Navigation Marker */}
+            <View style={styles.driverMarkerContainer}>
+              <View style={styles.driverMarkerOuterRing}>
+                <View style={styles.driverMarkerInner}>
+                  <Ionicons name="navigate" size={14} color="#ffffff" style={{ transform: [{ rotate: '45deg' }] }} />
+                </View>
+              </View>
             </View>
-            <Text style={styles.dropInstructionNote}>
-              {t('active_trip.drive_towards')} <Text style={styles.highlightBlack}>{booking.dropAddress || 'Destination'}</Text>. {t('active_trip.after_reaching')} <Text style={styles.highlightGreenInline}>{t('active_trip.reached_destination_btn')}</Text> {t('active_trip.below')}
-            </Text>
+
+            {/* Destination Pin Marker */}
+            <View style={styles.destinationPinContainer}>
+              <Ionicons name="location-sharp" size={28} color="#ef4444" />
+            </View>
+
+            {/* Destination Tag Pill */}
+            <View style={styles.destinationTagPill}>
+              <Ionicons name="flag" size={12} color="#2563eb" style={{ marginRight: 4 }} />
+              <Text style={styles.destinationTagText} numberOfLines={1}>
+                {booking.dropAddress || 'Destination'}
+              </Text>
+            </View>
           </View>
 
           {/* Main Navigation Button with Blue Gradient */}
@@ -536,29 +565,131 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     letterSpacing: -0.3,
   },
-  dropInstructionNoteBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f7ff',
+  mapCanvas: {
+    height: 146,
     borderRadius: 14,
-    padding: 12,
+    backgroundColor: '#f1f5f9',
+    overflow: 'hidden',
+    position: 'relative',
     marginBottom: 12,
-    gap: 10,
   },
-  dropNavIconBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#1d63ed',
+  mapWaterArea: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: '32%',
+    backgroundColor: '#dbeafe',
+    borderTopRightRadius: 40,
+    borderBottomRightRadius: 80,
+    opacity: 0.85,
+  },
+  mapRoadH1: {
+    position: 'absolute',
+    top: 45,
+    left: 0,
+    right: 0,
+    height: 6,
+    backgroundColor: '#e2e8f0',
+    transform: [{ rotate: '-8deg' }],
+  },
+  mapRoadH2: {
+    position: 'absolute',
+    top: 95,
+    left: 0,
+    right: 0,
+    height: 8,
+    backgroundColor: '#e2e8f0',
+    transform: [{ rotate: '14deg' }],
+  },
+  mapRoadDiag1: {
+    position: 'absolute',
+    top: -20,
+    bottom: -20,
+    left: '42%',
+    width: 6,
+    backgroundColor: '#e2e8f0',
+    transform: [{ rotate: '28deg' }],
+  },
+  mapRoadDiag2: {
+    position: 'absolute',
+    top: -20,
+    bottom: -20,
+    right: '25%',
+    width: 5,
+    backgroundColor: '#e2e8f0',
+    transform: [{ rotate: '-32deg' }],
+  },
+  mapRouteCurve1: {
+    position: 'absolute',
+    top: 80,
+    left: '40%',
+    width: 64,
+    height: 5,
+    backgroundColor: '#2563eb',
+    transform: [{ rotate: '-38deg' }],
+    borderRadius: 3,
+  },
+  mapRouteCurve2: {
+    position: 'absolute',
+    top: 50,
+    left: '52%',
+    width: 68,
+    height: 5,
+    backgroundColor: '#2563eb',
+    transform: [{ rotate: '-20deg' }],
+    borderRadius: 3,
+  },
+  driverMarkerContainer: {
+    position: 'absolute',
+    top: 90,
+    left: '38%',
+    transform: [{ translateX: -16 }, { translateY: -16 }],
+  },
+  driverMarkerOuterRing: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(37, 99, 235, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dropInstructionNote: {
-    fontSize: 11.5,
-    color: '#475569',
-    lineHeight: 17,
-    flex: 1,
-    fontWeight: '500',
+  driverMarkerInner: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#1d63ed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  destinationPinContainer: {
+    position: 'absolute',
+    top: 34,
+    right: 140,
+  },
+  destinationTagPill: {
+    position: 'absolute',
+    top: 38,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
+    maxWidth: '45%',
+  },
+  destinationTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0f172a',
   },
   highlightBlack: {
     color: '#0f172a',
