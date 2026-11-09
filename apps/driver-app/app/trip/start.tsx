@@ -1396,14 +1396,11 @@ export default function DriverTripStartScreen() {
             {loading ? (
               <ActivityIndicator color="#0f172a" size="small" />
             ) : (
-              <>
-                <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
-                  {!isStep1Done
-                    ? `Capture ${verificationAttachments[activeAttachmentIdx < 6 ? activeAttachmentIdx : 0]?.shortTitle || 'Photo'} (${step1AttachedCount}/6) →`
-                    : 'START TRIP →'}
-                </Text>
-                <Ionicons name="arrow-forward" size={20} color="#0f172a" />
-              </>
+              <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
+                {!isStep1Done
+                  ? `Capture ${verificationAttachments[activeAttachmentIdx < 6 ? activeAttachmentIdx : 0]?.shortTitle || 'Photo'} (${step1AttachedCount}/6)`
+                  : 'START TRIP'}
+              </Text>
             )}
           </TouchableOpacity>
         ) : (
@@ -1444,20 +1441,17 @@ export default function DriverTripStartScreen() {
             {loading ? (
               <ActivityIndicator color="#0f172a" size="small" />
             ) : (
-              <>
-                <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
-                  {!isAdminAuthorized && pickupOtp.length < 4
-                    ? 'Enter Customer Pickup OTP (4 Digits) →'
-                    : !isAdminAuthorized && !isOtpVerified
-                    ? 'Verify Customer Pickup OTP →'
-                    : !odometerImageUri
-                    ? 'Capture Starting Odometer Photo →'
-                    : !startingOdometer
-                    ? 'Enter Starting Odometer Reading →'
-                    : 'CONFIRM & START TRIP →'}
-                </Text>
-                <Ionicons name="arrow-forward" size={20} color="#0f172a" />
-              </>
+              <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
+                {!isAdminAuthorized && pickupOtp.length < 4
+                  ? 'Enter Customer Pickup OTP (4 Digits)'
+                  : !isAdminAuthorized && !isOtpVerified
+                  ? 'Verify Customer Pickup OTP'
+                  : !odometerImageUri
+                  ? 'Capture Starting Odometer Photo'
+                  : !startingOdometer
+                  ? 'Enter Starting Odometer Reading'
+                  : 'CONFIRM & START TRIP'}
+              </Text>
             )}
           </TouchableOpacity>
         )}
@@ -2352,7 +2346,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     shadowColor: '#d97706',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
@@ -2376,10 +2370,10 @@ const styles = StyleSheet.create({
   },
   yellowPrimaryButtonText: {
     color: '#0f172a',
-    fontSize: 14.5,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-    flex: 1,
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    textAlign: 'center',
   },
   sectionSubTitle: {
     fontSize: 10.5,
