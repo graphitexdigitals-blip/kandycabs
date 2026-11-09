@@ -341,7 +341,7 @@ export default function DriverTripCompleteScreen() {
         ) : null}
 
         {/* 1. Final Odometer Reading Card (Matching Pickup Odometer Design) */}
-        <View style={styles.card}>
+        <View style={styles.odoCard}>
           {/* Header */}
           <View style={styles.odoCardHeaderRow}>
             <View style={styles.odoHeaderLeft}>
@@ -992,6 +992,10 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '600',
     flex: 1,
+  },
+  odoCard: {
+    marginBottom: 16,
+    paddingTop: 4,
   },
   card: {
     backgroundColor: '#ffffff',
