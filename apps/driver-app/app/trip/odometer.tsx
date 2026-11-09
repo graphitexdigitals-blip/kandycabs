@@ -146,15 +146,7 @@ export default function DriverOdometerScreen() {
   };
 
   const handlePhotoAction = () => {
-    Alert.alert(
-      'Starting Odometer Photo',
-      'Choose how you want to upload your odometer photo:',
-      [
-        { text: '📷 Take Photo (Camera)', onPress: handleOpenCamera },
-        { text: '🖼️ Choose from Gallery', onPress: handlePickGalleryImage },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    handleOpenCamera();
   };
 
   const handleOpenCamera = async () => {
@@ -339,7 +331,7 @@ export default function DriverOdometerScreen() {
                       <Ionicons name="camera" size={32} color="#0284c7" />
                     </View>
                     <Text style={styles.blankUploadTitle}>Upload Starting Odometer Photo</Text>
-                    <Text style={styles.blankUploadSubtitle}>Tap here to snap photo or choose from gallery</Text>
+                    <Text style={styles.blankUploadSubtitle}>Tap to open camera & capture photo</Text>
                   </View>
                 )}
               </TouchableOpacity>
