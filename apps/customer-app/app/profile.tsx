@@ -95,8 +95,11 @@ export default function ProfileScreen() {
       const res: any = await Promise.race([fetchPromise, timeoutPromise]);
       if (res?.user) {
         const localUser = customerTokenStorage.getUser();
+        const cleanRemoteName = (res.user.fullName === 'Kandy Customer' ? '' : (res.user.fullName || '')).trim();
+        const resolvedName = cleanRemoteName || (localUser?.fullName === 'Kandy Customer' ? '' : (localUser?.fullName || ''));
         const mergedUser = {
           ...res.user,
+          fullName: resolvedName,
           profilePhoto: res.user.profilePhoto || localUser?.profilePhoto,
         };
         setUser(mergedUser);

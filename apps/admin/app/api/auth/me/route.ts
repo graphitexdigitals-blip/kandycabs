@@ -63,10 +63,12 @@ export async function GET(req: NextRequest) {
       return setCorsHeaders(res);
     }
 
+    const cleanFullName = user.fullName === 'Kandy Customer' ? '' : (user.fullName || '');
+
     const userProfile = {
       id: user.id,
       phone: user.phone,
-      fullName: user.fullName,
+      fullName: cleanFullName,
       roles: user.roles as UserRole[],
       createdAt: user.createdAt,
       customer: user.customer

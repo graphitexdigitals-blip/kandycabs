@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Find or create User
-    let user = await prisma.user.findUnique({
+    const existingUser = await prisma.user.findUnique({
       where: { phone: normalizedPhone },
       include: {
         customer: true,
@@ -87,13 +87,21 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    const isNewUser = !existingUser;
+    const hasRegisteredName = !!(
+      existingUser?.fullName &&
+      existingUser.fullName !== 'Kandy Customer' &&
+      existingUser.fullName.trim().length > 0
+    );
+
+    let user = existingUser;
     const isDriverRole = role === 'DRIVER';
 
     if (!user) {
       user = await prisma.user.create({
         data: {
           phone: normalizedPhone,
-          fullName: isMasterAdmin ? 'Master Admin' : fullName?.trim() || (isDriverRole ? 'New Driver Partner' : 'Kandy Customer'),
+          fullName: isMasterAdmin ? 'Master Admin' : (fullName?.trim() || (isDriverRole ? 'New Driver Partner' : '')),
           roles: isMasterAdmin ? [UserRole.ADMIN] : (isDriverRole ? [UserRole.DRIVER] : [UserRole.CUSTOMER]),
           customer: isMasterAdmin || isDriverRole
             ? undefined
@@ -205,6 +213,8 @@ export async function POST(req: NextRequest) {
         success: true,
         token,
         user: userProfile,
+        isNewUser,
+        hasRegisteredName,
       },
       { status: 200 }
     );

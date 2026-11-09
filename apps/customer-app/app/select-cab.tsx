@@ -1745,9 +1745,7 @@ export default function SelectCabScreen() {
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: '#ffffff',
-                    borderWidth: 1,
-                    borderColor: '#e2e8f0',
+                    backgroundColor: '#16a34a',
                     paddingVertical: 10,
                     borderRadius: 12,
                     gap: 6,
@@ -1758,10 +1756,10 @@ export default function SelectCabScreen() {
                     );
                     Linking.openURL(`https://wa.me/919606998846?text=${text}`);
                   }}
-                  activeOpacity={0.8}
+                  activeOpacity={0.85}
                 >
-                  <Ionicons name="logo-whatsapp" size={17} color="#16a34a" />
-                  <Text style={{ color: '#16a34a', fontWeight: '800', fontSize: 12.5 }}>WhatsApp Us</Text>
+                  <Ionicons name="logo-whatsapp" size={17} color="#ffffff" />
+                  <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 12.5 }}>WhatsApp Us</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1770,18 +1768,16 @@ export default function SelectCabScreen() {
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: '#ffffff',
-                    borderWidth: 1,
-                    borderColor: '#e2e8f0',
+                    backgroundColor: '#0f172a',
                     paddingVertical: 10,
                     borderRadius: 12,
                     gap: 6,
                   }}
                   onPress={() => Linking.openURL('tel:+919606998846')}
-                  activeOpacity={0.8}
+                  activeOpacity={0.85}
                 >
-                  <Ionicons name="call" size={15} color="#0f172a" />
-                  <Text style={{ color: '#0f172a', fontWeight: '800', fontSize: 12.5 }}>Call Us</Text>
+                  <Ionicons name="call" size={15} color="#ffffff" />
+                  <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 12.5 }}>Call Us</Text>
                 </TouchableOpacity>
               </View>
 
@@ -3158,6 +3154,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
 
 
 
