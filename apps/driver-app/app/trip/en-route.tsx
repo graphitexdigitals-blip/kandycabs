@@ -231,37 +231,25 @@ export default function DriverEnRouteScreen() {
 
           <View style={styles.divider} />
 
-          {/* Pickup Location Row */}
+          {/* Pickup Location Row (No icons, label on left side of content) */}
           <TouchableOpacity
             style={styles.infoDetailRow}
             onPress={openNavigation}
             activeOpacity={0.7}
           >
-            <View style={styles.detailIconCircleRed}>
-              <Ionicons name="location-sharp" size={20} color="#ea580c" />
-            </View>
-            <View style={styles.detailContentCol}>
-              <Text style={styles.detailLabel}>PICKUP LOCATION</Text>
-              <Text style={styles.detailValDark} numberOfLines={2}>{booking.pickupAddress}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+            <Text style={styles.detailLabelLeft}>Pickup Location:</Text>
+            <Text style={styles.detailValDark} numberOfLines={2}>{booking.pickupAddress}</Text>
           </TouchableOpacity>
 
           <View style={styles.divider} />
 
-          {/* Trip Type Row */}
+          {/* Trip Type Row (No icons, label on left side of content) */}
           <View style={styles.infoDetailRow}>
-            <View style={styles.detailIconCircleOrange}>
-              <Ionicons name="git-branch-outline" size={19} color="#ea580c" />
-            </View>
-            <View style={styles.detailContentCol}>
-              <Text style={styles.detailLabel}>TRIP TYPE</Text>
-              <Text style={styles.detailValOrange}>
-                {booking.tripType?.toUpperCase() || 'ONEWAY'}
-                {booking.distanceKm ? ` (${booking.distanceKm} km)` : ''}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+            <Text style={styles.detailLabelLeft}>Trip Type:</Text>
+            <Text style={styles.detailValOrange}>
+              {booking.tripType?.toUpperCase() || 'ONEWAY'}
+              {booking.distanceKm ? ` (${booking.distanceKm} km)` : ''}
+            </Text>
           </View>
         </View>
 
@@ -770,41 +758,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
   },
-  detailIconCircleRed: {
-    width: 26,
-    height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  detailIconCircleOrange: {
-    width: 26,
-    height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  detailContentCol: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  detailLabel: {
-    fontSize: 10,
-    fontWeight: '800',
+  detailLabelLeft: {
+    fontSize: 12.5,
+    fontWeight: '700',
     color: '#64748b',
-    letterSpacing: 0.8,
-    marginBottom: 2,
+    minWidth: 116,
   },
   detailValDark: {
-    fontSize: 14.5,
+    fontSize: 14,
     fontWeight: '700',
     color: '#0f172a',
-    lineHeight: 20,
+    lineHeight: 19,
+    flex: 1,
   },
   detailValOrange: {
-    fontSize: 14.5,
+    fontSize: 14,
     fontWeight: '800',
     color: '#ea580c',
+    flex: 1,
   },
   bottomBar: {
     paddingHorizontal: 16,
@@ -816,17 +787,13 @@ const styles = StyleSheet.create({
   arrivedInstructionsBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 12,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    marginBottom: 10,
   },
   arrivedInstructionsText: {
     fontSize: 12.5,
-    color: '#1e40af',
+    color: '#475569',
     lineHeight: 18,
     flex: 1,
     fontWeight: '500',
@@ -834,17 +801,13 @@ const styles = StyleSheet.create({
   arrivedNoticeBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#ecfdf5',
-    borderWidth: 1.5,
-    borderColor: '#10b981',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 12,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    marginBottom: 10,
   },
   arrivedNoticeText: {
     fontSize: 12.5,
-    color: '#065f46',
+    color: '#059669',
     lineHeight: 18,
     flex: 1,
     fontWeight: '600',
