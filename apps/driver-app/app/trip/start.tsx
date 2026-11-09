@@ -300,30 +300,22 @@ export default function DriverTripStartScreen() {
   const step2AttachedCount = isOdometerDone ? 1 : 0;
   const isStep2Done = isOdometerDone;
 
-  const handlePickInspectionPhoto = async (index: number, mode: 'camera' | 'library') => {
+  const handlePickInspectionPhoto = async (index: number) => {
     try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Camera access is required to capture vehicle photo.');
+        return;
+      }
+
       const pickerOptions: ImagePicker.ImagePickerOptions = {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.3,
         base64: true,
         allowsEditing: false,
       };
-      let result;
-      if (mode === 'camera') {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission Denied', 'Camera access is required to capture vehicle photo.');
-          return;
-        }
-        result = await ImagePicker.launchCameraAsync(pickerOptions);
-      } else {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission Denied', 'Photo library access is required.');
-          return;
-        }
-        result = await ImagePicker.launchImageLibraryAsync(pickerOptions);
-      }
+
+      const result = await ImagePicker.launchCameraAsync(pickerOptions);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
@@ -352,17 +344,7 @@ export default function DriverTripStartScreen() {
   };
 
   const handleInspectionOptions = (index: number) => {
-    const titles = ['Front Angle', 'Rear Angle', 'Side Profile', 'Inside Cabin'];
-    const title = titles[index] || 'Vehicle Photo';
-    Alert.alert(
-      `Capture ${title}`,
-      'Choose source for vehicle inspection photo:',
-      [
-        { text: '📷 Take Photo with Camera', onPress: () => handlePickInspectionPhoto(index, 'camera') },
-        { text: '🖼️ Choose from Gallery', onPress: () => handlePickInspectionPhoto(index, 'library') },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    handlePickInspectionPhoto(index);
   };
 
   const handleFillDemoInspectionPhotos = () => {
