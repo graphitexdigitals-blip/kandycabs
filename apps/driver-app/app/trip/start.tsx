@@ -1154,7 +1154,7 @@ export default function DriverTripStartScreen() {
                         ? 'Requesting Help...'
                         : overrideRequested
                         ? 'Help Requested from Admin'
-                        : 'No OTP? Ask Driver Help'}
+                        : 'No OTP? Ask Admin Help'}
                     </Text>
                   </View>
                   <Ionicons
