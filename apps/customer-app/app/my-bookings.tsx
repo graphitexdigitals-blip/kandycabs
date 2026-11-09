@@ -752,9 +752,6 @@ export default function MyBookingsScreen() {
                         </View>
                         <View style={{ flex: 1, marginLeft: 12 }}>
                           <Text style={styles.unassignedTitle}>{t('myBookings.driverAndVehicle', { defaultValue: 'DRIVER & VEHICLE' })}</Text>
-                          <Text style={styles.unassignedText}>
-                            {t('myBookings.dispatchingWait', { defaultValue: 'Dispatching to closest driver... Waiting for driver assignment' })}
-                          </Text>
                         </View>
                         <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
                       </View>
@@ -1495,7 +1492,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   unassignedTitle: {
-    fontSize: 10.5,
+    fontSize: 12,
     fontWeight: '700',
     color: '#64748b',
     textTransform: 'uppercase',
