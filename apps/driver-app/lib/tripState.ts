@@ -264,5 +264,38 @@ export function clearTripStartDraft(bookingId: string) {
   delete memoryStartDrafts[bookingId];
 }
 
+const memoryVerifiedBookings: Record<string, boolean> = {};
+
+export async function setTripVerificationCompleted(bookingId: string, completed = true) {
+  if (!bookingId) return;
+  memoryVerifiedBookings[bookingId] = completed;
+  try {
+    if (completed) {
+      await SecureStore.setItemAsync(`kandy_trip_verified_${bookingId}`, 'true');
+    } else {
+      await SecureStore.deleteItemAsync(`kandy_trip_verified_${bookingId}`);
+    }
+  } catch {}
+}
+
+export function isTripVerificationCompletedSync(bookingId: string): boolean {
+  if (!bookingId) return false;
+  return Boolean(memoryVerifiedBookings[bookingId]);
+}
+
+export async function isTripVerificationCompleted(bookingId: string): Promise<boolean> {
+  if (!bookingId) return false;
+  if (memoryVerifiedBookings[bookingId]) return true;
+  try {
+    const val = await SecureStore.getItemAsync(`kandy_trip_verified_${bookingId}`);
+    if (val === 'true') {
+      memoryVerifiedBookings[bookingId] = true;
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
+
 
 

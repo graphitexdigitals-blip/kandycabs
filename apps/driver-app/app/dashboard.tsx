@@ -32,7 +32,14 @@ import { SlideToAccept } from '../components/SlideToAccept';
 import { LanguageSelectionModal } from '../components/LanguageSelectionModal';
 import { NotificationsModal } from '../components/NotificationsModal';
 import { LinearGradient } from '../components/SafeLinearGradient';
-import { getTripInProcessSync, getTripInProcess, setTripInProcess, subscribeTripState } from '../lib/tripState';
+import {
+  getTripInProcessSync,
+  getTripInProcess,
+  setTripInProcess,
+  subscribeTripState,
+  isTripVerificationCompletedSync,
+  isTripVerificationCompleted,
+} from '../lib/tripState';
 import { getExpiringDocuments } from '../lib/documentExpiry';
 import {
   CAPTAIN_AVATAR_BASE64,
@@ -1820,8 +1827,43 @@ export default function DriverDashboardScreen() {
                           );
                         })()}
 
-                        {/* Action: SLIDE TO START TRIP (Direct to Verify & Vehicle Inspection) */}
+                        {/* Action: SLIDE TO START TRIP or VERIFICATION */}
                         {(() => {
+                          const hasInspectionPhotos =
+                            isTripVerificationCompletedSync(currentTrip.id) ||
+                            (Array.isArray(currentTrip.vehicleInspectionPhotos) &&
+                              currentTrip.vehicleInspectionPhotos.filter((p: string) => p && !p.includes('placehold.co') && p.trim().length > 0).length >= 4);
+
+                          const isTripAlreadyStarted =
+                            currentTrip.status === BookingStatus.TRIP_STARTED ||
+                            currentTrip.status === 'TRIP_STARTED' ||
+                            currentTrip.status === 'IN_PROGRESS' ||
+                            isTripInProcess;
+
+                          // Stage 1: Verification NOT done -> ONLY show VERIFICATION button (same green background as slide to start!)
+                          if (!isTripAlreadyStarted && !hasInspectionPhotos) {
+                            return (
+                              <View style={{ width: '100%', marginTop: 8 }}>
+                                <TouchableOpacity
+                                  style={styles.verificationSlideGreenBtn}
+                                  onPress={() => {
+                                    router.push({
+                                      pathname: '/trip/inspection',
+                                      params: { bookingId: currentTrip.id },
+                                    });
+                                  }}
+                                  activeOpacity={0.85}
+                                >
+                                  <Ionicons name="camera" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+                                  <Text style={styles.verificationSlideGreenBtnText}>VERIFICATION (SELFIE & VEHICLE)</Text>
+                                  <Ionicons name="arrow-forward" size={18} color="#ffffff" style={{ marginLeft: 6 }} />
+                                </TouchableOpacity>
+                              </View>
+                            );
+                          }
+
+                          // Stage 2: After verification uploading selfie and vehicle images,
+                          // DONT show verification button, INSTEAD show SLIDE TO START TRIP!
                           const onSlideStartTrip = async () => {
                             if (driver?.verificationStatus !== 'APPROVED') {
                               Alert.alert(
@@ -1832,12 +1874,7 @@ export default function DriverDashboardScreen() {
                             }
                             setIsStartingTrip(true);
                             try {
-                              const isTripVerifiedAndStarted =
-                                currentTrip.status === BookingStatus.TRIP_STARTED ||
-                                currentTrip.status === 'TRIP_STARTED' ||
-                                currentTrip.status === 'IN_PROGRESS';
-
-                              if (isTripVerifiedAndStarted) {
+                              if (isTripAlreadyStarted) {
                                 locationTracker.startActiveTripTracking(currentTrip.id);
                                 router.push({ pathname: '/trip/active', params: { bookingId: currentTrip.id } });
                               } else {
@@ -1856,32 +1893,6 @@ export default function DriverDashboardScreen() {
 
                           return (
                             <View style={{ width: '100%', marginTop: 8 }}>
-                              {(() => {
-                                const hasInspectionPhotos =
-                                  Array.isArray(currentTrip.vehicleInspectionPhotos) &&
-                                  currentTrip.vehicleInspectionPhotos.filter((p: string) => p && !p.includes('placehold.co') && p.trim().length > 0).length >= 4;
-
-                                if (!isTripInProcess && !hasInspectionPhotos) {
-                                  return (
-                                    <TouchableOpacity
-                                      style={[styles.verificationDispatchBtn, { marginBottom: 10 }]}
-                                      onPress={() => {
-                                        router.push({
-                                          pathname: '/trip/inspection',
-                                          params: { bookingId: currentTrip.id },
-                                        });
-                                      }}
-                                      activeOpacity={0.85}
-                                    >
-                                      <Ionicons name="camera-outline" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-                                      <Text style={styles.verificationDispatchBtnText}>VERIFICATION (SELFIE & VEHICLE)</Text>
-                                      <Ionicons name="arrow-forward" size={17} color="#ffffff" style={{ marginLeft: 6 }} />
-                                    </TouchableOpacity>
-                                  );
-                                }
-                                return null;
-                              })()}
-
                               {isTripInProcess ? (
                                 <TouchableOpacity
                                   style={styles.manageActiveTripBtn}
@@ -5260,11 +5271,13 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#1d63ed',
+    backgroundColor: '#059669',
+    borderWidth: 1.5,
+    borderColor: '#34d399',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1d63ed',
+    shadowColor: '#059669',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 6,
@@ -5275,6 +5288,31 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#ffffff',
     letterSpacing: 0.6,
+  },
+  verificationSlideGreenBtn: {
+    width: '100%',
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#059669',
+    borderWidth: 1.5,
+    borderColor: '#34d399',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  verificationSlideGreenBtnText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 0.8,
+    textShadowColor: 'rgba(0, 0, 0, 0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   acceptDispatchBtnGreen: {
     backgroundColor: '#059669',

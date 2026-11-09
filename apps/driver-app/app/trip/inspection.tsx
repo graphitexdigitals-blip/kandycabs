@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { locationTracker } from '../../lib/location-tracker';
 import { driverApiClient } from '../../lib/api';
+import { setTripVerificationCompleted } from '../../lib/tripState';
 import { Ionicons } from '@expo/vector-icons';
 
 // Local reference sample assets (same vehicle across all 4 angles)
@@ -223,6 +224,7 @@ export default function DriverVehicleInspectionScreen() {
       });
 
       if (res.success) {
+        await setTripVerificationCompleted(bId, true);
         Alert.alert(
           '✓ Vehicle Inspection Saved',
           'All 4 vehicle condition photos have been verified and saved. Start Trip is now unlocked!',
