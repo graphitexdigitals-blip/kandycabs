@@ -91,6 +91,7 @@ export default function DriverDashboardScreen() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [acceptedDispatches, setAcceptedDispatches] = useState<Record<string, string>>({});
   const [decliningId, setDecliningId] = useState<string | null>(null);
   const [isStartingTrip, setIsStartingTrip] = useState(false);
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -893,31 +894,25 @@ export default function DriverDashboardScreen() {
       });
 
       if (res.success && res.booking) {
-        // Remove this dispatch from the pending list
-        setDispatches((prev) => prev.filter((d) => d.id !== dispatchId && d.booking?.id !== bookingId));
+        const acceptedBId = res.booking.id || bookingId;
+        // Transform the button on this dispatch card immediately to VERIFICATION
+        setAcceptedDispatches((prev) => ({
+          ...prev,
+          [dispatchId]: acceptedBId,
+          [acceptedBId]: acceptedBId,
+          [bookingId]: acceptedBId,
+        }));
 
         if (currentTrip) {
-          // If already on an active trip, immediately add this trip to upcoming queue
+          // If already on an active trip, add to upcoming queue
           setUpcomingBookings((prev) => {
-            const filtered = prev.filter((b) => b.id !== res.booking.id);
+            const filtered = prev.filter((b) => b.id !== acceptedBId);
             return sortTripsByDateTimeAscending([...filtered, res.booking]);
           });
-          setActiveCardTab('MY_TRIPS');
-          await fetchDriverData();
-          Alert.alert(
-            'Ride Accepted & Queued! 🎉',
-            `Trip ${res.booking.humanReadableRef || ''} is confirmed and added to your queue below your active trip. You can start it once your current trip is finished.`,
-            [{ text: 'OK' }]
-          );
         } else {
           setActiveBooking(res.booking);
-          setActiveCardTab('MY_TRIPS');
-          fetchDriverData();
-          router.push({
-            pathname: '/trip/inspection',
-            params: { bookingId: res.booking.id || bookingId },
-          });
         }
+        fetchDriverData();
       } else if (res.alreadyTaken) {
         setDispatches((prev) => prev.filter((d) => d.id !== dispatchId));
         Alert.alert(
@@ -1861,6 +1856,32 @@ export default function DriverDashboardScreen() {
 
                           return (
                             <View style={{ width: '100%', marginTop: 8 }}>
+                              {(() => {
+                                const hasInspectionPhotos =
+                                  Array.isArray(currentTrip.vehicleInspectionPhotos) &&
+                                  currentTrip.vehicleInspectionPhotos.filter((p: string) => p && !p.includes('placehold.co') && p.trim().length > 0).length >= 4;
+
+                                if (!isTripInProcess && !hasInspectionPhotos) {
+                                  return (
+                                    <TouchableOpacity
+                                      style={[styles.verificationDispatchBtn, { marginBottom: 10 }]}
+                                      onPress={() => {
+                                        router.push({
+                                          pathname: '/trip/inspection',
+                                          params: { bookingId: currentTrip.id },
+                                        });
+                                      }}
+                                      activeOpacity={0.85}
+                                    >
+                                      <Ionicons name="camera-outline" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                                      <Text style={styles.verificationDispatchBtnText}>VERIFICATION (SELFIE & VEHICLE)</Text>
+                                      <Ionicons name="arrow-forward" size={17} color="#ffffff" style={{ marginLeft: 6 }} />
+                                    </TouchableOpacity>
+                                  );
+                                }
+                                return null;
+                              })()}
+
                               {isTripInProcess ? (
                                 <TouchableOpacity
                                   style={styles.manageActiveTripBtn}
@@ -2130,10 +2151,10 @@ export default function DriverDashboardScreen() {
                           );
                         })()}
 
-                        {/* Action Buttons: Locked Start Button + Trip Details */}
-                        <View style={{ marginTop: 12, flexDirection: 'row', gap: 10 }}>
+                        {/* Action Buttons: Locked Start Button + Trip Details + Verification */}
+                        <View style={{ marginTop: 12, flexDirection: 'row', gap: 8 }}>
                           <TouchableOpacity
-                            style={[styles.lockedUpcomingStartBtn, { flex: 2 }]}
+                            style={[styles.lockedUpcomingStartBtn, { flex: 1.2 }]}
                             onPress={() => {
                               Alert.alert(
                                 'Active Trip Ongoing 🚗',
@@ -2142,10 +2163,24 @@ export default function DriverDashboardScreen() {
                             }}
                             activeOpacity={0.8}
                           >
-                            <Ionicons name="lock-closed" size={15} color="#64748b" />
+                            <Ionicons name="lock-closed" size={14} color="#64748b" />
                             <Text style={styles.lockedUpcomingStartText}>
-                              UNABLE TO START
+                              QUEUED
                             </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.creamViewRouteBtn, { flex: 1.4, paddingVertical: 11, backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }]}
+                            onPress={() => {
+                              router.push({
+                                pathname: '/trip/inspection',
+                                params: { bookingId: upBooking.id },
+                              });
+                            }}
+                            activeOpacity={0.85}
+                          >
+                            <Ionicons name="shield-checkmark" size={14} color="#1d63ed" style={{ marginRight: 4 }} />
+                            <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#1d63ed' }}>VERIFICATION</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -2163,7 +2198,7 @@ export default function DriverDashboardScreen() {
                             }}
                             activeOpacity={0.8}
                           >
-                            <Ionicons name="document-text" size={15} color="#0f2744" />
+                            <Ionicons name="document-text" size={14} color="#0f2744" />
                             <Text style={[styles.creamBtnText, { fontSize: 11.5 }]}>DETAILS</Text>
                           </TouchableOpacity>
                         </View>
@@ -2346,15 +2381,28 @@ export default function DriverDashboardScreen() {
                 {sortTripsByDateTimeAscending(dispatches).map((d) => {
                   const b = d?.booking || {};
                   const isAccepting = acceptingId === d.id;
+                  const isAccepted = Boolean(
+                    acceptedDispatches[d.id] ||
+                    acceptedDispatches[b?.id] ||
+                    acceptedDispatches[d.bookingId] ||
+                    b?.status === 'DRIVER_ACCEPTED' ||
+                    d?.status === 'ACCEPTED'
+                  );
 
                   return (
                     <View key={d.id} style={styles.floatingDispatchCardWhite}>
                       <View style={styles.dispatchHeaderBanner}>
                         <View style={styles.dispatchHeaderRow}>
                           <View>
-                            <View style={styles.newAlertBadge}>
-                              <Ionicons name="radio-button-on" size={13} color="#2563eb" />
-                              <Text style={styles.newAlertText}>{t('dashboard.new_ride')}</Text>
+                            <View style={[styles.newAlertBadge, isAccepted && { backgroundColor: '#dcfce7', borderColor: '#86efac' }]}>
+                              <Ionicons
+                                name={isAccepted ? 'checkmark-circle' : 'radio-button-on'}
+                                size={13}
+                                color={isAccepted ? '#16a34a' : '#2563eb'}
+                              />
+                              <Text style={[styles.newAlertText, isAccepted && { color: '#15803d' }]}>
+                                {isAccepted ? 'ACCEPTED' : t('dashboard.new_ride')}
+                              </Text>
                             </View>
                             <Text style={styles.dispatchRefText}>{b?.humanReadableRef || 'RIDE'}</Text>
                           </View>
@@ -2493,41 +2541,66 @@ export default function DriverDashboardScreen() {
                       </View>
 
                       {/* Decline (Left) & Accept (Right) Action Buttons Row */}
-                      <View style={styles.dispatchActionRow}>
-                        <TouchableOpacity
-                          style={styles.declineDispatchBtn}
-                          onPress={() => handleDeclineDispatch(d.id, b?.id || d.bookingId)}
-                          disabled={isAccepting || decliningId === d.id}
-                          activeOpacity={0.8}
-                        >
-                          {decliningId === d.id ? (
-                            <ActivityIndicator size="small" color="#dc2626" />
-                          ) : (
-                            <>
-                              <Ionicons name="close-circle-outline" size={17} color="#dc2626" style={{ marginRight: 4 }} />
-                              <Text style={styles.declineDispatchBtnText}>DECLINE</Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
+                      {isAccepted ? (
+                        <View style={styles.dispatchActionRow}>
+                          <TouchableOpacity
+                            style={styles.verificationDispatchBtn}
+                            onPress={() => {
+                              const targetBId =
+                                acceptedDispatches[d.id] ||
+                                acceptedDispatches[b?.id] ||
+                                acceptedDispatches[d.bookingId] ||
+                                b?.id ||
+                                d.bookingId;
+                              router.push({
+                                pathname: '/trip/inspection',
+                                params: { bookingId: targetBId },
+                              });
+                            }}
+                            activeOpacity={0.85}
+                          >
+                            <Ionicons name="shield-checkmark" size={18} color="#ffffff" style={{ marginRight: 6 }} />
+                            <Text style={styles.verificationDispatchBtnText}>VERIFICATION</Text>
+                            <Ionicons name="arrow-forward" size={17} color="#ffffff" style={{ marginLeft: 6 }} />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <View style={styles.dispatchActionRow}>
+                          <TouchableOpacity
+                            style={styles.declineDispatchBtn}
+                            onPress={() => handleDeclineDispatch(d.id, b?.id || d.bookingId)}
+                            disabled={isAccepting || decliningId === d.id}
+                            activeOpacity={0.8}
+                          >
+                            {decliningId === d.id ? (
+                              <ActivityIndicator size="small" color="#dc2626" />
+                            ) : (
+                              <>
+                                <Ionicons name="close-circle-outline" size={17} color="#dc2626" style={{ marginRight: 4 }} />
+                                <Text style={styles.declineDispatchBtnText}>DECLINE</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
 
-                        <TouchableOpacity
-                          style={styles.acceptDispatchBtn}
-                          onPress={() => handleAcceptDispatch(d.id, b?.id || d.bookingId)}
-                          disabled={isAccepting || decliningId === d.id}
-                          activeOpacity={0.85}
-                        >
-                          {isAccepting ? (
-                            <ActivityIndicator size="small" color="#ffffff" />
-                          ) : (
-                            <>
-                              <Ionicons name="checkmark-circle" size={17} color="#ffffff" style={{ marginRight: 4 }} />
-                              <Text style={styles.acceptDispatchBtnText}>
-                                {currentTrip ? 'ACCEPT (QUEUED)' : 'ACCEPT RIDE'}
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                      </View>
+                          <TouchableOpacity
+                            style={styles.acceptDispatchBtn}
+                            onPress={() => handleAcceptDispatch(d.id, b?.id || d.bookingId)}
+                            disabled={isAccepting || decliningId === d.id}
+                            activeOpacity={0.85}
+                          >
+                            {isAccepting ? (
+                              <ActivityIndicator size="small" color="#ffffff" />
+                            ) : (
+                              <>
+                                <Ionicons name="checkmark-circle" size={17} color="#ffffff" style={{ marginRight: 4 }} />
+                                <Text style={styles.acceptDispatchBtnText}>
+                                  {currentTrip ? 'ACCEPT (QUEUED)' : 'ACCEPT RIDE'}
+                                </Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      )}
                     </View>
                   );
                 })}
@@ -5182,6 +5255,26 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#ffffff',
     letterSpacing: 0.5,
+  },
+  verificationDispatchBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#1d63ed',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1d63ed',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  verificationDispatchBtnText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 0.6,
   },
   acceptDispatchBtnGreen: {
     backgroundColor: '#059669',
