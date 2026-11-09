@@ -208,48 +208,27 @@ export default function DriverEnRouteScreen() {
               </View>
             </View>
 
+            {/* Call Now Button in Phone Section */}
             {(() => {
-              const isPhoneReleased =
-                Boolean(booking.customerPhoneReleased) ||
-                (booking.scheduledAt &&
-                  new Date(booking.scheduledAt).getTime() - Date.now() <= 5 * 60 * 60 * 1000);
-
-              return isPhoneReleased ? (
+              const phone = booking.customer?.user?.phone || booking.customerPhone || booking.phone;
+              return (
                 <TouchableOpacity
-                  style={styles.releasedBadge}
-                  onPress={() => booking.customer?.user?.phone && Linking.openURL(`tel:${booking.customer.user.phone}`)}
+                  style={styles.callNowBtn}
+                  onPress={() => {
+                    if (phone) {
+                      Linking.openURL(`tel:${phone}`);
+                    } else {
+                      Alert.alert('Customer Contact', 'Customer contact will be available upon arrival.');
+                    }
+                  }}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="call" size={13} color="#10b981" />
-                  <Text style={styles.releasedBadgeText}>Phone Released</Text>
+                  <Ionicons name="call" size={14} color="#16a34a" />
+                  <Text style={styles.callNowBtnText}>Call Now</Text>
                 </TouchableOpacity>
-              ) : (
-                <View style={styles.lockedBadge}>
-                  <Ionicons name="shield-checkmark" size={14} color="#2563eb" />
-                  <Text style={styles.lockedBadgeText}>Phone Protected</Text>
-                </View>
               );
             })()}
           </View>
-
-          {/* Call CTA if Phone Released */}
-          {(() => {
-            const isPhoneReleased =
-              Boolean(booking.customerPhoneReleased) ||
-              (booking.scheduledAt &&
-                new Date(booking.scheduledAt).getTime() - Date.now() <= 5 * 60 * 60 * 1000);
-
-            return isPhoneReleased && booking.customer?.user?.phone ? (
-              <TouchableOpacity
-                style={styles.callButton}
-                onPress={() => Linking.openURL(`tel:${booking.customer.user.phone}`)}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="call" size={15} color="#ffffff" style={{ marginRight: 6 }} />
-                <Text style={styles.callButtonText}>Call Customer ({booking.customer.user.phone})</Text>
-              </TouchableOpacity>
-            ) : null;
-          })()}
 
           <View style={styles.divider} />
 
@@ -711,6 +690,27 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#059669',
+  },
+  callNowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f0fdf4',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  callNowBtnText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#15803d',
   },
   releasedBadge: {
     flexDirection: 'row',
