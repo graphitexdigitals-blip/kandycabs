@@ -101,10 +101,8 @@ export default function AdditionalDetailsScreen() {
   const seaterLabel = (params.seaterLabel as string) || '';
   const wheelbase = (params.wheelbase as string) || '';
 
-  // 1. Number of Passengers state (Default to maxSeats or 4)
-  const [passengerCount, setPassengerCount] = useState<number>(
-    maxSeats >= 10 ? Math.min(maxSeats, 10) : Math.min(4, maxSeats)
-  );
+  // 1. Number of Passengers state (Default to 0)
+  const [passengerCount, setPassengerCount] = useState<number>(0);
 
   // 2. Luggage Details state
   const [selectedLuggage, setSelectedLuggage] = useState<string>('No Luggage');
@@ -116,7 +114,7 @@ export default function AdditionalDetailsScreen() {
   const [specialRequirements, setSpecialRequirements] = useState<string>('');
 
   const handleDecrement = () => {
-    if (passengerCount > 1) {
+    if (passengerCount > 0) {
       setPassengerCount((prev) => prev - 1);
     }
   };
@@ -142,6 +140,10 @@ export default function AdditionalDetailsScreen() {
   };
 
   const handleProceed = () => {
+    if (passengerCount <= 0) {
+      Alert.alert('Select Travellers', 'Please select at least 1 traveller before proceeding.');
+      return;
+    }
     router.push({
       pathname: '/booking',
       params: {
@@ -316,15 +318,15 @@ export default function AdditionalDetailsScreen() {
 
               <View style={styles.stepperContainer}>
                 <TouchableOpacity
-                  style={[styles.stepperBtn, passengerCount <= 1 && styles.stepperBtnDisabled]}
+                  style={[styles.stepperBtn, passengerCount <= 0 && styles.stepperBtnDisabled]}
                   onPress={handleDecrement}
-                  disabled={passengerCount <= 1}
+                  disabled={passengerCount <= 0}
                   activeOpacity={0.6}
                 >
                   <Ionicons
                     name="remove"
                     size={16}
-                    color={passengerCount <= 1 ? '#cbd5e1' : '#0f172a'}
+                    color={passengerCount <= 0 ? '#cbd5e1' : '#0f172a'}
                   />
                 </TouchableOpacity>
 

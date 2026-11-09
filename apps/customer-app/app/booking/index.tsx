@@ -412,7 +412,7 @@ export default function BookingFunnelScreen() {
   const [passengerCount, setPassengerCount] = useState<number>(() => {
     const p = Number(params.passengers);
     if (p && p > 0) return p;
-    return maxSeatsParam >= 10 ? Math.min(maxSeatsParam, 10) : Math.min(4, maxSeatsParam);
+    return 0;
   });
   type LuggageKey = 'small' | 'medium' | 'large' | 'extraLarge';
 
@@ -1067,7 +1067,7 @@ export default function BookingFunnelScreen() {
   };
 
   const handleDecrementPassengers = () => {
-    if (passengerCount > 1) {
+    if (passengerCount > 0) {
       setPassengerCount((prev) => prev - 1);
     }
   };
@@ -1500,6 +1500,23 @@ export default function BookingFunnelScreen() {
 
   // Proceed to Step 2
   const handleProceedToStep2 = () => {
+    if (passengerCount <= 0) {
+      Alert.alert(
+        t('additionalRequirements.travellersRequiredTitle', { defaultValue: 'Select Travellers' }),
+        t('additionalRequirements.travellersRequiredMsg', {
+          defaultValue: 'Please select the number of travellers and luggage before continuing.',
+        }),
+        [
+          {
+            text: t('additionalRequirements.selectNow', { defaultValue: 'Select Now' }),
+            onPress: () => setShowRequirementsModal(true),
+          },
+        ]
+      );
+      setShowRequirementsModal(true);
+      return;
+    }
+
     if (!passengerName.trim()) {
       Alert.alert('Name Required', 'Please enter the passenger full name.');
       return;
@@ -2158,7 +2175,9 @@ export default function BookingFunnelScreen() {
                     {
                       key: 'passengers',
                       icon: 'people',
-                      text: `${passengerCount} ${passengerCount === 1 ? t('additionalRequirements.passenger', { defaultValue: 'Traveller' }) : t('additionalRequirements.passengersPlural', { defaultValue: 'Travellers' })}`,
+                      text: passengerCount === 0
+                        ? t('additionalRequirements.zeroTravellers', { defaultValue: '0 Travellers' })
+                        : `${passengerCount} ${passengerCount === 1 ? t('additionalRequirements.passenger', { defaultValue: 'Traveller' }) : t('additionalRequirements.passengersPlural', { defaultValue: 'Travellers' })}`,
                     },
                     {
                       key: 'luggage',
@@ -3454,15 +3473,15 @@ export default function BookingFunnelScreen() {
 
                   <View style={styles.passengerStepperContainer}>
                     <TouchableOpacity
-                      style={[styles.stepperBtn, passengerCount <= 1 && styles.stepperBtnDisabled]}
+                      style={[styles.stepperBtn, passengerCount <= 0 && styles.stepperBtnDisabled]}
                       onPress={handleDecrementPassengers}
-                      disabled={passengerCount <= 1}
+                      disabled={passengerCount <= 0}
                       activeOpacity={0.6}
                     >
                       <Ionicons
                         name="remove"
                         size={16}
-                        color={passengerCount <= 1 ? '#cbd5e1' : '#64748b'}
+                        color={passengerCount <= 0 ? '#cbd5e1' : '#64748b'}
                       />
                     </TouchableOpacity>
 
@@ -4165,7 +4184,16 @@ export default function BookingFunnelScreen() {
             <View style={styles.sheetBottomBar}>
               <TouchableOpacity
                 style={styles.sheetApplyBtn}
-                onPress={() => setShowRequirementsModal(false)}
+                onPress={() => {
+                  if (passengerCount <= 0) {
+                    Alert.alert(
+                      t('additionalRequirements.travellersRequiredTitle', { defaultValue: 'Select Travellers' }),
+                      t('additionalRequirements.atLeastOnePassenger', { defaultValue: 'Please select at least 1 traveller.' })
+                    );
+                    return;
+                  }
+                  setShowRequirementsModal(false);
+                }}
                 activeOpacity={0.85}
               >
                 <Text style={styles.sheetApplyBtnText}>{t('additionalRequirements.saveAndApply', { defaultValue: 'Save & Apply Requirements' })}</Text>
