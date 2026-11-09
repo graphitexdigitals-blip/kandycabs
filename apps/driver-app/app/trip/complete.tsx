@@ -570,7 +570,7 @@ export default function DriverTripCompleteScreen() {
               ) : (
                 <>
                   <Text style={[styles.yellowPrimaryButtonText, styles.yellowPrimaryButtonTextReady]} numberOfLines={1}>
-                    Collect Payment (₹{totalRemainingAmount}) & Complete
+                    End Trip
                   </Text>
                   <Ionicons name="arrow-forward" size={20} color="#ffffff" />
                 </>
