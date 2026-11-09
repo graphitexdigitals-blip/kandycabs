@@ -24,38 +24,6 @@ export interface BannerItem {
 
 const DEFAULT_BANNERS: BannerItem[] = [
   {
-    id: 'banner-deepawali',
-    badge: 'SPECIAL OFFER',
-    tagline: 'Deepawali Special Offer',
-    subTagline: 'Use Coupon Code KCD500 • Get ₹500 OFF',
-    image: '/images/banner-deepawali.jpg',
-    btnText: 'Use Code: KCD500',
-    category: 'ROUND',
-    bannerType: 'APP_BANNER',
-    showTextOverlay: false,
-    showCtaButton: false,
-    linkUrl: '',
-    isActive: true,
-    order: 1,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'banner-christmas',
-    badge: 'SPECIAL OFFER',
-    tagline: 'Merry Christmas Special Offer',
-    subTagline: 'Use Coupon Code KCMC25 • Get ₹250 OFF on One Way Drop',
-    image: '/images/banner-christmas.jpg',
-    btnText: 'Use Code: KCMC25',
-    category: 'ONEWAY',
-    bannerType: 'APP_BANNER',
-    showTextOverlay: false,
-    showCtaButton: false,
-    linkUrl: '',
-    isActive: true,
-    order: 2,
-    createdAt: new Date().toISOString(),
-  },
-  {
     id: 'banner-ev-cab',
     badge: 'COMING SOON',
     tagline: 'EV Cab Service',
@@ -68,23 +36,7 @@ const DEFAULT_BANNERS: BannerItem[] = [
     showCtaButton: false,
     linkUrl: '',
     isActive: true,
-    order: 3,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'banner-1',
-    badge: 'OUTSTATION ROUND TRIP',
-    tagline: 'Coorg - Madikeri',
-    subTagline: 'Scenic Drives • Coffee Estates • Waterfalls',
-    image: '/images/banner-coorg.jpg',
-    btnText: 'Book Outstation',
-    category: 'ROUND',
-    bannerType: 'APP_BANNER',
-    showTextOverlay: false,
-    showCtaButton: false,
-    linkUrl: '',
-    isActive: true,
-    order: 4,
+    order: 1,
     createdAt: new Date().toISOString(),
   },
   {
@@ -100,7 +52,7 @@ const DEFAULT_BANNERS: BannerItem[] = [
     showCtaButton: false,
     linkUrl: '',
     isActive: true,
-    order: 5,
+    order: 2,
     createdAt: new Date().toISOString(),
   },
 ];
@@ -108,9 +60,10 @@ const DEFAULT_BANNERS: BannerItem[] = [
 const ROOT_DATA_FILE = path.join(process.cwd(), '..', '..', '.banners_store.json');
 const WEB_DATA_FILE = path.join(process.cwd(), '.banners_store.json');
 const ADMIN_DATA_FILE = path.join(process.cwd(), '..', 'admin', '.banners_store.json');
+const TMP_DATA_FILE = path.join('/tmp', '.banners_store.json');
 
 function getStoredBanners(): BannerItem[] {
-  const possiblePaths = [ROOT_DATA_FILE, WEB_DATA_FILE, ADMIN_DATA_FILE];
+  const possiblePaths = [TMP_DATA_FILE, ROOT_DATA_FILE, WEB_DATA_FILE, ADMIN_DATA_FILE];
   for (const p of possiblePaths) {
     try {
       if (fs.existsSync(p)) {

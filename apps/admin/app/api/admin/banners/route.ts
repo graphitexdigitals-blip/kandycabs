@@ -23,16 +23,16 @@ export interface BannerItem {
 
 const DEFAULT_BANNERS: BannerItem[] = [
   {
-    id: 'banner-1',
-    badge: 'INTERCITY CABS',
-    tagline: 'Safe • Reliable • Transparent',
-    subTagline: 'ಕನ್ನಡ ನಾಡಿನ ನಂಬಿಕಸ್ಥ ಕ್ಯಾಬ್ ಸೇವೆ',
-    image: '/images/banner-coastal-highway.jpg',
-    btnText: 'Book Outstation',
-    category: 'ONEWAY',
+    id: 'banner-ev-cab',
+    badge: 'COMING SOON',
+    tagline: 'EV Cab Service',
+    subTagline: 'Smart Rides - Happy Rides',
+    image: '/images/banner-ev-cab.jpg',
+    btnText: 'Coming Soon',
+    category: 'LOCAL',
     bannerType: 'APP_BANNER',
-    showTextOverlay: true,
-    showCtaButton: true,
+    showTextOverlay: false,
+    showCtaButton: false,
     linkUrl: '',
     isActive: true,
     order: 1,
@@ -47,27 +47,11 @@ const DEFAULT_BANNERS: BannerItem[] = [
     btnText: 'Book Airport Cab',
     category: 'AIRPORT',
     bannerType: 'APP_BANNER',
-    showTextOverlay: true,
-    showCtaButton: true,
+    showTextOverlay: false,
+    showCtaButton: false,
     linkUrl: '',
     isActive: true,
     order: 2,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'banner-3',
-    badge: 'PILGRIMAGE & TOURS',
-    tagline: 'Coastal Karnataka Temple Tours',
-    subTagline: 'Dharmasthala • Udupi • Murudeshwar',
-    image: '/images/banner-pilgrimage.jpg',
-    btnText: 'Explore Tours',
-    category: 'TOUR',
-    bannerType: 'APP_BANNER',
-    showTextOverlay: true,
-    showCtaButton: true,
-    linkUrl: '',
-    isActive: true,
-    order: 3,
     createdAt: new Date().toISOString(),
   },
 ];
@@ -75,9 +59,10 @@ const DEFAULT_BANNERS: BannerItem[] = [
 const ROOT_DATA_FILE = path.join(process.cwd(), '..', '..', '.banners_store.json');
 const ADMIN_DATA_FILE = path.join(process.cwd(), '.banners_store.json');
 const WEB_DATA_FILE = path.join(process.cwd(), '..', 'web', '.banners_store.json');
+const TMP_DATA_FILE = path.join('/tmp', '.banners_store.json');
 
 function getStoredBanners(): BannerItem[] {
-  const possiblePaths = [ROOT_DATA_FILE, ADMIN_DATA_FILE, WEB_DATA_FILE];
+  const possiblePaths = [TMP_DATA_FILE, ROOT_DATA_FILE, ADMIN_DATA_FILE, WEB_DATA_FILE];
   for (const p of possiblePaths) {
     try {
       if (fs.existsSync(p)) {
@@ -96,10 +81,15 @@ function getStoredBanners(): BannerItem[] {
 
 function saveStoredBanners(banners: BannerItem[]) {
   const jsonStr = JSON.stringify(banners, null, 2);
-  const targets = [ROOT_DATA_FILE, ADMIN_DATA_FILE, WEB_DATA_FILE];
+  const targets = [TMP_DATA_FILE, ROOT_DATA_FILE, ADMIN_DATA_FILE, WEB_DATA_FILE];
   for (const target of targets) {
     try {
       const dir = path.dirname(target);
+      if (!fs.existsSync(dir)) {
+        try {
+          fs.mkdirSync(dir, { recursive: true });
+        } catch {}
+      }
       if (fs.existsSync(dir)) {
         fs.writeFileSync(target, jsonStr, 'utf-8');
       }
