@@ -259,7 +259,7 @@ export interface VehicleItem {
 
 export default function DriverDocumentsUploadScreen() {
   const router = useRouter();
-  const searchParams = useLocalSearchParams<{ vehicleIndex?: string }>();
+  const searchParams = useLocalSearchParams<{ vehicleIndex?: string; addNewVehicle?: string }>();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 

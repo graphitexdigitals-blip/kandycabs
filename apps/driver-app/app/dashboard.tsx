@@ -1242,12 +1242,13 @@ export default function DriverDashboardScreen() {
                 imageStyle={{ borderRadius: 24, resizeMode: 'cover' }}
               >
                 {/* Continuous 256x1 hardware-interpolated fog gradient: ZERO vertical lines, soft translucent fog with scenery visible */}
-                <Image
-                  source={{ uri: FOGGY_OVERLAY_GRADIENT_BASE64 }}
-                  style={[StyleSheet.absoluteFillObject, { borderRadius: 24 }]}
-                  resizeMode="stretch"
-                  pointerEvents="none"
-                />
+                <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { borderRadius: 24, overflow: 'hidden' }]}>
+                  <Image
+                    source={{ uri: FOGGY_OVERLAY_GRADIENT_BASE64 }}
+                    style={StyleSheet.absoluteFillObject}
+                    resizeMode="stretch"
+                  />
+                </View>
 
                 <View style={styles.heroCardContent}>
                   <View style={styles.heroCardLeft}>

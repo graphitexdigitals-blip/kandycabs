@@ -183,13 +183,23 @@ export default function DriverTripStartScreen() {
     }
   }, [driverSelfieUri, odometerImageUri]);
 
-  // 6 Core Mandatory Trip Attachments: [Front, Rear, Side, Inside, Selfie, Odometer]
+  // 6 Core Mandatory Trip Attachments: [Selfie (first!), Front, Rear, Side, Inside, Odometer]
   const verificationAttachments = [
+    {
+      id: 'selfie',
+      title: 'Driver Cabin Selfie',
+      shortTitle: 'Driver Selfie',
+      tag: '1. SELFIE',
+      desc: 'Clear face selfie captured from driving seat',
+      icon: 'person-outline' as const,
+      sampleSource: DRIVER_SELFIE_SAMPLE,
+      type: 'selfie' as const,
+    },
     {
       id: 'front',
       title: 'Vehicle Front Angle',
       shortTitle: 'Front Angle',
-      tag: '1. FRONT',
+      tag: '2. FRONT',
       desc: 'Front bumper & number plate clearly visible',
       icon: 'car-outline' as const,
       sampleSource: FRONT_SAMPLE,
@@ -200,7 +210,7 @@ export default function DriverTripStartScreen() {
       id: 'rear',
       title: 'Vehicle Rear / Back Angle',
       shortTitle: 'Rear Angle',
-      tag: '2. REAR',
+      tag: '3. REAR',
       desc: 'Rear bumper, tail lights & boot clearly visible',
       icon: 'car-sport-outline' as const,
       sampleSource: REAR_SAMPLE,
@@ -211,7 +221,7 @@ export default function DriverTripStartScreen() {
       id: 'side',
       title: 'Vehicle Side Profile',
       shortTitle: 'Side Profile',
-      tag: '3. SIDE',
+      tag: '4. SIDE',
       desc: 'Full side profile & passenger doors clearly visible',
       icon: 'browsers-outline' as const,
       sampleSource: SIDE_SAMPLE,
@@ -222,22 +232,12 @@ export default function DriverTripStartScreen() {
       id: 'inside',
       title: 'Vehicle Inside Cabin',
       shortTitle: 'Inside Cabin',
-      tag: '4. INSIDE',
+      tag: '5. INSIDE',
       desc: 'Clean interior, passenger seats & floor mats',
       icon: 'people-outline' as const,
       sampleSource: INSIDE_SAMPLE,
       type: 'inspection' as const,
       index: 3,
-    },
-    {
-      id: 'selfie',
-      title: 'Driver Cabin Selfie',
-      shortTitle: 'Driver Selfie',
-      tag: '5. SELFIE',
-      desc: 'Clear face selfie captured from driving seat',
-      icon: 'person-outline' as const,
-      sampleSource: DRIVER_SELFIE_SAMPLE,
-      type: 'selfie' as const,
     },
     {
       id: 'odometer',
@@ -253,37 +253,52 @@ export default function DriverTripStartScreen() {
 
   const [inspectionPhotos, setInspectionPhotos] = useState<(string | null)[]>([null, null, null, null]);
 
-  const isAttachmentCompleted = (idx: number) => {
-    if (idx < 4) return Boolean(inspectionPhotos[idx]);
-    if (idx === 4) return Boolean(driverSelfieUri);
-    if (idx === 5) return Boolean(odometerImageUri && startingOdometer);
+  const isAttachmentCompletedById = (id?: string) => {
+    if (id === 'selfie') return Boolean(driverSelfieUri);
+    if (id === 'front') return Boolean(inspectionPhotos[0]);
+    if (id === 'rear') return Boolean(inspectionPhotos[1]);
+    if (id === 'side') return Boolean(inspectionPhotos[2]);
+    if (id === 'inside') return Boolean(inspectionPhotos[3]);
+    if (id === 'odometer') return Boolean(odometerImageUri && startingOdometer);
     return false;
   };
 
-  const getAttachmentPhotoUri = (idx: number) => {
+  const isAttachmentCompleted = (idx: number) => {
+    const item = verificationAttachments[idx];
+    return isAttachmentCompletedById(item?.id);
+  };
+
+  const getAttachmentPhotoUriById = (id?: string) => {
     let uri: string | null = null;
-    if (idx < 4) uri = inspectionPhotos[idx];
-    else if (idx === 4) uri = driverSelfieUri;
-    else if (idx === 5) uri = odometerImageUri;
+    if (id === 'selfie') uri = driverSelfieUri;
+    else if (id === 'front') uri = inspectionPhotos[0];
+    else if (id === 'rear') uri = inspectionPhotos[1];
+    else if (id === 'side') uri = inspectionPhotos[2];
+    else if (id === 'inside') uri = inspectionPhotos[3];
+    else if (id === 'odometer') uri = odometerImageUri;
     if (typeof uri === 'string' && uri.includes('images.unsplash.com')) {
       return null;
     }
     return uri;
   };
 
-  const totalAttachedCount =
-    inspectionPhotos.filter(Boolean).length +
+  const getAttachmentPhotoUri = (idx: number) => {
+    const item = verificationAttachments[idx];
+    return getAttachmentPhotoUriById(item?.id);
+  };
+
+  const step1AttachedCount =
     (driverSelfieUri ? 1 : 0) +
-    (odometerImageUri && startingOdometer ? 1 : 0);
+    inspectionPhotos.filter(Boolean).length;
+  const isStep1Done = Boolean(driverSelfieUri && inspectionPhotos.filter(Boolean).length === 4);
+
+  const isOdometerDone = Boolean(odometerImageUri && startingOdometer);
+  const totalAttachedCount = step1AttachedCount + (isOdometerDone ? 1 : 0);
 
   const vehicleAttachedCount = inspectionPhotos.filter(Boolean).length;
-  const isVehicleEvidenceDone = vehicleAttachedCount === 4;
-  const step2AttachedCount =
-    (driverSelfieUri ? 1 : 0) +
-    (odometerImageUri && startingOdometer ? 1 : 0);
-  const isStep2Done = Boolean(
-    driverSelfieUri && odometerImageUri && startingOdometer
-  );
+  const isVehicleEvidenceDone = isStep1Done;
+  const step2AttachedCount = isOdometerDone ? 1 : 0;
+  const isStep2Done = isOdometerDone;
 
   const handlePickInspectionPhoto = async (index: number, mode: 'camera' | 'library') => {
     try {
@@ -325,7 +340,7 @@ export default function DriverTripStartScreen() {
         // Automatically slide to next attachment
         if (currentVerificationStep === 1) {
           if (index < 3) {
-            setActiveAttachmentIdx(index + 1);
+            setActiveAttachmentIdx(index + 2);
           }
         } else if (index < 5) {
           setActiveAttachmentIdx(index + 1);
@@ -337,7 +352,8 @@ export default function DriverTripStartScreen() {
   };
 
   const handleInspectionOptions = (index: number) => {
-    const title = verificationAttachments[index]?.title || 'Vehicle Photo';
+    const titles = ['Front Angle', 'Rear Angle', 'Side Profile', 'Inside Cabin'];
+    const title = titles[index] || 'Vehicle Photo';
     Alert.alert(
       `Capture ${title}`,
       'Choose source for vehicle inspection photo:',
@@ -351,6 +367,7 @@ export default function DriverTripStartScreen() {
 
   const handleFillDemoInspectionPhotos = () => {
     if (currentVerificationStep === 1) {
+      setDriverSelfieUri('demo_selfie');
       setInspectionPhotos([
         'demo_front',
         'demo_rear',
@@ -359,17 +376,16 @@ export default function DriverTripStartScreen() {
       ]);
       setActiveAttachmentIdx(0);
       Alert.alert(
-        '⚡ Demo Vehicle Evidence Loaded',
-        'All 4 vehicle angles loaded! Click "PROCEED TO STEP 2" below to enter Customer OTP & Odometer.'
+        '⚡ Demo Evidence Loaded',
+        'Driver selfie & all 4 vehicle angles loaded! Click "PROCEED TO STEP 2" below to enter Customer OTP & Odometer.'
       );
     } else {
-      setDriverSelfieUri('demo_selfie');
       setOdometerImageUri('demo_odometer');
       setStartingOdometer('42850');
-      setActiveAttachmentIdx(4);
+      setActiveAttachmentIdx(5);
       Alert.alert(
-        '⚡ Demo Step 2 Evidence Loaded',
-        'Driver selfie & starting odometer reading loaded!'
+        '⚡ Demo Odometer Loaded',
+        'Starting odometer reading loaded!'
       );
     }
   };
@@ -486,7 +502,11 @@ export default function DriverTripStartScreen() {
           };
           setSelfieLocation(locStamp);
         }
-        setActiveAttachmentIdx(5);
+        if (currentVerificationStep === 1) {
+          setActiveAttachmentIdx(1);
+        } else {
+          setActiveAttachmentIdx(5);
+        }
         if (bookingId) {
           setVerifiedSelfie(bookingId, dataUri, locStamp);
         }
@@ -775,13 +795,13 @@ export default function DriverTripStartScreen() {
               <View style={styles.headerLiveDot} />
               <Text style={styles.headerLiveRadarText}>
                 {currentVerificationStep === 1
-                  ? '• STEP 1: VEHICLE EVIDENCE'
-                  : '• STEP 2: PASSENGER OTP & METER'}
+                  ? '• STEP 1: SELFIE & VEHICLE'
+                  : '• STEP 2: CUSTOMER OTP & METER'}
               </Text>
             </View>
             <Text style={styles.headerMainTitle}>
               {currentVerificationStep === 1
-                ? 'Vehicle Evidence Inspection'
+                ? 'Selfie & Vehicle Inspection'
                 : t('trip_flow.verify_inspection')}
             </Text>
           </View>
@@ -860,21 +880,21 @@ export default function DriverTripStartScreen() {
           ]}
           onPress={() => {
             setCurrentVerificationStep(1);
-            if (activeAttachmentIdx >= 4) setActiveAttachmentIdx(0);
+            if (activeAttachmentIdx >= 5) setActiveAttachmentIdx(0);
           }}
           activeOpacity={0.8}
         >
           <View
             style={[
               styles.stepTabBadge,
-              isVehicleEvidenceDone
+              isStep1Done
                 ? styles.stepTabBadgeDone
                 : currentVerificationStep === 1
                 ? styles.stepTabBadgeActive
                 : styles.stepTabBadgeInactive,
             ]}
           >
-            {isVehicleEvidenceDone ? (
+            {isStep1Done ? (
               <Ionicons name="checkmark" size={13} color="#ffffff" />
             ) : (
               <Text style={styles.stepTabBadgeNum}>1</Text>
@@ -888,10 +908,10 @@ export default function DriverTripStartScreen() {
               ]}
               numberOfLines={1}
             >
-              1. Vehicle Evidence
+              1. Selfie & Vehicle
             </Text>
             <Text style={styles.stepTabSubText}>
-              {vehicleAttachedCount}/4 Photos {isVehicleEvidenceDone ? '✓' : ''}
+              {step1AttachedCount}/5 Photos {isStep1Done ? '✓' : ''}
             </Text>
           </View>
         </TouchableOpacity>
@@ -902,32 +922,32 @@ export default function DriverTripStartScreen() {
           style={[
             styles.stepTabItem,
             currentVerificationStep === 2 && styles.stepTabItemActive,
-            !isVehicleEvidenceDone && styles.stepTabItemDisabled,
+            !isStep1Done && styles.stepTabItemDisabled,
           ]}
           onPress={() => {
-            if (!isVehicleEvidenceDone) {
+            if (!isStep1Done) {
               Alert.alert(
-                'Complete Vehicle Evidence First',
-                'Please capture all 4 vehicle photos (Front, Rear, Side, Inside) before proceeding to Passenger OTP, Selfie and Odometer verification.'
+                'Complete Selfie & Vehicle Photos First',
+                'Please capture driver selfie and all 4 vehicle angles before proceeding to Customer OTP & Odometer verification.'
               );
               return;
             }
             setCurrentVerificationStep(2);
-            if (activeAttachmentIdx < 4) setActiveAttachmentIdx(4);
+            setActiveAttachmentIdx(5);
           }}
           activeOpacity={0.8}
         >
           <View
             style={[
               styles.stepTabBadge,
-              isStep2Done && isOtpVerified
+              isOdometerDone && (isOtpVerified || isAdminAuthorized)
                 ? styles.stepTabBadgeDone
                 : currentVerificationStep === 2
                 ? styles.stepTabBadgeActive
                 : styles.stepTabBadgeInactive,
             ]}
           >
-            {isStep2Done && isOtpVerified ? (
+            {isOdometerDone && (isOtpVerified || isAdminAuthorized) ? (
               <Ionicons name="checkmark" size={13} color="#ffffff" />
             ) : (
               <Text style={styles.stepTabBadgeNum}>2</Text>
@@ -941,10 +961,10 @@ export default function DriverTripStartScreen() {
               ]}
               numberOfLines={1}
             >
-              2. OTP, Selfie & Meter
+              2. OTP & Meter
             </Text>
             <Text style={styles.stepTabSubText}>
-              {isOtpVerified ? 'OTP Verified ✓' : 'OTP & Meter'}
+              {isOtpVerified ? 'OTP Verified ✓' : 'Customer OTP & Meter'}
             </Text>
           </View>
         </TouchableOpacity>
@@ -964,18 +984,18 @@ export default function DriverTripStartScreen() {
           </View>
         ) : null}
 
-        {/* STEP 1: VEHICLE EVIDENCE ONLY (No OTP, Selfie, or Odometer) */}
+        {/* STEP 1: DRIVER SELFIE & VEHICLE EVIDENCE (No OTP or Odometer) */}
         {currentVerificationStep === 1 && (
           <>
             <View style={styles.step1Banner}>
               <View style={styles.step1BannerHeader}>
                 <View style={styles.step1BannerIconBox}>
-                  <Ionicons name="camera" size={18} color="#0284c7" />
+                  <Ionicons name="camera-reverse" size={18} color="#0284c7" />
                 </View>
                 <View style={styles.step1BannerTextCol}>
-                  <Text style={styles.step1BannerTitle}>Step 1: Vehicle Evidence (4 Angles)</Text>
+                  <Text style={styles.step1BannerTitle}>Step 1: Driver Selfie & Vehicle Evidence (5 Photos)</Text>
                   <Text style={styles.step1BannerDesc}>
-                    Mandatory 4 vehicle angles required before passenger pickup. Customer OTP, driver selfie & odometer unlock in Step 2.
+                    Capture driver selfie first, followed by 4 mandatory vehicle angles. Customer OTP & meter unlock in Step 2.
                   </Text>
                 </View>
               </View>
@@ -983,9 +1003,9 @@ export default function DriverTripStartScreen() {
 
             {/* Step 1 Unified Verification Card */}
             {(() => {
-              const vehicleItems = verificationAttachments.slice(0, 4);
-              const safeIdx = activeAttachmentIdx >= 0 && activeAttachmentIdx < 4 ? activeAttachmentIdx : 0;
-              const activeItem = vehicleItems[safeIdx] || vehicleItems[0];
+              const step1Items = verificationAttachments.slice(0, 5);
+              const safeIdx = activeAttachmentIdx >= 0 && activeAttachmentIdx < 5 ? activeAttachmentIdx : 0;
+              const activeItem = step1Items[safeIdx] || step1Items[0];
               const isCurrentAttached = isAttachmentCompleted(safeIdx);
               const currentPhotoUri = getAttachmentPhotoUri(safeIdx);
 
@@ -995,12 +1015,12 @@ export default function DriverTripStartScreen() {
                   <View style={styles.cardHeaderRowBetween}>
                     <View style={styles.cardHeaderLeftGroup}>
                       <View style={[styles.cardHeaderIconCircle, { backgroundColor: '#0284c7' }]}>
-                        <Ionicons name="car-sport" size={16} color="#ffffff" />
+                        <Ionicons name="camera-reverse" size={16} color="#ffffff" />
                       </View>
                       <View style={styles.cardHeaderTextCol}>
-                        <Text style={styles.cardHeaderTitle}>Vehicle Evidence Photos *</Text>
+                        <Text style={styles.cardHeaderTitle}>Selfie & Vehicle Evidence Photos *</Text>
                         <Text style={styles.cardHeaderSubtitle}>
-                          {vehicleAttachedCount} of 4 mandatory vehicle photos completed
+                          {step1AttachedCount} of 5 mandatory photos completed
                         </Text>
                       </View>
                     </View>
@@ -1019,8 +1039,8 @@ export default function DriverTripStartScreen() {
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: `${Math.round((vehicleAttachedCount / 4) * 100)}%` },
-                        isVehicleEvidenceDone && styles.progressBarFillComplete,
+                        { width: `${Math.round((step1AttachedCount / 5) * 100)}%` },
+                        isStep1Done && styles.progressBarFillComplete,
                       ]}
                     />
                   </View>
@@ -1030,7 +1050,7 @@ export default function DriverTripStartScreen() {
                     <View style={styles.viewfinderHeaderRow}>
                       <View style={styles.viewfinderStepTag}>
                         <Text style={styles.viewfinderStepTagText}>
-                          {activeItem.shortTitle.toUpperCase()} ({safeIdx + 1}/4)
+                          {activeItem.shortTitle.toUpperCase()} ({safeIdx + 1}/5)
                         </Text>
                       </View>
                       <View
@@ -1059,7 +1079,13 @@ export default function DriverTripStartScreen() {
                     {/* Viewfinder Preview Box */}
                     <TouchableOpacity
                       style={styles.viewfinderPhotoBox}
-                      onPress={() => handleInspectionOptions(safeIdx)}
+                      onPress={() => {
+                        if (activeItem.type === 'selfie') {
+                          handleOpenSelfieCamera();
+                        } else if (activeItem.type === 'inspection') {
+                          handleInspectionOptions(activeItem.index);
+                        }
+                      }}
                       activeOpacity={0.9}
                     >
                       <Image
@@ -1096,13 +1122,22 @@ export default function DriverTripStartScreen() {
                           </View>
                         </>
                       )}
+
+                      {/* GPS Watermark for Selfie */}
+                      {activeItem.type === 'selfie' && selfieLocation && (
+                        <View style={styles.gpsWatermarkOverlay}>
+                          <Text style={styles.gpsWatermarkCoords}>
+                            📍 {`${selfieLocation.lat.toFixed(4)}° N, ${selfieLocation.lng.toFixed(4)}° E • ${selfieLocation.time}`}
+                          </Text>
+                        </View>
+                      )}
                     </TouchableOpacity>
                   </View>
 
-                  {/* Section: WHAT ALL SHOULD BE ATTACHED (Slidable Strip for 4 Vehicle Angles) */}
+                  {/* Section: WHAT ALL SHOULD BE ATTACHED (Slidable Strip for 5 Photos) */}
                   <View style={styles.slidableStripSection}>
                     <View style={styles.slidableStripHeader}>
-                      <Text style={styles.slidableStripTitle}>4 VEHICLE ANGLES REQUIRED</Text>
+                      <Text style={styles.slidableStripTitle}>1 SELFIE + 4 VEHICLE ANGLES</Text>
                       <Text style={styles.slidableStripSub}>Slide & tap to view or retake</Text>
                     </View>
 
@@ -1111,7 +1146,7 @@ export default function DriverTripStartScreen() {
                       showsHorizontalScrollIndicator={false}
                       contentContainerStyle={styles.slidableScrollContent}
                     >
-                      {vehicleItems.map((item, idx) => {
+                      {step1Items.map((item, idx) => {
                         const isSelected = idx === safeIdx;
                         const isDone = isAttachmentCompleted(idx);
                         const thumbUri = getAttachmentPhotoUri(idx);
@@ -1181,7 +1216,7 @@ export default function DriverTripStartScreen() {
           </>
         )}
 
-        {/* STEP 2: PASSENGER OTP, DRIVER SELFIE & ODOMETER */}
+        {/* STEP 2: CUSTOMER OTP & STARTING ODOMETER (Selfie is in Step 1) */}
         {currentVerificationStep === 2 && (
           <>
             {/* Quick Switcher Back to Step 1 */}
@@ -1195,7 +1230,7 @@ export default function DriverTripStartScreen() {
             >
               <View style={styles.backToStep1Left}>
                 <Ionicons name="arrow-back" size={14} color="#0284c7" />
-                <Text style={styles.backToStep1Text}>Review Vehicle Evidence (4/4 Completed)</Text>
+                <Text style={styles.backToStep1Text}>Review Selfie & Vehicle Evidence (5/5 Completed)</Text>
               </View>
               <View style={styles.step1DoneBadge}>
                 <Ionicons name="checkmark-circle" size={12} color="#16a34a" />
@@ -1391,13 +1426,11 @@ export default function DriverTripStartScreen() {
               </View>
             )}
 
-            {/* Step 2 Verification Card: Driver Selfie & Starting Odometer */}
+            {/* Step 2 Verification Card: Starting Odometer Only */}
             {(() => {
-              const step2Items = verificationAttachments.slice(4, 6);
-              const safeIdx = activeAttachmentIdx >= 4 && activeAttachmentIdx <= 5 ? activeAttachmentIdx : 4;
-              const activeItem = verificationAttachments[safeIdx];
-              const isCurrentAttached = isAttachmentCompleted(safeIdx);
-              const currentPhotoUri = getAttachmentPhotoUri(safeIdx);
+              const odometerItem = verificationAttachments[5];
+              const isCurrentAttached = isOdometerDone;
+              const currentPhotoUri = getAttachmentPhotoUri(5);
 
               return (
                 <View style={styles.card}>
@@ -1408,9 +1441,9 @@ export default function DriverTripStartScreen() {
                         <Ionicons name="speedometer" size={16} color="#ffffff" />
                       </View>
                       <View style={styles.cardHeaderTextCol}>
-                        <Text style={styles.cardHeaderTitle}>Driver Selfie & Starting Odometer *</Text>
+                        <Text style={styles.cardHeaderTitle}>Starting Odometer Reading *</Text>
                         <Text style={styles.cardHeaderSubtitle}>
-                          {step2AttachedCount} of 2 mandatory attachments completed
+                          {isCurrentAttached ? 'Starting gauge & photo completed ✓' : 'Gauge photo & reading required'}
                         </Text>
                       </View>
                     </View>
@@ -1429,8 +1462,8 @@ export default function DriverTripStartScreen() {
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: `${Math.round((step2AttachedCount / 2) * 100)}%` },
-                        isStep2Done && styles.progressBarFillComplete,
+                        { width: isCurrentAttached ? '100%' : odometerImageUri ? '50%' : '0%' },
+                        isCurrentAttached && styles.progressBarFillComplete,
                       ]}
                     />
                   </View>
@@ -1440,7 +1473,7 @@ export default function DriverTripStartScreen() {
                     <View style={styles.viewfinderHeaderRow}>
                       <View style={styles.viewfinderStepTag}>
                         <Text style={styles.viewfinderStepTagText}>
-                          {activeItem.shortTitle.toUpperCase()} ({safeIdx === 4 ? '1/2' : '2/2'})
+                          ODOMETER GAUGE
                         </Text>
                       </View>
                       <View
@@ -1469,13 +1502,7 @@ export default function DriverTripStartScreen() {
                     {/* Viewfinder Preview Box */}
                     <TouchableOpacity
                       style={styles.viewfinderPhotoBox}
-                      onPress={() => {
-                        if (activeItem.type === 'selfie') {
-                          handleOpenSelfieCamera();
-                        } else if (activeItem.type === 'odometer') {
-                          handleOpenCamera();
-                        }
-                      }}
+                      onPress={handleOpenCamera}
                       activeOpacity={0.9}
                     >
                       <Image
@@ -1484,13 +1511,13 @@ export default function DriverTripStartScreen() {
                           !currentPhotoUri.startsWith('demo_') &&
                           !currentPhotoUri.includes('images.unsplash.com')
                             ? { uri: currentPhotoUri }
-                            : activeItem.sampleSource
+                            : odometerItem.sampleSource
                         }
                         style={styles.viewfinderPhotoImage}
                         resizeMode="cover"
                       />
 
-                      {isCurrentAttached ? (
+                      {odometerImageUri ? (
                         <>
                           <View style={styles.heroAttachedRibbon}>
                             <Ionicons name="checkmark-circle" size={13} color="#ffffff" />
@@ -1513,15 +1540,8 @@ export default function DriverTripStartScreen() {
                         </>
                       )}
 
-                      {/* Watermark for selfie / odometer */}
-                      {activeItem.type === 'selfie' && selfieLocation && (
-                        <View style={styles.gpsWatermarkOverlay}>
-                          <Text style={styles.gpsWatermarkCoords}>
-                            📍 {`${selfieLocation.lat.toFixed(4)}° N, ${selfieLocation.lng.toFixed(4)}° E • ${selfieLocation.time}`}
-                          </Text>
-                        </View>
-                      )}
-                      {activeItem.type === 'odometer' && photoLocation && (
+                      {/* GPS Watermark */}
+                      {photoLocation && (
                         <View style={styles.gpsWatermarkOverlay}>
                           <Text style={styles.gpsWatermarkCoords}>
                             📍 {`${photoLocation.lat.toFixed(4)}° N, ${photoLocation.lng.toFixed(4)}° E • ${photoLocation.time}`}
@@ -1530,118 +1550,38 @@ export default function DriverTripStartScreen() {
                       )}
                     </TouchableOpacity>
 
-                    {/* If Odometer is selected, show numeric KM input & OCR banner */}
-                    {activeItem.type === 'odometer' && (
-                      <View style={styles.odometerInputWrapper}>
-                        <View style={styles.odometerInputContainer}>
-                          <Ionicons name="speedometer-outline" size={18} color="#6366f1" style={styles.odometerIcon} />
-                          <TextInput
-                            style={styles.odometerTextInput}
-                            value={startingOdometer}
-                            onChangeText={(val) => {
-                              setStartingOdometer(val);
-                              if (bookingId) setTripStartDraft(bookingId, { startingOdometer: val });
-                            }}
-                            keyboardType="decimal-pad"
-                            placeholder="Enter starting km (e.g. 42850)"
-                            placeholderTextColor="#94a3b8"
-                          />
-                          <View style={styles.odometerKmBadge}>
-                            <Text style={styles.odometerKmText}>KM</Text>
-                          </View>
+                    {/* Numeric KM Input & OCR scanner */}
+                    <View style={styles.odometerInputWrapper}>
+                      <View style={styles.odometerInputContainer}>
+                        <Ionicons name="speedometer-outline" size={18} color="#6366f1" style={styles.odometerIcon} />
+                        <TextInput
+                          style={styles.odometerTextInput}
+                          value={startingOdometer}
+                          onChangeText={(val) => {
+                            setStartingOdometer(val);
+                            if (bookingId) setTripStartDraft(bookingId, { startingOdometer: val });
+                          }}
+                          keyboardType="decimal-pad"
+                          placeholder="Enter starting km (e.g. 42850)"
+                          placeholderTextColor="#94a3b8"
+                        />
+                        <View style={styles.odometerKmBadge}>
+                          <Text style={styles.odometerKmText}>KM</Text>
                         </View>
-
-                        {ocrScanning ? (
-                          <View style={styles.ocrScanningBanner}>
-                            <ActivityIndicator size="small" color="#0284c7" />
-                            <Text style={styles.ocrScanningText}>Auto-reading gauge numbers...</Text>
-                          </View>
-                        ) : ocrResultText.status === 'success' ? (
-                          <View style={styles.ocrSuccessBanner}>
-                            <Ionicons name="checkmark-circle" size={13} color="#16a34a" />
-                            <Text style={styles.ocrSuccessText}>{ocrResultText.message}</Text>
-                          </View>
-                        ) : null}
                       </View>
-                    )}
-                  </View>
 
-                  {/* Section: WHAT ALL SHOULD BE ATTACHED (Slidable Strip for Step 2: Selfie & Odometer) */}
-                  <View style={styles.slidableStripSection}>
-                    <View style={styles.slidableStripHeader}>
-                      <Text style={styles.slidableStripTitle}>STEP 2 VERIFICATIONS</Text>
-                      <Text style={styles.slidableStripSub}>Slide & tap to view or retake</Text>
+                      {ocrScanning ? (
+                        <View style={styles.ocrScanningBanner}>
+                          <ActivityIndicator size="small" color="#0284c7" />
+                          <Text style={styles.ocrScanningText}>Auto-reading gauge numbers...</Text>
+                        </View>
+                      ) : ocrResultText.status === 'success' ? (
+                        <View style={styles.ocrSuccessBanner}>
+                          <Ionicons name="checkmark-circle" size={13} color="#16a34a" />
+                          <Text style={styles.ocrSuccessText}>{ocrResultText.message}</Text>
+                        </View>
+                      ) : null}
                     </View>
-
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.slidableScrollContent}
-                    >
-                      {step2Items.map((item) => {
-                        const idx = item.id === 'selfie' ? 4 : 5;
-                        const isSelected = idx === safeIdx;
-                        const isDone = isAttachmentCompleted(idx);
-                        const thumbUri = getAttachmentPhotoUri(idx);
-
-                        return (
-                          <TouchableOpacity
-                            key={item.id}
-                            style={[
-                              styles.slidableAttachmentCard,
-                              isSelected && styles.slidableAttachmentCardSelected,
-                            ]}
-                            onPress={() => setActiveAttachmentIdx(idx)}
-                            activeOpacity={0.8}
-                          >
-                            <View style={styles.slidableThumbBox}>
-                              <Image
-                                source={
-                                  thumbUri &&
-                                  !thumbUri.startsWith('demo_') &&
-                                  !thumbUri.includes('images.unsplash.com')
-                                    ? { uri: thumbUri }
-                                    : item.sampleSource
-                                }
-                                style={styles.slidableThumbImage}
-                                resizeMode="cover"
-                              />
-                              <View
-                                style={[
-                                  styles.slidableThumbBadge,
-                                  isDone ? styles.badgeGreen : styles.badgeMuted,
-                                ]}
-                              >
-                                <Ionicons
-                                  name={isDone ? 'checkmark-circle' : 'camera-outline'}
-                                  size={11}
-                                  color="#ffffff"
-                                />
-                              </View>
-                            </View>
-
-                            <Text
-                              style={[
-                                styles.slidableItemTitle,
-                                isSelected && styles.slidableItemTitleSelected,
-                              ]}
-                              numberOfLines={1}
-                            >
-                              {item.shortTitle}
-                            </Text>
-
-                            <Text
-                              style={[
-                                styles.slidableItemStatus,
-                                isDone ? styles.textGreen : styles.textMuted,
-                              ]}
-                            >
-                              {isDone ? 'Attached' : 'Required'}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
                   </View>
                 </View>
               );
@@ -1656,22 +1596,30 @@ export default function DriverTripStartScreen() {
           <TouchableOpacity
             style={[
               styles.yellowPrimaryButton,
-              isVehicleEvidenceDone && styles.yellowPrimaryButtonReady,
+              isStep1Done && styles.yellowPrimaryButtonReady,
               loading && styles.startButtonDisabled,
             ]}
             onPress={() => {
-              if (!isVehicleEvidenceDone) {
-                // Find next missing vehicle photo (0..3)
+              if (!isStep1Done) {
+                // Find next missing in step 1: selfie (0) or vehicle photos (1..4)
+                if (!driverSelfieUri) {
+                  setActiveAttachmentIdx(0);
+                  handleOpenSelfieCamera();
+                  return;
+                }
                 const nextMissingVehicleIdx = [0, 1, 2, 3].find((idx) => !inspectionPhotos[idx]);
-                const targetIdx = nextMissingVehicleIdx !== undefined ? nextMissingVehicleIdx : (activeAttachmentIdx < 4 ? activeAttachmentIdx : 0);
-                setActiveAttachmentIdx(targetIdx);
-                handleInspectionOptions(targetIdx);
+                if (nextMissingVehicleIdx !== undefined) {
+                  const targetIdx = nextMissingVehicleIdx + 1;
+                  setActiveAttachmentIdx(targetIdx);
+                  handleInspectionOptions(nextMissingVehicleIdx);
+                  return;
+                }
                 return;
               }
 
               // Step 1 done -> advance to Step 2
               setCurrentVerificationStep(2);
-              setActiveAttachmentIdx(4);
+              setActiveAttachmentIdx(5);
               scrollViewRef.current?.scrollTo({ y: 0, animated: true });
             }}
             disabled={loading}
@@ -1682,9 +1630,9 @@ export default function DriverTripStartScreen() {
             ) : (
               <>
                 <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
-                  {!isVehicleEvidenceDone
-                    ? `Capture ${verificationAttachments[activeAttachmentIdx < 4 ? activeAttachmentIdx : 0]?.shortTitle || 'Vehicle Photo'} (${vehicleAttachedCount}/4) →`
-                    : 'PROCEED TO STEP 2: OTP & TRIP LAUNCH →'}
+                  {!isStep1Done
+                    ? `Capture ${verificationAttachments[activeAttachmentIdx < 5 ? activeAttachmentIdx : 0]?.shortTitle || 'Photo'} (${step1AttachedCount}/5) →`
+                    : 'PROCEED TO STEP 2: OTP & METER →'}
                 </Text>
                 <Ionicons name="arrow-forward" size={20} color="#0f172a" />
               </>
@@ -1694,7 +1642,7 @@ export default function DriverTripStartScreen() {
           <TouchableOpacity
             style={[
               styles.yellowPrimaryButton,
-              isStep2Done && Boolean(isOtpVerified || isAdminAuthorized) && styles.yellowPrimaryButtonReady,
+              Boolean(isOdometerDone && (isOtpVerified || isAdminAuthorized)) && styles.yellowPrimaryButtonReady,
               loading && styles.startButtonDisabled,
             ]}
             onPress={() => {
@@ -1705,12 +1653,6 @@ export default function DriverTripStartScreen() {
 
               if (!isAdminAuthorized && !isOtpVerified) {
                 handleVerifyOtp();
-                return;
-              }
-
-              if (!driverSelfieUri) {
-                setActiveAttachmentIdx(4);
-                handleOpenSelfieCamera();
                 return;
               }
 
@@ -1740,10 +1682,8 @@ export default function DriverTripStartScreen() {
                     ? 'Enter Customer Pickup OTP (4 Digits) →'
                     : !isAdminAuthorized && !isOtpVerified
                     ? 'Verify Customer Pickup OTP →'
-                    : !driverSelfieUri
-                    ? 'Capture Driver Selfie (1/2) →'
                     : !odometerImageUri
-                    ? 'Capture Starting Odometer Photo (2/2) →'
+                    ? 'Capture Starting Odometer Photo →'
                     : !startingOdometer
                     ? 'Enter Starting Odometer Reading →'
                     : 'CONFIRM & START TRIP →'}
