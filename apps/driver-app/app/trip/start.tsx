@@ -871,105 +871,6 @@ export default function DriverTripStartScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 2-Step Verification Stepper Tab Bar */}
-      <View style={styles.twoStepTabBar}>
-        <TouchableOpacity
-          style={[
-            styles.stepTabItem,
-            currentVerificationStep === 1 && styles.stepTabItemActive,
-          ]}
-          onPress={() => {
-            setCurrentVerificationStep(1);
-            if (activeAttachmentIdx >= 5) setActiveAttachmentIdx(0);
-          }}
-          activeOpacity={0.8}
-        >
-          <View
-            style={[
-              styles.stepTabBadge,
-              isStep1Done
-                ? styles.stepTabBadgeDone
-                : currentVerificationStep === 1
-                ? styles.stepTabBadgeActive
-                : styles.stepTabBadgeInactive,
-            ]}
-          >
-            {isStep1Done ? (
-              <Ionicons name="checkmark" size={13} color="#ffffff" />
-            ) : (
-              <Text style={styles.stepTabBadgeNum}>1</Text>
-            )}
-          </View>
-          <View style={styles.stepTabTextCol}>
-            <Text
-              style={[
-                styles.stepTabMainText,
-                currentVerificationStep === 1 && styles.stepTabMainTextActive,
-              ]}
-              numberOfLines={1}
-            >
-              1. Selfie & Vehicle
-            </Text>
-            <Text style={styles.stepTabSubText}>
-              {step1AttachedCount}/5 Photos {isStep1Done ? '✓' : ''}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.stepTabDivider} />
-
-        <TouchableOpacity
-          style={[
-            styles.stepTabItem,
-            currentVerificationStep === 2 && styles.stepTabItemActive,
-            !isStep1Done && styles.stepTabItemDisabled,
-          ]}
-          onPress={() => {
-            if (!isStep1Done) {
-              Alert.alert(
-                'Complete Selfie & Vehicle Photos First',
-                'Please capture driver selfie and all 4 vehicle angles before proceeding to Customer OTP & Odometer verification.'
-              );
-              return;
-            }
-            setCurrentVerificationStep(2);
-            setActiveAttachmentIdx(5);
-          }}
-          activeOpacity={0.8}
-        >
-          <View
-            style={[
-              styles.stepTabBadge,
-              isOdometerDone && (isOtpVerified || isAdminAuthorized)
-                ? styles.stepTabBadgeDone
-                : currentVerificationStep === 2
-                ? styles.stepTabBadgeActive
-                : styles.stepTabBadgeInactive,
-            ]}
-          >
-            {isOdometerDone && (isOtpVerified || isAdminAuthorized) ? (
-              <Ionicons name="checkmark" size={13} color="#ffffff" />
-            ) : (
-              <Text style={styles.stepTabBadgeNum}>2</Text>
-            )}
-          </View>
-          <View style={styles.stepTabTextCol}>
-            <Text
-              style={[
-                styles.stepTabMainText,
-                currentVerificationStep === 2 && styles.stepTabMainTextActive,
-              ]}
-              numberOfLines={1}
-            >
-              2. OTP & Meter
-            </Text>
-            <Text style={styles.stepTabSubText}>
-              {isOtpVerified ? 'OTP Verified ✓' : 'Customer OTP & Meter'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollArea}
@@ -987,20 +888,6 @@ export default function DriverTripStartScreen() {
         {/* STEP 1: DRIVER SELFIE & VEHICLE EVIDENCE (No OTP or Odometer) */}
         {currentVerificationStep === 1 && (
           <>
-            <View style={styles.step1Banner}>
-              <View style={styles.step1BannerHeader}>
-                <View style={styles.step1BannerIconBox}>
-                  <Ionicons name="camera-reverse" size={18} color="#0284c7" />
-                </View>
-                <View style={styles.step1BannerTextCol}>
-                  <Text style={styles.step1BannerTitle}>Step 1: Driver Selfie & Vehicle Evidence (5 Photos)</Text>
-                  <Text style={styles.step1BannerDesc}>
-                    Capture driver selfie first, followed by 4 mandatory vehicle angles. Customer OTP & meter unlock in Step 2.
-                  </Text>
-                </View>
-              </View>
-            </View>
-
             {/* Step 1 Unified Verification Card */}
             {(() => {
               const step1Items = verificationAttachments.slice(0, 5);
