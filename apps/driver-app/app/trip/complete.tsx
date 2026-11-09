@@ -421,7 +421,21 @@ export default function DriverTripCompleteScreen() {
               )}
             </TouchableOpacity>
 
-            {/* KM Input Field */}
+            {/* Reference Guide Image */}
+            <View style={styles.referenceSection}>
+              <View style={styles.referenceImageBox}>
+                <Image
+                  source={ODOMETER_SAMPLE}
+                  style={styles.referenceImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.referenceOverlayBadge}>
+                  <Text style={styles.referenceOverlayBadgeText}>SAMPLE REFERENCE</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* KM Input Field (Arranged Below Reference Image) */}
             <View style={styles.odoInputWrapper}>
               <View style={styles.odoInputContainer}>
                 <Ionicons name="speedometer-outline" size={18} color="#6366f1" style={styles.odoInputIcon} />

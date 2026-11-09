@@ -338,11 +338,6 @@ export default function DriverOdometerScreen() {
 
               {/* Reference Guide Image */}
               <View style={styles.referenceSection}>
-                <View style={styles.referenceHeaderRow}>
-                  <Ionicons name="eye-outline" size={15} color="#0284c7" style={{ marginRight: 6 }} />
-                  <Text style={styles.referenceHeaderTitle}>Reference Guide (Sample)</Text>
-                </View>
-
                 <View style={styles.referenceImageBox}>
                   <Image
                     source={ODOMETER_SAMPLE}
