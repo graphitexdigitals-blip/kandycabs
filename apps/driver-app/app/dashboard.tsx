@@ -1644,6 +1644,7 @@ export default function DriverDashboardScreen() {
                   const diffMinutes = Math.round((tripDate.getTime() - now.getTime()) / (60 * 1000));
                   // Timing near warning: scheduled for today and pickup within 4 hours or past due today
                   const isTimingNear = !isTripInProcess && isToday && diffMinutes <= 240;
+                  const pickupTimeLabel = tripDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                   return (
                     <View style={styles.tripCardContent}>
@@ -1815,6 +1816,17 @@ export default function DriverDashboardScreen() {
                             </Text>
                           </View>
                         </View>
+
+                        {/* Timing Near Warning (No bg, no border, typography text only) */}
+                        {isTimingNear && (
+                          <View style={styles.timingNearWarningRow}>
+                            <Ionicons name="warning" size={14} color="#dc2626" />
+                            <Text style={styles.timingNearWarningText}>
+                              <Text style={{ fontWeight: '800', color: '#dc2626' }}>Warning: </Text>
+                              Pickup scheduled for Today, {pickupTimeLabel} — Be ready today!
+                            </Text>
+                          </View>
+                        )}
 
                         {/* Customer Requirements & Preferences Pills */}
                         {(() => {
@@ -4331,6 +4343,20 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+  timingNearWarningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingHorizontal: 2,
+  },
+  timingNearWarningText: {
+    fontSize: 11.5,
+    color: '#dc2626',
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 16,
   },
   onTripBadge: {
     flexDirection: 'row',
