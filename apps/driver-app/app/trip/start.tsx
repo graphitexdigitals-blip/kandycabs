@@ -724,40 +724,6 @@ export default function DriverTripStartScreen() {
     );
   };
 
-  const openPickupNavigation = () => {
-    if (!booking) return;
-    const hasCoords =
-      typeof booking.pickupLat === 'number' &&
-      typeof booking.pickupLng === 'number' &&
-      !isNaN(booking.pickupLat) &&
-      !isNaN(booking.pickupLng);
-
-    const targetQuery = hasCoords
-      ? `${booking.pickupLat},${booking.pickupLng}`
-      : encodeURIComponent(booking.pickupAddress || '');
-
-    if (!targetQuery) {
-      Alert.alert('Location Notice', 'Pickup address or coordinates are not available.');
-      return;
-    }
-
-    const androidNavUrl = `google.navigation:q=${targetQuery}&mode=d`;
-    const universalFallbackUrl = `https://www.google.com/maps/dir/?api=1&destination=${targetQuery}&travelmode=driving`;
-    const iosUrl = `maps:0,0?q=${targetQuery}`;
-
-    if (Platform.OS === 'android') {
-      Linking.openURL(androidNavUrl).catch(() => {
-        Linking.openURL(universalFallbackUrl).catch(() => {});
-      });
-    } else if (Platform.OS === 'ios') {
-      Linking.openURL(iosUrl).catch(() => {
-        Linking.openURL(universalFallbackUrl).catch(() => {});
-      });
-    } else {
-      Linking.openURL(universalFallbackUrl).catch(() => {});
-    }
-  };
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
@@ -789,36 +755,6 @@ export default function DriverTripStartScreen() {
             </Text>
           </View>
         </View>
-      </View>
-
-      {/* Top Action Ribbon / Quick Nav */}
-      <View style={styles.topActionRibbon}>
-        <TouchableOpacity
-          style={styles.ribbonNavBtn}
-          onPress={openPickupNavigation}
-          activeOpacity={0.85}
-        >
-          <LinearGradient
-            colors={['#10356c', '#082758', '#021a3f']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={styles.ribbonNavGradient}
-          >
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.18)', 'rgba(255, 255, 255, 0.05)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.ribbonNavBadge}
-            >
-              <Ionicons name="navigate" size={15} color="#ffffff" />
-            </LinearGradient>
-            <Text style={styles.ribbonNavText} numberOfLines={1}>{t('trip_flow.pickup_navigate')}</Text>
-            <View style={styles.ribbonRightGroup}>
-              <View style={styles.ribbonDividerNavy} />
-              <Ionicons name="chevron-forward" size={14} color="#ffffff" />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -1593,62 +1529,6 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     marginTop: 1,
     letterSpacing: -0.2,
-  },
-  topActionRibbon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  ribbonNavBtn: {
-    flex: 1,
-    borderRadius: 999,
-    shadowColor: '#07265c',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.32,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  ribbonNavGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-  },
-  ribbonNavBadge: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ribbonNavText: {
-    flex: 1,
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#ffffff',
-    textAlign: 'center',
-    letterSpacing: 0.2,
-    paddingHorizontal: 2,
-  },
-  ribbonRightGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingRight: 4,
-  },
-  ribbonDividerNavy: {
-    width: 1,
-    height: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
   backToStep1Btn: {
     flexDirection: 'row',
