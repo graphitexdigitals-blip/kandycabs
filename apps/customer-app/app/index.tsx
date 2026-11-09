@@ -33,7 +33,13 @@ import { PlaceLocation, isLocalDistanceRoute, isSameLocation } from '../lib/loca
 import { customerApiClient, customerTokenStorage, getDynamicBaseUrl } from '../lib/api';
 import { safeNavigate } from '../lib/safeNav';
 import { LanguageSelectionModal } from '../components/LanguageSelectionModal';
-import { isNewUserLangPromptNeeded, markNewUserLangPromptDone, clearNewUserFlag } from '../lib/i18n';
+import {
+  isNewUserLangPromptNeeded,
+  markNewUserLangPromptDone,
+  clearNewUserFlag,
+  changeAppLanguage,
+  saveUserLanguagePreference,
+} from '../lib/i18n';
 import { APP_FONT, resolveRobotoStyle, formatTitleCase } from '../constants/typography';
 
 // Roboto Typography Configuration (Universal Clean Sans-Serif)
@@ -734,6 +740,14 @@ export default function HomeScreen() {
       setCurrentUser({ ...res.user, fullName: cleanName });
       setUserName(cleanName);
       setUserPhone(res.user.phone || '');
+
+      // Restore user's saved language preference if present
+      if (res.user?.preferredLanguage && (res.user.preferredLanguage === 'en' || res.user.preferredLanguage === 'kn' || res.user.preferredLanguage === 'hi')) {
+        await changeAppLanguage(res.user.preferredLanguage);
+        if (res.user.phone) {
+          await saveUserLanguagePreference(res.user.phone, res.user.preferredLanguage);
+        }
+      }
     } catch {
       // ignore network error
     }

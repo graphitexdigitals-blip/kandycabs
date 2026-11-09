@@ -187,6 +187,7 @@ export async function POST(req: NextRequest) {
       id: user.id,
       phone: user.phone,
       fullName: user.fullName,
+      preferredLanguage: ((user.customer?.savedAddresses as any)?.preferredLanguage) || null,
       roles: user.roles as UserRole[],
       createdAt: user.createdAt,
       customer: user.customer

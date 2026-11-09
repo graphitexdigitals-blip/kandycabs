@@ -24,7 +24,16 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { customerApiClient, customerTokenStorage } from '../lib/api';
-import { flagNewUserRegistration, clearNewUserFlag, markNewUserLangPromptDone, changeAppLanguage, getPersistedLanguage, AppLanguage } from '../lib/i18n';
+import {
+  flagNewUserRegistration,
+  clearNewUserFlag,
+  markNewUserLangPromptDone,
+  changeAppLanguage,
+  getPersistedLanguage,
+  saveUserLanguagePreference,
+  getUserLanguagePreference,
+  AppLanguage,
+} from '../lib/i18n';
 import { formatTitleCase } from '../constants/typography';
 
 export default function CustomerLoginScreen() {
@@ -247,6 +256,13 @@ export default function CustomerLoginScreen() {
         customerTokenStorage.setToken(res.token);
         if (res.user) {
           customerTokenStorage.setUser(res.user);
+          // Auto-restore customer's preferred language from server or phone memory
+          const savedLang =
+            res.user.preferredLanguage || (await getUserLanguagePreference(cleanedPhone));
+          if (savedLang === 'en' || savedLang === 'kn' || savedLang === 'hi') {
+            await changeAppLanguage(savedLang);
+            await saveUserLanguagePreference(cleanedPhone, savedLang);
+          }
         }
 
         const isNew = Boolean(res.isNewUser);

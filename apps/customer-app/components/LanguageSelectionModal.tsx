@@ -17,7 +17,9 @@ import {
   AppLanguage,
   changeAppLanguage,
   getPersistedLanguage,
+  saveUserLanguagePreference,
 } from '../lib/i18n';
+import { customerApiClient, customerTokenStorage } from '../lib/api';
 
 interface LanguageSelectionModalProps {
   visible: boolean;
@@ -74,6 +76,20 @@ export function LanguageSelectionModal({
           text: targetT('common.confirm', { defaultValue: 'Confirm' }),
           onPress: async () => {
             await changeAppLanguage(selectedLang);
+            const user = customerTokenStorage.getUser();
+            if (user?.phone) {
+              await saveUserLanguagePreference(user.phone, selectedLang);
+            }
+            if (user?.id) {
+              await saveUserLanguagePreference(user.id, selectedLang);
+            }
+            customerApiClient
+              .fetch('/api/auth/update-profile', {
+                method: 'POST',
+                body: JSON.stringify({ preferredLanguage: selectedLang }),
+              })
+              .catch(() => {});
+
             if (onLanguageSelected) {
               onLanguageSelected(selectedLang);
             }

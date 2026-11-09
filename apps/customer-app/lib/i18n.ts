@@ -90,6 +90,43 @@ export async function changeAppLanguage(lang: AppLanguage): Promise<void> {
   }
 }
 
+export async function saveUserLanguagePreference(phoneOrUserId?: string | null, lang?: AppLanguage | null): Promise<void> {
+  if (!lang || !phoneOrUserId) return;
+  try {
+    const cleanKey = String(phoneOrUserId).replace(/\D/g, '').slice(-10) || String(phoneOrUserId);
+    const storageKey = `${LANGUAGE_STORAGE_KEY}_${cleanKey}`;
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(storageKey, lang);
+      }
+    } else {
+      await SecureStore.setItemAsync(storageKey, lang);
+    }
+  } catch (e) {
+    console.warn('Error saving user-specific language:', e);
+  }
+}
+
+export async function getUserLanguagePreference(phoneOrUserId?: string | null): Promise<AppLanguage | null> {
+  if (!phoneOrUserId) return null;
+  try {
+    const cleanKey = String(phoneOrUserId).replace(/\D/g, '').slice(-10) || String(phoneOrUserId);
+    const storageKey = `${LANGUAGE_STORAGE_KEY}_${cleanKey}`;
+    let saved: string | null = null;
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        saved = localStorage.getItem(storageKey);
+      }
+    } else {
+      saved = await SecureStore.getItemAsync(storageKey);
+    }
+    if (saved === 'en' || saved === 'kn' || saved === 'hi') {
+      return saved;
+    }
+  } catch {}
+  return null;
+}
+
 export async function flagNewUserRegistration(userId?: string | null): Promise<void> {
   try {
     const userFlagKey = userId ? `${NEW_USER_FLAG_KEY}_${userId}` : null;

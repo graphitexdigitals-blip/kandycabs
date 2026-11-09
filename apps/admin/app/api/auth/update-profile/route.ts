@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { fullName, email, profilePhoto } = body;
+    const { fullName, email, profilePhoto, preferredLanguage } = body;
 
     const updateData: any = {};
     if (typeof fullName === 'string' && fullName.trim().length > 0) {
@@ -58,13 +58,26 @@ export async function POST(req: NextRequest) {
       if (email && typeof email === 'string') {
         customerUpdateData.email = email.trim();
       }
+
+      const existingSaved = (updatedUser.customer.savedAddresses as any) || {};
+      const updatedSaved = {
+        ...(typeof existingSaved === 'object' && existingSaved !== null ? existingSaved : {}),
+      };
+      let shouldUpdateSaved = false;
+
       if (profilePhoto !== undefined) {
-        const existingSaved = (updatedUser.customer.savedAddresses as any) || {};
-        customerUpdateData.savedAddresses = {
-          ...(typeof existingSaved === 'object' && existingSaved !== null ? existingSaved : {}),
-          profilePhoto: profilePhoto || null,
-        };
+        updatedSaved.profilePhoto = profilePhoto || null;
+        shouldUpdateSaved = true;
       }
+      if (preferredLanguage && (preferredLanguage === 'en' || preferredLanguage === 'kn' || preferredLanguage === 'hi')) {
+        updatedSaved.preferredLanguage = preferredLanguage;
+        shouldUpdateSaved = true;
+      }
+
+      if (shouldUpdateSaved) {
+        customerUpdateData.savedAddresses = updatedSaved;
+      }
+
       if (Object.keys(customerUpdateData).length > 0) {
         await prisma.customer.update({
           where: { id: updatedUser.customer.id },
@@ -78,12 +91,17 @@ export async function POST(req: NextRequest) {
         ? profilePhoto
         : (((updatedUser.customer?.savedAddresses as any)?.profilePhoto) || null);
 
+    const savedLang =
+      preferredLanguage ||
+      (((updatedUser.customer?.savedAddresses as any)?.preferredLanguage) || null);
+
     const userProfile = {
       id: updatedUser.id,
       phone: updatedUser.phone,
       fullName: updatedUser.fullName,
       email: email?.trim() || updatedUser.customer?.email || null,
       profilePhoto: savedProfilePhoto,
+      preferredLanguage: savedLang,
       roles: updatedUser.roles,
       createdAt: updatedUser.createdAt,
     };
@@ -102,3 +120,4 @@ export async function POST(req: NextRequest) {
     return setCorsHeaders(res);
   }
 }
+

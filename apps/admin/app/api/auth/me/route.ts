@@ -69,6 +69,7 @@ export async function GET(req: NextRequest) {
       id: user.id,
       phone: user.phone,
       fullName: cleanFullName,
+      preferredLanguage: ((user.customer?.savedAddresses as any)?.preferredLanguage) || null,
       roles: user.roles as UserRole[],
       createdAt: user.createdAt,
       customer: user.customer
