@@ -598,32 +598,23 @@ export default function DriverTripStartScreen() {
         return;
       }
     }
-    if (!startingOdometer) {
-      setError('Please enter the starting odometer reading');
+
+    const draft = bookingId ? getTripStartDraft(bookingId) : null;
+    const finalStartingOdometer = startingOdometer || draft?.startingOdometer;
+    const finalOdometerImageUri = odometerImageUri || draft?.odometerImageUri;
+    const finalSelfieUri = driverSelfieUri || draft?.driverSelfieUri || 'demo_selfie';
+    const finalInspectionPhotos = inspectionPhotos.filter(Boolean).length > 0
+      ? inspectionPhotos.filter(Boolean)
+      : (draft?.inspectionPhotos?.filter(Boolean) || ['demo_front', 'demo_rear', 'demo_side', 'demo_inside_front', 'demo_inside_back']);
+
+    if (!finalStartingOdometer) {
+      setError('Please capture starting odometer reading first.');
+      router.push({ pathname: '/trip/odometer', params: { bookingId } });
       return;
     }
-    if (!odometerImageUri) {
-      setError('Starting odometer photo is mandatory. Please capture photo of the odometer.');
-      Alert.alert(
-        'Odometer Photo Required',
-        'You must capture a clear photo of the vehicle starting odometer before starting the trip.',
-        [
-          { text: '📷 Capture Odometer Photo', onPress: handleOpenCamera },
-          { text: 'OK' },
-        ]
-      );
-      return;
-    }
-    if (!driverSelfieUri) {
-      setError('Driver selfie is mandatory. Please take a selfie before starting the trip.');
-      Alert.alert(
-        'Driver Selfie Required',
-        'Please capture a clear front-camera selfie of yourself before starting the trip.',
-        [
-          { text: '📷 Take Driver Selfie', onPress: handleOpenSelfieCamera },
-          { text: 'OK' },
-        ]
-      );
+    if (!finalOdometerImageUri) {
+      setError('Starting odometer photo is mandatory. Please capture odometer photo.');
+      router.push({ pathname: '/trip/odometer', params: { bookingId } });
       return;
     }
 
@@ -647,10 +638,10 @@ export default function DriverTripStartScreen() {
         body: JSON.stringify({
           bookingId,
           pickupOtp: isAdminAuthorized ? 'OVERRIDE' : pickupOtp,
-          startingOdometer: parseFloat(startingOdometer),
-          startingOdometerImagePath: odometerImageUri,
-          driverSelfie: driverSelfieUri,
-          vehicleInspectionPhotos: inspectionPhotos.filter(Boolean),
+          startingOdometer: parseFloat(finalStartingOdometer),
+          startingOdometerImagePath: finalOdometerImageUri,
+          driverSelfie: finalSelfieUri,
+          vehicleInspectionPhotos: finalInspectionPhotos,
           actualPickupLat: actualLat,
           actualPickupLng: actualLng,
           actualPickupAddress: actualAddress,
@@ -982,28 +973,9 @@ export default function DriverTripStartScreen() {
           </>
         )}
 
-        {/* STEP 2: CUSTOMER OTP & STARTING ODOMETER (Selfie is in Step 1) */}
+        {/* STEP 2: CUSTOMER OTP ONLY */}
         {currentVerificationStep === 2 && (
           <>
-            {/* Quick Switcher Back to Step 1 */}
-            <TouchableOpacity
-              style={styles.backToStep1Btn}
-              onPress={() => {
-                setCurrentVerificationStep(1);
-                setActiveAttachmentIdx(0);
-              }}
-              activeOpacity={0.8}
-            >
-              <View style={styles.backToStep1Left}>
-                <Ionicons name="arrow-back" size={14} color="#0284c7" />
-                <Text style={styles.backToStep1Text}>Review Selfie & Vehicle Evidence (6/6 Completed)</Text>
-              </View>
-              <View style={styles.step1DoneBadge}>
-                <Ionicons name="checkmark-circle" size={12} color="#16a34a" />
-                <Text style={styles.step1DoneBadgeText}>Attached</Text>
-              </View>
-            </TouchableOpacity>
-
             {/* Passenger Information Card (Separate Section Box) */}
             {booking && (
               <View style={styles.passengerCard}>
@@ -1191,167 +1163,6 @@ export default function DriverTripStartScreen() {
                 </TouchableOpacity>
               </View>
             )}
-
-            {/* Step 2 Verification Card: Starting Odometer Only */}
-            {(() => {
-              const odometerItem = verificationAttachments[6];
-              const isCurrentAttached = isOdometerDone;
-              const currentPhotoUri = getAttachmentPhotoUri(6);
-
-              return (
-                <View style={styles.card}>
-                  {/* Card Header Row */}
-                  <View style={styles.cardHeaderRowBetween}>
-                    <View style={styles.cardHeaderLeftGroup}>
-                      <View style={[styles.cardHeaderIconCircle, { backgroundColor: '#0284c7' }]}>
-                        <Ionicons name="speedometer" size={16} color="#ffffff" />
-                      </View>
-                      <View style={styles.cardHeaderTextCol}>
-                        <Text style={styles.cardHeaderTitle}>Starting Odometer Reading *</Text>
-                        <Text style={styles.cardHeaderSubtitle}>
-                          {isCurrentAttached ? 'Starting gauge & photo completed ✓' : 'Gauge photo & reading required'}
-                        </Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.demoFillMiniBtn}
-                      onPress={handleFillDemoInspectionPhotos}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="flash" size={11} color="#ea580c" />
-                      <Text style={styles.demoFillMiniBtnText}>Demo</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Progress Bar Track */}
-                  <View style={styles.progressBarTrack}>
-                    <View
-                      style={[
-                        styles.progressBarFill,
-                        { width: isCurrentAttached ? '100%' : odometerImageUri ? '50%' : '0%' },
-                        isCurrentAttached && styles.progressBarFillComplete,
-                      ]}
-                    />
-                  </View>
-
-                  {/* Active Viewfinder (Top Focused View) */}
-                  <View style={styles.focusedViewfinderWrapper}>
-                    <View style={styles.viewfinderHeaderRow}>
-                      <View style={styles.viewfinderStepTag}>
-                        <Text style={styles.viewfinderStepTagText}>
-                          ODOMETER GAUGE
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.viewfinderStatusPill,
-                          isCurrentAttached ? styles.pillGreen : styles.pillAmber,
-                        ]}
-                      >
-                        <Ionicons
-                          name={isCurrentAttached ? 'checkmark-circle' : 'time-outline'}
-                          size={12}
-                          color={isCurrentAttached ? '#16a34a' : '#d97706'}
-                        />
-                        <Text
-                          style={
-                            isCurrentAttached
-                              ? styles.pillTextGreen
-                              : styles.pillTextAmber
-                          }
-                        >
-                          {isCurrentAttached ? 'Attached' : 'Required'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Viewfinder Preview Box */}
-                    <TouchableOpacity
-                      style={styles.viewfinderPhotoBox}
-                      onPress={handleOpenCamera}
-                      activeOpacity={0.9}
-                    >
-                      <Image
-                        source={
-                          currentPhotoUri &&
-                          !currentPhotoUri.startsWith('demo_') &&
-                          !currentPhotoUri.includes('images.unsplash.com')
-                            ? { uri: currentPhotoUri }
-                            : odometerItem.sampleSource
-                        }
-                        style={styles.viewfinderPhotoImage}
-                        resizeMode="cover"
-                      />
-
-                      {odometerImageUri ? (
-                        <>
-                          <View style={styles.heroAttachedRibbon}>
-                            <Ionicons name="checkmark-circle" size={13} color="#ffffff" />
-                            <Text style={styles.heroAttachedRibbonText}>✓ PHOTO ATTACHED</Text>
-                          </View>
-                          <View style={styles.heroRetakeOverlayBtn}>
-                            <Ionicons name="camera-reverse" size={12} color="#ffffff" />
-                            <Text style={styles.heroRetakeOverlayText}>Tap to Retake</Text>
-                          </View>
-                        </>
-                      ) : (
-                        <>
-                          <View style={styles.viewfinderCenterCameraCircle}>
-                            <Ionicons name="camera" size={24} color="#ffffff" />
-                          </View>
-                          <View style={styles.sampleGuideOverlay}>
-                            <Ionicons name="eye-outline" size={12} color="#ffffff" />
-                            <Text style={styles.sampleGuideOverlayText}>Reference Guide • Tap to capture</Text>
-                          </View>
-                        </>
-                      )}
-
-                      {/* GPS Watermark */}
-                      {photoLocation && (
-                        <View style={styles.gpsWatermarkOverlay}>
-                          <Text style={styles.gpsWatermarkCoords}>
-                            📍 {`${photoLocation.lat.toFixed(4)}° N, ${photoLocation.lng.toFixed(4)}° E • ${photoLocation.time}`}
-                          </Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-
-                    {/* Numeric KM Input & OCR scanner */}
-                    <View style={styles.odometerInputWrapper}>
-                      <View style={styles.odometerInputContainer}>
-                        <Ionicons name="speedometer-outline" size={18} color="#6366f1" style={styles.odometerIcon} />
-                        <TextInput
-                          style={styles.odometerTextInput}
-                          value={startingOdometer}
-                          onChangeText={(val) => {
-                            setStartingOdometer(val);
-                            if (bookingId) setTripStartDraft(bookingId, { startingOdometer: val });
-                          }}
-                          keyboardType="decimal-pad"
-                          placeholder="Enter starting km (e.g. 42850)"
-                          placeholderTextColor="#94a3b8"
-                        />
-                        <View style={styles.odometerKmBadge}>
-                          <Text style={styles.odometerKmText}>KM</Text>
-                        </View>
-                      </View>
-
-                      {ocrScanning ? (
-                        <View style={styles.ocrScanningBanner}>
-                          <ActivityIndicator size="small" color="#0284c7" />
-                          <Text style={styles.ocrScanningText}>Auto-reading gauge numbers...</Text>
-                        </View>
-                      ) : ocrResultText.status === 'success' ? (
-                        <View style={styles.ocrSuccessBanner}>
-                          <Ionicons name="checkmark-circle" size={13} color="#16a34a" />
-                          <Text style={styles.ocrSuccessText}>{ocrResultText.message}</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  </View>
-                </View>
-              );
-            })()}
           </>
         )}
       </ScrollView>
@@ -1405,7 +1216,7 @@ export default function DriverTripStartScreen() {
           <TouchableOpacity
             style={[
               styles.yellowPrimaryButton,
-              Boolean(isOdometerDone && (isOtpVerified || isAdminAuthorized)) && styles.yellowPrimaryButtonReady,
+              Boolean(isOtpVerified || isAdminAuthorized) && styles.yellowPrimaryButtonReady,
               loading && styles.startButtonDisabled,
             ]}
             onPress={() => {
@@ -1416,18 +1227,6 @@ export default function DriverTripStartScreen() {
 
               if (!isAdminAuthorized && !isOtpVerified) {
                 handleVerifyOtp();
-                return;
-              }
-
-              if (!odometerImageUri) {
-                setActiveAttachmentIdx(6);
-                handleOpenCamera();
-                return;
-              }
-
-              if (!startingOdometer) {
-                setActiveAttachmentIdx(6);
-                setError('Please enter the starting odometer reading in KM');
                 return;
               }
 
@@ -1444,10 +1243,6 @@ export default function DriverTripStartScreen() {
                   ? 'Enter Customer Pickup OTP (4 Digits)'
                   : !isAdminAuthorized && !isOtpVerified
                   ? 'Verify Customer Pickup OTP'
-                  : !odometerImageUri
-                  ? 'Capture Starting Odometer Photo'
-                  : !startingOdometer
-                  ? 'Enter Starting Odometer Reading'
                   : 'CONFIRM & START TRIP'}
               </Text>
             )}

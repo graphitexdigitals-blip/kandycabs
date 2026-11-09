@@ -241,6 +241,7 @@ export interface TripStartDraft {
   photoLocation?: { lat: number; lng: number; time: string } | null;
   ocrResultText?: any;
   inspectionPhotos?: (string | null)[];
+  driverSelfieUri?: string | null;
   pickupOtp?: string;
 }
 
