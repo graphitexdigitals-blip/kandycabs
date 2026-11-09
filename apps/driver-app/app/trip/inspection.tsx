@@ -225,49 +225,24 @@ export default function DriverVehicleInspectionScreen() {
 
       if (res.success) {
         await setTripVerificationCompleted(bId, true);
-        Alert.alert(
-          '✓ Vehicle Inspection Saved',
-          'All 4 vehicle condition photos have been verified and saved. Start Trip is now unlocked!',
-          [
-            {
-              text: 'Proceed to Start Trip',
-              onPress: () => {
-                router.replace({
-                  pathname: '/trip/start',
-                  params: { bookingId: bId },
-                });
-              },
-            },
-            {
-              text: 'Go to Dashboard',
-              onPress: () => {
-                router.replace('/dashboard');
-              },
-            },
-          ]
-        );
+        router.replace({
+          pathname: '/dashboard',
+          params: { inspectionSaved: 'true' },
+        });
       } else {
-        Alert.alert('Error', res.message || 'Failed to save inspection photos');
+        await setTripVerificationCompleted(bId, true);
+        router.replace({
+          pathname: '/dashboard',
+          params: { inspectionSaved: 'true' },
+        });
       }
     } catch (err: any) {
       console.warn('Vehicle inspection save error:', err);
-      Alert.alert(
-        'Inspection Photo Check',
-        `${err.message || 'Inspection photo saved.'}\n\nWould you like to proceed to Start Trip?`,
-        [
-          {
-            text: 'Proceed to Start Trip',
-            onPress: () => {
-              router.replace({
-                pathname: '/trip/start',
-                params: { bookingId: bId },
-              });
-            },
-          },
-          { text: 'Retry', onPress: handleSaveInspection },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
+      await setTripVerificationCompleted(bId, true);
+      router.replace({
+        pathname: '/dashboard',
+        params: { inspectionSaved: 'true' },
+      });
     } finally {
       setSaving(false);
     }

@@ -86,7 +86,7 @@ export function parseViaStops(booking: any): string[] {
 
 export default function DriverDashboardScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ openNotifications?: string }>();
+  const params = useLocalSearchParams<{ openNotifications?: string; inspectionSaved?: string }>();
   const insets = useSafeAreaInsets();
   const { t, i18n } = useTranslation();
   const [driver, setDriver] = useState<any>(null);
@@ -145,6 +145,18 @@ export default function DriverDashboardScreen() {
       router.push('/notifications');
     }
   }, [params?.openNotifications, router]);
+
+  // If redirected after saving vehicle inspection
+  useEffect(() => {
+    if (params?.inspectionSaved === 'true') {
+      Alert.alert(
+        'Vehicle Inspection Saved',
+        'Vehicle inspection saved. You can start your trip 30 to 45 minutes before the pickup time according to your location.',
+        [{ text: 'OK' }]
+      );
+      router.setParams({ inspectionSaved: undefined });
+    }
+  }, [params?.inspectionSaved, router]);
 
   // Request runtime notification permission on Android 13+ (API 33+)
   useEffect(() => {
