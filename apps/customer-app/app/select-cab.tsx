@@ -1068,7 +1068,7 @@ export default function SelectCabScreen() {
                                 {
                                   backgroundColor: 'rgb(240, 117, 15)',
                                   paddingHorizontal: isSmallDevice ? 7 : 9,
-                                  minWidth: isSmallDevice ? 94 : 105,
+                                  minWidth: isSmallDevice ? 74 : 84,
                                 },
                               ]}
                               onPress={() => onSelectCabItem(item, false)}
@@ -1082,7 +1082,7 @@ export default function SelectCabScreen() {
                                   { fontSize: isSmallDevice ? 10 : 11.5, fontWeight: '800' },
                                 ]}
                               >
-                                Contact & Book
+                                Contact
                               </Text>
                             </TouchableOpacity>
                           ) : (
@@ -1660,7 +1660,7 @@ export default function SelectCabScreen() {
                 <Ionicons name="call" size={22} color="rgb(240, 117, 15)" />
               </View>
               <View style={{ flex: 1, marginLeft: 12, justifyContent: 'center' }}>
-                <Text style={styles.fleetNoticeTitle}>Contact & Book Fleet</Text>
+                <Text style={styles.fleetNoticeTitle}>Contact Fleet</Text>
               </View>
               <TouchableOpacity
                 style={styles.fleetNoticeCloseBtn}
@@ -3154,3 +3154,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+
