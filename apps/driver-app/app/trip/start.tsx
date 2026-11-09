@@ -38,6 +38,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from '../../components/SafeLinearGradient';
 import { TripFlowHeader } from '../../components/TripFlowHeader';
+import { SlideToAccept } from '../../components/SlideToAccept';
 import { useTranslation } from 'react-i18next';
 
 const ODOMETER_SAMPLE = require('../../assets/images/inspection/odometer_sample.jpg');
@@ -1213,40 +1214,22 @@ export default function DriverTripStartScreen() {
             )}
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity
-            style={[
-              styles.yellowPrimaryButton,
-              Boolean(isOtpVerified || isAdminAuthorized) && styles.yellowPrimaryButtonReady,
-              loading && styles.startButtonDisabled,
-            ]}
-            onPress={() => {
+          <SlideToAccept
+            onAccept={async () => {
               if (!isAdminAuthorized && pickupOtp.length < 4) {
                 setError('Please enter the 4-digit pickup OTP from the customer');
+                Alert.alert(
+                  'Customer OTP Required',
+                  'Please enter the 4-digit pickup OTP shared by the customer before sliding to start the trip.'
+                );
                 return;
               }
-
-              if (!isAdminAuthorized && !isOtpVerified) {
-                handleVerifyOtp();
-                return;
-              }
-
-              handleStartTrip();
+              await handleStartTrip();
             }}
-            disabled={loading}
-            activeOpacity={0.88}
-          >
-            {loading ? (
-              <ActivityIndicator color="#0f172a" size="small" />
-            ) : (
-              <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
-                {!isAdminAuthorized && pickupOtp.length < 4
-                  ? 'Enter Customer Pickup OTP (4 Digits)'
-                  : !isAdminAuthorized && !isOtpVerified
-                  ? 'Verify Customer Pickup OTP'
-                  : 'CONFIRM & START TRIP'}
-              </Text>
-            )}
-          </TouchableOpacity>
+            isAccepting={loading}
+            title="SLIDE RIGHT (CUSTOMER BOARDED)"
+            acceptingTitle="STARTING TRIP..."
+          />
         )}
       </View>
     </View>
