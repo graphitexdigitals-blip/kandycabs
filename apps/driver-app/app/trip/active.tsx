@@ -176,12 +176,8 @@ export default function DriverTripActiveScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
-      {/* 3-Step Flow Header: 1. Pickup (✓) -> 2. OTP (✓) -> 3. Drop (Active) (No back button) */}
-      <TripFlowHeader
-        currentStep={3}
-        bookingRef={booking?.humanReadableRef}
-        statusLabel="ON TRIP TO DROP"
-      />
+      {/* 3-Step Flow Header: 1. Pickup (✓) -> 2. OTP (✓) -> 3. Drop (Active) */}
+      <TripFlowHeader currentStep={3} />
 
       <ScrollView
         style={styles.scrollArea}

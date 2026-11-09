@@ -187,12 +187,8 @@ export default function DriverEnRouteScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
-      {/* 3-Step Flow Header: 1. Pickup (Active) -> 2. OTP -> 3. Drop (No back button) */}
-      <TripFlowHeader
-        currentStep={1}
-        bookingRef={booking.humanReadableRef}
-        statusLabel={isArrived ? 'ARRIVED AT PICKUP' : 'EN ROUTE TO PICKUP'}
-      />
+      {/* 3-Step Flow Header: 1. Pickup (Active) -> 2. OTP -> 3. Drop */}
+      <TripFlowHeader currentStep={1} />
 
       <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Pickup Header Section */}

@@ -9,7 +9,7 @@ interface TripFlowHeaderProps {
   statusLabel?: string;
 }
 
-export function TripFlowHeader({ currentStep, bookingRef, statusLabel }: TripFlowHeaderProps) {
+export function TripFlowHeader({ currentStep }: TripFlowHeaderProps) {
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
 
@@ -19,49 +19,9 @@ export function TripFlowHeader({ currentStep, bookingRef, statusLabel }: TripFlo
     { num: 3, label: 'Drop', icon: 'flag' as const },
   ];
 
-  const getStatusBadge = () => {
-    if (statusLabel) return statusLabel;
-    if (currentStep === 1) return 'PICKUP ARRIVAL';
-    if (currentStep === 2) return 'VERIFY OTP';
-    return 'TRIP TO DROP';
-  };
-
   return (
-    <View style={[styles.headerContainer, { paddingTop: topInset + 6 }]}>
-      {/* Top Meta Row: Reference & Status Capsule */}
-      <View style={styles.topMetaRow}>
-        <View style={styles.refCapsule}>
-          <Ionicons name="car" size={13} color="#ea580c" />
-          <Text style={styles.refText}>{bookingRef || 'TRIP'}</Text>
-        </View>
-
-        <View style={styles.statusPill}>
-          <View
-            style={[
-              styles.statusDot,
-              currentStep === 1
-                ? styles.dotAmber
-                : currentStep === 2
-                ? styles.dotBlue
-                : styles.dotGreen,
-            ]}
-          />
-          <Text
-            style={[
-              styles.statusText,
-              currentStep === 1
-                ? styles.textAmber
-                : currentStep === 2
-                ? styles.textBlue
-                : styles.textGreen,
-            ]}
-          >
-            {getStatusBadge()}
-          </Text>
-        </View>
-      </View>
-
-      {/* 3-Step Connected Progress Stepper Bar */}
+    <View style={[styles.headerContainer, { paddingTop: topInset + 8 }]}>
+      {/* 3-Step Connected Progress Stepper Bar Only */}
       <View style={styles.stepperWrapper}>
         {steps.map((step, idx) => {
           const isCompleted = currentStep > step.num;
@@ -124,7 +84,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: '#ffffff',
     paddingHorizontal: 20,
-    paddingBottom: 14,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
     shadowColor: '#000000',
@@ -132,69 +92,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 3,
     elevation: 2,
-  },
-  topMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  refCapsule: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff7ed',
-    paddingHorizontal: 10,
-    paddingVertical: 4.5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#fed7aa',
-    gap: 5,
-  },
-  refText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#ea580c',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    letterSpacing: 0.3,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: 10,
-    paddingVertical: 4.5,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    gap: 5,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  dotAmber: {
-    backgroundColor: '#ea580c',
-  },
-  dotBlue: {
-    backgroundColor: '#2563eb',
-  },
-  dotGreen: {
-    backgroundColor: '#16a34a',
-  },
-  statusText: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  textAmber: {
-    color: '#ea580c',
-  },
-  textBlue: {
-    color: '#2563eb',
-  },
-  textGreen: {
-    color: '#16a34a',
   },
   stepperWrapper: {
     flexDirection: 'row',
@@ -281,3 +178,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#e2e8f0',
   },
 });
+
