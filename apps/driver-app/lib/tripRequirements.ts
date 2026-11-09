@@ -262,3 +262,4 @@ export function extractCustomerNotes(booking: any): string | null {
   }
   return userNotes.length > 0 ? userNotes.join(' • ') : null;
 }
+
