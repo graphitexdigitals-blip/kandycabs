@@ -201,10 +201,9 @@ export default function DriverEnRouteScreen() {
               </View>
               <View style={styles.customerInfoCol}>
                 <Text style={styles.customerName}>{booking.customer?.user?.fullName || 'Customer'}</Text>
-                <View style={styles.verifiedBadge}>
-                  <Ionicons name="checkmark-circle" size={14} color="#10b981" />
-                  <Text style={styles.verifiedBadgeText}>Verified Driver</Text>
-                </View>
+                <Text style={styles.customerPhoneSub}>
+                  {booking.customer?.user?.phone || booking.customerPhone || booking.phone || 'Confirmed Customer'}
+                </Text>
               </View>
             </View>
 
@@ -675,21 +674,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   customerName: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: '#0f172a',
   },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 3,
-    alignSelf: 'flex-start',
-  },
-  verifiedBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#059669',
+  customerPhoneSub: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 2,
   },
   callNowBtn: {
     flexDirection: 'row',
