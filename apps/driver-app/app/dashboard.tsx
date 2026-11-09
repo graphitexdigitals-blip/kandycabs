@@ -1752,19 +1752,19 @@ export default function DriverDashboardScreen() {
                           {/* Vertical Slash/Divider 2 */}
                           <View style={styles.infoColDivider} />
 
-                          {/* Col 3: Distance & Route Type (Driver Amount hidden once accepted) */}
+                          {/* Col 3: Trip Type & Distance (Driver Amount hidden once accepted) */}
                           <View style={styles.infoThreeCol}>
                             <View style={styles.infoColHeaderRow}>
-                              <Ionicons name="navigate-outline" size={14} color="#0f2744" />
-                              <Text style={styles.infoColHeaderLabel} numberOfLines={1}>Distance</Text>
+                              <Ionicons name="swap-horizontal-outline" size={14} color="#0f294d" />
+                              <Text style={styles.infoColHeaderLabel} numberOfLines={1}>Trip Type</Text>
                             </View>
-                            <Text style={styles.infoFareValBold}>
-                              {currentTrip.distanceKm || '--'} km
-                            </Text>
-                            <Text style={styles.infoColSubPhone}>
+                            <Text style={[styles.infoFareValBold, { fontSize: 13, textTransform: 'uppercase' }]} numberOfLines={1} adjustsFontSizeToFit>
                               {currentTrip.tripType
                                 ? (currentTrip.tripType === 'ONE_WAY' ? 'ONEWAY' : currentTrip.tripType.replace(/_/g, ' '))
                                 : 'ONEWAY'}
+                            </Text>
+                            <Text style={styles.infoColSubPhone}>
+                              {currentTrip.distanceKm || '--'} km
                             </Text>
                           </View>
                         </View>
@@ -2091,14 +2091,16 @@ export default function DriverDashboardScreen() {
 
                           <View style={styles.infoThreeCol}>
                             <View style={styles.infoColTopLabel}>
-                              <Ionicons name="navigate-outline" size={13} color="#64748b" />
-                              <Text style={styles.infoColLabel}>Distance</Text>
+                              <Ionicons name="swap-horizontal-outline" size={13} color="#64748b" />
+                              <Text style={styles.infoColLabel}>Trip Type</Text>
                             </View>
-                            <Text style={styles.infoColMainText}>
-                              {upBooking.distanceKm || '--'} km
+                            <Text style={[styles.infoColMainText, { textTransform: 'uppercase' }]} numberOfLines={1} adjustsFontSizeToFit>
+                              {upBooking.tripType
+                                ? (upBooking.tripType === 'ONE_WAY' ? 'ONEWAY' : upBooking.tripType.replace(/_/g, ' '))
+                                : 'ONEWAY'}
                             </Text>
                             <Text style={styles.infoColSubPhone}>
-                              {upBooking.tripType || 'ONE WAY'}
+                              {upBooking.distanceKm || '--'} km
                             </Text>
                           </View>
                         </View>
@@ -2546,8 +2548,8 @@ export default function DriverDashboardScreen() {
                           </Text>
                         )}
                         <Text style={styles.dispatchTripTypeOrange}>
-                          {isAccepted && b?.distanceKm ? `${b.distanceKm} km • ` : ''}
                           {b?.tripType ? (b.tripType === 'ONE_WAY' ? 'ONEWAY' : b.tripType.replace(/_/g, ' ')) : 'ONEWAY'}
+                          {isAccepted && b?.distanceKm ? ` • ${b.distanceKm} km` : ''}
                         </Text>
                       </View>
 
