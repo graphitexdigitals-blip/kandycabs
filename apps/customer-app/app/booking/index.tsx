@@ -1555,6 +1555,11 @@ export default function BookingFunnelScreen() {
           dropAddress: drop,
           dropLat,
           dropLng,
+          viaStops: viaStops.map((s: any) => ({
+            label: typeof s === 'string' ? s : (s?.label || s?.address || s?.name || ''),
+            lat: s?.lat,
+            lng: s?.lng,
+          })),
           category: vehicleInfo.category,
           fuelType: FuelType.DIESEL,
           tripType: tripTypeParam as TripType,
@@ -4291,7 +4296,7 @@ export default function BookingFunnelScreen() {
                   setShowTravellersRequiredModal(false);
                   setTimeout(() => {
                     setShowRequirementsModal(true);
-                  }, 50);
+                  }, 300);
                 }}
                 activeOpacity={0.7}
               >

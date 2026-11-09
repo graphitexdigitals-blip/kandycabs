@@ -243,6 +243,8 @@ export async function POST(req: NextRequest) {
             source: 'customer-app',
             category,
             tripType,
+            viaStops: Array.isArray(body.viaStops) ? body.viaStops : (Array.isArray(body.stops) ? body.stops : []),
+            stops: Array.isArray(body.viaStops) ? body.viaStops : (Array.isArray(body.stops) ? body.stops : []),
             passengers: passengerCount,
             luggage: luggageDetails,
             requestCarrier,

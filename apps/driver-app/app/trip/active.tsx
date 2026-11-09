@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { driverApiClient } from '../../lib/api';
 import { locationTracker } from '../../lib/location-tracker';
 import { reverseGeocodeAddress } from '../../lib/reverse-geocoding';
+import { parseViaStops } from '../dashboard';
 
 export default function DriverTripActiveScreen() {
   const router = useRouter();
@@ -202,6 +203,71 @@ export default function DriverTripActiveScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Multi-Drop Route Stops Card (if customer selected multiple locations) */}
+        {booking && parseViaStops(booking).length > 0 && (
+          <View style={styles.multiStopsCard}>
+            <View style={styles.multiStopsHeaderRow}>
+              <View style={styles.multiStopsHeaderLeft}>
+                <Ionicons name="git-commit-outline" size={17} color="#d97706" />
+                <Text style={styles.multiStopsHeaderTitle}>Customer Selected Multiple Locations</Text>
+              </View>
+              <View style={styles.multiStopsCountPill}>
+                <Text style={styles.multiStopsCountText}>{parseViaStops(booking).length} Via Drops</Text>
+              </View>
+            </View>
+
+            <View style={styles.stopsTimelineWrap}>
+              {/* Pickup */}
+              <View style={styles.timelinePoint}>
+                <View style={styles.timelinePickupDot} />
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineLabel}>PICKUP</Text>
+                  <Text style={styles.timelineAddress}>{booking.pickupAddress}</Text>
+                </View>
+              </View>
+
+              {/* Each Intermediate Stop */}
+              {parseViaStops(booking).map((stopName: string, sIdx: number) => (
+                <View key={`active-stop-${sIdx}`}>
+                  <View style={styles.timelineConnector} />
+                  <View style={styles.timelinePoint}>
+                    <View style={styles.timelineViaBadge}>
+                      <Text style={styles.timelineViaNum}>{sIdx + 1}</Text>
+                    </View>
+                    <View style={styles.timelineContent}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={styles.timelineViaLabel}>INTERMEDIATE STOP #{sIdx + 1}</Text>
+                        <TouchableOpacity
+                          style={styles.navigateStopSmallBtn}
+                          onPress={() => {
+                            const query = encodeURIComponent(stopName);
+                            Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${query}&travelmode=driving`);
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="navigate" size={12} color="#2563eb" style={{ marginRight: 3 }} />
+                          <Text style={styles.navigateStopSmallText}>Navigate</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.timelineAddressBold}>{stopName}</Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+
+              {/* Final Drop */}
+              <View style={styles.timelineConnector} />
+              <View style={styles.timelinePoint}>
+                <View style={styles.timelineDropDot} />
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineDropLabel}>FINAL DESTINATION</Text>
+                  <Text style={styles.timelineAddress}>{booking.dropAddress}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Destination Drop Point Card & Navigation */}
         <View style={styles.dropCard}>
           <View style={styles.dropHeaderRow}>
@@ -915,5 +981,144 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     flex: 1,
     textAlign: 'left',
+  },
+  multiStopsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fef3c7',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  multiStopsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#fef3c7',
+  },
+  multiStopsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  multiStopsHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#92400e',
+  },
+  multiStopsCountPill: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  multiStopsCountText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#b45309',
+  },
+  stopsTimelineWrap: {
+    paddingLeft: 4,
+  },
+  timelinePoint: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  timelinePickupDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#16a34a',
+    marginTop: 2,
+    marginLeft: 3,
+  },
+  timelineViaBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#fef3c7',
+    borderWidth: 1.5,
+    borderColor: '#f59e0b',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timelineViaNum: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#92400e',
+  },
+  timelineDropDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#dc2626',
+    marginTop: 2,
+    marginLeft: 3,
+  },
+  timelineConnector: {
+    width: 2,
+    height: 18,
+    backgroundColor: '#fde68a',
+    marginLeft: 8,
+    marginVertical: 3,
+  },
+  timelineContent: {
+    flex: 1,
+  },
+  timelineLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#16a34a',
+    textTransform: 'uppercase',
+  },
+  timelineViaLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#b45309',
+    textTransform: 'uppercase',
+  },
+  timelineDropLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#dc2626',
+    textTransform: 'uppercase',
+  },
+  timelineAddress: {
+    fontSize: 12.5,
+    color: '#334155',
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  timelineAddressBold: {
+    fontSize: 13,
+    color: '#0f172a',
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  navigateStopSmallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  navigateStopSmallText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#2563eb',
   },
 });

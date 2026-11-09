@@ -52,19 +52,54 @@ export async function GET(req: NextRequest) {
           },
         },
         vehicle: true,
+        tripEvents: {
+          where: { type: 'BOOKING_CREATED' },
+          select: { payloadJson: true },
+          take: 1,
+        },
       },
       orderBy: { scheduledAt: 'asc' },
     });
 
+    const parsedAssignedBookings = assignedBookings.map((b) => {
+      const createdPayload = (b?.tripEvents?.[0]?.payloadJson as any) || {};
+      let viaStops: any[] = [];
+      if (Array.isArray(createdPayload.viaStops) && createdPayload.viaStops.length > 0) {
+        viaStops = createdPayload.viaStops;
+      } else if (Array.isArray(createdPayload.stops) && createdPayload.stops.length > 0) {
+        viaStops = createdPayload.stops;
+      } else {
+        const text = String(createdPayload.notes || createdPayload.specialRequirements || '');
+        const match = text.match(/(?:Intermediate Stops|Via Stops(?:\s*\(\d+\))?|Via)\s*:\s*([^|;\n]+)/i);
+        if (match && match[1]) {
+          const rawSegment = match[1].trim();
+          const parts = rawSegment.includes('➔')
+            ? rawSegment.split('➔')
+            : rawSegment.includes('->')
+            ? rawSegment.split('->')
+            : rawSegment.split(',');
+          viaStops = parts.map((p) => ({ label: p.trim() })).filter((s) => s.label);
+        }
+      }
+
+      return {
+        ...b,
+        viaStops,
+        stops: viaStops,
+        notes: createdPayload.notes || null,
+        specialRequirements: createdPayload.specialRequirements || null,
+      };
+    });
+
     // Auto-release customer phone if within 5 hours
     const idsToRelease: string[] = [];
-    for (let i = 0; i < assignedBookings.length; i++) {
-      const b = assignedBookings[i];
+    for (let i = 0; i < parsedAssignedBookings.length; i++) {
+      const b = parsedAssignedBookings[i];
       const scheduledMs = new Date(b.scheduledAt).getTime();
       const isWithin5Hours = scheduledMs - Date.now() <= 5 * 60 * 60 * 1000;
       if (isWithin5Hours && !b.customerPhoneReleased) {
         idsToRelease.push(b.id);
-        assignedBookings[i] = {
+        parsedAssignedBookings[i] = {
           ...b,
           customerPhoneReleased: true,
         };
@@ -79,13 +114,13 @@ export async function GET(req: NextRequest) {
 
     // Determine primary active booking:
     // 1. Prioritize live trip in progress (TRIP_STARTED / DRIVER_EN_ROUTE)
-    const liveTrip = assignedBookings.find(
+    const liveTrip = parsedAssignedBookings.find(
       (b) => b.status === BookingStatus.TRIP_STARTED || b.status === BookingStatus.DRIVER_EN_ROUTE
     );
 
     // 2. Prioritize trip with vehicle inspection completed or odometer entered
     const inPrepTrip = !liveTrip
-      ? assignedBookings.find(
+      ? parsedAssignedBookings.find(
           (b) =>
             b.startingOdometer != null ||
             (Array.isArray(b.vehicleInspectionPhotos) &&
@@ -94,9 +129,9 @@ export async function GET(req: NextRequest) {
       : null;
 
     // 3. Fallback to the first assigned booking
-    const activeBooking = liveTrip || inPrepTrip || assignedBookings[0] || null;
+    const activeBooking = liveTrip || inPrepTrip || parsedAssignedBookings[0] || null;
     const upcomingBookings = activeBooking
-      ? assignedBookings.filter((b) => b.id !== activeBooking.id)
+      ? parsedAssignedBookings.filter((b) => b.id !== activeBooking.id)
       : [];
 
     let activeBookingWithOtp: any = activeBooking;

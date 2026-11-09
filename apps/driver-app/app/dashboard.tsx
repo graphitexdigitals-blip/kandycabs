@@ -43,6 +43,34 @@ import {
 import { FOGGY_OVERLAY_GRADIENT_BASE64 } from '../assets/foggyGradient';
 import { getAdminRegisteredDriver, MOHAN_PHOTO_URL } from '../lib/adminDrivers';
 
+export function parseViaStops(booking: any): string[] {
+  if (!booking) return [];
+  if (Array.isArray(booking.viaStops) && booking.viaStops.length > 0) {
+    return booking.viaStops
+      .map((s: any) => (typeof s === 'string' ? s : (s?.label || s?.address || s?.name || '')))
+      .filter((s: string) => s && s.trim().length > 0);
+  }
+  if (Array.isArray(booking.stops) && booking.stops.length > 0) {
+    return booking.stops
+      .map((s: any) => (typeof s === 'string' ? s : (s?.label || s?.address || s?.name || '')))
+      .filter((s: string) => s && s.trim().length > 0);
+  }
+  const texts = [booking.specialRequirements, booking.notes].filter(Boolean);
+  for (const t of texts) {
+    const match = String(t).match(/(?:Intermediate Stops|Via Stops(?:\s*\(\d+\))?|Via)\s*:\s*([^|;\n]+)/i);
+    if (match && match[1]) {
+      const parts = match[1].includes('➔')
+        ? match[1].split('➔')
+        : match[1].includes('->')
+        ? match[1].split('->')
+        : match[1].split(',');
+      const result = parts.map((p) => p.trim()).filter(Boolean);
+      if (result.length > 0) return result;
+    }
+  }
+  return [];
+}
+
 export default function DriverDashboardScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ openNotifications?: string }>();
@@ -1617,6 +1645,26 @@ export default function DriverDashboardScreen() {
                               </View>
                             </TouchableOpacity>
 
+                            {/* Intermediate Stops */}
+                            {parseViaStops(currentTrip).map((stopName, stopIdx) => (
+                              <React.Fragment key={`current-stop-${stopIdx}`}>
+                                <View style={styles.dashedTrail} />
+                                <TouchableOpacity
+                                  style={styles.stepPoint}
+                                  onPress={() => openNavigationMap(undefined, undefined, stopName)}
+                                  activeOpacity={0.7}
+                                >
+                                  <View style={styles.stopNumCircle}>
+                                    <Text style={styles.stopNumText}>{stopIdx + 1}</Text>
+                                  </View>
+                                  <View style={styles.stepTextGroup}>
+                                    <Text style={styles.locationTitle}>{stopName}</Text>
+                                    <Text style={styles.stopSubtitle}>Stop {stopIdx + 1} • Via Location</Text>
+                                  </View>
+                                </TouchableOpacity>
+                              </React.Fragment>
+                            ))}
+
                             <View style={styles.dashedTrail} />
 
                             <TouchableOpacity
@@ -1889,6 +1937,26 @@ export default function DriverDashboardScreen() {
                                 <Text style={styles.locationSubtitle}>{t('dashboard.pickup_pin')}</Text>
                               </View>
                             </TouchableOpacity>
+
+                            {/* Intermediate Stops */}
+                            {parseViaStops(upBooking).map((stopName, stopIdx) => (
+                              <React.Fragment key={`up-stop-${stopIdx}`}>
+                                <View style={styles.dashedTrail} />
+                                <TouchableOpacity
+                                  style={styles.stepPoint}
+                                  onPress={() => openNavigationMap(undefined, undefined, stopName)}
+                                  activeOpacity={0.7}
+                                >
+                                  <View style={styles.stopNumCircle}>
+                                    <Text style={styles.stopNumText}>{stopIdx + 1}</Text>
+                                  </View>
+                                  <View style={styles.stepTextGroup}>
+                                    <Text style={styles.locationTitle}>{stopName}</Text>
+                                    <Text style={styles.stopSubtitle}>Stop {stopIdx + 1} • Via Location</Text>
+                                  </View>
+                                </TouchableOpacity>
+                              </React.Fragment>
+                            ))}
 
                             <View style={styles.dashedTrail} />
 
@@ -2194,6 +2262,23 @@ export default function DriverDashboardScreen() {
                               <Text style={styles.locationSubtitle}>{t('dashboard.pickup_location_title')}</Text>
                             </View>
                           </View>
+
+                          {/* Intermediate Stops */}
+                          {parseViaStops(b).map((stopName, stopIdx) => (
+                            <React.Fragment key={`disp-stop-${stopIdx}`}>
+                              <View style={styles.dashedTrail} />
+                              <View style={styles.stepPoint}>
+                                <View style={styles.stopNumCircle}>
+                                  <Text style={styles.stopNumText}>{stopIdx + 1}</Text>
+                                </View>
+                                <View style={styles.stepTextGroup}>
+                                  <Text style={styles.locationTitle}>{stopName}</Text>
+                                  <Text style={styles.stopSubtitle}>Stop {stopIdx + 1} • Via Location</Text>
+                                </View>
+                              </View>
+                            </React.Fragment>
+                          ))}
+
                           <View style={styles.dashedTrail} />
                           <View style={styles.stepPoint}>
                             <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
@@ -3999,6 +4084,28 @@ const styles = StyleSheet.create({
   locationSubtitle: {
     fontSize: 10,
     color: '#94a3b8',
+    marginTop: 1,
+  },
+  stopNumCircle: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#fef3c7',
+    borderWidth: 1.5,
+    borderColor: '#f59e0b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  stopNumText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#92400e',
+  },
+  stopSubtitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#b45309',
     marginTop: 1,
   },
   infoThreeColsRow: {

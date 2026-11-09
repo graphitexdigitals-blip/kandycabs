@@ -35,6 +35,50 @@ const STATUS_FILTERS = [
   { id: 'CANCELLED', label: 'Cancelled', icon: 'close-circle-outline' },
 ] as const;
 
+function parseViaStops(booking: any): string[] {
+  if (!booking) return [];
+  if (Array.isArray(booking.viaStops) && booking.viaStops.length > 0) {
+    return booking.viaStops
+      .map((s: any) => (typeof s === 'string' ? s : (s?.label || s?.address || s?.name || '')))
+      .filter((s: string) => s && s.trim().length > 0);
+  }
+  if (Array.isArray(booking.stops) && booking.stops.length > 0) {
+    return booking.stops
+      .map((s: any) => (typeof s === 'string' ? s : (s?.label || s?.address || s?.name || '')))
+      .filter((s: string) => s && s.trim().length > 0);
+  }
+  const texts = [booking.specialRequirements, booking.notes].filter(Boolean);
+  if (Array.isArray(booking.tripEvents)) {
+    for (const evt of booking.tripEvents) {
+      try {
+        const payload = typeof evt.payloadJson === 'string' ? JSON.parse(evt.payloadJson || '{}') : evt.payloadJson;
+        if (payload) {
+          if (Array.isArray(payload.viaStops) && payload.viaStops.length > 0) {
+            return payload.viaStops
+              .map((s: any) => (typeof s === 'string' ? s : (s?.label || s?.address || s?.name || '')))
+              .filter((s: string) => s && s.trim().length > 0);
+          }
+          if (payload.specialRequirements) texts.push(payload.specialRequirements);
+          if (payload.notes) texts.push(payload.notes);
+        }
+      } catch (_) {}
+    }
+  }
+  for (const t of texts) {
+    const match = String(t).match(/(?:Intermediate Stops|Via Stops(?:\s*\(\d+\))?|Via)\s*:\s*([^|;\n]+)/i);
+    if (match && match[1]) {
+      const parts = match[1].includes('➔')
+        ? match[1].split('➔')
+        : match[1].includes('->')
+        ? match[1].split('->')
+        : match[1].split(',');
+      const result = parts.map((p) => p.trim()).filter(Boolean);
+      if (result.length > 0) return result;
+    }
+  }
+  return [];
+}
+
 export default function MyBookingsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -594,6 +638,19 @@ export default function MyBookingsScreen() {
                               </Text>
                             </View>
                           </View>
+
+                          {/* Intermediate / Via Stops */}
+                          {parseViaStops(booking).map((stopName, sIdx) => (
+                            <View key={`via-stop-${sIdx}`} style={[styles.locationItemRow, { marginTop: 14 }]}>
+                              <View style={styles.viaBadgeCircle}>
+                                <Text style={styles.viaBadgeNum}>{sIdx + 1}</Text>
+                              </View>
+                              <View style={styles.locationItemText}>
+                                <Text style={styles.routeNodeLabel}>VIA STOP #{sIdx + 1}</Text>
+                                <Text style={styles.routeAddressText} numberOfLines={1}>{stopName}</Text>
+                              </View>
+                            </View>
+                          ))}
 
                           {/* Drop Row */}
                           <View style={[styles.locationItemRow, { marginTop: 14 }]}>
@@ -1234,6 +1291,23 @@ const styles = StyleSheet.create({
   locationPinIcon: {
     marginTop: 2,
     marginRight: 8,
+  },
+  viaBadgeCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fef3c7',
+    borderWidth: 1.5,
+    borderColor: '#f59e0b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    marginTop: 2,
+  },
+  viaBadgeNum: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#92400e',
   },
   locationItemText: {
     flex: 1,

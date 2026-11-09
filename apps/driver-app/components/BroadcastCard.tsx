@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SlideToAccept } from './SlideToAccept';
+import { parseViaStops } from '../app/dashboard';
 
 interface BroadcastCardProps {
   dispatch: any;
@@ -48,6 +49,23 @@ export const BroadcastCard = memo(function BroadcastCard({
             </Text>
           </View>
         </View>
+
+        {parseViaStops(b).map((stopName: string, idx: number) => (
+          <React.Fragment key={idx}>
+            <View style={styles.routeLine} />
+            <View style={styles.routePoint}>
+              <View style={styles.viaDotBadge}>
+                <Text style={styles.viaDotNum}>{idx + 1}</Text>
+              </View>
+              <View style={styles.pointTextContainer}>
+                <Text style={styles.viaPointLabel}>VIA STOP #{idx + 1}</Text>
+                <Text style={styles.pointValue} numberOfLines={2}>
+                  {stopName}
+                </Text>
+              </View>
+            </View>
+          </React.Fragment>
+        ))}
 
         <View style={styles.routeLine} />
 
@@ -222,6 +240,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#334155',
     marginLeft: 7,
     marginVertical: 3,
+  },
+  viaDotBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#fef3c7',
+    borderWidth: 1.5,
+    borderColor: '#f59e0b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  viaDotNum: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#92400e',
+  },
+  viaPointLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#f59e0b',
+    letterSpacing: 0.5,
   },
   metaRow: {
     flexDirection: 'row',
