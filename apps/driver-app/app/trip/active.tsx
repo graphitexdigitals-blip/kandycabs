@@ -184,66 +184,7 @@ export default function DriverTripActiveScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Multi-Drop Route Stops Card (if customer selected multiple locations) */}
-        {booking && parseViaStops(booking).length > 0 && (
-          <View style={styles.multiStopsCard}>
-            <View style={styles.multiStopsHeaderRow}>
-              <View style={styles.multiStopsHeaderLeft}>
-                <Ionicons name="git-commit-outline" size={17} color="#d97706" />
-                <Text style={styles.multiStopsHeaderTitle}>Customer Selected Multiple Locations</Text>
-              </View>
-            </View>
-
-            <View style={styles.stopsTimelineWrap}>
-              {/* Pickup */}
-              <View style={styles.timelinePoint}>
-                <View style={styles.timelinePickupDot} />
-                <View style={styles.timelineContent}>
-                  <Text style={styles.timelineAddress}>{booking.pickupAddress}</Text>
-                </View>
-              </View>
-
-              {/* Each Intermediate Stop */}
-              {parseViaStops(booking).map((stopName: string, sIdx: number) => (
-                <View key={`active-stop-${sIdx}`}>
-                  <View style={styles.timelineConnector} />
-                  <View style={styles.timelinePoint}>
-                    <View style={styles.timelineViaBadge}>
-                      <Text style={styles.timelineViaNum}>{sIdx + 1}</Text>
-                    </View>
-                    <View style={styles.timelineContent}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                        <Text style={[styles.timelineAddressBold, { flex: 1 }]}>{stopName}</Text>
-                        <TouchableOpacity
-                          style={styles.navigateStopSmallBtn}
-                          onPress={() => {
-                            const query = encodeURIComponent(stopName);
-                            Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${query}&travelmode=driving`);
-                          }}
-                          activeOpacity={0.8}
-                        >
-                          <Ionicons name="navigate" size={12} color="#2563eb" style={{ marginRight: 3 }} />
-                          <Text style={styles.navigateStopSmallText}>Navigate</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              ))}
-
-              {/* Final Drop */}
-              <View style={styles.timelineConnector} />
-              <View style={styles.timelinePoint}>
-                <View style={styles.timelineDropDot} />
-                <View style={styles.timelineContent}>
-                  <Text style={styles.timelineAddress}>{booking.dropAddress}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Destination Drop Point Card & Navigation */}
+        {/* Destination Drop Point Card & Navigation (Top Placement) */}
         <View style={styles.dropCard}>
           <View style={styles.dropHeaderRow}>
             <Ionicons name="location-sharp" size={16} color="#059669" />
@@ -363,6 +304,65 @@ export default function DriverTripActiveScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Multi-Drop Route Stops Card (if customer selected multiple locations, placed below main destination) */}
+        {booking && parseViaStops(booking).length > 0 && (
+          <View style={styles.multiStopsCard}>
+            <View style={styles.multiStopsHeaderRow}>
+              <View style={styles.multiStopsHeaderLeft}>
+                <Ionicons name="git-commit-outline" size={17} color="#d97706" />
+                <Text style={styles.multiStopsHeaderTitle}>Customer Selected Multiple Locations</Text>
+              </View>
+            </View>
+
+            <View style={styles.stopsTimelineWrap}>
+              {/* Pickup */}
+              <View style={styles.timelinePoint}>
+                <View style={styles.timelinePickupDot} />
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineAddress}>{booking.pickupAddress}</Text>
+                </View>
+              </View>
+
+              {/* Each Intermediate Stop */}
+              {parseViaStops(booking).map((stopName: string, sIdx: number) => (
+                <View key={`active-stop-${sIdx}`}>
+                  <View style={styles.timelineConnector} />
+                  <View style={styles.timelinePoint}>
+                    <View style={styles.timelineViaBadge}>
+                      <Text style={styles.timelineViaNum}>{sIdx + 1}</Text>
+                    </View>
+                    <View style={styles.timelineContent}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <Text style={[styles.timelineAddressBold, { flex: 1 }]}>{stopName}</Text>
+                        <TouchableOpacity
+                          style={styles.navigateStopSmallBtn}
+                          onPress={() => {
+                            const query = encodeURIComponent(stopName);
+                            Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${query}&travelmode=driving`);
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="navigate" size={12} color="#2563eb" style={{ marginRight: 3 }} />
+                          <Text style={styles.navigateStopSmallText}>Navigate</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              ))}
+
+              {/* Final Drop */}
+              <View style={styles.timelineConnector} />
+              <View style={styles.timelinePoint}>
+                <View style={styles.timelineDropDot} />
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineAddress}>{booking.dropAddress}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* Pinned Bottom Complete CTA Bar */}
