@@ -42,7 +42,8 @@ const DRIVER_SELFIE_SAMPLE = require('../../assets/images/driver-selfie-referenc
 const FRONT_SAMPLE = require('../../assets/images/inspection/front.jpg');
 const REAR_SAMPLE = require('../../assets/images/inspection/rear.jpg');
 const SIDE_SAMPLE = require('../../assets/images/inspection/side.jpg');
-const INSIDE_SAMPLE = require('../../assets/images/inspection/inside.jpg');
+const INSIDE_FRONT_SAMPLE = require('../../assets/images/inspection/inside_front.jpg');
+const INSIDE_BACK_SAMPLE = require('../../assets/images/inspection/inside_back.jpg');
 
 export default function DriverTripStartScreen() {
   const router = useRouter();
@@ -147,6 +148,7 @@ export default function DriverTripStartScreen() {
             res.activeBooking.vehicleInspectionPhotos[1] || null,
             res.activeBooking.vehicleInspectionPhotos[2] || null,
             res.activeBooking.vehicleInspectionPhotos[3] || null,
+            res.activeBooking.vehicleInspectionPhotos[4] || null,
           ]);
         }
       }
@@ -183,7 +185,7 @@ export default function DriverTripStartScreen() {
     }
   }, [driverSelfieUri, odometerImageUri]);
 
-  // 6 Core Mandatory Trip Attachments: [Selfie (first!), Front, Rear, Side, Inside, Odometer]
+  // 7 Core Mandatory Trip Attachments: [Selfie (first!), Front, Rear, Side, Inside Front, Inside Back, Odometer]
   const verificationAttachments = [
     {
       id: 'selfie',
@@ -229,21 +231,32 @@ export default function DriverTripStartScreen() {
       index: 2,
     },
     {
-      id: 'inside',
-      title: 'Vehicle Inside Cabin',
-      shortTitle: 'Inside Cabin',
-      tag: '5. INSIDE',
-      desc: 'Clean interior, passenger seats & floor mats',
-      icon: 'people-outline' as const,
-      sampleSource: INSIDE_SAMPLE,
+      id: 'inside_front',
+      title: 'Inside Front Seat',
+      shortTitle: 'Front Seat',
+      tag: '5. FRONT SEAT',
+      desc: 'Open door view of dashboard, front seats & clean mats',
+      icon: 'car-outline' as const,
+      sampleSource: INSIDE_FRONT_SAMPLE,
       type: 'inspection' as const,
       index: 3,
+    },
+    {
+      id: 'inside_back',
+      title: 'Inside Back Seat',
+      shortTitle: 'Back Seat',
+      tag: '6. BACK SEAT',
+      desc: 'Open door view of rear passenger seats & clean floor',
+      icon: 'people-outline' as const,
+      sampleSource: INSIDE_BACK_SAMPLE,
+      type: 'inspection' as const,
+      index: 4,
     },
     {
       id: 'odometer',
       title: 'Starting Odometer Reading',
       shortTitle: 'Odometer',
-      tag: '6. ODOMETER',
+      tag: '7. ODOMETER',
       desc: 'Clear photo of starting dashboard km gauge',
       icon: 'speedometer-outline' as const,
       sampleSource: ODOMETER_SAMPLE,
@@ -251,14 +264,15 @@ export default function DriverTripStartScreen() {
     },
   ];
 
-  const [inspectionPhotos, setInspectionPhotos] = useState<(string | null)[]>([null, null, null, null]);
+  const [inspectionPhotos, setInspectionPhotos] = useState<(string | null)[]>([null, null, null, null, null]);
 
   const isAttachmentCompletedById = (id?: string) => {
     if (id === 'selfie') return Boolean(driverSelfieUri);
     if (id === 'front') return Boolean(inspectionPhotos[0]);
     if (id === 'rear') return Boolean(inspectionPhotos[1]);
     if (id === 'side') return Boolean(inspectionPhotos[2]);
-    if (id === 'inside') return Boolean(inspectionPhotos[3]);
+    if (id === 'inside_front') return Boolean(inspectionPhotos[3]);
+    if (id === 'inside_back') return Boolean(inspectionPhotos[4]);
     if (id === 'odometer') return Boolean(odometerImageUri && startingOdometer);
     return false;
   };
@@ -274,7 +288,8 @@ export default function DriverTripStartScreen() {
     else if (id === 'front') uri = inspectionPhotos[0];
     else if (id === 'rear') uri = inspectionPhotos[1];
     else if (id === 'side') uri = inspectionPhotos[2];
-    else if (id === 'inside') uri = inspectionPhotos[3];
+    else if (id === 'inside_front') uri = inspectionPhotos[3];
+    else if (id === 'inside_back') uri = inspectionPhotos[4];
     else if (id === 'odometer') uri = odometerImageUri;
     if (typeof uri === 'string' && uri.includes('images.unsplash.com')) {
       return null;
@@ -290,7 +305,7 @@ export default function DriverTripStartScreen() {
   const step1AttachedCount =
     (driverSelfieUri ? 1 : 0) +
     inspectionPhotos.filter(Boolean).length;
-  const isStep1Done = Boolean(driverSelfieUri && inspectionPhotos.filter(Boolean).length === 4);
+  const isStep1Done = Boolean(driverSelfieUri && inspectionPhotos.filter(Boolean).length === 5);
 
   const isOdometerDone = Boolean(odometerImageUri && startingOdometer);
   const totalAttachedCount = step1AttachedCount + (isOdometerDone ? 1 : 0);
@@ -331,10 +346,10 @@ export default function DriverTripStartScreen() {
 
         // Automatically slide to next attachment
         if (currentVerificationStep === 1) {
-          if (index < 3) {
+          if (index < 4) {
             setActiveAttachmentIdx(index + 2);
           }
-        } else if (index < 5) {
+        } else if (index < 6) {
           setActiveAttachmentIdx(index + 1);
         }
       }
@@ -354,17 +369,18 @@ export default function DriverTripStartScreen() {
         'demo_front',
         'demo_rear',
         'demo_side',
-        'demo_inside',
+        'demo_inside_front',
+        'demo_inside_back',
       ]);
       setActiveAttachmentIdx(0);
       Alert.alert(
         '⚡ Demo Evidence Loaded',
-        'Driver selfie & all 4 vehicle angles loaded! Click "PROCEED TO STEP 2" below to enter Customer OTP & Odometer.'
+        'Driver selfie & all 5 vehicle angles loaded! Click "PROCEED TO STEP 2" below to enter Customer OTP & Odometer.'
       );
     } else {
       setOdometerImageUri('demo_odometer');
       setStartingOdometer('42850');
-      setActiveAttachmentIdx(5);
+      setActiveAttachmentIdx(6);
       Alert.alert(
         '⚡ Demo Odometer Loaded',
         'Starting odometer reading loaded!'
@@ -487,7 +503,7 @@ export default function DriverTripStartScreen() {
         if (currentVerificationStep === 1) {
           setActiveAttachmentIdx(1);
         } else {
-          setActiveAttachmentIdx(5);
+          setActiveAttachmentIdx(6);
         }
         if (bookingId) {
           setVerifiedSelfie(bookingId, dataUri, locStamp);
@@ -824,8 +840,8 @@ export default function DriverTripStartScreen() {
           <>
             {/* Step 1 Unified Verification Card */}
             {(() => {
-              const step1Items = verificationAttachments.slice(0, 5);
-              const safeIdx = activeAttachmentIdx >= 0 && activeAttachmentIdx < 5 ? activeAttachmentIdx : 0;
+              const step1Items = verificationAttachments.slice(0, 6);
+              const safeIdx = activeAttachmentIdx >= 0 && activeAttachmentIdx < 6 ? activeAttachmentIdx : 0;
               const activeItem = step1Items[safeIdx] || step1Items[0];
               const isCurrentAttached = isAttachmentCompleted(safeIdx);
               const currentPhotoUri = getAttachmentPhotoUri(safeIdx);
@@ -841,7 +857,7 @@ export default function DriverTripStartScreen() {
                       <View style={styles.cardHeaderTextCol}>
                         <Text style={styles.cardHeaderTitle}>Selfie & Vehicle Evidence Photos *</Text>
                         <Text style={styles.cardHeaderSubtitle}>
-                          {step1AttachedCount} of 5 mandatory photos completed
+                          {step1AttachedCount} of 6 mandatory photos completed
                         </Text>
                       </View>
                     </View>
@@ -860,7 +876,7 @@ export default function DriverTripStartScreen() {
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: `${Math.round((step1AttachedCount / 5) * 100)}%` },
+                        { width: `${Math.round((step1AttachedCount / 6) * 100)}%` },
                         isStep1Done && styles.progressBarFillComplete,
                       ]}
                     />
@@ -871,7 +887,7 @@ export default function DriverTripStartScreen() {
                     <View style={styles.viewfinderHeaderRow}>
                       <View style={styles.viewfinderStepTag}>
                         <Text style={styles.viewfinderStepTagText}>
-                          {activeItem.shortTitle.toUpperCase()} ({safeIdx + 1}/5)
+                          {activeItem.shortTitle.toUpperCase()} ({safeIdx + 1}/6)
                         </Text>
                       </View>
                       <View
@@ -1046,7 +1062,7 @@ export default function DriverTripStartScreen() {
             >
               <View style={styles.backToStep1Left}>
                 <Ionicons name="arrow-back" size={14} color="#0284c7" />
-                <Text style={styles.backToStep1Text}>Review Selfie & Vehicle Evidence (5/5 Completed)</Text>
+                <Text style={styles.backToStep1Text}>Review Selfie & Vehicle Evidence (6/6 Completed)</Text>
               </View>
               <View style={styles.step1DoneBadge}>
                 <Ionicons name="checkmark-circle" size={12} color="#16a34a" />
@@ -1244,9 +1260,9 @@ export default function DriverTripStartScreen() {
 
             {/* Step 2 Verification Card: Starting Odometer Only */}
             {(() => {
-              const odometerItem = verificationAttachments[5];
+              const odometerItem = verificationAttachments[6];
               const isCurrentAttached = isOdometerDone;
-              const currentPhotoUri = getAttachmentPhotoUri(5);
+              const currentPhotoUri = getAttachmentPhotoUri(6);
 
               return (
                 <View style={styles.card}>
@@ -1417,13 +1433,13 @@ export default function DriverTripStartScreen() {
             ]}
             onPress={() => {
               if (!isStep1Done) {
-                // Find next missing in step 1: selfie (0) or vehicle photos (1..4)
+                // Find next missing in step 1: selfie (0) or vehicle photos (1..5)
                 if (!driverSelfieUri) {
                   setActiveAttachmentIdx(0);
                   handleOpenSelfieCamera();
                   return;
                 }
-                const nextMissingVehicleIdx = [0, 1, 2, 3].find((idx) => !inspectionPhotos[idx]);
+                const nextMissingVehicleIdx = [0, 1, 2, 3, 4].find((idx) => !inspectionPhotos[idx]);
                 if (nextMissingVehicleIdx !== undefined) {
                   const targetIdx = nextMissingVehicleIdx + 1;
                   setActiveAttachmentIdx(targetIdx);
@@ -1435,7 +1451,7 @@ export default function DriverTripStartScreen() {
 
               // Step 1 done -> advance to Step 2
               setCurrentVerificationStep(2);
-              setActiveAttachmentIdx(5);
+              setActiveAttachmentIdx(6);
               scrollViewRef.current?.scrollTo({ y: 0, animated: true });
             }}
             disabled={loading}
@@ -1447,7 +1463,7 @@ export default function DriverTripStartScreen() {
               <>
                 <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
                   {!isStep1Done
-                    ? `Capture ${verificationAttachments[activeAttachmentIdx < 5 ? activeAttachmentIdx : 0]?.shortTitle || 'Photo'} (${step1AttachedCount}/5) →`
+                    ? `Capture ${verificationAttachments[activeAttachmentIdx < 6 ? activeAttachmentIdx : 0]?.shortTitle || 'Photo'} (${step1AttachedCount}/6) →`
                     : 'PROCEED TO STEP 2: OTP & METER →'}
                 </Text>
                 <Ionicons name="arrow-forward" size={20} color="#0f172a" />
@@ -1473,13 +1489,13 @@ export default function DriverTripStartScreen() {
               }
 
               if (!odometerImageUri) {
-                setActiveAttachmentIdx(5);
+                setActiveAttachmentIdx(6);
                 handleOpenCamera();
                 return;
               }
 
               if (!startingOdometer) {
-                setActiveAttachmentIdx(5);
+                setActiveAttachmentIdx(6);
                 setError('Please enter the starting odometer reading in KM');
                 return;
               }
