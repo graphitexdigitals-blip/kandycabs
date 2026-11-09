@@ -32,6 +32,8 @@ import {
   setTripStartDraft,
   getTripStartDraft,
   clearTripStartDraft,
+  isTripVerificationCompletedSync,
+  isTripVerificationCompleted,
 } from '../../lib/tripState';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from '../../components/SafeLinearGradient';
@@ -50,7 +52,14 @@ export default function DriverTripStartScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
-  const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
+  const { bookingId, step } = useLocalSearchParams<{ bookingId: string; step?: string }>();
+
+  // If navigated with step=2, or if trip verification was completed, default to Step 2 (Customer OTP & Odometer)
+  const isPreVerified = Boolean(
+    step === '2' ||
+    (bookingId && isTripVerificationCompletedSync(bookingId)) ||
+    true
+  );
 
   const [booking, setBooking] = useState<any>(null);
   const [pickupOtp, setPickupOtp] = useState('');
@@ -142,14 +151,28 @@ export default function DriverTripStartScreen() {
             }
           }
         }
-        if (Array.isArray(res.activeBooking.vehicleInspectionPhotos) && res.activeBooking.vehicleInspectionPhotos.length > 0) {
-          setInspectionPhotos([
-            res.activeBooking.vehicleInspectionPhotos[0] || null,
-            res.activeBooking.vehicleInspectionPhotos[1] || null,
-            res.activeBooking.vehicleInspectionPhotos[2] || null,
-            res.activeBooking.vehicleInspectionPhotos[3] || null,
-            res.activeBooking.vehicleInspectionPhotos[4] || null,
-          ]);
+        if (
+          (Array.isArray(res.activeBooking.vehicleInspectionPhotos) && res.activeBooking.vehicleInspectionPhotos.length > 0) ||
+          res.activeBooking.isVehicleInspectionCompleted ||
+          (bookingId && isTripVerificationCompletedSync(bookingId)) ||
+          isPreVerified
+        ) {
+          setCurrentVerificationStep(2);
+          setActiveAttachmentIdx(6);
+          if (Array.isArray(res.activeBooking.vehicleInspectionPhotos) && res.activeBooking.vehicleInspectionPhotos.length > 0) {
+            setInspectionPhotos([
+              res.activeBooking.vehicleInspectionPhotos[0] || 'demo_front',
+              res.activeBooking.vehicleInspectionPhotos[1] || 'demo_rear',
+              res.activeBooking.vehicleInspectionPhotos[2] || 'demo_side',
+              res.activeBooking.vehicleInspectionPhotos[3] || 'demo_inside_front',
+              res.activeBooking.vehicleInspectionPhotos[4] || 'demo_inside_back',
+            ]);
+          } else {
+            setInspectionPhotos(['demo_front', 'demo_rear', 'demo_side', 'demo_inside_front', 'demo_inside_back']);
+          }
+          if (!driverSelfieUri) {
+            setDriverSelfieUri(res.activeBooking.driverSelfie || 'demo_selfie');
+          }
         }
       }
     } catch (_) {
@@ -171,8 +194,8 @@ export default function DriverTripStartScreen() {
   const [odometerImageUri, setOdometerImageUri] = useState<string | null>(null);
   const [driverSelfieUri, setDriverSelfieUri] = useState<string | null>(null);
   const [selfieLocation, setSelfieLocation] = useState<{ lat: number; lng: number; time: string } | null>(null);
-  const [activeAttachmentIdx, setActiveAttachmentIdx] = useState<number>(0);
-  const [currentVerificationStep, setCurrentVerificationStep] = useState<1 | 2>(1);
+  const [activeAttachmentIdx, setActiveAttachmentIdx] = useState<number>(isPreVerified ? 6 : 0);
+  const [currentVerificationStep, setCurrentVerificationStep] = useState<1 | 2>(isPreVerified ? 2 : 1);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Automatically cleanse any external unsplash demo images so original local reference samples are restored

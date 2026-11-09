@@ -1944,7 +1944,7 @@ export default function DriverDashboardScreen() {
                                   body: JSON.stringify({ bookingId: currentTrip.id }),
                                 }).catch(() => {});
                                 locationTracker.startActiveTripTracking(currentTrip.id);
-                                router.push({ pathname: '/trip/start', params: { bookingId: currentTrip.id } });
+                                router.push({ pathname: '/trip/start', params: { bookingId: currentTrip.id, step: '2' } });
                               }
                             } finally {
                               setIsStartingTrip(false);
