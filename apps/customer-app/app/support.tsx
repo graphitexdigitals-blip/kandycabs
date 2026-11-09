@@ -523,6 +523,7 @@ export default function SupportScreen() {
                     setEmergencyModalVisible(false);
                     handleCallPolice();
                   }}
+                  activeOpacity={0.8}
                 >
                   <Ionicons name="call" size={14} color="#ffffff" />
                   <Text style={styles.emergencyCallBtnText}>Call 112</Text>
@@ -540,6 +541,7 @@ export default function SupportScreen() {
                     setEmergencyModalVisible(false);
                     handleCallSupport();
                   }}
+                  activeOpacity={0.8}
                 >
                   <Ionicons name="call" size={14} color="#ffffff" />
                   <Text style={styles.emergencyCallBtnText}>Call Support</Text>
@@ -557,6 +559,7 @@ export default function SupportScreen() {
                     setEmergencyModalVisible(false);
                     handleAppSupportPhone();
                   }}
+                  activeOpacity={0.8}
                 >
                   <Ionicons name="call" size={14} color="#ffffff" />
                   <Text style={styles.emergencyCallBtnText}>App Support</Text>
@@ -1296,7 +1299,7 @@ const styles = StyleSheet.create({
   emergencyCallBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 9,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
     gap: 5,
@@ -1476,3 +1479,5 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
 });
+
+
