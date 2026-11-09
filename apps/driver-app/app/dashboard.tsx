@@ -1646,7 +1646,6 @@ export default function DriverDashboardScreen() {
                               <Ionicons name="location-sharp" size={16} color="#16a34a" style={styles.pickupPin} />
                               <View style={styles.stepTextGroup}>
                                 <Text style={styles.locationTitle}>{currentTrip.pickupAddress}</Text>
-                                <Text style={styles.locationSubtitle}>{t('dashboard.pickup_location_nav')}</Text>
                               </View>
                             </TouchableOpacity>
 
@@ -1664,7 +1663,6 @@ export default function DriverDashboardScreen() {
                                   </View>
                                   <View style={styles.stepTextGroup}>
                                     <Text style={styles.locationTitle}>{stopName}</Text>
-                                    <Text style={styles.stopSubtitle}>Stop {stopIdx + 1} • Via Location</Text>
                                   </View>
                                 </TouchableOpacity>
                               </React.Fragment>
@@ -1680,7 +1678,6 @@ export default function DriverDashboardScreen() {
                               <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
                               <View style={styles.stepTextGroup}>
                                 <Text style={styles.locationTitle}>{currentTrip.dropAddress}</Text>
-                                <Text style={styles.locationSubtitle}>{t('dashboard.destination_nav')}</Text>
                               </View>
                             </TouchableOpacity>
                           </View>
@@ -1995,7 +1992,6 @@ export default function DriverDashboardScreen() {
                               <Ionicons name="location-sharp" size={16} color="#16a34a" style={styles.pickupPin} />
                               <View style={styles.stepTextGroup}>
                                 <Text style={styles.locationTitle}>{upBooking.pickupAddress}</Text>
-                                <Text style={styles.locationSubtitle}>{t('dashboard.pickup_pin')}</Text>
                               </View>
                             </TouchableOpacity>
 
@@ -2013,7 +2009,6 @@ export default function DriverDashboardScreen() {
                                   </View>
                                   <View style={styles.stepTextGroup}>
                                     <Text style={styles.locationTitle}>{stopName}</Text>
-                                    <Text style={styles.stopSubtitle}>Stop {stopIdx + 1} • Via Location</Text>
                                   </View>
                                 </TouchableOpacity>
                               </React.Fragment>
@@ -2029,7 +2024,6 @@ export default function DriverDashboardScreen() {
                               <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
                               <View style={styles.stepTextGroup}>
                                 <Text style={styles.locationTitle}>{upBooking.dropAddress}</Text>
-                                <Text style={styles.locationSubtitle}>{t('dashboard.destination_pin')}</Text>
                               </View>
                             </TouchableOpacity>
                           </View>
@@ -2396,7 +2390,6 @@ export default function DriverDashboardScreen() {
                             <Ionicons name="location-sharp" size={16} color="#16a34a" style={styles.pickupPin} />
                             <View style={styles.stepTextGroup}>
                               <Text style={styles.locationTitle}>{b?.pickupAddress || 'Pickup Location'}</Text>
-                              <Text style={styles.locationSubtitle}>{t('dashboard.pickup_location_title')}</Text>
                             </View>
                           </View>
 
@@ -2410,7 +2403,6 @@ export default function DriverDashboardScreen() {
                                 </View>
                                 <View style={styles.stepTextGroup}>
                                   <Text style={styles.locationTitle}>{stopName}</Text>
-                                  <Text style={styles.stopSubtitle}>Stop {stopIdx + 1} • Via Location</Text>
                                 </View>
                               </View>
                             </React.Fragment>
@@ -2421,7 +2413,6 @@ export default function DriverDashboardScreen() {
                             <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
                             <View style={styles.stepTextGroup}>
                               <Text style={styles.locationTitle}>{b?.dropAddress || 'Drop Location'}</Text>
-                              <Text style={styles.locationSubtitle}>{t('dashboard.drop')}</Text>
                             </View>
                           </View>
                         </View>
