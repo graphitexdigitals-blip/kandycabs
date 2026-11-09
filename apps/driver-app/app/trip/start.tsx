@@ -973,13 +973,8 @@ export default function DriverTripStartScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Section: WHAT ALL SHOULD BE ATTACHED (Slidable Strip for 5 Photos) */}
+                  {/* Slidable Strip for 5 Photos */}
                   <View style={styles.slidableStripSection}>
-                    <View style={styles.slidableStripHeader}>
-                      <Text style={styles.slidableStripTitle}>1 SELFIE + 4 VEHICLE ANGLES</Text>
-                      <Text style={styles.slidableStripSub}>Slide & tap to view or retake</Text>
-                    </View>
-
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
@@ -3051,23 +3046,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
-  },
-  slidableStripHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  slidableStripTitle: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#0f172a',
-    letterSpacing: 0.4,
-  },
-  slidableStripSub: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748b',
   },
   slidableScrollContent: {
     gap: 10,
