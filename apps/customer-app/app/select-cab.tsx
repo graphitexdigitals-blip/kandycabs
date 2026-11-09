@@ -1746,8 +1746,8 @@ export default function SelectCabScreen() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     backgroundColor: '#ffffff',
-                    borderWidth: 1.5,
-                    borderColor: '#16a34a',
+                    borderWidth: 1,
+                    borderColor: '#e2e8f0',
                     paddingVertical: 10,
                     borderRadius: 12,
                     gap: 6,
@@ -1771,8 +1771,8 @@ export default function SelectCabScreen() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     backgroundColor: '#ffffff',
-                    borderWidth: 1.5,
-                    borderColor: '#0f172a',
+                    borderWidth: 1,
+                    borderColor: '#e2e8f0',
                     paddingVertical: 10,
                     borderRadius: 12,
                     gap: 6,
@@ -3158,6 +3158,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
 
 
 
