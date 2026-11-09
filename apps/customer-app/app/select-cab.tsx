@@ -1659,11 +1659,8 @@ export default function SelectCabScreen() {
               <View style={styles.fleetNoticeIconBox}>
                 <Ionicons name="call" size={22} color="rgb(240, 117, 15)" />
               </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={{ flex: 1, marginLeft: 12, justifyContent: 'center' }}>
                 <Text style={styles.fleetNoticeTitle}>Contact & Book Fleet</Text>
-                <Text style={styles.fleetNoticeSub}>
-                  {pendingFleetItem?.item.name || 'Group Vehicle'} • Special Route & Quote
-                </Text>
               </View>
               <TouchableOpacity
                 style={styles.fleetNoticeCloseBtn}
@@ -1684,7 +1681,7 @@ export default function SelectCabScreen() {
                 />
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.fleetNoticeVehicleName}>{pendingFleetItem.item.name}</Text>
-                  <Text style={styles.fleetNoticeVehicleModel} numberOfLines={1}>
+                  <Text style={styles.fleetNoticeVehicleModel}>
                     {pendingFleetItem.item.models}
                   </Text>
                   <View style={styles.fleetNoticeBadgeRow}>
@@ -1796,7 +1793,7 @@ export default function SelectCabScreen() {
                 }}
                 activeOpacity={0.88}
               >
-                <Text style={styles.fleetNoticeProceedText}>Submit Booking Request (Pay on Approval) →</Text>
+                <Text style={styles.fleetNoticeProceedText}>Submit Booking Request</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -3074,6 +3071,7 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: '#64748b',
     marginTop: 2,
+    lineHeight: 16,
   },
   fleetNoticeBadgeRow: {
     flexDirection: 'row',
