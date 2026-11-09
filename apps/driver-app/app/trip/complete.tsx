@@ -751,9 +751,6 @@ export default function DriverTripCompleteScreen() {
                 {selectedPaymentMethod === 'UPI_QR' ? (
                   <View style={styles.qrContentCard}>
                     <Text style={styles.qrHeaderTitle}>Scan & Pay to Admin</Text>
-                    <Text style={styles.qrHeaderDesc}>
-                      Ask passenger to scan this QR code with any UPI app to pay ₹{totalRemainingAmount} directly to Admin.
-                    </Text>
 
                     {/* QR Code Container */}
                     <View style={styles.qrCodeWrapper}>
@@ -1889,7 +1886,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: '#0f172a',
-    marginBottom: 2,
+    marginBottom: 10,
   },
   qrHeaderDesc: {
     fontSize: 11.5,
