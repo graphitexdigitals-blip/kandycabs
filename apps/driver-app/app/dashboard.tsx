@@ -1855,8 +1855,7 @@ export default function DriverDashboardScreen() {
                                   activeOpacity={0.85}
                                 >
                                   <Ionicons name="camera" size={20} color="#ffffff" style={{ marginRight: 8 }} />
-                                  <Text style={styles.verificationSlideGreenBtnText}>VERIFICATION (SELFIE & VEHICLE)</Text>
-                                  <Ionicons name="arrow-forward" size={18} color="#ffffff" style={{ marginLeft: 6 }} />
+                                  <Text style={styles.verificationSlideGreenBtnText}>VERIFICATION</Text>
                                 </TouchableOpacity>
                               </View>
                             );
@@ -2570,9 +2569,8 @@ export default function DriverDashboardScreen() {
                             }}
                             activeOpacity={0.85}
                           >
-                            <Ionicons name="shield-checkmark" size={18} color="#ffffff" style={{ marginRight: 6 }} />
+                            <Ionicons name="shield-checkmark" size={18} color="#ffffff" style={{ marginRight: 8 }} />
                             <Text style={styles.verificationDispatchBtnText}>VERIFICATION</Text>
-                            <Ionicons name="arrow-forward" size={17} color="#ffffff" style={{ marginLeft: 6 }} />
                           </TouchableOpacity>
                         </View>
                       ) : (
