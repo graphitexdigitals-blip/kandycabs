@@ -1,6 +1,14 @@
 import React, { useMemo } from 'react';
 import { View, ViewProps, StyleSheet } from 'react-native';
 
+let ExpoLinearGradient: any = null;
+try {
+  // Use native Expo LinearGradient when available (Expo Go / prebuild)
+  ExpoLinearGradient = require('expo-linear-gradient').LinearGradient;
+} catch (_) {
+  ExpoLinearGradient = null;
+}
+
 export interface LinearGradientProps extends ViewProps {
   colors: string[];
   start?: { x: number; y: number };
@@ -34,9 +42,9 @@ function parseColor(str: string): [number, number, number, number] {
 }
 
 /**
- * Pure JavaScript drop-in replacement for Expo's LinearGradient.
- * Avoids native module crashes (`ViewManagerAdapter_ExpoLinearGradient`)
- * while rendering smooth horizontal and vertical gradients with high visual fidelity.
+ * Drop-in replacement for Expo's LinearGradient.
+ * Uses native ExpoLinearGradient when available for GPU-accelerated smooth gradients,
+ * with pure JavaScript fallback if native module is absent.
  */
 export function LinearGradient({
   colors,
@@ -47,12 +55,28 @@ export function LinearGradient({
   children,
   ...rest
 }: LinearGradientProps) {
+  if (ExpoLinearGradient) {
+    return (
+      <ExpoLinearGradient
+        colors={colors}
+        start={start}
+        end={end}
+        locations={locations}
+        style={style}
+        {...rest}
+      >
+        {children}
+      </ExpoLinearGradient>
+    );
+  }
+
   const isHorizontal = Math.abs((end.x ?? 1) - (start.x ?? 0)) >= Math.abs((end.y ?? 0) - (start.y ?? 0));
+  const fallbackBg = colors && colors.length > 0 ? colors[Math.floor(colors.length / 2)] : 'transparent';
 
   const slices = useMemo(() => {
     if (!colors || colors.length <= 1) return [];
 
-    const numSlices = 32;
+    const numSlices = 48;
     const defaultLocs = colors.map((_, i) => i / (colors.length - 1));
     const locs = locations && locations.length === colors.length ? locations : defaultLocs;
 
@@ -92,7 +116,7 @@ export function LinearGradient({
   }
 
   return (
-    <View style={[{ overflow: 'hidden' }, style]} {...rest}>
+    <View style={[{ overflow: 'hidden', backgroundColor: fallbackBg }, style]} {...rest}>
       <View
         style={[
           StyleSheet.absoluteFillObject,

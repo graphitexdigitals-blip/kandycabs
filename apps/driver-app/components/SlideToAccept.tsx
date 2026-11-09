@@ -173,16 +173,13 @@ export function SlideToAccept({
           <LinearGradient
             colors={
               isAccepting
-                ? ['#059669', '#047857', '#065f46']
-                : ['#42df6a', '#10b981', '#058d3c', '#027a28']
+                ? ['#059669', '#047857']
+                : ['#10b981', '#059669']
             }
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
             style={styles.trackGradient}
           >
-            {/* Top Gloss Highlight Edge */}
-            <View style={styles.topGlossHighlight} />
-
             {/* Animated Center Text & Chevrons */}
             <Animated.View style={[styles.textWrapper, { opacity: isAccepting ? 0.3 : textOpacity }]}>
               <Text style={styles.trackText}>{isAccepting ? acceptingTitle : title}</Text>
@@ -246,19 +243,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
     overflow: 'hidden',
-    borderTopWidth: 1.5,
-    borderTopColor: 'rgba(255, 255, 255, 0.45)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.2)',
-  },
-  topGlossHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 24,
-    right: 24,
-    height: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    borderRadius: 1,
+    backgroundColor: '#059669',
   },
   track: {
     height: 56,
