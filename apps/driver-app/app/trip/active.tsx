@@ -192,9 +192,6 @@ export default function DriverTripActiveScreen() {
                 <Ionicons name="git-commit-outline" size={17} color="#d97706" />
                 <Text style={styles.multiStopsHeaderTitle}>Customer Selected Multiple Locations</Text>
               </View>
-              <View style={styles.multiStopsCountPill}>
-                <Text style={styles.multiStopsCountText}>{parseViaStops(booking).length} Via Drops</Text>
-              </View>
             </View>
 
             <View style={styles.stopsTimelineWrap}>
@@ -202,7 +199,6 @@ export default function DriverTripActiveScreen() {
               <View style={styles.timelinePoint}>
                 <View style={styles.timelinePickupDot} />
                 <View style={styles.timelineContent}>
-                  <Text style={styles.timelineLabel}>PICKUP</Text>
                   <Text style={styles.timelineAddress}>{booking.pickupAddress}</Text>
                 </View>
               </View>
@@ -216,8 +212,8 @@ export default function DriverTripActiveScreen() {
                       <Text style={styles.timelineViaNum}>{sIdx + 1}</Text>
                     </View>
                     <View style={styles.timelineContent}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={styles.timelineViaLabel}>INTERMEDIATE STOP #{sIdx + 1}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <Text style={[styles.timelineAddressBold, { flex: 1 }]}>{stopName}</Text>
                         <TouchableOpacity
                           style={styles.navigateStopSmallBtn}
                           onPress={() => {
@@ -230,7 +226,6 @@ export default function DriverTripActiveScreen() {
                           <Text style={styles.navigateStopSmallText}>Navigate</Text>
                         </TouchableOpacity>
                       </View>
-                      <Text style={styles.timelineAddressBold}>{stopName}</Text>
                     </View>
                   </View>
                 </View>
@@ -241,7 +236,6 @@ export default function DriverTripActiveScreen() {
               <View style={styles.timelinePoint}>
                 <View style={styles.timelineDropDot} />
                 <View style={styles.timelineContent}>
-                  <Text style={styles.timelineDropLabel}>FINAL DESTINATION</Text>
                   <Text style={styles.timelineAddress}>{booking.dropAddress}</Text>
                 </View>
               </View>
