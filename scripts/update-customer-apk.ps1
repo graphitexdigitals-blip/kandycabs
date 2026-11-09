@@ -43,6 +43,39 @@ if (Test-Path $loginHeroFile) {
     Write-Output "Updated native compiled login hero res/1C.jpg!"
 }
 
+# Update native app launcher icons (Adaptive Foregrounds, Legacy Square & Round across all densities)
+$androidIconsDir = Join-Path $root "apps\customer-app\android_icons"
+if (Test-Path $androidIconsDir) {
+    $iconMap = @{
+        "res_QZ.png" = "res/QZ.png"
+        "res_zr.png" = "res/zr.png"
+        "res_Em.png" = "res/Em.png"
+        "res_Lf.png" = "res/Lf.png"
+        "res_as.png" = "res/as.png"
+        "res_9w.png" = "res/9w.png"
+        "res_yn.png" = "res/yn.png"
+        "res_FS.png" = "res/FS.png"
+        "res_RJ.png" = "res/RJ.png"
+        "res_o-.png" = "res/o-.png"
+        "res_zR.png" = "res/zR.png"
+        "res_8c.png" = "res/8c.png"
+        "res_wb.png" = "res/wb.png"
+        "res_fO.png" = "res/fO.png"
+        "res_Gc.png" = "res/Gc.png"
+    }
+
+    foreach ($file in $iconMap.Keys) {
+        $srcPath = Join-Path $androidIconsDir $file
+        $targetEntry = $iconMap[$file]
+        if (Test-Path $srcPath) {
+            $existing = $zip.GetEntry($targetEntry)
+            if ($null -ne $existing) { $existing.Delete() }
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $srcPath, $targetEntry)
+        }
+    }
+    Write-Output "Updated all 15 native Android launcher icon densities in APK res/!"
+}
+
 # Also add/update all drawable assets exported by Metro
 $distDir = Join-Path $root "apps\customer-app\dist_bundle"
 Get-ChildItem -Path $distDir -Directory -Filter "drawable-*" | ForEach-Object {

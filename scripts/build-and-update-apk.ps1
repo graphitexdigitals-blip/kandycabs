@@ -19,6 +19,9 @@ if (-not (Test-Path $distDir)) {
 $env:EXPO_PUBLIC_API_URL = "https://kandycabs-8kew.vercel.app"
 Write-Host "Using EXPO_PUBLIC_API_URL = $env:EXPO_PUBLIC_API_URL" -ForegroundColor Green
 
+Write-Host "Generating native Android launcher icons from official brand assets..." -ForegroundColor Green
+& "C:\nvm4w\nodejs\node.exe" "$root\scripts\generate-launcher-icons.js"
+
 Set-Location "$root\apps\customer-app"
 & "C:\nvm4w\nodejs\npx.cmd" expo export:embed --entry-file index.js --platform android --dev false --bundle-output $bundleFile --assets-dest $distDir
 if ($LASTEXITCODE -ne 0) {
