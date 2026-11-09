@@ -200,6 +200,17 @@ export default function DriverTripStartScreen() {
   const [currentVerificationStep, setCurrentVerificationStep] = useState<1 | 2>(isPreVerified ? 2 : 1);
   const scrollViewRef = useRef<ScrollView>(null);
 
+  // Keep latest OTP and verification status in refs to prevent any stale closures
+  const pickupOtpRef = useRef(pickupOtp);
+  const isOtpVerifiedRef = useRef(isOtpVerified);
+  const isAdminAuthorizedRef = useRef(isAdminAuthorized);
+
+  useEffect(() => {
+    pickupOtpRef.current = pickupOtp;
+    isOtpVerifiedRef.current = isOtpVerified;
+    isAdminAuthorizedRef.current = isAdminAuthorized;
+  }, [pickupOtp, isOtpVerified, isAdminAuthorized]);
+
   // Automatically cleanse any external unsplash demo images so original local reference samples are restored
   useEffect(() => {
     if (driverSelfieUri && driverSelfieUri.includes('images.unsplash.com')) {
@@ -577,16 +588,20 @@ export default function DriverTripStartScreen() {
   };
 
   const handleStartTrip = async () => {
-    if (!isAdminAuthorized && pickupOtp.length < 4) {
+    const activeOtp = pickupOtpRef.current || pickupOtp;
+    const activeVerified = isOtpVerifiedRef.current || isOtpVerified;
+    const activeAdminAuth = isAdminAuthorizedRef.current || isAdminAuthorized;
+
+    if (!activeAdminAuth && !activeVerified && activeOtp.length < 4) {
       setError('Please enter the 4-digit pickup OTP from the customer');
       return;
     }
-    if (!isAdminAuthorized && !isOtpVerified) {
+    if (!activeAdminAuth && !activeVerified) {
       // Auto verify OTP before starting trip if driver didn't click verify button yet
       try {
         const vRes = await driverApiClient.fetch('/api/driver/trip/verify-otp', {
           method: 'POST',
-          body: JSON.stringify({ bookingId, pickupOtp: pickupOtp.trim() }),
+          body: JSON.stringify({ bookingId, pickupOtp: activeOtp.trim() }),
         });
         if (!vRes.success || !vRes.verified) {
           setError(vRes.message || 'Incorrect pickup OTP. Please verify with customer.');
@@ -594,6 +609,7 @@ export default function DriverTripStartScreen() {
           return;
         }
         setIsOtpVerified(true);
+        isOtpVerifiedRef.current = true;
       } catch (err: any) {
         setError(err.message || 'Failed to verify OTP');
         return;
@@ -1216,7 +1232,11 @@ export default function DriverTripStartScreen() {
         ) : (
           <SlideToAccept
             onAccept={async () => {
-              if (!isAdminAuthorized && pickupOtp.length < 4) {
+              const activeOtp = pickupOtpRef.current || pickupOtp;
+              const activeVerified = isOtpVerifiedRef.current || isOtpVerified;
+              const activeAdminAuth = isAdminAuthorizedRef.current || isAdminAuthorized;
+
+              if (!activeAdminAuth && !activeVerified && activeOtp.length < 4) {
                 setError('Please enter the 4-digit pickup OTP from the customer');
                 Alert.alert(
                   'Customer OTP Required',

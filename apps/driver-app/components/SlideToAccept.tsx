@@ -38,6 +38,12 @@ export function SlideToAccept({
   const shimmerAnim = useRef(new Animated.Value(0)).current;
   const isAcceptedRef = useRef(false);
 
+  // Keep latest mutable props in ref so PanResponder closures never go stale
+  const latestRef = useRef({ onAccept, isAccepting, disabled, maxSlide });
+  useEffect(() => {
+    latestRef.current = { onAccept, isAccepting, disabled, maxSlide };
+  });
+
   // Chevron pulsing shimmer animation
   useEffect(() => {
     const loop = Animated.loop(
@@ -73,26 +79,27 @@ export function SlideToAccept({
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !disabled && !isAccepting,
+      onStartShouldSetPanResponder: () => !latestRef.current.disabled && !latestRef.current.isAccepting,
       onMoveShouldSetPanResponder: (_, gesture) =>
-        !disabled && !isAccepting && Math.abs(gesture.dx) > 3,
+        !latestRef.current.disabled && !latestRef.current.isAccepting && Math.abs(gesture.dx) > 3,
       onPanResponderGrant: () => {
         pan.setOffset(0);
       },
       onPanResponderMove: (_, gesture) => {
-        if (disabled || isAccepting || isAcceptedRef.current) return;
-        const newX = Math.max(0, Math.min(gesture.dx, maxSlide));
+        if (latestRef.current.disabled || latestRef.current.isAccepting || isAcceptedRef.current) return;
+        const newX = Math.max(0, Math.min(gesture.dx, latestRef.current.maxSlide));
         pan.setValue(newX);
       },
       onPanResponderRelease: (_, gesture) => {
-        if (disabled || isAccepting || isAcceptedRef.current) return;
+        if (latestRef.current.disabled || latestRef.current.isAccepting || isAcceptedRef.current) return;
         const currentX = Math.max(0, gesture.dx);
+        const curMaxSlide = latestRef.current.maxSlide;
 
         // Threshold: 65% of track width
-        if (currentX >= maxSlide * 0.65) {
+        if (currentX >= curMaxSlide * 0.65) {
           isAcceptedRef.current = true;
           Animated.timing(pan, {
-            toValue: maxSlide,
+            toValue: curMaxSlide,
             duration: 120,
             useNativeDriver: false,
           }).start(() => {
@@ -101,7 +108,7 @@ export function SlideToAccept({
                 Vibration.vibrate(40);
               } catch {}
             }
-            onAccept();
+            latestRef.current.onAccept();
           });
         } else {
           // Snap back to start
