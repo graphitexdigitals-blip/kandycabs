@@ -568,30 +568,30 @@ export default function DriverTripCompleteScreen() {
               {loading ? (
                 <ActivityIndicator color="#ffffff" size="small" />
               ) : (
-                <>
+                <View style={styles.centerBtnRow}>
                   <Text style={[styles.yellowPrimaryButtonText, styles.yellowPrimaryButtonTextReady]} numberOfLines={1}>
                     End Trip
                   </Text>
-                  <Ionicons name="arrow-forward" size={20} color="#ffffff" />
-                </>
+                  <Ionicons name="arrow-forward" size={19} color="#ffffff" style={{ marginLeft: 8 }} />
+                </View>
               )}
             </LinearGradient>
           ) : loading ? (
             <ActivityIndicator color="#0f172a" size="small" />
           ) : !odometerImageUri ? (
-            <>
+            <View style={styles.centerBtnRow}>
               <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
                 {t('complete_trip.open_camera_odometer', 'Capture Odometer Photo')}
               </Text>
-              <Ionicons name="camera" size={20} color="#0f172a" />
-            </>
+              <Ionicons name="camera" size={19} color="#0f172a" style={{ marginLeft: 8 }} />
+            </View>
           ) : (
-            <>
+            <View style={styles.centerBtnRow}>
               <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
                 {t('complete_trip.enter_final_reading', 'Enter Final Reading')}
               </Text>
-              <Ionicons name="arrow-forward" size={20} color="#0f172a" />
-            </>
+              <Ionicons name="arrow-forward" size={19} color="#0f172a" style={{ marginLeft: 8 }} />
+            </View>
           )}
         </TouchableOpacity>
       </View>
@@ -1658,7 +1658,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     shadowColor: '#d97706',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
@@ -1681,8 +1681,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     borderRadius: 30,
+  },
+  centerBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   btnLeftGroup: {
     flexDirection: 'row',
@@ -1707,11 +1712,13 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '800',
     letterSpacing: 0.2,
-    flex: 1,
+    textAlign: 'center',
   },
   yellowPrimaryButtonTextReady: {
     color: '#ffffff',
+    fontSize: 15.5,
     fontWeight: '900',
+    textAlign: 'center',
   },
   completeButtonDisabled: {
     opacity: 0.6,
