@@ -1508,12 +1508,10 @@ export default function BookingFunnelScreen() {
         }),
         [
           {
-            text: t('additionalRequirements.selectNow', { defaultValue: 'Select Now' }),
-            onPress: () => setShowRequirementsModal(true),
+            text: t('common.ok', { defaultValue: 'OK' }),
           },
         ]
       );
-      setShowRequirementsModal(true);
       return;
     }
 
