@@ -5072,14 +5072,12 @@ const styles = StyleSheet.create({
   },
   travellersAlertSelectBtn: {
     paddingVertical: 9,
-    paddingHorizontal: 18,
-    borderRadius: 8,
-    backgroundColor: 'rgba(240, 117, 15, 0.12)',
+    paddingHorizontal: 14,
   },
   travellersAlertSelectText: {
     fontSize: 14,
     fontWeight: '800',
-    color: 'rgb(240, 117, 15)',
+    color: '#000000',
     textTransform: 'uppercase',
   },
   modalHeader: {
