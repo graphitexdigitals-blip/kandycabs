@@ -1641,30 +1641,9 @@ export default function DriverDashboardScreen() {
                     tripDate.getMonth() === now.getMonth() &&
                     tripDate.getFullYear() === now.getFullYear();
 
-                  const isTomorrow = (() => {
-                    const tomorrow = new Date();
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    return (
-                      tripDate.getDate() === tomorrow.getDate() &&
-                      tripDate.getMonth() === tomorrow.getMonth() &&
-                      tripDate.getFullYear() === tomorrow.getFullYear()
-                    );
-                  })();
-
                   const diffMinutes = Math.round((tripDate.getTime() - now.getTime()) / (60 * 1000));
                   // Timing near warning: scheduled for today and pickup within 4 hours or past due today
                   const isTimingNear = !isTripInProcess && isToday && diffMinutes <= 240;
-
-                  const pickupDateLabel = isToday
-                    ? 'Today'
-                    : isTomorrow
-                    ? 'Tomorrow'
-                    : tripDate.toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      });
-                  const pickupTimeLabel = tripDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                   return (
                     <View style={styles.tripCardContent}>
@@ -1776,43 +1755,19 @@ export default function DriverDashboardScreen() {
                           {/* Col 1: Pickup Date & Time */}
                           <View style={styles.infoThreeCol}>
                             <View style={styles.infoColHeaderRow}>
-                              <Ionicons
-                                name="calendar-outline"
-                                size={15}
-                                color={isTimingNear ? '#dc2626' : '#0f294d'}
-                              />
-                              <Text
-                                style={[
-                                  styles.infoColHeaderLabel,
-                                  isTimingNear && { color: '#dc2626', fontWeight: '800' },
-                                ]}
-                                numberOfLines={1}
-                              >
-                                Pickup Date & Time
-                              </Text>
+                              <Ionicons name="calendar-outline" size={15} color="#0f294d" />
+                              <Text style={styles.infoColHeaderLabel} numberOfLines={1}>Pickup Date & Time</Text>
                             </View>
-                            <Text
-                              style={[
-                                styles.infoColValDark,
-                                isTimingNear && { color: '#dc2626', fontWeight: '900' },
-                              ]}
-                            >
-                              {pickupDateLabel},
+                            <Text style={styles.infoColValDark}>
+                              {new Date(currentTrip.scheduledAt || currentTrip.createdAt).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })},
                             </Text>
-                            <Text
-                              style={[
-                                styles.infoColValDark,
-                                isTimingNear && { color: '#dc2626', fontWeight: '900' },
-                              ]}
-                            >
-                              {pickupTimeLabel}
+                            <Text style={styles.infoColValDark}>
+                              {new Date(currentTrip.scheduledAt || currentTrip.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </Text>
-                            {isTimingNear && (
-                              <View style={styles.warningBeReadyRow}>
-                                <Ionicons name="warning" size={9} color="#dc2626" />
-                                <Text style={styles.warningBeReadyText}>Be ready today</Text>
-                              </View>
-                            )}
                           </View>
 
                           {/* Vertical Slash/Divider 1 */}
@@ -1860,17 +1815,6 @@ export default function DriverDashboardScreen() {
                             </Text>
                           </View>
                         </View>
-
-                        {/* Timing Near Warning Banner */}
-                        {isTimingNear && (
-                          <View style={styles.timingNearWarningBanner}>
-                            <Ionicons name="warning" size={15} color="#dc2626" />
-                            <Text style={styles.timingNearWarningText}>
-                              <Text style={{ fontWeight: '900', color: '#b91c1c' }}>Warning: </Text>
-                              Pickup scheduled for {pickupDateLabel}, {pickupTimeLabel} — Be ready today!
-                            </Text>
-                          </View>
-                        )}
 
                         {/* Customer Requirements & Preferences Pills */}
                         {(() => {
@@ -4372,8 +4316,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     backgroundColor: '#fee2e2',
-    borderWidth: 1,
-    borderColor: '#fca5a5',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 20,
@@ -4387,45 +4329,8 @@ const styles = StyleSheet.create({
   onRouteBadgeTextWarning: {
     color: '#b91c1c',
     fontSize: 10.5,
-    fontWeight: '900',
-    letterSpacing: 0.3,
-  },
-  warningBeReadyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    marginTop: 3,
-    backgroundColor: '#fee2e2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 5,
-    alignSelf: 'center',
-  },
-  warningBeReadyText: {
-    fontSize: 9,
-    color: '#b91c1c',
     fontWeight: '800',
-  },
-  timingNearWarningBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    borderRadius: 9,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    marginTop: 10,
-  },
-  timingNearWarningText: {
-    fontSize: 11.5,
-    color: '#991b1b',
-    fontWeight: '700',
-    flex: 1,
-    lineHeight: 16,
+    letterSpacing: 0.3,
   },
   onTripBadge: {
     flexDirection: 'row',
