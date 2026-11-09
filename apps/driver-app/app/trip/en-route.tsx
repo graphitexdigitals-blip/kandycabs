@@ -214,9 +214,7 @@ export default function DriverEnRouteScreen() {
                   {booking.customer?.user?.fullName || 'Customer'}
                 </Text>
                 <Text style={styles.customerIdText}>
-                  Customer ID: #{booking?.customer?.id
-                    ? `CUST${String(booking.customer.id).replace(/\D/g, '').slice(-4) || '2487'}`
-                    : (booking?.bookingNumber ? `CUST${String(booking.bookingNumber).replace(/\D/g, '').slice(-4)}` : 'CUST2487')}
+                  Customer ID: {booking?.humanReadableRef || booking?.bookingNumber || 'KC-2026-925966'}
                 </Text>
               </View>
             </View>
