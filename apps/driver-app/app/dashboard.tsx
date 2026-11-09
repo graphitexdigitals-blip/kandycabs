@@ -46,6 +46,7 @@ import {
   formatTripDateTime,
   parseCustomerRequirements,
   extractCustomerNotes,
+  sortTripsByDateTimeAscending,
 } from '../lib/tripRequirements';
 
 export function parseViaStops(booking: any): string[] {
@@ -582,7 +583,7 @@ export default function DriverDashboardScreen() {
           }).catch(() => {});
         }
         setActiveBooking(statusRes.activeBooking);
-        setUpcomingBookings(statusRes.upcomingBookings || []);
+        setUpcomingBookings(sortTripsByDateTimeAscending(statusRes.upcomingBookings || []));
 
         if (statusRes.activeBooking) {
           const isStarted =
@@ -628,7 +629,7 @@ export default function DriverDashboardScreen() {
       }
 
       if (dispatchRes && dispatchRes.success) {
-        setDispatches(dispatchRes.dispatches || []);
+        setDispatches(sortTripsByDateTimeAscending(dispatchRes.dispatches || []));
       }
     } catch (err: any) {
       console.warn('[DriverDashboard] Failed to fetch driver data:', err);
@@ -745,7 +746,7 @@ export default function DriverDashboardScreen() {
       }
       setDispatches((prev) => {
         if (prev.some((d) => d.id === newDispatch.id)) return prev;
-        return [newDispatch, ...prev];
+        return sortTripsByDateTimeAscending([newDispatch, ...prev]);
       });
     });
 
@@ -899,7 +900,7 @@ export default function DriverDashboardScreen() {
           // If already on an active trip, immediately add this trip to upcoming queue
           setUpcomingBookings((prev) => {
             const filtered = prev.filter((b) => b.id !== res.booking.id);
-            return [...filtered, res.booking];
+            return sortTripsByDateTimeAscending([...filtered, res.booking]);
           });
           setActiveCardTab('MY_TRIPS');
           await fetchDriverData();
@@ -1951,7 +1952,7 @@ export default function DriverDashboardScreen() {
                 </View>
 
                 <View style={styles.separateQueuedCardBody}>
-                  {upcomingBookings.map((upBooking) => {
+                  {sortTripsByDateTimeAscending(upcomingBookings).map((upBooking) => {
                     const pickupDateStr = upBooking.scheduledAt
                       ? new Date(upBooking.scheduledAt).toLocaleDateString('en-GB', {
                           day: 'numeric',
@@ -2342,7 +2343,7 @@ export default function DriverDashboardScreen() {
                   </View>
                 )}
 
-                {dispatches.map((d) => {
+                {sortTripsByDateTimeAscending(dispatches).map((d) => {
                   const b = d?.booking || {};
                   const isAccepting = acceptingId === d.id;
 

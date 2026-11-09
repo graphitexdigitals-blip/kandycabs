@@ -46,7 +46,10 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-      orderBy: { broadcastAt: 'desc' },
+      orderBy: [
+        { booking: { scheduledAt: 'asc' } },
+        { broadcastAt: 'asc' },
+      ],
     });
 
     const sanitizedDispatches = pendingDispatches.map((d) => {
@@ -93,6 +96,22 @@ export async function GET(req: NextRequest) {
           scheduledAt: b.scheduledAt || createdPayload.scheduledAt,
         },
       };
+    });
+
+    // Chronological order: earliest pickup date and time first
+    sanitizedDispatches.sort((a, b) => {
+      const getMs = (item: any) => {
+        const val = item?.booking?.scheduledAt || item?.booking?.pickupDateTime;
+        if (!val) {
+          const cMs = new Date(item?.booking?.createdAt || item?.broadcastAt || 0).getTime();
+          return isNaN(cMs) || cMs === 0 ? Number.MAX_SAFE_INTEGER : cMs;
+        }
+        const t = new Date(val).getTime();
+        return isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
+      };
+      const diff = getMs(a) - getMs(b);
+      if (diff !== 0) return diff;
+      return new Date(a.broadcastAt || 0).getTime() - new Date(b.broadcastAt || 0).getTime();
     });
 
     const response = NextResponse.json(

@@ -130,7 +130,14 @@ export default function MyBookingsScreen() {
       const currentCategory = filterOverride || activeFilter;
       const res = await customerApiClient.fetch(`/api/customer/bookings/list?category=${currentCategory}`);
       if (res && res.bookings) {
-        setBookings(res.bookings);
+        const sortedBookings = currentCategory === 'ACTIVE'
+          ? [...res.bookings].sort((a: any, b: any) => {
+              const tA = new Date(a.scheduledAt || 0).getTime() || Number.MAX_SAFE_INTEGER;
+              const tB = new Date(b.scheduledAt || 0).getTime() || Number.MAX_SAFE_INTEGER;
+              return tA - tB;
+            })
+          : res.bookings;
+        setBookings(sortedBookings);
 
         // Pre-hydrate proximity status from server tripEvents if available
         const alertsUpdate: Record<string, any> = {};

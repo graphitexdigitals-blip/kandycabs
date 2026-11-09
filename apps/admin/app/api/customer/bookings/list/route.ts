@@ -102,11 +102,15 @@ export async function GET(req: NextRequest) {
       where.status = BookingStatus.CANCELLED;
     }
 
+    const orderBy: any = category === 'ACTIVE'
+      ? [{ scheduledAt: 'asc' }, { createdAt: 'desc' }]
+      : { createdAt: 'desc' };
+
     const [totalCount, bookings] = await Promise.all([
       prisma.booking.count({ where }),
       prisma.booking.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip: (page - 1) * limit,
         take: limit,
         include: {

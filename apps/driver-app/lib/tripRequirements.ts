@@ -263,3 +263,39 @@ export function extractCustomerNotes(booking: any): string | null {
   return userNotes.length > 0 ? userNotes.join(' • ') : null;
 }
 
+/**
+ * Sort trips (dispatches, assigned bookings, queued trips) chronologically by scheduled date/time ascending.
+ * Trips with the earliest pickup date and time will be placed first.
+ */
+export function sortTripsByDateTimeAscending<T>(trips: T[]): T[] {
+  if (!Array.isArray(trips)) return [];
+  return [...trips].sort((a: any, b: any) => {
+    const bA = a?.booking || a;
+    const bB = b?.booking || b;
+
+    const getMs = (item: any) => {
+      const val = item?.scheduledAt || item?.pickupDateTime;
+      if (!val) {
+        const created = item?.createdAt;
+        if (!created) return Number.MAX_SAFE_INTEGER;
+        const cMs = new Date(created).getTime();
+        return isNaN(cMs) ? Number.MAX_SAFE_INTEGER : cMs;
+      }
+      const t = new Date(val).getTime();
+      return isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
+    };
+
+    const timeA = getMs(bA);
+    const timeB = getMs(bB);
+
+    if (timeA !== timeB) {
+      return timeA - timeB; // Earliest first
+    }
+
+    const broadcastA = new Date(a?.broadcastAt || bA?.createdAt || 0).getTime() || 0;
+    const broadcastB = new Date(b?.broadcastAt || bB?.createdAt || 0).getTime() || 0;
+    return broadcastA - broadcastB;
+  });
+}
+
+
