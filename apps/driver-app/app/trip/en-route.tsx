@@ -191,54 +191,7 @@ export default function DriverEnRouteScreen() {
       <TripFlowHeader currentStep={1} />
 
       <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Map Preview Card */}
-        <View style={styles.mapCard}>
-          <View style={styles.mapCanvas}>
-            {/* Water Coastline Area */}
-            <View style={styles.mapWaterArea} />
-
-            {/* Stylized Roads */}
-            <View style={styles.mapRoadH1} />
-            <View style={styles.mapRoadH2} />
-            <View style={styles.mapRoadDiag1} />
-            <View style={styles.mapRoadDiag2} />
-
-            {/* Curved Blue Route Polyline */}
-            <View style={styles.mapRouteCurve1} />
-            <View style={styles.mapRouteCurve2} />
-
-            {/* Driver Navigation Marker */}
-            <View style={styles.driverMarkerContainer}>
-              <View style={styles.driverMarkerOuterRing}>
-                <View style={styles.driverMarkerInner}>
-                  <Ionicons name="navigate" size={14} color="#ffffff" style={{ transform: [{ rotate: '45deg' }] }} />
-                </View>
-              </View>
-            </View>
-
-            {/* Destination Pin Marker */}
-            <View style={styles.destinationPinContainer}>
-              <Ionicons name="location-sharp" size={28} color="#ef4444" />
-            </View>
-
-            {/* Destination Tag Pill */}
-            <View style={styles.destinationTagPill}>
-              <Ionicons name="airplane" size={12} color="#2563eb" style={{ marginRight: 4 }} />
-              <Text style={styles.destinationTagText} numberOfLines={1}>
-                {booking.pickupAddress || 'Pickup Point'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Open Navigation Button */}
-          <TouchableOpacity style={styles.openNavButton} onPress={openNavigation} activeOpacity={0.85}>
-            <Ionicons name="navigate" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-            <Text style={styles.openNavButtonText}>Open Navigation</Text>
-            <Ionicons name="chevron-forward" size={18} color="#ffffff" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Trip Information Card */}
+        {/* Customer Information Card (On Top) */}
         <View style={styles.infoCard}>
           {/* Customer Header Row */}
           <View style={styles.customerHeaderRow}>
@@ -332,6 +285,53 @@ export default function DriverEnRouteScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
           </View>
+        </View>
+
+        {/* Map Preview Card */}
+        <View style={styles.mapCard}>
+          <View style={styles.mapCanvas}>
+            {/* Water Coastline Area */}
+            <View style={styles.mapWaterArea} />
+
+            {/* Stylized Roads */}
+            <View style={styles.mapRoadH1} />
+            <View style={styles.mapRoadH2} />
+            <View style={styles.mapRoadDiag1} />
+            <View style={styles.mapRoadDiag2} />
+
+            {/* Curved Blue Route Polyline */}
+            <View style={styles.mapRouteCurve1} />
+            <View style={styles.mapRouteCurve2} />
+
+            {/* Driver Navigation Marker */}
+            <View style={styles.driverMarkerContainer}>
+              <View style={styles.driverMarkerOuterRing}>
+                <View style={styles.driverMarkerInner}>
+                  <Ionicons name="navigate" size={14} color="#ffffff" style={{ transform: [{ rotate: '45deg' }] }} />
+                </View>
+              </View>
+            </View>
+
+            {/* Destination Pin Marker */}
+            <View style={styles.destinationPinContainer}>
+              <Ionicons name="location-sharp" size={28} color="#ef4444" />
+            </View>
+
+            {/* Destination Tag Pill */}
+            <View style={styles.destinationTagPill}>
+              <Ionicons name="airplane" size={12} color="#2563eb" style={{ marginRight: 4 }} />
+              <Text style={styles.destinationTagText} numberOfLines={1}>
+                {booking.pickupAddress || 'Pickup Point'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Open Navigation Button */}
+          <TouchableOpacity style={styles.openNavButton} onPress={openNavigation} activeOpacity={0.85}>
+            <Ionicons name="navigate" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+            <Text style={styles.openNavButtonText}>Open Navigation</Text>
+            <Ionicons name="chevron-forward" size={18} color="#ffffff" />
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
   },
   mapCard: {
     marginHorizontal: 16,
-    marginTop: 14,
+    marginTop: 0,
     backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 8,
@@ -661,6 +661,8 @@ const styles = StyleSheet.create({
   infoCard: {
     backgroundColor: '#ffffff',
     marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 14,
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
