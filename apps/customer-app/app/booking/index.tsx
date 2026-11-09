@@ -3325,67 +3325,6 @@ export default function BookingFunnelScreen() {
         }}
       />
 
-      {/* Travellers & Luggage Required Alert Modal */}
-      <Modal
-        visible={showTravellersRequiredModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowTravellersRequiredModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowTravellersRequiredModal(false)}
-        >
-          <TouchableOpacity
-            style={styles.travellersAlertCard}
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Text style={styles.travellersAlertTitle}>
-              {t('additionalRequirements.travellersRequiredTitle', { defaultValue: 'Select Travellers' })}
-            </Text>
-
-            <Text style={styles.travellersAlertBody}>
-              {t('additionalRequirements.travellersRequiredPromptPart1', { defaultValue: 'Please select the number of ' })}
-              <Text style={styles.travellersAlertBold}>
-                {t('additionalRequirements.travellersBoldWord', { defaultValue: 'travellers' })}
-              </Text>
-              {t('additionalRequirements.andWord', { defaultValue: ' and ' })}
-              <Text style={styles.travellersAlertBold}>
-                {t('additionalRequirements.luggageBoldWord', { defaultValue: 'luggage' })}
-              </Text>
-              {t('additionalRequirements.travellersRequiredPromptPart2', { defaultValue: ' before continuing.' })}
-            </Text>
-
-            <View style={styles.travellersAlertActions}>
-              <TouchableOpacity
-                style={styles.travellersAlertCancelBtn}
-                onPress={() => setShowTravellersRequiredModal(false)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.travellersAlertCancelText}>
-                  {t('common.cancel', { defaultValue: 'Cancel' })}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.travellersAlertSelectBtn}
-                onPress={() => {
-                  setShowTravellersRequiredModal(false);
-                  setShowRequirementsModal(true);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.travellersAlertSelectText}>
-                  {t('additionalRequirements.selectBtn', { defaultValue: 'Select' })}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-
       {/* Luggage Selection Modal */}
       <Modal
         visible={showLuggageModal}
@@ -4309,6 +4248,61 @@ export default function BookingFunnelScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Travellers & Luggage Required Alert Overlay (Non-Modal for 100% Android view tag safety) */}
+      {showTravellersRequiredModal && (
+        <View style={styles.sheetAlertOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowTravellersRequiredModal(false)}
+          />
+          <View style={styles.travellersAlertCard}>
+            <Text style={styles.travellersAlertTitle}>
+              {t('additionalRequirements.travellersRequiredTitle', { defaultValue: 'Select Travellers' })}
+            </Text>
+
+            <Text style={styles.travellersAlertBody}>
+              {t('additionalRequirements.travellersRequiredPromptPart1', { defaultValue: 'Please select the number of ' })}
+              <Text style={styles.travellersAlertBold}>
+                {t('additionalRequirements.travellersBoldWord', { defaultValue: 'travellers' })}
+              </Text>
+              {t('additionalRequirements.andWord', { defaultValue: ' and ' })}
+              <Text style={styles.travellersAlertBold}>
+                {t('additionalRequirements.luggageBoldWord', { defaultValue: 'luggage' })}
+              </Text>
+              {t('additionalRequirements.travellersRequiredPromptPart2', { defaultValue: ' before continuing.' })}
+            </Text>
+
+            <View style={styles.travellersAlertActions}>
+              <TouchableOpacity
+                style={styles.travellersAlertCancelBtn}
+                onPress={() => setShowTravellersRequiredModal(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.travellersAlertCancelText}>
+                  {t('common.cancel', { defaultValue: 'Cancel' })}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.travellersAlertSelectBtn}
+                onPress={() => {
+                  setShowTravellersRequiredModal(false);
+                  setTimeout(() => {
+                    setShowRequirementsModal(true);
+                  }, 50);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.travellersAlertSelectText}>
+                  {t('additionalRequirements.selectBtn', { defaultValue: 'Select' })}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
