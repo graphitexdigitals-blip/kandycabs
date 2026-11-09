@@ -1943,7 +1943,7 @@ export default function DriverDashboardScreen() {
                           >
                             <Ionicons name="lock-closed" size={15} color="#64748b" />
                             <Text style={styles.lockedUpcomingStartText}>
-                              UNABLE TO START • QUEUED
+                              UNABLE TO START
                             </Text>
                           </TouchableOpacity>
 
