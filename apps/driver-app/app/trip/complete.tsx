@@ -199,6 +199,23 @@ export default function DriverTripCompleteScreen() {
     }
   };
 
+  const handleFillDemo = () => {
+    setOdometerImageUri('demo_odometer');
+    setOdometerPhotoAttached(true);
+    setFinalOdometer('42990');
+    setError('');
+    const id = bookingId || booking?.id;
+    if (id) {
+      setTripCompletionDraft(id, {
+        odometerImageUri: 'demo_odometer',
+        finalOdometer: '42990',
+      });
+    }
+    Alert.alert('⚡ Demo Odometer Loaded', 'Final odometer photo and 42,990 KM loaded!');
+  };
+
+  const isOdometerComplete = Boolean(odometerImageUri && finalOdometer.trim());
+
   const baseBalance = parseFloat(booking?.balanceAmount) || 0;
   const parsedToll = parseFloat(tollAmount) || 0;
   const parsedParking = parseFloat(parkingAmount) || 0;
@@ -323,126 +340,153 @@ export default function DriverTripCompleteScreen() {
           </View>
         ) : null}
 
-        {/* 1. Final Odometer Reading Card */}
+        {/* 1. Final Odometer Reading Card (Matching Pickup Odometer Design) */}
         <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <View style={styles.speedometerIconCircle}>
-              <Ionicons name="speedometer" size={24} color="#1d63ed" />
-            </View>
-            <View style={styles.cardHeaderTextCol}>
-              <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionTitle}>
-                  {t('trip_flow.final_odometer')} <Text style={styles.redAsterisk}>*</Text>
+          {/* Header */}
+          <View style={styles.odoCardHeaderRow}>
+            <View style={styles.odoHeaderLeft}>
+              <View style={styles.odoHeaderIconCircle}>
+                <Ionicons name="speedometer" size={16} color="#ffffff" />
+              </View>
+              <View style={styles.odoHeaderTextCol}>
+                <Text style={styles.odoHeaderTitle}>
+                  {t('trip_flow.final_odometer', 'Final Odometer Reading')} *
+                </Text>
+                <Text style={styles.odoHeaderSubtitle}>
+                  {isOdometerComplete ? 'Final gauge & photo completed ✓' : 'Gauge photo & reading required'}
                 </Text>
               </View>
-              <Text style={styles.sectionSubtitle}>{t('complete_trip.enter_final_odometer_sub')}</Text>
             </View>
+
+            <TouchableOpacity
+              style={styles.odoDemoBtn}
+              onPress={handleFillDemo}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="flash" size={11} color="#ea580c" />
+              <Text style={styles.odoDemoBtnText}>Demo</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Odometer Numerical Input with km suffix */}
-          <View style={styles.odometerInputContainer}>
-            <Ionicons name="speedometer-outline" size={20} color="#1d63ed" style={{ marginRight: 8 }} />
-            <TextInput
-              style={styles.odometerTextInput}
-              value={finalOdometer}
-              onChangeText={(val) => {
-                setFinalOdometer(val);
-                const id = bookingId || booking?.id;
-                if (id) setTripCompletionDraft(id, { finalOdometer: val });
-              }}
-              keyboardType="decimal-pad"
-              placeholder={t('complete_trip.odometer_placeholder')}
-              placeholderTextColor="#94a3b8"
-            />
-            <View style={styles.odometerDividerV} />
-            <View style={styles.odometerKmBadge}>
-              <Text style={styles.odometerKmText}>km</Text>
-            </View>
-          </View>
-
-          {odometerImageUri ? (
-            <View style={styles.previewContainer}>
-              <View style={styles.imageWrapper}>
-                <Image
-                  source={{ uri: odometerImageUri }}
-                  style={styles.odometerPreviewImage}
-                  resizeMode="cover"
-                />
-
-                {/* GPS Location Stamp Overlay at Bottom of Captured Photo */}
-                <View style={styles.gpsWatermarkOverlay}>
-                  <View style={styles.gpsWatermarkHeader}>
-                    <View style={styles.gpsWatermarkDot} />
-                    <Text style={styles.gpsWatermarkTitle}>📍 {t('trip_flow.gps_location_stamp')}</Text>
+          {/* Viewfinder Wrapper */}
+          <View style={styles.viewfinderWrapper}>
+            {/* Top Photo Upload Box (Blank when no photo, shows user photo when uploaded) */}
+            <TouchableOpacity
+              style={[
+                styles.photoBox,
+                !odometerImageUri && styles.photoBoxBlank,
+              ]}
+              onPress={handleOpenCamera}
+              activeOpacity={0.88}
+            >
+              {odometerImageUri ? (
+                <>
+                  <Image
+                    source={
+                      odometerImageUri.startsWith('demo_')
+                        ? ODOMETER_SAMPLE
+                        : { uri: odometerImageUri }
+                    }
+                    style={styles.photoImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.attachedRibbon}>
+                    <Ionicons name="checkmark-circle" size={13} color="#ffffff" />
+                    <Text style={styles.attachedRibbonText}>✓ PHOTO ATTACHED</Text>
                   </View>
-                  <Text style={styles.gpsWatermarkCoords}>
-                    {photoLocation
-                      ? `${photoLocation.lat.toFixed(5)}° N, ${photoLocation.lng.toFixed(5)}° E`
-                      : currentCoords
-                      ? `${currentCoords.lat.toFixed(5)}° N, ${currentCoords.lng.toFixed(5)}° E`
-                      : t('complete_trip.acquiring_gps')}
-                  </Text>
-                  <Text style={styles.gpsWatermarkTime}>
-                    ⏱️ {photoLocation?.time || 'Just now'} • {t('trip_flow.verified_evidence')}
-                  </Text>
+                  <View style={styles.retakeBtn}>
+                    <Ionicons name="camera-reverse" size={12} color="#ffffff" />
+                    <Text style={styles.retakeBtnText}>Tap to Retake</Text>
+                  </View>
+
+                  {/* GPS Stamp */}
+                  {(photoLocation || currentCoords) && (
+                    <View style={styles.gpsStamp}>
+                      <Text style={styles.gpsStampText}>
+                        📍 {photoLocation
+                          ? `${photoLocation.lat.toFixed(4)}° N, ${photoLocation.lng.toFixed(4)}° E • ${photoLocation.time}`
+                          : `${currentCoords.lat.toFixed(4)}° N, ${currentCoords.lng.toFixed(4)}° E`}
+                      </Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <View style={styles.blankUploadContent}>
+                  <View style={styles.blankCameraCircle}>
+                    <Ionicons name="camera" size={32} color="#0284c7" />
+                  </View>
+                  <Text style={styles.blankUploadTitle}>Upload Final Odometer Photo</Text>
+                  <Text style={styles.blankUploadSubtitle}>Tap to open camera & capture photo</Text>
                 </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Reference Guide Image */}
+            <View style={styles.referenceSection}>
+              <View style={styles.referenceHeaderRow}>
+                <Ionicons name="eye-outline" size={15} color="#0284c7" style={{ marginRight: 6 }} />
+                <Text style={styles.referenceHeaderTitle}>Reference Guide (Sample)</Text>
               </View>
 
-              <TouchableOpacity style={styles.retakeBtn} onPress={handleOpenCamera} activeOpacity={0.85}>
-                <Ionicons name="camera-reverse" size={16} color="#0f172a" />
-                <Text style={styles.retakeBtnText}>{t('complete_trip.retake_final_odometer')}</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.odometerSampleContainer}>
-              <View style={styles.sampleGuideHeader}>
-                <Ionicons name="information-circle" size={14} color="#0284c7" />
-                <Text style={styles.sampleGuideHeaderText}>{t('complete_trip.reference_gauge')}</Text>
-              </View>
-
-              {/* Sample Reference Image with Center Camera Overlay */}
-              <TouchableOpacity
-                style={styles.odometerSampleImageBox}
-                onPress={handleOpenCamera}
-                activeOpacity={0.88}
-              >
+              <View style={styles.referenceImageBox}>
                 <Image
                   source={ODOMETER_SAMPLE}
-                  style={styles.odometerSampleImage}
+                  style={styles.referenceImage}
                   resizeMode="cover"
                 />
-                <View style={styles.sampleBadgeOverlay}>
-                  <Text style={styles.sampleBadgeText}>{t('complete_trip.reference_sample_photo')}</Text>
-                </View>
-                <View style={styles.centerCameraCircleOverlay}>
-                  <Ionicons name="camera" size={24} color="#ffffff" />
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.cameraPrimaryBtn}
-                onPress={handleOpenCamera}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="camera" size={18} color="#ffffff" />
-                <Text style={styles.cameraPrimaryBtnText} numberOfLines={1}>
-                  {t('complete_trip.open_camera_final_odometer')}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Pre-capture Current Location Indicator Pill */}
-              <View style={styles.preCaptureGpsRow}>
-                <View style={styles.gpsLeftGroup}>
-                  <Ionicons name="location" size={14} color="#10b981" />
-                  <Text style={styles.preCaptureGpsText}>
-                    {currentCoords
-                      ? `${t('complete_trip.gps_prefix')}: ${currentCoords.lat.toFixed(5)}, ${currentCoords.lng.toFixed(5)}`
-                      : t('complete_trip.acquiring_gps')}
-                  </Text>
+                <View style={styles.referenceOverlayBadge}>
+                  <Text style={styles.referenceOverlayBadgeText}>SAMPLE REFERENCE</Text>
                 </View>
               </View>
             </View>
-          )}
+
+            {/* KM Input Field (Arranged Below Reference Image) */}
+            <View style={styles.odoInputWrapper}>
+              <View style={styles.odoInputContainer}>
+                <Ionicons name="speedometer-outline" size={18} color="#6366f1" style={styles.odoInputIcon} />
+                <TextInput
+                  style={styles.odoTextInput}
+                  value={finalOdometer}
+                  onChangeText={(val) => {
+                    setFinalOdometer(val);
+                    setError('');
+                    const id = bookingId || booking?.id;
+                    if (id) setTripCompletionDraft(id, { finalOdometer: val });
+                  }}
+                  keyboardType="decimal-pad"
+                  placeholder="Enter final km (e.g. 45310 KM)"
+                  placeholderTextColor="#94a3b8"
+                  maxLength={10}
+                />
+                {finalOdometer ? (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setFinalOdometer('');
+                      const id = bookingId || booking?.id;
+                      if (id) setTripCompletionDraft(id, { finalOdometer: '' });
+                    }}
+                    style={styles.odoClearBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={16} color="#94a3b8" />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+
+              {/* OCR Feedback */}
+              {ocrScanning ? (
+                <View style={styles.odoOcrLoadingRow}>
+                  <ActivityIndicator size="small" color="#6366f1" style={{ marginRight: 6 }} />
+                  <Text style={styles.odoOcrLoadingText}>Auto-detecting odometer reading...</Text>
+                </View>
+              ) : ocrResultText.status === 'success' ? (
+                <View style={styles.odoOcrSuccessRow}>
+                  <Ionicons name="checkmark-circle" size={14} color="#16a34a" style={{ marginRight: 5 }} />
+                  <Text style={styles.odoOcrSuccessText}>{ocrResultText.message}</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
         </View>
 
         {/* 2. Extra Charges: Toll Gate & Parking */}
@@ -961,6 +1005,226 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
+  },
+  odoCardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  odoHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  odoHeaderIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#0284c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  odoHeaderTextCol: {
+    flex: 1,
+  },
+  odoHeaderTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.2,
+  },
+  odoHeaderSubtitle: {
+    fontSize: 11.5,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  odoDemoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    gap: 4,
+  },
+  odoDemoBtnText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#ea580c',
+  },
+  viewfinderWrapper: {
+    marginTop: 4,
+  },
+  photoBox: {
+    height: 190,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoBoxBlank: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+    borderStyle: 'dashed',
+    padding: 16,
+  },
+  blankUploadContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blankCameraCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderWidth: 1.5,
+    borderColor: '#bfdbfe',
+  },
+  blankUploadTitle: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 3,
+  },
+  blankUploadSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 4,
+  },
+  photoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  attachedRibbon: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(22, 163, 74, 0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  attachedRibbonText: {
+    color: '#ffffff',
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  gpsStamp: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  gpsStampText: {
+    color: '#cbd5e1',
+    fontSize: 9.5,
+    fontWeight: '600',
+  },
+  referenceSection: {
+    marginTop: 14,
+    marginBottom: 4,
+  },
+  referenceHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  referenceHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#334155',
+  },
+  referenceImageBox: {
+    height: 135,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  referenceImage: {
+    width: '100%',
+    height: '100%',
+  },
+  referenceOverlayBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  referenceOverlayBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  odoInputWrapper: {
+    marginTop: 12,
+  },
+  odoInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 48,
+  },
+  odoInputIcon: {
+    marginRight: 8,
+  },
+  odoTextInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#0f172a',
+    fontWeight: '700',
+  },
+  odoClearBtn: {
+    padding: 4,
+  },
+  odoOcrLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  odoOcrLoadingText: {
+    fontSize: 12,
+    color: '#6366f1',
+    fontWeight: '600',
+  },
+  odoOcrSuccessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  odoOcrSuccessText: {
+    fontSize: 12,
+    color: '#16a34a',
+    fontWeight: '700',
   },
   cardHeaderRow: {
     flexDirection: 'row',
