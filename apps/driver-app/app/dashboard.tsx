@@ -42,6 +42,11 @@ import {
 } from '../assets/embeddedAssets';
 import { FOGGY_OVERLAY_GRADIENT_BASE64 } from '../assets/foggyGradient';
 import { getAdminRegisteredDriver, MOHAN_PHOTO_URL } from '../lib/adminDrivers';
+import {
+  formatTripDateTime,
+  parseCustomerRequirements,
+  extractCustomerNotes,
+} from '../lib/tripRequirements';
 
 export function parseViaStops(booking: any): string[] {
   if (!booking) return [];
@@ -1766,6 +1771,67 @@ export default function DriverDashboardScreen() {
                           </View>
                         </View>
 
+                        {/* Customer Requirements & Preferences Pills */}
+                        {(() => {
+                          const reqs = parseCustomerRequirements(currentTrip);
+                          const note = extractCustomerNotes(currentTrip);
+                          if (reqs.length === 0 && !note) return null;
+
+                          return (
+                            <View style={[styles.dispatchReqsSection, { marginTop: 12, marginHorizontal: 0 }]}>
+                              <View style={styles.dispatchReqsHeaderRow}>
+                                <Ionicons name="options-outline" size={12} color="#64748b" />
+                                <Text style={styles.dispatchReqsHeading}>CUSTOMER REQUIREMENTS</Text>
+                              </View>
+                              <View style={styles.dispatchReqsRow}>
+                                {reqs.map((r, rIdx) => (
+                                  <View
+                                    key={`curr-req-${rIdx}`}
+                                    style={[
+                                      styles.reqPill,
+                                      r.type === 'highlight' && styles.reqPillHighlight,
+                                      r.type === 'warning' && styles.reqPillWarning,
+                                      r.type === 'info' && styles.reqPillInfo,
+                                    ]}
+                                  >
+                                    <Ionicons
+                                      name={r.icon as any}
+                                      size={12}
+                                      color={
+                                        r.type === 'highlight'
+                                          ? '#c2410c'
+                                          : r.type === 'warning'
+                                          ? '#b45309'
+                                          : r.type === 'info'
+                                          ? '#2563eb'
+                                          : '#334155'
+                                      }
+                                    />
+                                    <Text
+                                      style={[
+                                        styles.reqPillText,
+                                        r.type === 'highlight' && styles.reqPillTextHighlight,
+                                        r.type === 'warning' && styles.reqPillTextWarning,
+                                        r.type === 'info' && styles.reqPillTextInfo,
+                                      ]}
+                                    >
+                                      {r.label}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </View>
+                              {note ? (
+                                <View style={styles.dispatchNotesBox}>
+                                  <Ionicons name="chatbubble-ellipses-outline" size={12} color="#475569" style={{ marginTop: 1 }} />
+                                  <Text style={styles.dispatchNotesText} numberOfLines={2}>
+                                    Note: "{note}"
+                                  </Text>
+                                </View>
+                              ) : null}
+                            </View>
+                          );
+                        })()}
+
                         {/* Action: SLIDE TO START TRIP (Direct to Verify & Vehicle Inspection) */}
                         {(() => {
                           const onSlideStartTrip = async () => {
@@ -2018,6 +2084,67 @@ export default function DriverDashboardScreen() {
                           </View>
                         </View>
 
+                        {/* Customer Requirements & Preferences Pills */}
+                        {(() => {
+                          const reqs = parseCustomerRequirements(upBooking);
+                          const note = extractCustomerNotes(upBooking);
+                          if (reqs.length === 0 && !note) return null;
+
+                          return (
+                            <View style={[styles.dispatchReqsSection, { marginTop: 10, marginHorizontal: 0 }]}>
+                              <View style={styles.dispatchReqsHeaderRow}>
+                                <Ionicons name="options-outline" size={12} color="#64748b" />
+                                <Text style={styles.dispatchReqsHeading}>CUSTOMER REQUIREMENTS</Text>
+                              </View>
+                              <View style={styles.dispatchReqsRow}>
+                                {reqs.map((r, rIdx) => (
+                                  <View
+                                    key={`up-req-${rIdx}`}
+                                    style={[
+                                      styles.reqPill,
+                                      r.type === 'highlight' && styles.reqPillHighlight,
+                                      r.type === 'warning' && styles.reqPillWarning,
+                                      r.type === 'info' && styles.reqPillInfo,
+                                    ]}
+                                  >
+                                    <Ionicons
+                                      name={r.icon as any}
+                                      size={12}
+                                      color={
+                                        r.type === 'highlight'
+                                          ? '#c2410c'
+                                          : r.type === 'warning'
+                                          ? '#b45309'
+                                          : r.type === 'info'
+                                          ? '#2563eb'
+                                          : '#334155'
+                                      }
+                                    />
+                                    <Text
+                                      style={[
+                                        styles.reqPillText,
+                                        r.type === 'highlight' && styles.reqPillTextHighlight,
+                                        r.type === 'warning' && styles.reqPillTextWarning,
+                                        r.type === 'info' && styles.reqPillTextInfo,
+                                      ]}
+                                    >
+                                      {r.label}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </View>
+                              {note ? (
+                                <View style={styles.dispatchNotesBox}>
+                                  <Ionicons name="chatbubble-ellipses-outline" size={12} color="#475569" style={{ marginTop: 1 }} />
+                                  <Text style={styles.dispatchNotesText} numberOfLines={2}>
+                                    Note: "{note}"
+                                  </Text>
+                                </View>
+                              ) : null}
+                            </View>
+                          );
+                        })()}
+
                         {/* Action Buttons: Locked Start Button + Trip Details */}
                         <View style={{ marginTop: 12, flexDirection: 'row', gap: 10 }}>
                           <TouchableOpacity
@@ -2252,6 +2379,26 @@ export default function DriverDashboardScreen() {
                         </View>
                       </View>
 
+                      {/* Trip Date & Pickup Time Banner */}
+                      <View style={styles.tripDateBanner}>
+                        <View style={styles.tripDateBannerLeft}>
+                          <Ionicons name="calendar" size={14} color="#0284c7" />
+                          <Text style={styles.tripDateBannerLabel}>PICKUP DATE & TIME:</Text>
+                          <Text style={styles.tripDateBannerValue}>
+                            {formatTripDateTime(b?.scheduledAt).fullText}
+                          </Text>
+                        </View>
+                        {formatTripDateTime(b?.scheduledAt).isToday ? (
+                          <View style={styles.todayTagPill}>
+                            <Text style={styles.todayTagText}>TODAY</Text>
+                          </View>
+                        ) : formatTripDateTime(b?.scheduledAt).isTomorrow ? (
+                          <View style={styles.tomorrowTagPill}>
+                            <Text style={styles.tomorrowTagText}>TOMORROW</Text>
+                          </View>
+                        ) : null}
+                      </View>
+
                       {/* Stepper Route */}
                       <View style={styles.stepperContainer}>
                         <View style={styles.stepperLeft}>
@@ -2289,6 +2436,67 @@ export default function DriverDashboardScreen() {
                           </View>
                         </View>
                       </View>
+
+                      {/* Customer Requirements & Preferences Pills */}
+                      {(() => {
+                        const reqs = parseCustomerRequirements(b);
+                        const note = extractCustomerNotes(b);
+                        if (reqs.length === 0 && !note) return null;
+
+                        return (
+                          <View style={styles.dispatchReqsSection}>
+                            <View style={styles.dispatchReqsHeaderRow}>
+                              <Ionicons name="options-outline" size={12} color="#64748b" />
+                              <Text style={styles.dispatchReqsHeading}>CUSTOMER REQUIREMENTS</Text>
+                            </View>
+                            <View style={styles.dispatchReqsRow}>
+                              {reqs.map((r, rIdx) => (
+                                <View
+                                  key={`req-${rIdx}`}
+                                  style={[
+                                    styles.reqPill,
+                                    r.type === 'highlight' && styles.reqPillHighlight,
+                                    r.type === 'warning' && styles.reqPillWarning,
+                                    r.type === 'info' && styles.reqPillInfo,
+                                  ]}
+                                >
+                                  <Ionicons
+                                    name={r.icon as any}
+                                    size={12}
+                                    color={
+                                      r.type === 'highlight'
+                                        ? '#c2410c'
+                                        : r.type === 'warning'
+                                        ? '#b45309'
+                                        : r.type === 'info'
+                                        ? '#2563eb'
+                                        : '#334155'
+                                    }
+                                  />
+                                  <Text
+                                    style={[
+                                      styles.reqPillText,
+                                      r.type === 'highlight' && styles.reqPillTextHighlight,
+                                      r.type === 'warning' && styles.reqPillTextWarning,
+                                      r.type === 'info' && styles.reqPillTextInfo,
+                                    ]}
+                                  >
+                                    {r.label}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+                            {note ? (
+                              <View style={styles.dispatchNotesBox}>
+                                <Ionicons name="chatbubble-ellipses-outline" size={12} color="#475569" style={{ marginTop: 1 }} />
+                                <Text style={styles.dispatchNotesText} numberOfLines={2}>
+                                  Note: "{note}"
+                                </Text>
+                              </View>
+                            ) : null}
+                          </View>
+                        );
+                      })()}
 
                       {/* Passenger, Vendor Amount In Between, & Trip Type Row */}
                       <View style={styles.dispatchPassengerRowLight}>
@@ -4107,6 +4315,149 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#b45309',
     marginTop: 1,
+  },
+  tripDateBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  tripDateBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  tripDateBannerLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0369a1',
+    letterSpacing: 0.5,
+  },
+  tripDateBannerValue: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  todayTagPill: {
+    backgroundColor: '#dcfce7',
+    borderWidth: 1,
+    borderColor: '#86efac',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  todayTagText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    color: '#15803d',
+    letterSpacing: 0.5,
+  },
+  tomorrowTagPill: {
+    backgroundColor: '#fef3c7',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  tomorrowTagText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    color: '#b45309',
+    letterSpacing: 0.5,
+  },
+  dispatchReqsSection: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  dispatchReqsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 6,
+  },
+  dispatchReqsHeading: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748b',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  dispatchReqsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  reqPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  reqPillHighlight: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#fed7aa',
+  },
+  reqPillWarning: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#fde68a',
+  },
+  reqPillInfo: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#bfdbfe',
+  },
+  reqPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  reqPillTextHighlight: {
+    color: '#9a3412',
+  },
+  reqPillTextWarning: {
+    color: '#92400e',
+  },
+  reqPillTextInfo: {
+    color: '#1d4ed8',
+  },
+  dispatchNotesBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 5,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginTop: 6,
+  },
+  dispatchNotesText: {
+    flex: 1,
+    fontSize: 11,
+    fontStyle: 'italic',
+    color: '#475569',
   },
   infoThreeColsRow: {
     flexDirection: 'row',

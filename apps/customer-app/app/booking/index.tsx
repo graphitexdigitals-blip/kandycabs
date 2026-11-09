@@ -1541,7 +1541,42 @@ export default function BookingFunnelScreen() {
     setSubmitting(true);
     try {
       const idempotencyKey = `idemp_app_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-      const scheduledAt = new Date().toISOString();
+      let scheduledAt = new Date().toISOString();
+      if (pickupDate && pickupDate !== 'Today') {
+        try {
+          const d = new Date(pickupDate);
+          if (!isNaN(d.getTime())) {
+            let hours = 9;
+            let minutes = 0;
+            if (pickupTime) {
+              const timeParts = pickupTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+              if (timeParts) {
+                hours = parseInt(timeParts[1], 10);
+                minutes = parseInt(timeParts[2], 10);
+                const ampm = timeParts[3]?.toUpperCase();
+                if (ampm === 'PM' && hours < 12) hours += 12;
+                if (ampm === 'AM' && hours === 12) hours = 0;
+              }
+            }
+            d.setHours(hours, minutes, 0, 0);
+            scheduledAt = d.toISOString();
+          }
+        } catch (_) {}
+      } else if (pickupTime) {
+        try {
+          const d = new Date();
+          const timeParts = pickupTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+          if (timeParts) {
+            let hours = parseInt(timeParts[1], 10);
+            let minutes = parseInt(timeParts[2], 10);
+            const ampm = timeParts[3]?.toUpperCase();
+            if (ampm === 'PM' && hours < 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+            d.setHours(hours, minutes, 0, 0);
+            scheduledAt = d.toISOString();
+          }
+        } catch (_) {}
+      }
 
       const res = await customerApiClient.fetch('/api/customer/bookings', {
         method: 'POST',

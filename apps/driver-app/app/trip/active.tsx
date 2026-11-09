@@ -21,6 +21,11 @@ import { driverApiClient } from '../../lib/api';
 import { locationTracker } from '../../lib/location-tracker';
 import { reverseGeocodeAddress } from '../../lib/reverse-geocoding';
 import { parseViaStops } from '../dashboard';
+import {
+  formatTripDateTime,
+  parseCustomerRequirements,
+  extractCustomerNotes,
+} from '../../lib/tripRequirements';
 
 export default function DriverTripActiveScreen() {
   const router = useRouter();
@@ -401,6 +406,28 @@ export default function DriverTripActiveScreen() {
 
           <View style={styles.metaDivider} />
 
+          {/* Row: Scheduled Date & Time */}
+          <View style={styles.metaItemRow}>
+            <View style={styles.metaLeftGroup}>
+              <View style={styles.metaIconCircle}>
+                <Ionicons name="calendar" size={18} color="#1d63ed" />
+              </View>
+              <Text style={styles.metaLabel}>Trip Date & Time</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={styles.tripDateValBold}>
+                {formatTripDateTime(booking.scheduledAt).fullText}
+              </Text>
+              {formatTripDateTime(booking.scheduledAt).isToday ? (
+                <View style={styles.todayPillActive}>
+                  <Text style={styles.todayPillActiveText}>TODAY</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+
+          <View style={styles.metaDivider} />
+
           {/* Row 2: Trip Type */}
           <View style={styles.metaItemRow}>
             <View style={styles.metaLeftGroup}>
@@ -449,6 +476,70 @@ export default function DriverTripActiveScreen() {
               <Text style={styles.odometerKmUnit}>km</Text>
             </Text>
           </View>
+
+          {/* Customer Requirements & Preferences */}
+          {(() => {
+            const reqs = parseCustomerRequirements(booking);
+            const note = extractCustomerNotes(booking);
+            if (reqs.length === 0 && !note) return null;
+
+            return (
+              <>
+                <View style={styles.metaDivider} />
+                <View style={{ paddingTop: 10, paddingBottom: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <Ionicons name="options-outline" size={13} color="#64748b" />
+                    <Text style={styles.reqsHeadingActive}>CUSTOMER REQUIREMENTS</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {reqs.map((r, rIdx) => (
+                      <View
+                        key={`act-req-${rIdx}`}
+                        style={[
+                          styles.reqPillActive,
+                          r.type === 'highlight' && styles.reqPillHighlightActive,
+                          r.type === 'warning' && styles.reqPillWarningActive,
+                          r.type === 'info' && styles.reqPillInfoActive,
+                        ]}
+                      >
+                        <Ionicons
+                          name={r.icon as any}
+                          size={12}
+                          color={
+                            r.type === 'highlight'
+                              ? '#c2410c'
+                              : r.type === 'warning'
+                              ? '#b45309'
+                              : r.type === 'info'
+                              ? '#2563eb'
+                              : '#334155'
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.reqPillTextActive,
+                            r.type === 'highlight' && styles.reqPillTextHighlightActive,
+                            r.type === 'warning' && styles.reqPillTextWarningActive,
+                            r.type === 'info' && styles.reqPillTextInfoActive,
+                          ]}
+                        >
+                          {r.label}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                  {note ? (
+                    <View style={styles.notesBoxActive}>
+                      <Ionicons name="chatbubble-ellipses-outline" size={13} color="#475569" style={{ marginTop: 1 }} />
+                      <Text style={styles.notesTextActive} numberOfLines={3}>
+                        Note: "{note}"
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </>
+            );
+          })()}
         </View>
       </ScrollView>
 
@@ -1120,5 +1211,86 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: '700',
     color: '#2563eb',
+  },
+  tripDateValBold: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  todayPillActive: {
+    backgroundColor: '#dcfce7',
+    borderWidth: 1,
+    borderColor: '#86efac',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    marginTop: 3,
+  },
+  todayPillActiveText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#15803d',
+  },
+  reqsHeadingActive: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748b',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  reqPillActive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  reqPillHighlightActive: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#fed7aa',
+  },
+  reqPillWarningActive: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#fde68a',
+  },
+  reqPillInfoActive: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#bfdbfe',
+  },
+  reqPillTextActive: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  reqPillTextHighlightActive: {
+    color: '#9a3412',
+  },
+  reqPillTextWarningActive: {
+    color: '#92400e',
+  },
+  reqPillTextInfoActive: {
+    color: '#1d4ed8',
+  },
+  notesBoxActive: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 5,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginTop: 6,
+  },
+  notesTextActive: {
+    flex: 1,
+    fontSize: 11,
+    fontStyle: 'italic',
+    color: '#475569',
   },
 });

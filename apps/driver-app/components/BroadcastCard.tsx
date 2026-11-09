@@ -3,6 +3,11 @@ import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SlideToAccept } from './SlideToAccept';
 import { parseViaStops } from '../app/dashboard';
+import {
+  formatTripDateTime,
+  parseCustomerRequirements,
+  extractCustomerNotes,
+} from '../lib/tripRequirements';
 
 interface BroadcastCardProps {
   dispatch: any;
@@ -36,6 +41,26 @@ export const BroadcastCard = memo(function BroadcastCard({
             {b.distanceKm || '--'} km
           </Text>
         </View>
+      </View>
+
+      {/* Trip Date & Pickup Time Banner */}
+      <View style={styles.tripDateBanner}>
+        <View style={styles.tripDateBannerLeft}>
+          <Ionicons name="calendar" size={13} color="#0284c7" />
+          <Text style={styles.tripDateBannerLabel}>PICKUP DATE & TIME:</Text>
+          <Text style={styles.tripDateBannerValue}>
+            {formatTripDateTime(b.scheduledAt).fullText}
+          </Text>
+        </View>
+        {formatTripDateTime(b.scheduledAt).isToday ? (
+          <View style={styles.todayTagPill}>
+            <Text style={styles.todayTagText}>TODAY</Text>
+          </View>
+        ) : formatTripDateTime(b.scheduledAt).isTomorrow ? (
+          <View style={styles.tomorrowTagPill}>
+            <Text style={styles.tomorrowTagText}>TOMORROW</Text>
+          </View>
+        ) : null}
       </View>
 
       {/* Route Info */}
@@ -79,6 +104,67 @@ export const BroadcastCard = memo(function BroadcastCard({
           </View>
         </View>
       </View>
+
+      {/* Customer Requirements & Preferences */}
+      {(() => {
+        const reqs = parseCustomerRequirements(b);
+        const note = extractCustomerNotes(b);
+        if (reqs.length === 0 && !note) return null;
+
+        return (
+          <View style={styles.reqsSection}>
+            <View style={styles.reqsHeaderRow}>
+              <Ionicons name="options-outline" size={12} color="#64748b" />
+              <Text style={styles.reqsHeading}>CUSTOMER REQUIREMENTS</Text>
+            </View>
+            <View style={styles.reqsRow}>
+              {reqs.map((r, rIdx) => (
+                <View
+                  key={`b-req-${rIdx}`}
+                  style={[
+                    styles.reqPill,
+                    r.type === 'highlight' && styles.reqPillHighlight,
+                    r.type === 'warning' && styles.reqPillWarning,
+                    r.type === 'info' && styles.reqPillInfo,
+                  ]}
+                >
+                  <Ionicons
+                    name={r.icon as any}
+                    size={11}
+                    color={
+                      r.type === 'highlight'
+                        ? '#c2410c'
+                        : r.type === 'warning'
+                        ? '#b45309'
+                        : r.type === 'info'
+                        ? '#2563eb'
+                        : '#334155'
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.reqPillText,
+                      r.type === 'highlight' && styles.reqPillTextHighlight,
+                      r.type === 'warning' && styles.reqPillTextWarning,
+                      r.type === 'info' && styles.reqPillTextInfo,
+                    ]}
+                  >
+                    {r.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            {note ? (
+              <View style={styles.notesBox}>
+                <Ionicons name="chatbubble-ellipses-outline" size={12} color="#475569" style={{ marginTop: 1 }} />
+                <Text style={styles.notesText} numberOfLines={2}>
+                  Note: "{note}"
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        );
+      })()}
 
       {/* Trip Meta */}
       <View style={styles.metaRow}>
@@ -294,5 +380,145 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: 12,
     fontWeight: '600',
+  },
+  tripDateBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(2, 132, 199, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginBottom: 12,
+  },
+  tripDateBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  tripDateBannerLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#38bdf8',
+    letterSpacing: 0.5,
+  },
+  tripDateBannerValue: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#f8fafc',
+  },
+  todayTagPill: {
+    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+    borderWidth: 1,
+    borderColor: '#4ade80',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  todayTagText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#4ade80',
+    letterSpacing: 0.5,
+  },
+  tomorrowTagPill: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderWidth: 1,
+    borderColor: '#fbbf24',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  tomorrowTagText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#fbbf24',
+    letterSpacing: 0.5,
+  },
+  reqsSection: {
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+  },
+  reqsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 6,
+  },
+  reqsHeading: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#94a3b8',
+    letterSpacing: 0.5,
+  },
+  reqsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  reqPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(30, 41, 59, 0.85)',
+    borderWidth: 1,
+    borderColor: '#475569',
+    borderRadius: 7,
+    paddingHorizontal: 7,
+    paddingVertical: 3.5,
+  },
+  reqPillHighlight: {
+    backgroundColor: 'rgba(234, 88, 12, 0.18)',
+    borderColor: 'rgba(251, 146, 60, 0.5)',
+  },
+  reqPillWarning: {
+    backgroundColor: 'rgba(217, 119, 6, 0.18)',
+    borderColor: 'rgba(251, 191, 36, 0.5)',
+  },
+  reqPillInfo: {
+    backgroundColor: 'rgba(37, 99, 235, 0.18)',
+    borderColor: 'rgba(96, 165, 250, 0.5)',
+  },
+  reqPillText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#e2e8f0',
+  },
+  reqPillTextHighlight: {
+    color: '#fdba74',
+  },
+  reqPillTextWarning: {
+    color: '#fde047',
+  },
+  reqPillTextInfo: {
+    color: '#93c5fd',
+  },
+  notesBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 5,
+    backgroundColor: 'rgba(30, 41, 59, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginTop: 6,
+  },
+  notesText: {
+    flex: 1,
+    fontSize: 10.5,
+    fontStyle: 'italic',
+    color: '#cbd5e1',
   },
 });

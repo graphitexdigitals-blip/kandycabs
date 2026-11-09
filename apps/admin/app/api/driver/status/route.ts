@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
     });
 
     const parsedAssignedBookings = assignedBookings.map((b) => {
+      const bAny = b as any;
       const createdPayload = (b?.tripEvents?.[0]?.payloadJson as any) || {};
       let viaStops: any[] = [];
       if (Array.isArray(createdPayload.viaStops) && createdPayload.viaStops.length > 0) {
@@ -86,8 +87,19 @@ export async function GET(req: NextRequest) {
         ...b,
         viaStops,
         stops: viaStops,
-        notes: createdPayload.notes || null,
-        specialRequirements: createdPayload.specialRequirements || null,
+        notes: createdPayload.notes || bAny.notes || null,
+        specialRequirements: createdPayload.specialRequirements || bAny.specialRequirements || null,
+        passengers: createdPayload.passengers ?? bAny.passengers ?? null,
+        passengerCount: createdPayload.passengers ?? bAny.passengers ?? null,
+        luggage: createdPayload.luggage ?? bAny.luggage ?? null,
+        luggageDetails: createdPayload.luggage ?? bAny.luggage ?? null,
+        hasCarrier: Boolean(createdPayload.hasCarrier || createdPayload.requestCarrier || bAny.hasCarrier || bAny.requestCarrier),
+        requestCarrier: Boolean(createdPayload.hasCarrier || createdPayload.requestCarrier || bAny.hasCarrier || bAny.requestCarrier),
+        hasPet: Boolean(createdPayload.hasPet || createdPayload.isPetFriendly || bAny.hasPet || bAny.isPetFriendly),
+        isPetFriendly: Boolean(createdPayload.hasPet || createdPayload.isPetFriendly || bAny.hasPet || bAny.isPetFriendly),
+        petType: createdPayload.petType || bAny.petType || null,
+        flightNumber: createdPayload.flightNumber || bAny.flightNumber || null,
+        scheduledAt: b.scheduledAt || createdPayload.scheduledAt,
       };
     });
 
