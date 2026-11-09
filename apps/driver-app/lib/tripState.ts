@@ -296,6 +296,47 @@ export async function isTripVerificationCompleted(bookingId: string): Promise<bo
   return false;
 }
 
+const memoryReachedBookings: Record<string, boolean> = {};
+
+export async function setTripPickupReached(bookingId: string, reached = true) {
+  if (!bookingId) return;
+  memoryReachedBookings[bookingId] = reached;
+  try {
+    if (reached) {
+      await SecureStore.setItemAsync(`kandy_trip_reached_${bookingId}`, 'true');
+    } else {
+      await SecureStore.deleteItemAsync(`kandy_trip_reached_${bookingId}`);
+    }
+  } catch {}
+}
+
+export function isTripPickupReachedSync(bookingId: string): boolean {
+  if (!bookingId) return false;
+  return Boolean(memoryReachedBookings[bookingId]);
+}
+
+export async function isTripPickupReached(bookingId: string): Promise<boolean> {
+  if (!bookingId) return false;
+  if (memoryReachedBookings[bookingId]) return true;
+  try {
+    const val = await SecureStore.getItemAsync(`kandy_trip_reached_${bookingId}`);
+    if (val === 'true') {
+      memoryReachedBookings[bookingId] = true;
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
+export async function clearTripPickupReached(bookingId: string) {
+  if (!bookingId) return;
+  delete memoryReachedBookings[bookingId];
+  try {
+    await SecureStore.deleteItemAsync(`kandy_trip_reached_${bookingId}`);
+  } catch {}
+}
+
+
 
 
 

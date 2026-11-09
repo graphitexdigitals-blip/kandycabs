@@ -39,6 +39,7 @@ import {
   subscribeTripState,
   isTripVerificationCompletedSync,
   isTripVerificationCompleted,
+  isTripPickupReachedSync,
 } from '../lib/tripState';
 import { getExpiringDocuments } from '../lib/documentExpiry';
 import {
@@ -1944,7 +1945,11 @@ export default function DriverDashboardScreen() {
                                   body: JSON.stringify({ bookingId: currentTrip.id }),
                                 }).catch(() => {});
                                 locationTracker.startActiveTripTracking(currentTrip.id);
-                                router.push({ pathname: '/trip/start', params: { bookingId: currentTrip.id, step: '2' } });
+                                if (isTripPickupReachedSync(currentTrip.id)) {
+                                  router.push({ pathname: '/trip/start', params: { bookingId: currentTrip.id, step: '2' } });
+                                } else {
+                                  router.push({ pathname: '/trip/en-route', params: { bookingId: currentTrip.id } });
+                                }
                               }
                             } finally {
                               setIsStartingTrip(false);

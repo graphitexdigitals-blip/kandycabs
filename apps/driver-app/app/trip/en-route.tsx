@@ -18,6 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { getDistanceInMeters } from '@kandy-cabs/shared';
 import { driverApiClient } from '../../lib/api';
 import { locationTracker } from '../../lib/location-tracker';
+import { SlideToAccept } from '../../components/SlideToAccept';
+import { setTripPickupReached } from '../../lib/tripState';
 
 export default function DriverEnRouteScreen() {
   const router = useRouter();
@@ -28,16 +30,39 @@ export default function DriverEnRouteScreen() {
   const [loading, setLoading] = useState(true);
   const [driverCoords, setDriverCoords] = useState<{ lat: number; lng: number } | null>(null);
 
+  const [isSlidingReached, setIsSlidingReached] = useState(false);
+
   const fetchBooking = useCallback(async () => {
     try {
       const res = await driverApiClient.fetch('/api/driver/status');
       if (res.success) {
-        if (res.activeBooking && (!bookingId || res.activeBooking.id === bookingId)) {
-          setBooking(res.activeBooking);
-        } else if (res.activeBooking) {
-          setBooking(res.activeBooking);
+        let found = null;
+        if (bookingId && res.activeBooking && res.activeBooking.id === bookingId) {
+          found = res.activeBooking;
         } else if (res.driver?.assignedBookings?.length) {
-          const found = res.driver.assignedBookings.find((b: any) => b.id === bookingId) || res.driver.assignedBookings[0];
+          found = res.driver.assignedBookings.find((b: any) => b.id === bookingId);
+        }
+        if (!found && res.assignedTrips?.length) {
+          found = res.assignedTrips.find((b: any) => b.id === bookingId);
+        }
+        if (!found && res.activeBooking) {
+          found = res.activeBooking;
+        }
+        if (!found && res.driver?.assignedBookings?.length) {
+          found = res.driver.assignedBookings[0];
+        }
+        if (found) {
+          setBooking(found);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Fallback: check /api/driver/trips
+      const tripsRes = await driverApiClient.fetch('/api/driver/trips');
+      if (tripsRes.success && Array.isArray(tripsRes.trips)) {
+        const found = tripsRes.trips.find((b: any) => b.id === bookingId) || tripsRes.trips[0];
+        if (found) {
           setBooking(found);
         }
       }
@@ -98,27 +123,31 @@ export default function DriverEnRouteScreen() {
     }
   };
 
-  const handleArrived = () => {
-    const pickupLoc = booking?.pickupAddress || 'Pickup Location';
-    Alert.alert(
-      'Confirm Pickup Location 📍',
-      `Please confirm that you have reached the pickup location:\n\n📍 ${pickupLoc}`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Confirm & Proceed',
-          onPress: () => {
-            router.push({
-              pathname: '/trip/start',
-              params: { bookingId },
-            });
-          },
-        },
-      ]
-    );
+  const handleSlideReached = async () => {
+    if (isSlidingReached) return;
+    setIsSlidingReached(true);
+    const targetBookingId = booking?.id || bookingId;
+    try {
+      if (targetBookingId) {
+        await setTripPickupReached(targetBookingId, true);
+        await driverApiClient.fetch('/api/driver/trip/en-route', {
+          method: 'POST',
+          body: JSON.stringify({ bookingId: targetBookingId, action: 'REACHED' }),
+        }).catch(() => {});
+      }
+      router.push({
+        pathname: '/trip/start',
+        params: { bookingId: targetBookingId, step: '2', arrived: 'true' },
+      });
+    } catch (err) {
+      console.error('Error on handleSlideReached:', err);
+      router.push({
+        pathname: '/trip/start',
+        params: { bookingId: targetBookingId, step: '2', arrived: 'true' },
+      });
+    } finally {
+      setIsSlidingReached(false);
+    }
   };
 
   if (loading || !booking) {
@@ -413,42 +442,35 @@ export default function DriverEnRouteScreen() {
         </View>
       </ScrollView>
 
-      {/* Bottom Action */}
+      {/* Bottom Action: SLIDE RIGHT (REACHED) */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         {/* Clear Instructions Banner */}
         <View style={isArrived ? styles.arrivedNoticeBox : styles.arrivedInstructionsBox}>
           <Ionicons
             name={isArrived ? 'checkmark-circle' : 'information-circle'}
-            size={20}
+            size={18}
             color={isArrived ? '#059669' : '#0284c7'}
-            style={{ marginTop: 1, marginRight: 8 }}
+            style={{ marginTop: 2, marginRight: 8 }}
           />
           <Text style={isArrived ? styles.arrivedNoticeText : styles.arrivedInstructionsText}>
             {isArrived ? (
               <Text>
-                You have reached <Text style={styles.highlightText}>{booking.pickupAddress || 'Pickup Location'}</Text>. Click below to enter customer's 4-digit OTP.
+                You have reached <Text style={styles.highlightText}>{booking.pickupAddress || 'Pickup Location'}</Text>. Slide right to verify customer OTP & meter.
               </Text>
             ) : (
               <Text>
-                Drive to <Text style={styles.highlightText}>{booking.pickupAddress || 'Pickup Location'}</Text>. After reaching the pickup location, click <Text style={styles.highlightGreen}>ARRIVED AT PICKUP</Text> below.
+                Drive to <Text style={styles.highlightText}>{booking.pickupAddress || 'Pickup Location'}</Text>. After reaching the pickup location, slide right below to continue.
               </Text>
             )}
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[styles.arrivedButton, isArrived && styles.arrivedButtonPulse]}
-          onPress={handleArrived}
-          activeOpacity={0.88}
-        >
-          <View style={styles.ctaIconCircleWhite}>
-            <Ionicons name={isArrived ? 'key' : 'checkmark-sharp'} size={16} color="#059669" />
-          </View>
-          <Text style={styles.arrivedButtonText}>
-            {isArrived ? 'ENTER PICKUP OTP & START RIDE' : 'ARRIVED AT PICKUP'}
-          </Text>
-          <Ionicons name="arrow-forward" size={18} color="#ffffff" />
-        </TouchableOpacity>
+        <SlideToAccept
+          onAccept={handleSlideReached}
+          isAccepting={isSlidingReached}
+          title="SLIDE RIGHT (REACHED)"
+          acceptingTitle="CONFIRMING REACHED..."
+        />
       </View>
     </View>
   );
