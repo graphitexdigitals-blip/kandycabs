@@ -1592,7 +1592,7 @@ export default function BookingFunnelScreen() {
             isPetFriendly ? `Pet Friendly Requested (${petLabel} - Surcharge ₹${petFee})` : '',
             isBabyOnBoard ? 'Baby on Board: Yes (Child Safety)' : '',
             isPregnancyFriendly ? 'Pregnancy Friendly: Yes (Smooth Drive)' : '',
-            isHandicapped ? 'Handicap / Wheelchair Assistance: Yes' : '',
+            isHandicapped ? 'Accessibility Assistance: Yes' : '',
             pickupNotes.trim(),
           ].filter(Boolean).join(' | ') || undefined,
           passengers: passengerCount,
@@ -1614,7 +1614,7 @@ export default function BookingFunnelScreen() {
             isPetFriendly ? `Pet Friendly: Yes (${petLabel} - Surcharge ₹${petFee})` : '',
             isBabyOnBoard ? 'Baby on Board: Yes' : '',
             isPregnancyFriendly ? 'Pregnancy Friendly: Yes' : '',
-            isHandicapped ? 'Handicap / Wheelchair Assistance: Yes (Driver Assistance & Easy Boarding)' : '',
+            isHandicapped ? 'Accessibility Assistance: Yes (Driver Assistance & Easy Boarding)' : '',
             pickupNotes.trim(),
           ].filter(Boolean).join(' | ') || undefined,
         }),
@@ -2209,7 +2209,7 @@ export default function BookingFunnelScreen() {
                     ...(isHandicapped ? [{
                       key: 'handicap',
                       icon: 'accessibility' as any,
-                      text: t('additionalRequirements.handicapChip', { defaultValue: 'Handicap' }),
+                      text: t('additionalRequirements.handicapChip', { defaultValue: 'Accessibility' }),
                     }] : []),
                     ...(((hasCarrierParam || params.hasCarrier !== 'false') && requestCarrier) ? [{
                       key: 'carrier',
@@ -2838,7 +2838,7 @@ export default function BookingFunnelScreen() {
                       <View style={styles.bulletItem}>
                         <FontAwesome5 name="wheelchair" size={13} color="#16a34a" style={{ marginRight: 5 }} />
                         <Text style={[styles.bulletText, { color: '#16a34a', fontWeight: '700' }]} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
-                          {t('bookingReview.handicapRide', { defaultValue: 'Handicap / Wheelchair Assistance' })}
+                          {t('bookingReview.handicapRide', { defaultValue: 'Accessibility Assistance' })}
                         </Text>
                       </View>
                     )}
@@ -4076,7 +4076,7 @@ export default function BookingFunnelScreen() {
                       </View>
                       <View style={styles.travelToggleTextGroup}>
                         <Text style={styles.travelToggleTitle}>
-                          {t('additionalRequirements.handicapTitle', { defaultValue: 'Handicap / Disability Assistance?' })}
+                          {t('additionalRequirements.handicapTitle', { defaultValue: 'Accessibility Assistance' })}
                         </Text>
                         <Text style={styles.travelToggleDesc}>
                           {t('additionalRequirements.handicapDesc', { defaultValue: 'Enable this for wheelchair support, easy boarding & driver assistance.' })}
