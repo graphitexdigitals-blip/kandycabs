@@ -21,6 +21,7 @@ import { locationTracker } from '../../lib/location-tracker';
 import { SlideToAccept } from '../../components/SlideToAccept';
 import { setTripPickupReached } from '../../lib/tripState';
 import { TripFlowHeader } from '../../components/TripFlowHeader';
+import { LinearGradient } from '../../components/SafeLinearGradient';
 
 export default function DriverEnRouteScreen() {
   const router = useRouter();
@@ -191,28 +192,41 @@ export default function DriverEnRouteScreen() {
       <TripFlowHeader currentStep={1} />
 
       <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Customer Information Card (On Top) */}
-        <View style={styles.infoCard}>
-          {/* Customer Header Row */}
+        {/* Customer Details Banner (Redesigned per Reference) */}
+        <LinearGradient
+          colors={['#fff8f2', '#ffedd5', '#fed7aa']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.customerBannerCard}
+        >
+          {/* Decorative Warm Shapes */}
+          <View style={styles.decorativeBlob1} />
+          <View style={styles.decorativeBlob2} />
+
           <View style={styles.customerHeaderRow}>
             <View style={styles.customerLeftGroup}>
               <View style={styles.customerAvatarCircle}>
-                <Ionicons name="person" size={24} color="#2563eb" />
+                <Ionicons name="person" size={26} color="#1d4ed8" />
               </View>
               <View style={styles.customerInfoCol}>
-                <Text style={styles.customerName}>{booking.customer?.user?.fullName || 'Customer'}</Text>
-                <Text style={styles.customerPhoneSub}>
-                  {booking.customer?.user?.phone || booking.customerPhone || booking.phone || 'Confirmed Customer'}
+                <Text style={styles.customerTagText}>Customer Details</Text>
+                <Text style={styles.customerName} numberOfLines={1}>
+                  {booking.customer?.user?.fullName || 'Customer'}
+                </Text>
+                <Text style={styles.customerIdText}>
+                  Customer ID: #{booking?.customer?.id
+                    ? `CUST${String(booking.customer.id).replace(/\D/g, '').slice(-4) || '2487'}`
+                    : (booking?.bookingNumber ? `CUST${String(booking.bookingNumber).replace(/\D/g, '').slice(-4)}` : 'CUST2487')}
                 </Text>
               </View>
             </View>
 
-            {/* Call Now Button in Phone Section */}
+            {/* Call Now Pill Button */}
             {(() => {
               const phone = booking.customer?.user?.phone || booking.customerPhone || booking.phone;
               return (
                 <TouchableOpacity
-                  style={styles.callNowBtn}
+                  style={styles.callNowPill}
                   onPress={() => {
                     if (phone) {
                       Linking.openURL(`tel:${phone}`);
@@ -220,17 +234,18 @@ export default function DriverEnRouteScreen() {
                       Alert.alert('Customer Contact', 'Customer contact will be available upon arrival.');
                     }
                   }}
-                  activeOpacity={0.8}
+                  activeOpacity={0.82}
                 >
-                  <Ionicons name="call" size={14} color="#16a34a" />
-                  <Text style={styles.callNowBtnText}>Call Now</Text>
+                  <Ionicons name="call" size={16} color="#ea580c" />
+                  <Text style={styles.callNowPillText}>Call Now</Text>
                 </TouchableOpacity>
               );
             })()}
           </View>
+        </LinearGradient>
 
-          <View style={styles.divider} />
-
+        {/* Trip Details Card (Pickup Location & Trip Type) */}
+        <View style={styles.tripDetailsCard}>
           {/* Pickup Location Row (No icons, label on left side of content) */}
           <TouchableOpacity
             style={styles.infoDetailRow}
@@ -624,6 +639,118 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     flex: 1,
   },
+  customerBannerCard: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 10,
+    borderRadius: 22,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    overflow: 'hidden',
+    position: 'relative',
+    shadowColor: '#ea580c',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  decorativeBlob1: {
+    position: 'absolute',
+    top: -40,
+    right: -25,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(253, 186, 116, 0.45)',
+  },
+  decorativeBlob2: {
+    position: 'absolute',
+    bottom: -50,
+    right: 40,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(254, 215, 170, 0.5)',
+  },
+  customerHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  customerLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  customerAvatarCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#dbeafe',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  customerInfoCol: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  customerTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+    marginBottom: 2,
+  },
+  customerName: {
+    fontSize: 19,
+    fontWeight: '900',
+    color: '#0f172a',
+    letterSpacing: -0.3,
+  },
+  customerIdText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+    marginTop: 2,
+  },
+  callNowPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    gap: 7,
+    borderWidth: 1,
+    borderColor: '#ffedd5',
+    shadowColor: '#ea580c',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  callNowPillText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  tripDetailsCard: {
+    backgroundColor: '#ffffff',
+    marginHorizontal: 16,
+    marginBottom: 14,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+  },
   infoCard: {
     backgroundColor: '#ffffff',
     marginHorizontal: 16,
@@ -638,60 +765,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 10,
     elevation: 3,
-  },
-  customerHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  customerLeftGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  customerAvatarCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#dbeafe',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  customerInfoCol: {
-    justifyContent: 'center',
-  },
-  customerName: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  customerPhoneSub: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: '#64748b',
-    marginTop: 2,
-  },
-  callNowBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#f0fdf4',
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-    shadowColor: '#16a34a',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  callNowBtnText: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#15803d',
   },
   releasedBadge: {
     flexDirection: 'row',
