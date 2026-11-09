@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { getExpiringDocuments } from '../lib/documentExpiry';
+import { formatTripDateTime } from '../lib/tripRequirements';
 
 export interface NotificationItem {
   id: string;
@@ -61,41 +62,70 @@ export function NotificationsModal({
     // 1. Pending Dispatches from Admin
     dispatches.forEach((d) => {
       const b = d?.booking || {};
+      const tripTiming = formatTripDateTime(b?.scheduledAt);
+      const tripDayLabel = tripTiming.isToday
+        ? `today (${tripTiming.timeText})`
+        : tripTiming.isTomorrow
+        ? `tomorrow (${tripTiming.timeText})`
+        : `on ${tripTiming.dateText} (${tripTiming.timeText})`;
+
       list.push({
         id: `dispatch-${d.id}`,
         type: 'DISPATCH',
-        title: `New Ride Dispatched • ${b.humanReadableRef || 'Admin Broadcast'}`,
-        message: `${b.pickupAddress || 'Pickup'} ➔ ${b.dropAddress || 'Destination'}`,
-        subMessage: `${b.distanceKm ? b.distanceKm + ' km • ' : ''}${b.tripType || 'ONE WAY'}${b.customer?.user?.fullName ? ' • ' + b.customer.user.fullName : ''}`,
+        title: `⚠️ Ride Waiting for Approval • ${b.humanReadableRef || 'New Ride'}`,
+        message: `Waiting for approval! Hurry up, the trip is ${tripDayLabel}!`,
+        subMessage: `${b.pickupAddress || 'Pickup'} ➔ ${b.dropAddress || 'Destination'}${b.distanceKm ? ' • ' + b.distanceKm + ' km' : ''}`,
         timestamp: d.broadcastAt || d.createdAt || new Date().toISOString(),
         isRead: readIds.has(`dispatch-${d.id}`),
-        actionText: 'View Ride',
+        actionText: 'View & Accept',
         payload: { dispatchId: d.id, bookingId: b.id },
       });
     });
 
     // 2. Active Trip Notification
     if (activeBooking) {
+      const isTripInProcess =
+        activeBooking.status === 'TRIP_STARTED' ||
+        activeBooking.status === 'IN_PROGRESS';
+      const tripTiming = formatTripDateTime(activeBooking.scheduledAt);
+      const timeStr = tripTiming.timeText || new Date(activeBooking.scheduledAt || activeBooking.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
       list.push({
         id: `trip-active-${activeBooking.id}`,
         type: 'TRIP',
-        title: `Active Trip in Progress • ${activeBooking.humanReadableRef || ''}`,
-        message: `${activeBooking.pickupAddress || 'Pickup'} ➔ ${activeBooking.dropAddress || 'Destination'}`,
-        subMessage: `Status: ${activeBooking.status || 'IN_PROGRESS'}${activeBooking.customer?.user?.fullName ? ' • Passenger: ' + activeBooking.customer.user.fullName : ''}`,
+        title: isTripInProcess
+          ? `Active Trip in Progress • ${activeBooking.humanReadableRef || ''}`
+          : `⚠️ Trip Today: Be Ready • ${activeBooking.humanReadableRef || ''}`,
+        message: isTripInProcess
+          ? `${activeBooking.pickupAddress || 'Pickup'} ➔ ${activeBooking.dropAddress || 'Destination'}`
+          : `Pickup scheduled for Today (${timeStr}) — Please be ready for departure!`,
+        subMessage: `Status: ${activeBooking.status || 'ON_ROUTE'}${activeBooking.customer?.user?.fullName ? ' • Passenger: ' + activeBooking.customer.user.fullName : ''}`,
         timestamp: activeBooking.updatedAt || activeBooking.createdAt || new Date().toISOString(),
         isRead: readIds.has(`trip-active-${activeBooking.id}`),
-        actionText: 'Open Trip',
+        actionText: isTripInProcess ? 'Open Trip' : 'Start Trip',
         payload: { bookingId: activeBooking.id },
       });
     }
 
     // 3. Upcoming Assigned Bookings
     upcomingBookings.forEach((ub) => {
+      const tripTiming = formatTripDateTime(ub.scheduledAt);
+      const timeStr = tripTiming.timeText || (ub.scheduledAt ? new Date(ub.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : 'Scheduled');
+      const dayLabel = tripTiming.isToday
+        ? `today (${timeStr})`
+        : tripTiming.isTomorrow
+        ? `tomorrow (${timeStr})`
+        : `${tripTiming.dateText} (${timeStr})`;
+
       list.push({
         id: `trip-upcoming-${ub.id}`,
         type: 'TRIP',
-        title: `Confirmed Upcoming Booking • ${ub.humanReadableRef || ''}`,
-        message: `Pickup scheduled at ${ub.scheduledAt ? new Date(ub.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : 'Scheduled'}`,
+        title: tripTiming.isToday
+          ? `⚠️ Upcoming Trip Today • ${ub.humanReadableRef || ''}`
+          : `Confirmed Upcoming Booking • ${ub.humanReadableRef || ''}`,
+        message: tripTiming.isToday
+          ? `Pickup scheduled for Today (${timeStr}) — Be ready today!`
+          : `Pickup scheduled for ${dayLabel}`,
         subMessage: `${ub.pickupAddress || 'Pickup location'}`,
         timestamp: ub.createdAt || new Date().toISOString(),
         isRead: readIds.has(`trip-upcoming-${ub.id}`),

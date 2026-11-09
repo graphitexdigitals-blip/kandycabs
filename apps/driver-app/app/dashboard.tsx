@@ -1642,8 +1642,12 @@ export default function DriverDashboardScreen() {
                     tripDate.getFullYear() === now.getFullYear();
 
                   const diffMinutes = Math.round((tripDate.getTime() - now.getTime()) / (60 * 1000));
-                  // Timing near warning: scheduled for today and pickup within 4 hours or past due today
-                  const isTimingNear = !isTripInProcess && isToday && diffMinutes <= 240;
+                  // Timing near warning: scheduled for today or pending/past due (has not started yet)
+                  const isTimingNear =
+                    !isTripInProcess &&
+                    (isToday ||
+                      (now.getTime() >= tripDate.getTime() && now.getTime() - tripDate.getTime() < 48 * 60 * 60 * 1000) ||
+                      diffMinutes <= 240);
                   const pickupTimeLabel = tripDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                   return (
@@ -2056,6 +2060,16 @@ export default function DriverDashboardScreen() {
                         })
                       : '--';
 
+                    const upDate = upBooking.scheduledAt ? new Date(upBooking.scheduledAt) : new Date();
+                    const isUpToday =
+                      upDate.getDate() === now.getDate() &&
+                      upDate.getMonth() === now.getMonth() &&
+                      upDate.getFullYear() === now.getFullYear();
+                    const isUpPendingOrToday =
+                      isUpToday ||
+                      (now.getTime() >= upDate.getTime() && now.getTime() - upDate.getTime() < 48 * 60 * 60 * 1000) ||
+                      (upDate.getTime() - now.getTime() <= 4 * 60 * 60 * 1000);
+
                     return (
                       <View key={upBooking.id} style={styles.separateQueuedItemCard}>
                         {/* Top Row: Ref & Tag */}
@@ -2163,6 +2177,17 @@ export default function DriverDashboardScreen() {
                             </Text>
                           </View>
                         </View>
+
+                        {/* Timing Near Warning for Queued Trip */}
+                        {isUpPendingOrToday && (
+                          <View style={styles.timingNearWarningRow}>
+                            <Ionicons name="warning" size={14} color="#dc2626" />
+                            <Text style={styles.timingNearWarningText}>
+                              <Text style={{ fontWeight: '800', color: '#dc2626' }}>Warning: </Text>
+                              Pickup scheduled for Today, {pickupTimeStr} — Be ready today!
+                            </Text>
+                          </View>
+                        )}
 
                         {/* Customer Requirements & Preferences Pills */}
                         {(() => {
