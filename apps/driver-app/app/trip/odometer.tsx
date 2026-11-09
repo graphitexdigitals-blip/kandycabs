@@ -241,29 +241,6 @@ export default function DriverOdometerScreen() {
 
             {/* Viewfinder Wrapper */}
             <View style={styles.viewfinderWrapper}>
-              <View style={styles.viewfinderHeaderRow}>
-                <View style={styles.viewfinderStepTag}>
-                  <Text style={styles.viewfinderStepTagText}>ODOMETER GAUGE</Text>
-                </View>
-                <View
-                  style={[
-                    styles.viewfinderStatusPill,
-                    isAttached ? styles.pillGreen : styles.pillAmber,
-                  ]}
-                >
-                  <Ionicons
-                    name={isAttached ? 'checkmark-circle' : 'time-outline'}
-                    size={12}
-                    color={isAttached ? '#16a34a' : '#d97706'}
-                  />
-                  <Text
-                    style={isAttached ? styles.pillTextGreen : styles.pillTextAmber}
-                  >
-                    {isAttached ? 'Attached' : 'Required'}
-                  </Text>
-                </View>
-              </View>
-
               {/* Photo Box */}
               <TouchableOpacity
                 style={styles.photoBox}
@@ -474,51 +451,7 @@ const styles = StyleSheet.create({
     color: '#ea580c',
   },
   viewfinderWrapper: {
-    marginTop: 8,
-  },
-  viewfinderHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  viewfinderStepTag: {
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-  },
-  viewfinderStepTagText: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    color: '#1d4ed8',
-    letterSpacing: 0.5,
-  },
-  viewfinderStatusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    gap: 4,
-  },
-  pillGreen: {
-    backgroundColor: '#dcfce7',
-  },
-  pillAmber: {
-    backgroundColor: '#fef3c7',
-  },
-  pillTextGreen: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#15803d',
-  },
-  pillTextAmber: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#b45309',
+    marginTop: 6,
   },
   photoBox: {
     height: 200,
