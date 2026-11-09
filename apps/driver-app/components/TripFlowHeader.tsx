@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 interface TripFlowHeaderProps {
-  currentStep: 1 | 2 | 3; // 1: Pickup, 2: OTP, 3: Drop
+  currentStep: 1 | 2 | 3 | 4; // 1: Pickup, 2: Odometer, 3: OTP, 4: Drop
   bookingRef?: string;
   statusLabel?: string;
 }
@@ -16,13 +16,14 @@ export function TripFlowHeader({ currentStep }: TripFlowHeaderProps) {
 
   const steps = [
     { num: 1, label: 'Pickup', icon: 'location-sharp' as const },
-    { num: 2, label: 'OTP', icon: 'key' as const },
-    { num: 3, label: 'Drop', icon: 'flag' as const },
+    { num: 2, label: 'Odometer', icon: 'speedometer' as const },
+    { num: 3, label: 'OTP', icon: 'key' as const },
+    { num: 4, label: 'Drop', icon: 'flag' as const },
   ];
 
   return (
     <View style={[styles.headerContainer, { paddingTop: topPad }]}>
-      {/* 3-Step Connected Progress Stepper Bar Only */}
+      {/* 4-Step Connected Progress Stepper Bar */}
       <View style={styles.stepperWrapper}>
         {steps.map((step, idx) => {
           const isCompleted = currentStep > step.num;
@@ -57,6 +58,7 @@ export function TripFlowHeader({ currentStep }: TripFlowHeaderProps) {
                     isActive && styles.labelActive,
                     isPending && styles.labelPending,
                   ]}
+                  numberOfLines={1}
                 >
                   {step.label}
                 </Text>
@@ -84,7 +86,7 @@ export function TripFlowHeader({ currentStep }: TripFlowHeaderProps) {
 const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
     paddingBottom: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
@@ -98,11 +100,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
+    paddingHorizontal: 4,
   },
   stepNode: {
     alignItems: 'center',
-    width: 60,
+    width: 56,
   },
   stepCircle: {
     width: 28,
@@ -144,7 +146,7 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
   },
   stepLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.1,
   },

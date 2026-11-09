@@ -752,8 +752,8 @@ export default function DriverTripStartScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
-      {/* 3-Step Flow Header: 1. Pickup (✓) -> 2. OTP (Active) -> 3. Drop */}
-      <TripFlowHeader currentStep={2} />
+      {/* 4-Step Flow Header: 1. Pickup (✓) -> 2. Odometer (✓) -> 3. OTP (Active) -> 4. Drop */}
+      <TripFlowHeader currentStep={3} />
 
       <ScrollView
         ref={scrollViewRef}

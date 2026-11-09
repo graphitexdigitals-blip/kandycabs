@@ -137,14 +137,14 @@ export default function DriverEnRouteScreen() {
         }).catch(() => {});
       }
       router.push({
-        pathname: '/trip/start',
-        params: { bookingId: targetBookingId, step: '2', arrived: 'true' },
+        pathname: '/trip/odometer',
+        params: { bookingId: targetBookingId },
       });
     } catch (err) {
       console.error('Error on handleSlideReached:', err);
       router.push({
-        pathname: '/trip/start',
-        params: { bookingId: targetBookingId, step: '2', arrived: 'true' },
+        pathname: '/trip/odometer',
+        params: { bookingId: targetBookingId },
       });
     } finally {
       setIsSlidingReached(false);

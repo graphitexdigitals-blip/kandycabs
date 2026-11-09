@@ -10,6 +10,7 @@ export default function TripLayout() {
       }}
     >
       <Stack.Screen name="en-route" />
+      <Stack.Screen name="odometer" />
       <Stack.Screen name="start" />
       <Stack.Screen name="inspection" />
       <Stack.Screen name="active" />

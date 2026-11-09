@@ -307,8 +307,8 @@ export default function DriverTripCompleteScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
-      {/* 3-Step Flow Header: 1. Pickup (✓) -> 2. OTP (✓) -> 3. Drop (Active) */}
-      <TripFlowHeader currentStep={3} />
+      {/* 4-Step Flow Header: 1. Pickup (✓) -> 2. Odometer (✓) -> 3. OTP (✓) -> 4. Drop (Active) */}
+      <TripFlowHeader currentStep={4} />
 
       <ScrollView
         style={styles.scrollArea}
