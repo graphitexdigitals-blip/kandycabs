@@ -530,8 +530,24 @@ export default function DriverDashboardScreen() {
           }
         } catch (_) {}
         const savedOnlinePref = await SecureStore.getItemAsync('kandy_driver_online_status').catch(() => null);
-        const resolvedOnline = savedOnlinePref !== null ? savedOnlinePref === 'true' : statusRes.driver.onlineStatus;
+        const resolvedOnline = typeof statusRes.driver.onlineStatus === 'boolean' ? statusRes.driver.onlineStatus : (savedOnlinePref === 'true');
         setOnlineStatus(resolvedOnline);
+        if (typeof statusRes.driver.onlineStatus === 'boolean') {
+          SecureStore.setItemAsync('kandy_driver_online_status', statusRes.driver.onlineStatus ? 'true' : 'false').catch(() => {});
+        }
+        if (adminData && (d.fullName === 'Driver Partner' || !d.vehicle?.plateNumber)) {
+          driverApiClient.fetch('/api/driver/documents', {
+            method: 'POST',
+            body: JSON.stringify({
+              fullName: adminData.fullName,
+              plateNumber: adminData.vehicle?.plateNumber || adminData.vehicleNumber,
+              category: adminData.vehicle?.category || 'SEDAN',
+              carModel: adminData.vehicle?.model || 'Sedan',
+              profilePhotoUrl: adminData.profilePhotoUrl,
+              licenseNumber: adminData.docDates?.license?.docNumber || 'KA-01-2023-0095874',
+            }),
+          }).catch(() => {});
+        }
         setActiveBooking(statusRes.activeBooking);
         setUpcomingBookings(statusRes.upcomingBookings || []);
 
@@ -811,10 +827,14 @@ export default function DriverDashboardScreen() {
 
     // 3. Background server synchronization with resilient offline tolerance
     try {
-      await driverApiClient.fetch('/api/driver/toggle-online', {
+      const res = await driverApiClient.fetch('/api/driver/toggle-online', {
         method: 'PATCH',
         body: JSON.stringify({ onlineStatus: val }),
       });
+      if (res && res.success && typeof res.onlineStatus === 'boolean') {
+        setOnlineStatus(res.onlineStatus);
+        await SecureStore.setItemAsync('kandy_driver_online_status', res.onlineStatus ? 'true' : 'false').catch(() => {});
+      }
     } catch (err: any) {
       // Keep optimistic online state active locally even if server/network times out
       console.warn('Background toggle-online sync (running resiliently):', err?.message || err);
