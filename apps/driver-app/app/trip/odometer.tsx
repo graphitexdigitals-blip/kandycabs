@@ -239,17 +239,6 @@ export default function DriverOdometerScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Progress Bar */}
-            <View style={styles.progressBarTrack}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  { width: isComplete ? '100%' : isAttached ? '50%' : '0%' },
-                  isComplete && styles.progressBarFillComplete,
-                ]}
-              />
-            </View>
-
             {/* Viewfinder Wrapper */}
             <View style={styles.viewfinderWrapper}>
               <View style={styles.viewfinderHeaderRow}>
@@ -405,13 +394,14 @@ export default function DriverOdometerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   scrollArea: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 24,
   },
   errorBanner: {
@@ -431,16 +421,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 3,
+    // Zero card background, border, or shadow
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -492,27 +473,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#ea580c',
   },
-  progressBarTrack: {
-    height: 4,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 2,
-    marginBottom: 14,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#0284c7',
-    borderRadius: 2,
-  },
-  progressBarFillComplete: {
-    backgroundColor: '#16a34a',
-  },
   viewfinderWrapper: {
-    borderWidth: 1.5,
-    borderColor: '#bfdbfe',
-    borderRadius: 16,
-    padding: 12,
-    backgroundColor: '#f8fafc',
+    marginTop: 8,
   },
   viewfinderHeaderRow: {
     flexDirection: 'row',
