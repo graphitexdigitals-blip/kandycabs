@@ -260,12 +260,13 @@ export default function CustomerLoginScreen() {
         if (hasName) {
           if (isNew) {
             await flagNewUserRegistration(res.user?.id);
+            router.replace({ pathname: '/', params: { showLangModal: '1' } });
           } else {
             // Returning existing user with existing profile: never show language prompt
             await clearNewUserFlag(res.user?.id);
             await markNewUserLangPromptDone(res.user?.id);
+            router.replace('/');
           }
-          router.replace('/');
         } else {
           setStep('NAME');
         }
@@ -325,10 +326,7 @@ export default function CustomerLoginScreen() {
     const cleanedPhone = phone.trim().replace(/\D/g, '');
     const titleCaseName = formatTitleCase(name);
     try {
-      // 1. Persist chosen language
-      await changeAppLanguage(currentLang);
-
-      // 2. Persist name on backend
+      // 1. Persist name on backend
       const res = await customerApiClient.fetch('/api/auth/update-profile', {
         method: 'POST',
         body: JSON.stringify({ fullName: titleCaseName }),
@@ -336,20 +334,17 @@ export default function CustomerLoginScreen() {
       const updatedUser = res?.user || { ...customerTokenStorage.getUser(), fullName: titleCaseName };
       customerTokenStorage.setUser(updatedUser);
 
-      // 3. Mark setup complete
-      await markNewUserLangPromptDone(updatedUser?.id);
-      await clearNewUserFlag(updatedUser?.id);
-      router.replace('/');
+      // 2. Trigger language selection modal on Home page
+      await flagNewUserRegistration(updatedUser?.id);
+      router.replace({ pathname: '/', params: { showLangModal: '1' } });
     } catch (err: any) {
       console.warn('Update profile fallback:', err);
-      await changeAppLanguage(currentLang);
       const existing = customerTokenStorage.getUser() || { phone: cleanedPhone };
       const updatedUser = { ...existing, fullName: titleCaseName };
       customerTokenStorage.setUser(updatedUser);
 
-      await markNewUserLangPromptDone(updatedUser?.id);
-      await clearNewUserFlag(updatedUser?.id);
-      router.replace('/');
+      await flagNewUserRegistration(updatedUser?.id);
+      router.replace({ pathname: '/', params: { showLangModal: '1' } });
     } finally {
       setLoading(false);
     }
@@ -589,60 +584,6 @@ export default function CustomerLoginScreen() {
                       returnKeyType="done"
                       onSubmitEditing={handleSaveName}
                     />
-                  </View>
-
-                  {/* STEP 2B: Language Selection for Registration */}
-                  <View style={{ marginTop: 14, marginBottom: 16 }}>
-                    <Text
-                      style={{
-                        fontSize: 12.5,
-                        fontWeight: '700',
-                        color: '#475569',
-                        marginBottom: 8,
-                        textAlign: 'center',
-                        textTransform: 'uppercase',
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      Choose App Language / ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ
-                    </Text>
-                    <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center' }}>
-                      {[
-                        { code: 'en' as const, label: 'English', sub: 'EN' },
-                        { code: 'kn' as const, label: 'ಕನ್ನಡ', sub: 'KN' },
-                        { code: 'hi' as const, label: 'हिन्दी', sub: 'HI' },
-                      ].map((lang) => {
-                        const isSelected = currentLang === lang.code;
-                        return (
-                          <TouchableOpacity
-                            key={lang.code}
-                            activeOpacity={0.8}
-                            onPress={() => onSelectLang(lang.code)}
-                            style={{
-                              flex: 1,
-                              paddingVertical: 10,
-                              paddingHorizontal: 6,
-                              borderRadius: 12,
-                              borderWidth: 1.5,
-                              borderColor: isSelected ? '#ea580c' : '#e2e8f0',
-                              backgroundColor: isSelected ? '#fff7ed' : '#ffffff',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <Text
-                              style={{
-                                fontSize: 13.5,
-                                fontWeight: isSelected ? '800' : '600',
-                                color: isSelected ? '#ea580c' : '#334155',
-                              }}
-                            >
-                              {lang.label}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
                   </View>
 
                   <TouchableOpacity

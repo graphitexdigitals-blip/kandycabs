@@ -169,14 +169,14 @@ export async function isNewUserLangPromptNeeded(
       if (userFlagKey) isNewUser = await SecureStore.getItemAsync(userFlagKey);
     }
 
-    // If this specific user already saw/dismissed the prompt, NEVER prompt again
-    if (userDone === 'true') {
-      return false;
-    }
-
-    // 1. Explicitly flagged as new registration
+    // 1. Explicitly flagged as new registration -> always prompt
     if (isNewGlobal === 'true' || isNewUser === 'true') {
       return true;
+    }
+
+    // 2. If this specific user already saw/dismissed the prompt, NEVER prompt again
+    if (userDone === 'true') {
+      return false;
     }
 
     // 2. Newly created account (within last 60 minutes)

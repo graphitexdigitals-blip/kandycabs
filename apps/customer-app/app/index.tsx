@@ -21,7 +21,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { AuthModal } from '../components/AuthModal';
@@ -566,6 +566,7 @@ export default function HomeScreen() {
   const [carouselList, setCarouselList] = useState<CarouselItem[]>(CAROUSEL_DATA);
   const carouselRef = useRef<FlatList>(null);
 
+  const params = useLocalSearchParams<{ showLangModal?: string }>();
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('sedan');
 
   const [isAuthChecking, setIsAuthChecking] = useState(() => !customerTokenStorage.getToken());
@@ -749,7 +750,7 @@ export default function HomeScreen() {
     return () => unsub();
   }, [syncAuth]);
 
-  // Check if initial language selection popup is needed ONLY for new user (shown once after registration)
+  // Check if initial language selection popup is needed (shown once after registration/login)
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -758,6 +759,17 @@ export default function HomeScreen() {
           const token = customerTokenStorage.getToken() || (await customerTokenStorage.getTokenAsync());
           if (!token) return;
 
+          // 1. Direct param trigger from registration/login navigation
+          if (params?.showLangModal === '1' && active) {
+            setTimeout(() => {
+              if (active) {
+                setIsLangPromptModalOpen(true);
+              }
+            }, 300);
+            return;
+          }
+
+          // 2. Persistent check for new registrations
           const activeUser = customerTokenStorage.getUser() || currentUser;
           const needed = await isNewUserLangPromptNeeded(activeUser);
           if (needed && active) {
@@ -777,7 +789,7 @@ export default function HomeScreen() {
       return () => {
         active = false;
       };
-    }, [currentUser])
+    }, [currentUser, params?.showLangModal])
   );
 
   const onRefresh = useCallback(async () => {
@@ -2040,11 +2052,13 @@ export default function HomeScreen() {
         onClose={() => {
           const activeUser = customerTokenStorage.getUser() || currentUser;
           markNewUserLangPromptDone(activeUser?.id);
+          clearNewUserFlag(activeUser?.id);
           setIsLangPromptModalOpen(false);
         }}
         onLanguageSelected={() => {
           const activeUser = customerTokenStorage.getUser() || currentUser;
           markNewUserLangPromptDone(activeUser?.id);
+          clearNewUserFlag(activeUser?.id);
           setIsLangPromptModalOpen(false);
         }}
       />
