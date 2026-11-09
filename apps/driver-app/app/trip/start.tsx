@@ -375,7 +375,7 @@ export default function DriverTripStartScreen() {
       setActiveAttachmentIdx(0);
       Alert.alert(
         '⚡ Demo Evidence Loaded',
-        'Driver selfie & all 5 vehicle angles loaded! Click "PROCEED TO STEP 2" below to enter Customer OTP & Odometer.'
+        'Driver selfie & all 5 vehicle angles loaded! Click "START TRIP" below to enter Customer OTP & Odometer.'
       );
     } else {
       setOdometerImageUri('demo_odometer');
@@ -1400,7 +1400,7 @@ export default function DriverTripStartScreen() {
                 <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
                   {!isStep1Done
                     ? `Capture ${verificationAttachments[activeAttachmentIdx < 6 ? activeAttachmentIdx : 0]?.shortTitle || 'Photo'} (${step1AttachedCount}/6) →`
-                    : 'PROCEED TO STEP 2: OTP & METER →'}
+                    : 'START TRIP →'}
                 </Text>
                 <Ionicons name="arrow-forward" size={20} color="#0f172a" />
               </>
