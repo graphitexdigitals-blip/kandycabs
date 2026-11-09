@@ -2612,6 +2612,31 @@ export default function DriverDashboardScreen() {
                         </Text>
                       </View>
 
+                      {/* Waiting For Approval Warning (Same typography style, no bg, no border) */}
+                      {!isAccepted && (() => {
+                        const tripTiming = formatTripDateTime(b?.scheduledAt);
+                        const tripDayLabel = tripTiming.isToday
+                          ? `today (${tripTiming.timeText})`
+                          : tripTiming.isTomorrow
+                          ? `tomorrow (${tripTiming.timeText})`
+                          : `on ${(() => {
+                              const d = b?.scheduledAt ? new Date(b.scheduledAt) : null;
+                              return d && !isNaN(d.getTime())
+                                ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                                : tripTiming.dateText;
+                            })()} (${tripTiming.timeText})`;
+
+                        return (
+                          <View style={[styles.timingNearWarningRow, { marginTop: 6, marginBottom: 4, marginHorizontal: 2 }]}>
+                            <Ionicons name="warning" size={14} color="#dc2626" />
+                            <Text style={styles.timingNearWarningText}>
+                              <Text style={{ fontWeight: '800', color: '#dc2626' }}>Warning: </Text>
+                              Waiting for approval! Hurry up, the trip is {tripDayLabel}!
+                            </Text>
+                          </View>
+                        );
+                      })()}
+
                       {/* Decline (Left) & Accept (Right) Action Buttons Row */}
                       {isAccepted ? (
                         <View style={styles.dispatchActionRow}>
