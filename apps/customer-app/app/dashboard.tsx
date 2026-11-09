@@ -166,7 +166,7 @@ export const DROP_DESTINATIONS: PlaceLocation[] = ALL_LOCATIONS;
 const VEHICLE_TYPES = [
   {
     category: VehicleCategory.HATCHBACK,
-    name: 'Compact',
+    name: 'Sedan – Compact',
     models: 'WagonR, Tiago, Celerio or equivalent',
     rate: '₹11/km',
     capacity: '4 Pax',

@@ -90,7 +90,7 @@ export default function AdditionalDetailsScreen() {
   const tripType = (params.tripType as string) || 'ONEWAY';
   const localHours = (params.localHours as string) || '8';
   const category = (params.category as string) || 'HATCHBACK';
-  const selectedVehicleName = (params.selectedVehicleName as string) || 'Compact';
+  const selectedVehicleName = (params.selectedVehicleName as string) || 'Sedan – Compact';
   const ratePerKm = (params.ratePerKm as string) || '11';
   const minKm = (params.minKm as string) || '50';
   const maxSeats = Number(params.maxSeats) || 4;

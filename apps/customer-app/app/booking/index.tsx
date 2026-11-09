@@ -103,7 +103,7 @@ const FLEET_INFO: Record<
   }
 > = {
   HATCHBACK: {
-    name: 'Compact',
+    name: 'Sedan – Compact',
     models: 'Toyota Glanza, WagonR, Tiago or equivalent',
     ratePerKm: 11,
     minKm: 50,
