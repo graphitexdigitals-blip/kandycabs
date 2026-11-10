@@ -49,50 +49,34 @@ async function main() {
     .trim()
     .toFile(kcTrimmedPath);
 
-  // 2. Extract squircle with transparent corners
-  const squircleBuf = Buffer.alloc(w * h * 4);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const srcIdx = (y * w + x) * 3;
-      const dstIdx = (y * w + x) * 4;
-      const r = data[srcIdx];
-      const g = data[srcIdx + 1];
-      const b = data[srcIdx + 2];
+  // 2. Master full-bleed square icon.png (1024x1024, orange #F74A01 with white KC)
+  const kcSquareW = Math.round(1024 * 0.68);
+  const resizedKCSquare = await sharp(kcTrimmedPath).resize({ width: kcSquareW }).toBuffer();
+  const squareMeta = await sharp(resizedKCSquare).metadata();
+  const topSquare = Math.round((1024 - squareMeta.height) / 2);
+  const leftSquare = Math.round((1024 - squareMeta.width) / 2);
 
-      const isCornerArea = (x < 220 || x > 804) && (y < 220 || y > 804);
-      let alpha = 255;
-      if (isCornerArea) {
-        const whiteness = Math.min(r, g, b);
-        if (whiteness > 245) {
-          alpha = 0;
-        } else if (whiteness > 10) {
-          const t = (248 - whiteness) / (248 - 10);
-          alpha = Math.min(255, Math.max(0, Math.round(t * 255)));
-        }
-      }
-
-      squircleBuf[dstIdx] = r;
-      squircleBuf[dstIdx + 1] = g;
-      squircleBuf[dstIdx + 2] = b;
-      squircleBuf[dstIdx + 3] = alpha;
+  const masterSquare = await sharp({
+    create: {
+      width: 1024,
+      height: 1024,
+      channels: 4,
+      background: { r: 247, g: 74, b: 1, alpha: 1 } // #F74A01
     }
-  }
+  })
+  .composite([{ input: resizedKCSquare, top: topSquare, left: leftSquare }])
+  .png()
+  .toBuffer();
 
-  const squirclePath = path.join(imagesDir, 'kc_squircle_transparent.png');
-  await sharp(squircleBuf, { raw: { width: w, height: h, channels: 4 } }).toFile(squirclePath);
-
-  // 3. Save master icon.png (1024x1024)
-  await sharp(squirclePath)
-    .resize(1024, 1024)
-    .toFile(path.join(assetsDir, 'icon.png'));
+  await sharp(masterSquare).toFile(path.join(assetsDir, 'icon.png'));
   console.log('Saved assets/icon.png');
 
-  // 4. Save master adaptive-icon.png (1024x1024, full bleed orange #F74A01 with white KC in 66% safe zone)
-  const kcAdaptiveW = Math.round(1024 * 0.55); // 563px
-  const resizedKCBuff = await sharp(kcTrimmedPath).resize({ width: kcAdaptiveW }).toBuffer();
-  const kcMeta = await sharp(resizedKCBuff).metadata();
-  const topAdaptive = Math.round((1024 - kcMeta.height) / 2);
-  const leftAdaptive = Math.round((1024 - kcMeta.width) / 2);
+  // 3. Master adaptive-icon.png (1024x1024, orange #F74A01 with white KC in 55% safe zone)
+  const kcAdaptiveW = Math.round(1024 * 0.55);
+  const resizedKCAdaptive = await sharp(kcTrimmedPath).resize({ width: kcAdaptiveW }).toBuffer();
+  const adaptiveMeta = await sharp(resizedKCAdaptive).metadata();
+  const topAdaptive = Math.round((1024 - adaptiveMeta.height) / 2);
+  const leftAdaptive = Math.round((1024 - adaptiveMeta.width) / 2);
 
   const masterAdaptive = await sharp({
     create: {
@@ -102,14 +86,14 @@ async function main() {
       background: { r: 247, g: 74, b: 1, alpha: 1 } // #F74A01
     }
   })
-  .composite([{ input: resizedKCBuff, top: topAdaptive, left: leftAdaptive }])
+  .composite([{ input: resizedKCAdaptive, top: topAdaptive, left: leftAdaptive }])
   .png()
   .toBuffer();
 
   await sharp(masterAdaptive).toFile(path.join(assetsDir, 'adaptive-icon.png'));
   console.log('Saved assets/adaptive-icon.png');
 
-  // Helper for Adaptive Foregrounds (full bleed orange with centered white KC)
+  // Helper for Adaptive Foregrounds (full bleed orange with centered white KC in safe zone)
   async function makeAdaptiveForeground(size) {
     const kcW = Math.round(size * 0.55);
     const resizedKC = await sharp(kcTrimmedPath).resize({ width: kcW }).toBuffer();
@@ -130,12 +114,25 @@ async function main() {
     .toBuffer();
   }
 
-  // Helper for Legacy Square Icons (squircle with smooth transparent corners)
+  // Helper for Legacy Square Icons (full bleed orange to prevent Samsung One UI from adding white frames)
   async function makeSquareIcon(size) {
-    return sharp(squirclePath)
-      .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .png()
-      .toBuffer();
+    const kcW = Math.round(size * 0.65);
+    const resizedKC = await sharp(kcTrimmedPath).resize({ width: kcW }).toBuffer();
+    const meta = await sharp(resizedKC).metadata();
+    const top = Math.round((size - meta.height) / 2);
+    const left = Math.round((size - meta.width) / 2);
+
+    return sharp({
+      create: {
+        width: size,
+        height: size,
+        channels: 4,
+        background: { r: 247, g: 74, b: 1, alpha: 1 }
+      }
+    })
+    .composite([{ input: resizedKC, top, left }])
+    .png()
+    .toBuffer();
   }
 
   // Helper for Legacy Circular Icons
@@ -152,31 +149,43 @@ async function main() {
       .toBuffer();
   }
 
-  // Generate 5 Adaptive Foregrounds
+  // Generate 5 Adaptive Foregrounds (distinct names on disk to avoid Windows NTFS case collision!)
   // mdpi: 108 -> res/QZ.png
-  // hdpi: 162 -> res/zr.png (Wait, in APK res/zr.png was 48x48 or 162x162, let's make it match the exact APK dimension!)
-  await sharp(await makeAdaptiveForeground(108)).toFile(path.join(outDir, 'res_QZ.png'));
-  // Note: in customer APK, res/zr.png was 48x48. Let's make sure it matches 48 or 162. Let's check size in APK.
-  await sharp(await makeAdaptiveForeground(48)).toFile(path.join(outDir, 'res_zr.png'));
-  await sharp(await makeAdaptiveForeground(216)).toFile(path.join(outDir, 'res_Em.png'));
-  await sharp(await makeAdaptiveForeground(324)).toFile(path.join(outDir, 'res_Lf.png'));
-  await sharp(await makeAdaptiveForeground(432)).toFile(path.join(outDir, 'res_as.png'));
+  // hdpi: 162 -> res/zr.png
+  // xhdpi: 216 -> res/Em.png
+  // xxhdpi: 324 -> res/Lf.png
+  // xxxhdpi: 432 -> res/as.png
+  await sharp(await makeAdaptiveForeground(108)).toFile(path.join(outDir, 'fg_mdpi.png'));
+  await sharp(await makeAdaptiveForeground(162)).toFile(path.join(outDir, 'fg_hdpi.png'));
+  await sharp(await makeAdaptiveForeground(216)).toFile(path.join(outDir, 'fg_xhdpi.png'));
+  await sharp(await makeAdaptiveForeground(324)).toFile(path.join(outDir, 'fg_xxhdpi.png'));
+  await sharp(await makeAdaptiveForeground(432)).toFile(path.join(outDir, 'fg_xxxhdpi.png'));
 
   // Generate 5 Legacy Square Icons
-  await sharp(await makeSquareIcon(48)).toFile(path.join(outDir, 'res_9w.png'));
-  await sharp(await makeSquareIcon(72)).toFile(path.join(outDir, 'res_yn.png'));
-  await sharp(await makeSquareIcon(96)).toFile(path.join(outDir, 'res_FS.png'));
-  await sharp(await makeSquareIcon(144)).toFile(path.join(outDir, 'res_RJ.png'));
-  await sharp(await makeSquareIcon(192)).toFile(path.join(outDir, 'res_o-.png'));
+  // mdpi: 48 -> res/9w.png
+  // hdpi: 72 -> res/yn.png
+  // xhdpi: 96 -> res/FS.png
+  // xxhdpi: 144 -> res/RJ.png
+  // xxxhdpi: 192 -> res/o-.png
+  await sharp(await makeSquareIcon(48)).toFile(path.join(outDir, 'square_mdpi.png'));
+  await sharp(await makeSquareIcon(72)).toFile(path.join(outDir, 'square_hdpi.png'));
+  await sharp(await makeSquareIcon(96)).toFile(path.join(outDir, 'square_xhdpi.png'));
+  await sharp(await makeSquareIcon(144)).toFile(path.join(outDir, 'square_xxhdpi.png'));
+  await sharp(await makeSquareIcon(192)).toFile(path.join(outDir, 'square_xxxhdpi.png'));
 
   // Generate 5 Legacy Round Icons
-  await sharp(await makeRoundIcon(48)).toFile(path.join(outDir, 'res_zR.png'));
-  await sharp(await makeRoundIcon(72)).toFile(path.join(outDir, 'res_8c.png'));
-  await sharp(await makeRoundIcon(96)).toFile(path.join(outDir, 'res_wb.png'));
-  await sharp(await makeRoundIcon(144)).toFile(path.join(outDir, 'res_fO.png'));
-  await sharp(await makeRoundIcon(192)).toFile(path.join(outDir, 'res_Gc.png'));
+  // mdpi: 48 -> res/zR.png
+  // hdpi: 72 -> res/8c.png
+  // xhdpi: 96 -> res/wb.png
+  // xxhdpi: 144 -> res/fO.png
+  // xxxhdpi: 192 -> res/Gc.png
+  await sharp(await makeRoundIcon(48)).toFile(path.join(outDir, 'round_mdpi.png'));
+  await sharp(await makeRoundIcon(72)).toFile(path.join(outDir, 'round_hdpi.png'));
+  await sharp(await makeRoundIcon(96)).toFile(path.join(outDir, 'round_xhdpi.png'));
+  await sharp(await makeRoundIcon(144)).toFile(path.join(outDir, 'round_xxhdpi.png'));
+  await sharp(await makeRoundIcon(192)).toFile(path.join(outDir, 'round_xxxhdpi.png'));
 
-  console.log('All 15 native Android launcher icon densities generated successfully in android_icons!');
+  console.log('All 15 native Android launcher icon densities generated successfully with distinct filenames!');
 }
 
 main().catch(console.error);
