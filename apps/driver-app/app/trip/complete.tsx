@@ -1041,8 +1041,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   odoCard: {
-    marginBottom: 16,
-    paddingTop: 4,
+    marginBottom: 10,
+    paddingTop: 0,
   },
   card: {
     backgroundColor: '#ffffff',
@@ -1062,7 +1062,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   odoHeaderLeft: {
     flexDirection: 'row',
@@ -1190,13 +1190,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   referenceSection: {
-    marginTop: 14,
-    marginBottom: 4,
+    marginTop: 8,
+    marginBottom: 0,
   },
   referenceHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   referenceHeaderTitle: {
     fontSize: 13,
@@ -1204,8 +1204,8 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   referenceImageBox: {
-    height: 135,
-    borderRadius: 14,
+    height: 130,
+    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#0f172a',
     position: 'relative',
@@ -1232,7 +1232,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   odoInputWrapper: {
-    marginTop: 12,
+    marginTop: 8,
   },
   odoInputContainer: {
     flexDirection: 'row',
@@ -1240,9 +1240,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 48,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    height: 42,
   },
   odoInputIcon: {
     marginRight: 8,
