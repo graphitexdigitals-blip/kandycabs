@@ -532,15 +532,15 @@ export default function DriverTripActiveScreen() {
                       ? 'Waiting Recorded ✓'
                       : 'Waiting'}
                   </Text>
-                  <Text style={styles.waitingTriggerSub} numberOfLines={1}>
-                    {isWaitingActive
-                      ? isWaitingPaused
-                        ? `⏱ ${formatTimerDisplay(displaySeconds)} • Paused`
-                        : `⏱ ${formatTimerDisplay(displaySeconds)} • Tracking waiting time`
-                      : totalAccumulatedSeconds > 0
-                      ? `⏱ ${formatTimerDisplay(totalAccumulatedSeconds)} recorded`
-                      : 'Tap to track & record customer waiting time'}
-                  </Text>
+                  {(isWaitingActive || totalAccumulatedSeconds > 0) && (
+                    <Text style={styles.waitingTriggerSub} numberOfLines={1}>
+                      {isWaitingActive
+                        ? isWaitingPaused
+                          ? `⏱ ${formatTimerDisplay(displaySeconds)} • Paused`
+                          : `⏱ ${formatTimerDisplay(displaySeconds)} • Tracking waiting time`
+                        : `⏱ ${formatTimerDisplay(totalAccumulatedSeconds)} recorded`}
+                    </Text>
+                  )}
                 </View>
               </View>
 
