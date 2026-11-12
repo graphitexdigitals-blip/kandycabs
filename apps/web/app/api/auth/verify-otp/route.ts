@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
     const hasRegisteredName = !!(
       existingUser?.fullName &&
       existingUser.fullName !== 'Kandy Customer' &&
+      existingUser.fullName.trim().toLowerCase() !== 'customer' &&
       existingUser.fullName.trim().length > 0
     );
 
@@ -208,7 +209,11 @@ export async function POST(req: NextRequest) {
       driverId: user.driver?.id || null,
     });
 
-    const cleanFullName = (user.fullName === 'Kandy Customer' ? '' : (user.fullName || ''));
+    const cleanFullName = (
+      !user.fullName ||
+      user.fullName === 'Kandy Customer' ||
+      user.fullName.trim().toLowerCase() === 'customer'
+    ) ? '' : user.fullName.trim();
 
     const userProfile = {
       id: user.id,

@@ -109,20 +109,15 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
           customerTokenStorage.setToken(res.token);
         }
 
-        const registeredName = res.user?.fullName;
-        const hasName = Boolean(
-          registeredName &&
-          registeredName !== 'Kandy Customer' &&
-          registeredName.trim().length > 0 &&
-          res.hasRegisteredName !== false
-        );
-        const isRegistered = res.isNewUser === false || hasName;
+        const rawName = res.user?.fullName?.trim() || '';
+        const cleanName = (rawName.toLowerCase() === 'customer' || rawName.toLowerCase() === 'kandy customer') ? '' : rawName;
+        const isExistingUser = res.isNewUser === false || Boolean(res.user?.id) || cleanName.length > 0 || res.hasRegisteredName !== false;
 
-        if (isRegistered) {
+        if (isExistingUser) {
           // Existing registered customer -> auto show profile and complete
           const validUser = {
             ...res.user,
-            fullName: (registeredName && registeredName !== 'Kandy Customer') ? registeredName : 'Customer',
+            fullName: cleanName,
           };
           customerTokenStorage.setUser(validUser);
           onSuccess(validUser);

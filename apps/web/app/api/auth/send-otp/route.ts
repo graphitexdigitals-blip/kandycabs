@@ -81,7 +81,8 @@ export async function POST(req: NextRequest) {
     const enableDemoOtp = process.env.ENABLE_DEMO_OTP !== 'false';
 
     let resolvedExistingName = existingUser?.fullName?.trim() || '';
-    if (!resolvedExistingName || resolvedExistingName === 'Kandy Customer') {
+    if (!resolvedExistingName || resolvedExistingName === 'Kandy Customer' || resolvedExistingName.toLowerCase() === 'customer') {
+      resolvedExistingName = '';
       const pastBooking = await prisma.booking.findFirst({
         where: {
           OR: [
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
         select: { customerName: true },
         orderBy: { createdAt: 'desc' },
       });
-      if (pastBooking?.customerName && pastBooking.customerName.trim().length > 0) {
+      if (pastBooking?.customerName && pastBooking.customerName.trim().length > 0 && pastBooking.customerName.trim().toLowerCase() !== 'customer') {
         resolvedExistingName = pastBooking.customerName.trim();
       }
     }

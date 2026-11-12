@@ -882,7 +882,10 @@ export default function CustomerDashboardScreen() {
       return;
     }
 
-    setPassengerNameInput(userProfile?.fullName || 'Customer');
+    const resolvedPassengerName = (userProfile?.fullName?.trim() && userProfile.fullName.trim().toLowerCase() !== 'customer' && userProfile.fullName.trim().toLowerCase() !== 'kandy customer')
+      ? userProfile.fullName.trim()
+      : '';
+    setPassengerNameInput(resolvedPassengerName);
     setPassengerPhoneInput(userProfile?.phone || '');
 
     if (!quoteResult) {
@@ -949,7 +952,7 @@ export default function CustomerDashboardScreen() {
           estimatedFare: finalQuote?.pricing?.totalFare || 1200,
           advanceAmount: finalQuote?.pricing?.advanceAmount || 240,
           balanceAmount: finalQuote?.pricing?.balanceAmount || 960,
-          passengerName: passengerNameInput.trim() || userProfile?.fullName || 'Customer',
+          passengerName: passengerNameInput.trim() || resolvedPassengerName || 'Valued Customer',
           passengerPhone: passengerPhoneInput.trim() || userProfile?.phone || '',
           idempotencyKey,
           razorpayOrderId: orderId,

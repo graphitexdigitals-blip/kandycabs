@@ -65,12 +65,16 @@ export function HamburgerDrawer({
                       <Image source={{ uri: user.profilePhoto }} style={styles.avatarImage} />
                     ) : (
                       <Text style={styles.avatarText}>
-                        {user.fullName ? user.fullName[0].toUpperCase() : 'U'}
+                        {(user.fullName && user.fullName.toLowerCase() !== 'customer' && user.fullName.toLowerCase() !== 'kandy customer') ? user.fullName.trim()[0].toUpperCase() : 'K'}
                       </Text>
                     )}
                   </View>
                   <View>
-                    <Text style={styles.userName}>{formatTitleCase(user.fullName) || 'Customer'}</Text>
+                    <Text style={styles.userName}>
+                      {(user.fullName && user.fullName.toLowerCase() !== 'customer' && user.fullName.toLowerCase() !== 'kandy customer')
+                        ? formatTitleCase(user.fullName)
+                        : 'Valued Customer'}
+                    </Text>
                     <Text style={styles.userPhone}>{formatDisplayPhone(user.phone)}</Text>
                   </View>
                 </TouchableOpacity>

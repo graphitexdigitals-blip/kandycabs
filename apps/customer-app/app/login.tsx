@@ -265,17 +265,28 @@ export default function CustomerLoginScreen() {
         customerTokenStorage.setToken(res.token);
 
         // Resolve existing customer name from server, send-otp, or storage
-        const serverName = (res.user?.fullName && res.user.fullName !== 'Kandy Customer')
-          ? res.user.fullName.trim()
-          : '';
-        const registeredName = serverName || existingCustomerName || res.existingName || '';
-        const isExistingInDb = res.isNewUser === false || isRegisteredCustomer || Boolean(res.hasRegisteredName) || Boolean(res.user?.createdAt);
-        const hasSavedDetails = registeredName.length > 0;
+        const rawServerName = res.user?.fullName?.trim() || '';
+        const serverName = (rawServerName.toLowerCase() === 'customer' || rawServerName.toLowerCase() === 'kandy customer')
+          ? ''
+          : rawServerName;
+        const rawExisting = existingCustomerName?.trim() || res.existingName?.trim() || '';
+        const cleanExisting = (rawExisting.toLowerCase() === 'customer' || rawExisting.toLowerCase() === 'kandy customer')
+          ? ''
+          : rawExisting;
+        const registeredName = serverName || cleanExisting;
+
+        // An existing customer is ANY user where:
+        // - res.isNewUser === false (server confirmed existing account in DB)
+        // - OR isRegisteredCustomer (send-otp confirmed user exists)
+        // - OR res.hasRegisteredName
+        // - OR res.user?.id (backend returned an existing user account)
+        // - OR registeredName.length > 0
+        const isExistingUser = res.isNewUser === false || isRegisteredCustomer || Boolean(res.hasRegisteredName) || Boolean(res.user?.id) || registeredName.length > 0;
 
         if (res.user) {
           const resolvedUser = {
             ...res.user,
-            fullName: registeredName || res.user.fullName || 'Customer',
+            fullName: registeredName || '',
           };
           customerTokenStorage.setUser(resolvedUser);
           // Auto-restore customer's preferred language from server or phone memory
@@ -289,7 +300,7 @@ export default function CustomerLoginScreen() {
 
         // If customer is already registered OR details/name are already saved OR user exists in database:
         // Do NOT make it a new customer, do NOT ask for name, go straight to Home!
-        if (isExistingInDb || hasSavedDetails || res.isNewUser === false) {
+        if (isExistingUser) {
           setIsNewUser(false);
           await clearNewUserFlag(res.user?.id);
           await markNewUserLangPromptDone(res.user?.id);
@@ -307,17 +318,20 @@ export default function CustomerLoginScreen() {
     } catch (err: any) {
       if (otp.trim() === '1234' || otp.trim() === devOtpHint) {
         const savedUser = customerTokenStorage.getUser();
-        const knownName =
-          (savedUser?.phone === cleanedPhone && savedUser?.fullName && savedUser.fullName !== 'Kandy Customer')
-            ? savedUser.fullName
-            : (existingCustomerName || name || '');
+        const rawKnown =
+          (savedUser?.phone === cleanedPhone && savedUser?.fullName)
+            ? savedUser.fullName.trim()
+            : (existingCustomerName?.trim() || name.trim() || '');
+        const cleanKnown = (rawKnown.toLowerCase() === 'customer' || rawKnown.toLowerCase() === 'kandy customer')
+          ? ''
+          : rawKnown;
 
-        const isKnownCustomer = Boolean(isRegisteredCustomer || knownName.length > 0 || savedUser?.id);
+        const isKnownCustomer = Boolean(isRegisteredCustomer || cleanKnown.length > 0 || (savedUser?.id && savedUser?.phone === cleanedPhone));
 
         const localUser = {
           id: savedUser?.id || ('user-' + cleanedPhone),
           phone: cleanedPhone,
-          fullName: knownName || 'Customer',
+          fullName: cleanKnown || '',
           role: 'CUSTOMER',
         };
         customerTokenStorage.setToken('token-' + cleanedPhone);

@@ -35,6 +35,13 @@ try {
   // Not bundled in native APK
 }
 
+const cleanCustomerName = (n: string | null | undefined): string => {
+  if (!n) return '';
+  const trimmed = n.trim();
+  if (trimmed.toLowerCase() === 'customer' || trimmed.toLowerCase() === 'kandy customer') return '';
+  return trimmed;
+};
+
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -57,7 +64,7 @@ export default function ProfileScreen() {
 
   // Edit profile state
   const [isEditing, setIsEditing] = useState(false);
-  const [fullName, setFullName] = useState(user?.fullName || '');
+  const [fullName, setFullName] = useState(cleanCustomerName(user?.fullName));
   const [email, setEmail] = useState(user?.email || '');
   const [saving, setSaving] = useState(false);
 
@@ -95,8 +102,8 @@ export default function ProfileScreen() {
       const res: any = await Promise.race([fetchPromise, timeoutPromise]);
       if (res?.user) {
         const localUser = customerTokenStorage.getUser();
-        const cleanRemoteName = (res.user.fullName === 'Kandy Customer' ? '' : (res.user.fullName || '')).trim();
-        const resolvedName = cleanRemoteName || (localUser?.fullName === 'Kandy Customer' ? '' : (localUser?.fullName || ''));
+        const cleanRemoteName = cleanCustomerName(res.user.fullName);
+        const resolvedName = cleanRemoteName || cleanCustomerName(localUser?.fullName);
         const mergedUser = {
           ...res.user,
           fullName: resolvedName,
@@ -104,7 +111,7 @@ export default function ProfileScreen() {
         };
         setUser(mergedUser);
         customerTokenStorage.setUser(mergedUser);
-        setFullName(mergedUser.fullName || '');
+        setFullName(resolvedName);
         setEmail(mergedUser.email || '');
       }
     } catch (err: any) {
@@ -369,7 +376,7 @@ export default function ProfileScreen() {
                     />
                   ) : (
                     <Text style={styles.avatarText}>
-                      {user.fullName ? user.fullName[0].toUpperCase() : 'U'}
+                      {cleanCustomerName(user.fullName) ? cleanCustomerName(user.fullName)[0].toUpperCase() : 'K'}
                     </Text>
                   )}
                   {uploadingPhoto && (
@@ -385,7 +392,7 @@ export default function ProfileScreen() {
 
               <View style={styles.heroDetails}>
                 <Text style={styles.heroName} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
-                  {formatTitleCase(user.fullName) || t('profile.valuedCustomer')}
+                  {formatTitleCase(cleanCustomerName(user.fullName)) || t('profile.valuedCustomer')}
                 </Text>
                 <Text style={styles.heroPhone} numberOfLines={1} adjustsFontSizeToFit={true}>{formatDisplayPhone(user.phone)}</Text>
               </View>
@@ -492,7 +499,7 @@ export default function ProfileScreen() {
                     </View>
                     <View style={styles.detailContent}>
                       <Text style={styles.detailLabel}>{t('profile.fullName')}</Text>
-                      <Text style={styles.detailValue}>{formatTitleCase(user.fullName) || t('profile.notProvided')}</Text>
+                      <Text style={styles.detailValue}>{formatTitleCase(cleanCustomerName(user.fullName)) || t('profile.notProvided')}</Text>
                     </View>
                   </View>
 

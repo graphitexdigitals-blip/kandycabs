@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kandy Cabs Customer",
     "slug": "kandy-cabs-customer",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "jsEngine": "hermes",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

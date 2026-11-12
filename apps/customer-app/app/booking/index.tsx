@@ -1402,20 +1402,20 @@ export default function BookingFunnelScreen() {
           customerTokenStorage.setToken(res.token);
         }
 
-        const rawName = res.user?.fullName;
-        const registeredName = (rawName === 'Kandy Customer' ? '' : (rawName || '')).trim();
+        const rawName = res.user?.fullName?.trim() || '';
+        const registeredName = (rawName.toLowerCase() === 'customer' || rawName.toLowerCase() === 'kandy customer') ? '' : rawName;
         const hasName = Boolean(registeredName.length > 0 && res.hasRegisteredName !== false);
-        const isRegistered = res.isNewUser === false || hasName;
+        const isRegistered = res.isNewUser === false || Boolean(res.user?.id) || hasName;
 
         if (isRegistered) {
-          // Existing customer with registered name -> auto login
-          const validUser = { ...res.user, fullName: registeredName || 'Customer' };
+          // Existing customer -> auto login
+          const validUser = { ...res.user, fullName: registeredName };
           customerTokenStorage.setUser(validUser);
           setUser(validUser);
-          setPassengerName(validUser.fullName);
+          setPassengerName(registeredName);
           setPassengerPhone(cleaned);
           setPassengerEmail(res.user?.email || '');
-          Alert.alert('Signed In Successfully! 👋', `Welcome, ${validUser.fullName}!`);
+          Alert.alert('Signed In Successfully! 👋', `Welcome${registeredName ? `, ${registeredName}` : ''}!`);
         } else {
           // New customer without name -> ask for name in step 2 (do NOT set user yet, keep auth card open)
           setUser(null);
