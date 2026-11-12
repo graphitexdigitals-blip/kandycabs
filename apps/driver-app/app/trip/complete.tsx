@@ -511,7 +511,7 @@ export default function DriverTripCompleteScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.walletIconCircle}>
-              <Ionicons name="card" size={20} color="#475569" />
+              <Ionicons name="card" size={20} color="#0f172a" />
             </View>
             <View style={styles.cardHeaderTextCol}>
               <View style={styles.sectionTitleRow}>
@@ -525,7 +525,7 @@ export default function DriverTripCompleteScreen() {
             {/* NH Toll Box */}
             <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
-                <Ionicons name="business" size={16} color="#475569" />
+                <Ionicons name="business" size={16} color="#0f172a" />
                 <Text style={styles.chargeLabel}>{t('trip_flow.nh_toll_fare', 'NH Toll (₹)')}</Text>
               </View>
               <TextInput
@@ -545,7 +545,7 @@ export default function DriverTripCompleteScreen() {
             {/* Nice Road Toll Box */}
             <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
-                <Ionicons name="git-merge" size={16} color="#475569" />
+                <Ionicons name="git-merge" size={16} color="#0f172a" />
                 <Text style={styles.chargeLabel}>{t('trip_flow.nice_road_toll_fare', 'Nice Road Toll (₹)')}</Text>
               </View>
               <TextInput
@@ -568,7 +568,7 @@ export default function DriverTripCompleteScreen() {
             {/* Parking Fare Box */}
             <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
-                <MaterialCommunityIcons name="parking" size={16} color="#475569" />
+                <MaterialCommunityIcons name="parking" size={16} color="#0f172a" />
                 <Text style={styles.chargeLabel}>{t('trip_flow.parking_fare', 'Parking (₹)')}</Text>
               </View>
               <TextInput
@@ -588,7 +588,7 @@ export default function DriverTripCompleteScreen() {
             {/* Total Additional Charges Summary Box */}
             <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
-                <Ionicons name="calculator" size={16} color="#475569" />
+                <Ionicons name="calculator" size={16} color="#0f172a" />
                 <Text style={styles.chargeLabel}>Total Extra</Text>
               </View>
               <View style={styles.totalExtraDisplayBox}>
@@ -1596,9 +1596,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   chargeLabel: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '800',
-    color: '#334155',
+    color: '#0f172a',
   },
   chargeInput: {
     backgroundColor: '#ffffff',
