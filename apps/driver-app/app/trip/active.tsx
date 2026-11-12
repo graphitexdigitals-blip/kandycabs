@@ -457,7 +457,7 @@ export default function DriverTripActiveScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Quick Actions Row: Vehicle Breakdown & Call Kandy Cabs */}
+          {/* Quick Actions Row: Vehicle Breakdown & Call KandyCabs */}
           <View style={styles.emergencyActionsRow}>
             {/* Breakdown Button */}
             <TouchableOpacity
@@ -477,7 +477,7 @@ export default function DriverTripActiveScreen() {
               </View>
             </TouchableOpacity>
 
-            {/* Call Kandy Cabs Helpline Button */}
+            {/* Call KandyCabs Helpline Button */}
             <TouchableOpacity
               style={styles.callSupportPillButton}
               onPress={handleCallKandyCabs}
@@ -489,7 +489,7 @@ export default function DriverTripActiveScreen() {
                   style={styles.callSupportPillText}
                   numberOfLines={1}
                 >
-                  {t('active_trip.call_kandy_cabs', 'Call Kandy Cabs')}
+                  {t('active_trip.call_kandy_cabs', 'Call KandyCabs')}
                 </Text>
                 <Ionicons name="chevron-forward" size={15} color="#047857" />
               </View>
