@@ -538,7 +538,7 @@ export default function DriverTripCompleteScreen() {
                 }}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor="#64748b"
               />
             </View>
 
@@ -558,7 +558,7 @@ export default function DriverTripCompleteScreen() {
                 }}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor="#64748b"
               />
             </View>
           </View>
@@ -581,7 +581,7 @@ export default function DriverTripCompleteScreen() {
                 }}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor="#64748b"
               />
             </View>
 
@@ -1572,10 +1572,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   totalExtraAmount: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#0f172a',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   chargeHeaderRow: {
     flexDirection: 'row',
@@ -1609,9 +1608,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     height: 40,
     color: '#0f172a',
-    fontSize: 15,
-    fontWeight: '800',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 16,
+    fontWeight: '700',
   },
   previewContainer: {
     alignItems: 'center',
