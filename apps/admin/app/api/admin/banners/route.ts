@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { prisma } from '@kandy-cabs/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,7 +62,20 @@ const ADMIN_DATA_FILE = path.join(process.cwd(), '.banners_store.json');
 const WEB_DATA_FILE = path.join(process.cwd(), '..', 'web', '.banners_store.json');
 const TMP_DATA_FILE = path.join('/tmp', '.banners_store.json');
 
-function getStoredBanners(): BannerItem[] {
+async function getStoredBanners(): Promise<BannerItem[]> {
+  // 1. Try Supabase Postgres via Prisma
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: 'banners' },
+    });
+    if (setting && Array.isArray(setting.value) && (setting.value as any[]).length > 0) {
+      return setting.value as unknown as BannerItem[];
+    }
+  } catch (err) {
+    console.error('Error reading banners from systemSetting DB:', err);
+  }
+
+  // 2. Fallback to local files
   const possiblePaths = [TMP_DATA_FILE, ROOT_DATA_FILE, ADMIN_DATA_FILE, WEB_DATA_FILE];
   for (const p of possiblePaths) {
     try {
@@ -79,7 +93,19 @@ function getStoredBanners(): BannerItem[] {
   return DEFAULT_BANNERS;
 }
 
-function saveStoredBanners(banners: BannerItem[]) {
+async function saveStoredBanners(banners: BannerItem[]) {
+  // 1. Save to Supabase Postgres via Prisma
+  try {
+    await prisma.systemSetting.upsert({
+      where: { key: 'banners' },
+      update: { value: banners as any },
+      create: { key: 'banners', value: banners as any },
+    });
+  } catch (err) {
+    console.error('Error saving banners to systemSetting DB:', err);
+  }
+
+  // 2. Save to local files
   const jsonStr = JSON.stringify(banners, null, 2);
   const targets = [TMP_DATA_FILE, ROOT_DATA_FILE, ADMIN_DATA_FILE, WEB_DATA_FILE];
   for (const target of targets) {
@@ -102,7 +128,7 @@ function saveStoredBanners(banners: BannerItem[]) {
 // GET /api/admin/banners
 export async function GET(req: NextRequest) {
   try {
-    const banners = getStoredBanners();
+    const banners = await getStoredBanners();
     const sorted = [...banners].sort((a, b) => (a.order || 0) - (b.order || 0));
     return NextResponse.json({ banners: sorted }, { status: 200 });
   } catch (error) {
@@ -124,7 +150,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let banners = getStoredBanners();
+    let banners = await getStoredBanners();
     const resolvedType = bannerType || 'PROMO_GRAPHIC';
     const resolvedShowOverlay = showTextOverlay !== undefined ? showTextOverlay : false;
     const resolvedShowCta = showCtaButton !== undefined ? showCtaButton : Boolean(btnText);
@@ -188,7 +214,7 @@ export async function POST(req: NextRequest) {
       banners.push(newBanner);
     }
 
-    saveStoredBanners(banners);
+    await saveStoredBanners(banners);
     return NextResponse.json({ success: true, banners }, { status: 200 });
   } catch (error: any) {
     console.error('Error saving banner:', error);
@@ -206,9 +232,9 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Banner ID is required' }, { status: 400 });
     }
 
-    let banners = getStoredBanners();
+    let banners = await getStoredBanners();
     banners = banners.filter((b) => b.id !== id);
-    saveStoredBanners(banners);
+    await saveStoredBanners(banners);
 
     return NextResponse.json({ success: true, banners }, { status: 200 });
   } catch (error: any) {

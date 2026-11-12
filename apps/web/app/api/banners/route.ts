@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { prisma } from '@kandy-cabs/db';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
 
 export const dynamic = 'force-dynamic';
@@ -62,7 +63,20 @@ const WEB_DATA_FILE = path.join(process.cwd(), '.banners_store.json');
 const ADMIN_DATA_FILE = path.join(process.cwd(), '..', 'admin', '.banners_store.json');
 const TMP_DATA_FILE = path.join('/tmp', '.banners_store.json');
 
-function getStoredBanners(): BannerItem[] {
+async function getStoredBanners(): Promise<BannerItem[]> {
+  // 1. Try Supabase Postgres via Prisma
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: 'banners' },
+    });
+    if (setting && Array.isArray(setting.value) && (setting.value as any[]).length > 0) {
+      return setting.value as unknown as BannerItem[];
+    }
+  } catch (err) {
+    console.error('Error reading banners from systemSetting DB:', err);
+  }
+
+  // 2. Fallback to local files
   const possiblePaths = [TMP_DATA_FILE, ROOT_DATA_FILE, WEB_DATA_FILE, ADMIN_DATA_FILE];
   for (const p of possiblePaths) {
     try {
@@ -87,7 +101,7 @@ export async function OPTIONS() {
 // GET /api/banners
 export async function GET() {
   try {
-    const banners = getStoredBanners();
+    const banners = await getStoredBanners();
     const sorted = [...banners]
       .filter((b) => b.isActive)
       .sort((a, b) => (a.order || 0) - (b.order || 0));

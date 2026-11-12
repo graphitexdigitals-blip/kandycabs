@@ -6,6 +6,7 @@ import { verifyAuthToken, UserRole } from '@kandy-cabs/shared';
 const PUBLIC_PATHS = [
   '/login',
   '/api/auth',
+  '/api/banners',
   '/api/driver',
   '/api/customer',
   '/api/settings/pet-rates',
