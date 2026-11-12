@@ -42,6 +42,13 @@ Write-Host "`n==============================================" -ForegroundColor C
 Write-Host " STEP 3: REPACKAGING APK & REPLACING BUNDLE   " -ForegroundColor Cyan
 Write-Host "==============================================" -ForegroundColor Cyan
 
+Write-Host "Generating patched launcher icons and resources..." -ForegroundColor Yellow
+$patchScript = Join-Path $root "scripts\patch-driver-apk-icons.js"
+& node $patchScript
+if ($LASTEXITCODE -ne 0) {
+    throw "patch-driver-apk-icons.js failed with exit code $LASTEXITCODE"
+}
+
 $updateScript = Join-Path $root "scripts\update-driver-apk.ps1"
 & powershell.exe -ExecutionPolicy Bypass -File $updateScript
 if ($LASTEXITCODE -ne 0) {

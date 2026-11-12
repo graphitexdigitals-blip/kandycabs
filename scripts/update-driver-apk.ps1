@@ -85,128 +85,73 @@ if (Test-Path $assetsDir) {
     }
 }
 
-# Replace any green placeholder launcher/splash drawables with Kandy Cabs logo / adaptive icon
-$iconPath = Join-Path $root "apps\driver-app\assets\icon.png"
-$adaptiveIconPath = Join-Path $root "apps\driver-app\assets\adaptive-icon.png"
-$logoPath = Join-Path $root "apps\driver-app\assets\images\logo.png"
-
-if ((Test-Path $iconPath) -and (Test-Path $adaptiveIconPath)) {
-    $iconBmp = New-Object System.Drawing.Bitmap($iconPath)
-    $adaptiveBmp = New-Object System.Drawing.Bitmap($adaptiveIconPath)
-
-    $entriesToReplace = @()
-    foreach ($entry in $zip.Entries) {
-        if ($entry.FullName.StartsWith("res/") -and $entry.FullName.EndsWith(".png") -and ($entry.FullName.IndexOf('/', 4) -lt 0)) {
-            $stream = $entry.Open()
-            $ms = New-Object System.IO.MemoryStream
-            $stream.CopyTo($ms)
-            $stream.Dispose()
-            try {
-                $bmp = New-Object System.Drawing.Bitmap($ms)
-                # CRITICAL: Only target SQUARE launcher icons (or 1x1 color placeholders)
-                # NEVER touch rectangular assets like 990x497 logos (res/6p.png or res/7n.png)!
-                if ($bmp.Width -eq $bmp.Height -or ($bmp.Width -eq 1 -and $bmp.Height -eq 1)) {
-                    $c = $bmp.GetPixel([int]($bmp.Width / 2), [int]($bmp.Height / 2))
-                    if ($c.G -gt 110 -and $c.G -gt $c.R -and $c.G -gt $c.B) {
-                        $corner = $bmp.GetPixel(0, 0)
-                        $entriesToReplace += [PSCustomObject]@{
-                            EntryName = $entry.FullName
-                            Width = $bmp.Width
-                            Height = $bmp.Height
-                            IsTransparent = ($corner.A -eq 0)
-                            Is1x1 = ($bmp.Width -eq 1 -and $bmp.Height -eq 1)
-                        }
-                    }
-                }
-                $bmp.Dispose()
-            } catch {}
-            $ms.Dispose()
+# Inject patched icons, resources.arsc (navy iconBackground), and AndroidManifest.xml (versionCode 15)
+$patchManifest = Join-Path $root "apps\driver-app\dist_bundle\icon_patch\manifest.json"
+if (Test-Path $patchManifest) {
+    Write-Output "Injecting patched brand launcher icons, resources.arsc, and AndroidManifest..."
+    $patchData = Get-Content $patchManifest | ConvertFrom-Json
+    foreach ($item in $patchData) {
+        $entryName = $item.entry
+        $filePath = $item.file
+        if (Test-Path $filePath) {
+            $existing = $zip.GetEntry($entryName)
+            if ($null -ne $existing) { $existing.Delete() }
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $filePath, $entryName)
+            Write-Output "Injected patched asset: $entryName"
         }
     }
+}
 
-    foreach ($item in $entriesToReplace) {
-        $existing = $zip.GetEntry($item.EntryName)
-        if ($null -ne $existing) { $existing.Delete() }
+# Now inject high-res official Kandy Cabs logo into wide splash/header drawables (res/6p.png and res/7n.png)
+$logoPath = Join-Path $root "apps\driver-app\assets\images\logo.png"
+if (Test-Path $logoPath) {
+    $logoBmp = New-Object System.Drawing.Bitmap($logoPath)
+    foreach ($logoEntry in @("res/6p.png", "res/7n.png")) {
+        $existing = $zip.GetEntry($logoEntry)
+        $targetW = 990
+        $targetH = 497
+        if ($null -ne $existing) {
+            try {
+                $s = $existing.Open()
+                $m = New-Object System.IO.MemoryStream
+                $s.CopyTo($m)
+                $s.Dispose()
+                $b = New-Object System.Drawing.Bitmap($m)
+                $targetW = $b.Width
+                $targetH = $b.Height
+                $b.Dispose()
+                $m.Dispose()
+            } catch {}
+            $existing.Delete()
+        }
 
-        $targetBmp = New-Object System.Drawing.Bitmap($item.Width, $item.Height)
-        $g = [System.Drawing.Graphics]::FromImage($targetBmp)
+        $canvas = New-Object System.Drawing.Bitmap($targetW, $targetH)
+        $g = [System.Drawing.Graphics]::FromImage($canvas)
         $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
         $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
         $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+        $g.Clear([System.Drawing.Color]::Transparent)
 
-        if ($item.Is1x1) {
-            $g.Clear([System.Drawing.Color]::White)
-        } elseif ($item.IsTransparent) {
-            $g.Clear([System.Drawing.Color]::Transparent)
-            $g.DrawImage($adaptiveBmp, 0, 0, $item.Width, $item.Height)
-        } else {
-            $g.Clear([System.Drawing.Color]::FromArgb(255, 1, 38, 67))
-            $g.DrawImage($iconBmp, 0, 0, $item.Width, $item.Height)
-        }
+        # Preserve exact 1158x598 aspect ratio, fit and center well-proportioned logo on transparent canvas
+        $maxScale = [Math]::Min($targetW / $logoBmp.Width, $targetH / $logoBmp.Height)
+        $scale = $maxScale * 0.65
+        $drawW = [int]($logoBmp.Width * $scale)
+        $drawH = [int]($logoBmp.Height * $scale)
+        $drawX = [int](($targetW - $drawW) / 2)
+        $drawY = [int](($targetH - $drawH) / 2)
+
+        $g.DrawImage($logoBmp, $drawX, $drawY, $drawW, $drawH)
         $g.Dispose()
 
-        $tempPng = [System.IO.Path]::GetTempFileName() + ".png"
-        $targetBmp.Save($tempPng, [System.Drawing.Imaging.ImageFormat]::Png)
-        $targetBmp.Dispose()
+        $tempLogo = [System.IO.Path]::GetTempFileName() + ".png"
+        $canvas.Save($tempLogo, [System.Drawing.Imaging.ImageFormat]::Png)
+        $canvas.Dispose()
 
-        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $tempPng, $item.EntryName)
-        Remove-Item $tempPng -Force
-        Write-Output "Cleaned native icon drawable: $($item.EntryName) ($($item.Width)x$($item.Height))"
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $tempLogo, $logoEntry)
+        Remove-Item $tempLogo -Force
+        Write-Output "Injected clean undistorted logo: $logoEntry ($targetW x $targetH, rendered ${drawW}x${drawH})"
     }
-
-    $iconBmp.Dispose()
-    $adaptiveBmp.Dispose()
-
-    # Now inject high-res official Kandy Cabs logo into wide splash/header drawables (res/6p.png and res/7n.png)
-    if (Test-Path $logoPath) {
-        $logoBmp = New-Object System.Drawing.Bitmap($logoPath)
-        foreach ($logoEntry in @("res/6p.png", "res/7n.png")) {
-            $existing = $zip.GetEntry($logoEntry)
-            $targetW = 990
-            $targetH = 497
-            if ($null -ne $existing) {
-                try {
-                    $s = $existing.Open()
-                    $m = New-Object System.IO.MemoryStream
-                    $s.CopyTo($m)
-                    $s.Dispose()
-                    $b = New-Object System.Drawing.Bitmap($m)
-                    $targetW = $b.Width
-                    $targetH = $b.Height
-                    $b.Dispose()
-                    $m.Dispose()
-                } catch {}
-                $existing.Delete()
-            }
-
-            $canvas = New-Object System.Drawing.Bitmap($targetW, $targetH)
-            $g = [System.Drawing.Graphics]::FromImage($canvas)
-            $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-            $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
-            $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
-            $g.Clear([System.Drawing.Color]::Transparent)
-
-            # Preserve exact 1158x598 aspect ratio, fit and center well-proportioned logo on transparent canvas
-            $maxScale = [Math]::Min($targetW / $logoBmp.Width, $targetH / $logoBmp.Height)
-            $scale = $maxScale * 0.65
-            $drawW = [int]($logoBmp.Width * $scale)
-            $drawH = [int]($logoBmp.Height * $scale)
-            $drawX = [int](($targetW - $drawW) / 2)
-            $drawY = [int](($targetH - $drawH) / 2)
-
-            $g.DrawImage($logoBmp, $drawX, $drawY, $drawW, $drawH)
-            $g.Dispose()
-
-            $tempLogo = [System.IO.Path]::GetTempFileName() + ".png"
-            $canvas.Save($tempLogo, [System.Drawing.Imaging.ImageFormat]::Png)
-            $canvas.Dispose()
-
-            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $tempLogo, $logoEntry)
-            Remove-Item $tempLogo -Force
-            Write-Output "Injected clean undistorted logo: $logoEntry ($targetW x $targetH, rendered ${drawW}x${drawH})"
-        }
-        $logoBmp.Dispose()
-    }
+    $logoBmp.Dispose()
 }
 
 $zip.Dispose()
