@@ -233,7 +233,7 @@ export async function POST(req: NextRequest) {
 
             // Geofence Stage 1 (~500m): Driver approaching pickup
             if (isNearPickup && !alreadyNear) {
-              const nearMsg = `🚕 ${driverName} is arriving at your pickup location (${Math.round(distanceToPickup)}m away). Please be ready!`;
+              const nearMsg = `${driverName} is arriving at your pickup location (${Math.round(distanceToPickup)}m away). Please be ready!`;
 
               await prisma.tripEvent.create({
                 data: {
@@ -261,7 +261,7 @@ export async function POST(req: NextRequest) {
 
             // Geofence Stage 2 (~80m): Driver Arrived -> Reveal Pickup OTP
             if (isArrived && !alreadyArrived) {
-              const arrivedMsg = `📍 ${driverName} has arrived at your pickup location! Your OTP is ${activeBooking.pickupOtp || '----'}.`;
+              const arrivedMsg = `${driverName} has arrived at your pickup location! Your OTP is ${activeBooking.pickupOtp || '----'}.`;
 
               await prisma.tripEvent.create({
                 data: {

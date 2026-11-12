@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kandy Cabs Customer",
     "slug": "kandy-cabs-customer",
-    "version": "1.0.1",
+    "version": "1.0.7",
     "jsEngine": "hermes",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,7 +20,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F74A01"
+        "backgroundColor": "#FC5204"
       },
       "package": "com.kandycabs.customer",
       "permissions": [

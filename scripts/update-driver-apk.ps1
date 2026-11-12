@@ -4,6 +4,9 @@ Add-Type -AssemblyName System.Drawing
 
 $root = "D:\Rakshith\Graphitex Digitals\client websites\kandycabs\kandycabs website\kandycabs updated"
 $baseApk = Join-Path $root "apps\driver-app\android\app\build\outputs\apk\release\app-release.apk"
+if (-not (Test-Path $baseApk)) {
+    $baseApk = Join-Path $root "kandy-cabs-driver.apk"
+}
 $distDir = Join-Path $root "apps\driver-app\dist_bundle"
 $tempUnsigned = Join-Path $distDir "temp_unsigned.apk"
 $tempAligned = Join-Path $distDir "temp_aligned.apk"

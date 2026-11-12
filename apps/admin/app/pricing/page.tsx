@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 const TRIP_TYPES_LIST = [
   {
     id: 'ONEWAY',
-    label: 'One-Way Drop',
+    label: 'One-Way',
     desc: 'Point-to-point intercity drops',
     icon: (
       <svg className="w-5 h-5 text-current" viewBox="0 0 24 24" fill="currentColor">
@@ -32,7 +32,7 @@ const TRIP_TYPES_LIST = [
   },
   {
     id: 'AIRPORT',
-    label: 'Airport Transfer',
+    label: 'Airport',
     desc: 'Airport pickup and drops',
     icon: (
       <svg className="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -53,7 +53,7 @@ const TRIP_TYPES_LIST = [
   },
   {
     id: 'PACKAGE',
-    label: 'Tour & Package',
+    label: 'Tour Pkg',
     desc: 'Sightseeing & pilgrimage',
     icon: (
       <svg className="w-5 h-5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -131,8 +131,8 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
         <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
       </svg>
     ),
-    bg: 'bg-amber-50/60',
-    border: 'border-amber-200',
+    bg: 'bg-[#f5faff]',
+    border: 'border-slate-200',
   },
   [VehicleCategory.SEDAN]: {
     name: 'Sedan',
@@ -142,8 +142,8 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
         <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
       </svg>
     ),
-    bg: 'bg-blue-50/60',
-    border: 'border-blue-200',
+    bg: 'bg-[#f5faff]',
+    border: 'border-slate-200',
   },
   [VehicleCategory.SUV]: {
     name: 'SUV (6+1)',
@@ -153,8 +153,8 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
         <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
       </svg>
     ),
-    bg: 'bg-emerald-50/60',
-    border: 'border-emerald-200',
+    bg: 'bg-[#f5faff]',
+    border: 'border-slate-200',
   },
   [VehicleCategory.SUV_PREMIUM]: {
     name: 'Premium SUV',
@@ -164,8 +164,8 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
         <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
       </svg>
     ),
-    bg: 'bg-purple-50/60',
-    border: 'border-purple-200',
+    bg: 'bg-[#f5faff]',
+    border: 'border-slate-200',
   },
   [VehicleCategory.TEMPO_TRAVELER]: {
     name: 'Tempo Traveller',
@@ -180,8 +180,8 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
         <circle cx="16.5" cy="18.5" r="2.5" />
       </svg>
     ),
-    bg: 'bg-rose-50/60',
-    border: 'border-rose-200',
+    bg: 'bg-[#f5faff]',
+    border: 'border-slate-200',
   },
   URBANIA: {
     name: 'Force Urbania Luxury',
@@ -194,8 +194,8 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
         <path d="M2 12h20" />
       </svg>
     ),
-    bg: 'bg-amber-50/60',
-    border: 'border-amber-200',
+    bg: 'bg-[#f5faff]',
+    border: 'border-slate-200',
   },
 };
 
@@ -393,37 +393,35 @@ export default function AdminPricingPage() {
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col">
       <AdminNavbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-3.5 sm:space-y-5">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-2 sm:px-6 lg:px-8 py-2.5 sm:py-5 space-y-2.5 sm:space-y-4">
         {/* Top Header */}
-        <div className="bg-white p-3.5 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between gap-3">
+        <div className="bg-white p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs">
+          <div className="flex items-center justify-between gap-2 sm:gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <svg className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
                 <line x1="7" y1="7" x2="7.01" y2="7" />
               </svg>
-              <h1 className="text-base sm:text-2xl font-black tracking-tight text-slate-900 truncate">
+              <h1 className="text-sm sm:text-xl md:text-2xl font-black tracking-tight text-slate-900 truncate">
                 Fare Rules & Pricing Matrix
               </h1>
             </div>
 
             <button
+              type="button"
               onClick={() => fetchRules()}
-              className="px-3 py-1.5 sm:px-4 sm:py-2 bg-slate-50 hover:bg-slate-100 text-xs font-bold rounded-lg sm:rounded-xl border border-slate-200 flex items-center gap-1.5 text-slate-700 transition shadow-2xs shrink-0 whitespace-nowrap"
+              title="Refresh rates"
+              aria-label="Refresh rates"
+              className="p-1.5 sm:p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl border border-slate-200 flex items-center justify-center transition shadow-2xs shrink-0 cursor-pointer"
             >
-              <svg className="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg className="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 2v6h-6" />
                 <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
                 <path d="M3 22v-6h6" />
                 <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
               </svg>
-              <span>Refresh Rates</span>
             </button>
           </div>
-
-          <p className="text-[11px] sm:text-xs text-slate-500 mt-1 sm:mt-1.5">
-            Separate pricing cards per <span className="font-semibold text-slate-800">Trip Type</span> and <span className="font-semibold text-slate-800">Fuel Type</span>. Updates take effect immediately on live quotes.
-          </p>
         </div>
 
         {/* Success Toast */}
@@ -442,7 +440,7 @@ export default function AdminPricingPage() {
         )}
 
         {/* 1. Trip Type Pill Tabs */}
-        <div className="space-y-1.5">
+        <div className="space-y-1 sm:space-y-1.5">
           <label className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-500 block px-1">
             1. Select Trip Type
           </label>
@@ -453,17 +451,14 @@ export default function AdminPricingPage() {
                 <button
                   key={tt.id}
                   onClick={() => setActiveTripType(tt.id)}
-                  className={`flex flex-col items-center justify-center p-2 sm:p-3 rounded-lg sm:rounded-xl border text-center transition ${
+                  className={`flex flex-col items-center justify-center p-2 sm:p-2.5 rounded-xl border text-center transition min-w-0 ${
                     isSelected
                       ? 'bg-amber-500 text-white border-amber-600 shadow-sm ring-2 ring-amber-400/40'
                       : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
                   }`}
                 >
-                  <span className="mb-0.5 sm:mb-1">{tt.icon}</span>
-                  <span className="text-[11px] sm:text-xs font-black line-clamp-1">{tt.label}</span>
-                  <span className={`text-[9px] sm:text-[10px] mt-0.5 line-clamp-1 ${isSelected ? 'text-amber-100' : 'text-slate-400'}`}>
-                    {tt.id === 'ALL' ? 'All types' : tt.id}
-                  </span>
+                  <span className="mb-1 scale-90 sm:scale-100">{tt.icon}</span>
+                  <span className="text-[11px] sm:text-xs font-black truncate w-full px-0.5">{tt.label}</span>
                 </button>
               );
             })}
@@ -471,8 +466,8 @@ export default function AdminPricingPage() {
         </div>
 
         {/* 2. Fuel Type Filter Bar & Search */}
-        <div className="bg-white border border-slate-200 rounded-xl p-2.5 sm:p-3.5 flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center justify-between shadow-xs">
-          <div className="flex flex-wrap items-center gap-1.5">
+        <div className="bg-white border border-slate-200 rounded-xl p-2 sm:p-3 flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center justify-between shadow-xs">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
             <span className="text-xs font-bold text-slate-500 mr-1 sm:mr-2">Fuel Type:</span>
             {FUEL_TYPES_LIST.map((ft) => {
               const isSelected = activeFuelType === ft.id;
@@ -480,7 +475,7 @@ export default function AdminPricingPage() {
                 <button
                   key={ft.id}
                   onClick={() => setActiveFuelType(ft.id)}
-                  className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                  className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition ${
                     isSelected
                       ? 'bg-slate-900 text-white shadow-xs'
                       : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
@@ -499,38 +494,37 @@ export default function AdminPricingPage() {
               placeholder="Search category or fuel..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
             />
           </div>
         </div>
 
         {/* 2.5 Force Urbania / Van Wheelbase & Seater Pricing Matrix */}
-        <div className="bg-white border-2 border-amber-300/80 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-xs space-y-3 sm:space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 border-b border-amber-100 pb-2.5 sm:pb-3">
+        <div className="space-y-2.5 sm:space-y-3.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
             <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <svg className="w-5 h-5 text-amber-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <div className="flex items-start sm:items-center gap-2">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="2" y="6" width="20" height="12" rx="2" />
                   <circle cx="7" cy="18" r="2" />
                   <circle cx="17" cy="18" r="2" />
                   <path d="M2 12h20" />
                 </svg>
-                <h3 className="text-sm sm:text-base font-black text-slate-900">
-                  Force Urbania & Van Wheelbase & Seater Pricing Matrix
-                </h3>
-                <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-extrabold px-2 py-0.5 rounded-md">
-                  Live Rule Engine
-                </span>
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <h3 className="text-xs sm:text-base font-black text-slate-900">
+                    Force Urbania & Van Wheelbase & Seater Pricing Matrix
+                  </h3>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Live Rule Engine
+                  </span>
+                </div>
               </div>
-              <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
-                Configure rates per km, extra km rates, and <strong>Extra KM After</strong> distance threshold for <strong>Short (3350 mm)</strong>, <strong>Medium (3615 mm)</strong>, and <strong>Long (4400 mm)</strong> wheelbase seater options.
-              </p>
             </div>
 
             <button
               onClick={handleSaveAllSeaterRates}
               disabled={savingSeaterRates}
-              className="w-full sm:w-auto px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0"
+              className="w-full sm:w-auto px-3.5 py-1.5 sm:px-4 sm:py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
             >
               <svg className="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
@@ -542,7 +536,7 @@ export default function AdminPricingPage() {
           </div>
 
           {/* Live Interactive Distance Simulator Controls */}
-          <div className="bg-amber-50/70 border border-amber-200/80 rounded-lg sm:rounded-xl p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
+          <div className="bg-white border border-slate-200 rounded-xl p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2 sm:gap-2.5 shadow-2xs">
             <div className="flex items-center gap-2">
               <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
                 <svg className="w-3.5 h-3.5 text-amber-600 fill-current" viewBox="0 0 24 24">
@@ -556,7 +550,7 @@ export default function AdminPricingPage() {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-              <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-amber-300 shadow-2xs">
+              <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-300 shadow-2xs">
                 <span className="text-[11px] sm:text-xs font-bold text-slate-500">Trip:</span>
                 <input
                   type="number"
@@ -619,7 +613,7 @@ export default function AdminPricingPage() {
               return (
                 <div
                   key={variant.id}
-                  className="bg-slate-50 border-2 border-slate-200 hover:border-amber-400 rounded-xl sm:rounded-2xl p-3 sm:p-4 space-y-2.5 sm:space-y-3.5 transition flex flex-col justify-between"
+                  className="bg-white border border-slate-200 hover:border-amber-400 rounded-xl sm:rounded-2xl p-3 sm:p-4 space-y-2.5 sm:space-y-3.5 transition flex flex-col justify-between shadow-xs"
                 >
                   <div>
                     {/* Header */}
@@ -667,7 +661,7 @@ export default function AdminPricingPage() {
                             min="1"
                             value={variant.rate}
                             onChange={(e) => handleUpdateSeaterField(variant.id, 'rate', parseFloat(e.target.value) || 0)}
-                            className="w-full pl-4 sm:pl-5 pr-1 py-1 sm:py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-black text-emerald-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                            className="w-full pl-4 sm:pl-5 pr-1 py-1 sm:py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
                           />
                         </div>
                       </div>
@@ -728,7 +722,7 @@ export default function AdminPricingPage() {
                         </svg>
                         <span>Calc ({testDistanceKm} km):</span>
                       </span>
-                      <span className="font-black text-xs text-emerald-700">
+                      <span className="font-black text-xs text-slate-900">
                         ₹{totalFareWithGst.toLocaleString('en-IN')} <span className="text-[9.5px] text-slate-400 font-normal">incl. GST</span>
                       </span>
                     </div>
@@ -770,9 +764,9 @@ export default function AdminPricingPage() {
 
                     {/* Split 25% Advance / 75% Balance */}
                     <div className="grid grid-cols-2 gap-1.5 pt-0.5 text-[10.5px]">
-                      <div className="bg-amber-50/80 border border-amber-200 px-2 py-1 rounded text-center">
-                        <span className="text-[9.5px] text-amber-800 font-bold block">Advance (25%)</span>
-                        <span className="font-black text-amber-950">₹{advance25.toLocaleString('en-IN')}</span>
+                      <div className="bg-[#f5faff] border border-slate-200 px-2 py-1 rounded text-center">
+                        <span className="text-[9.5px] text-slate-700 font-bold block">Advance (25%)</span>
+                        <span className="font-black text-slate-900">₹{advance25.toLocaleString('en-IN')}</span>
                       </div>
                       <div className="bg-slate-100 border border-slate-200 px-2 py-1 rounded text-center">
                         <span className="text-[9.5px] text-slate-600 font-bold block">Balance on Drop</span>
@@ -787,23 +781,22 @@ export default function AdminPricingPage() {
         </div>
 
         {/* Pet-Friendly Surcharge Rates Card */}
-        <div className="bg-white border border-amber-200/90 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-xs space-y-3 sm:space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 border-b border-amber-100 pb-2.5 sm:pb-3">
+        <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-2.5 sm:p-5 shadow-xs space-y-2.5 sm:space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 border-b border-slate-200 pb-2.5 sm:pb-3">
             <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <svg className="w-5 h-5 text-amber-600 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+              <div className="flex items-start sm:items-center gap-2">
+                <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 13c-1.66 0-3 1.34-3 3 0 1.31.84 2.41 2.01 2.82l-.46 1.84c-.1.38.13.77.51.87.09.02.18.03.27.03.29 0 .56-.18.66-.47l.51-2.03c.16.03.33.04.5.04.17 0 .34-.01.5-.04l.51 2.03c.1.29.37.47.66.47.09 0 .18-.01.27-.03.38-.1.61-.49.51-.87l-.46-1.84c1.17-.41 2.01-1.51 2.01-2.82 0-1.66-1.34-3-3-3zM4.5 9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5S8.38 7 7 7s-2.5 1.12-2.5 2.5zm10 0c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5S18.38 7 17 7s-2.5 1.12-2.5 2.5zM2 13.5C2 14.88 3.12 16 4.5 16S7 14.88 7 13.5 5.88 11 4.5 11 2 12.12 2 13.5zm15 0c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5S20.88 11 19.5 11 17 12.12 17 13.5z" />
                 </svg>
-                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
-                  Pet-Friendly Surcharge Rates (Mobile App & Web)
-                </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
-                  Live Pricing
-                </span>
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
+                    Pet-Friendly Surcharge Rates (Mobile App & Web)
+                  </h3>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Live Pricing
+                  </span>
+                </div>
               </div>
-              <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
-                Configure per-trip pet sanitization and convenience surcharges for <strong>Cat</strong>, <strong>Dog</strong>, and <strong>Bird</strong>. When customers enable "Pet Friendly" in the app, these rates are dynamically presented and added to the trip fare.
-              </p>
             </div>
 
             <button
@@ -828,12 +821,12 @@ export default function AdminPricingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
             {/* Cat */}
-            <div className="bg-amber-50/50 border border-amber-200/80 rounded-xl p-3 sm:p-4 flex flex-col justify-between hover:border-amber-300 transition shadow-2xs">
+            <div className="bg-[#f5faff] border border-slate-200 rounded-xl p-3 sm:p-4 flex flex-col justify-between hover:border-slate-300 transition shadow-2xs">
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <div className="shrink-0 flex items-center justify-center text-amber-700">
+                      <svg className="w-6 h-6 sm:w-7 sm:h-7 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21S3 17.9 3 13.44c0-1.2.43-2.37 1-3.44 0 0-1.82-6.42-.42-7 1.39-.58 4.64.26 6.42 2.26.65-.17 1.33-.26 2-.26z" />
                         <path d="M9 13v.01" />
                         <path d="M15 13v.01" />
@@ -844,7 +837,7 @@ export default function AdminPricingPage() {
                       <p className="text-[10.5px] sm:text-[11px] text-slate-500">Cats, kittens & small felines</p>
                     </div>
                   </div>
-                  <span className="text-[11px] sm:text-xs font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-200">
+                  <span className="text-[11px] sm:text-xs font-bold text-slate-500">
                     Per Trip
                   </span>
                 </div>
@@ -867,19 +860,19 @@ export default function AdminPricingPage() {
                 </div>
               </div>
 
-              <div className="mt-2.5 pt-2 border-t border-amber-200/60 flex items-center justify-between text-[11px]">
+              <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
                 <span className="text-slate-500">Customer App Fee:</span>
-                <span className="font-extrabold text-amber-900">+₹{petRates.cat}</span>
+                <span className="font-extrabold text-slate-900">+₹{petRates.cat}</span>
               </div>
             </div>
 
             {/* Dog */}
-            <div className="bg-amber-50/50 border border-amber-200/80 rounded-xl p-3 sm:p-4 flex flex-col justify-between hover:border-amber-300 transition shadow-2xs">
+            <div className="bg-[#f5faff] border border-slate-200 rounded-xl p-3 sm:p-4 flex flex-col justify-between hover:border-slate-300 transition shadow-2xs">
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <div className="shrink-0 flex items-center justify-center text-amber-700">
+                      <svg className="w-6 h-6 sm:w-7 sm:h-7 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M10 5.172C10 3.782 8.423 2.679 6.5 3c-2.823.47-4.113 6.006-4 7 .08.703 1.8 1.984 3 2.02" />
                         <path d="M14 5.172C14 3.782 15.577 2.679 17.5 3c2.823.47 4.113 6.006 4 7-.08.703-1.8 1.984-3 2.02" />
                         <path d="M8 14v.5" />
@@ -893,7 +886,7 @@ export default function AdminPricingPage() {
                       <p className="text-[10.5px] sm:text-[11px] text-slate-500">Dogs, puppies & large canines</p>
                     </div>
                   </div>
-                  <span className="text-[11px] sm:text-xs font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-200">
+                  <span className="text-[11px] sm:text-xs font-bold text-slate-500">
                     Per Trip
                   </span>
                 </div>
@@ -916,19 +909,19 @@ export default function AdminPricingPage() {
                 </div>
               </div>
 
-              <div className="mt-2.5 pt-2 border-t border-amber-200/60 flex items-center justify-between text-[11px]">
+              <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
                 <span className="text-slate-500">Customer App Fee:</span>
-                <span className="font-extrabold text-amber-900">+₹{petRates.dog}</span>
+                <span className="font-extrabold text-slate-900">+₹{petRates.dog}</span>
               </div>
             </div>
 
             {/* Bird */}
-            <div className="bg-amber-50/50 border border-amber-200/80 rounded-xl p-3 sm:p-4 flex flex-col justify-between hover:border-amber-300 transition shadow-2xs">
+            <div className="bg-[#f5faff] border border-slate-200 rounded-xl p-3 sm:p-4 flex flex-col justify-between hover:border-slate-300 transition shadow-2xs">
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <div className="shrink-0 flex items-center justify-center text-amber-700">
+                      <svg className="w-6 h-6 sm:w-7 sm:h-7 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M16 7h.01" />
                         <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 18z" />
                         <path d="m20 7 2 .5-2 .5" />
@@ -942,7 +935,7 @@ export default function AdminPricingPage() {
                       <p className="text-[10.5px] sm:text-[11px] text-slate-500">Parrots, canaries & caged birds</p>
                     </div>
                   </div>
-                  <span className="text-[11px] sm:text-xs font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-200">
+                  <span className="text-[11px] sm:text-xs font-bold text-slate-500">
                     Per Trip
                   </span>
                 </div>
@@ -965,9 +958,9 @@ export default function AdminPricingPage() {
                 </div>
               </div>
 
-              <div className="mt-2.5 pt-2 border-t border-amber-200/60 flex items-center justify-between text-[11px]">
+              <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
                 <span className="text-slate-500">Customer App Fee:</span>
-                <span className="font-extrabold text-amber-900">+₹{petRates.bird}</span>
+                <span className="font-extrabold text-slate-900">+₹{petRates.bird}</span>
               </div>
             </div>
           </div>
@@ -1009,7 +1002,7 @@ export default function AdminPricingPage() {
                     <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
                   </svg>
                 ),
-                bg: 'bg-slate-50',
+                bg: 'bg-[#f5faff]',
                 border: 'border-slate-200',
               };
 
@@ -1034,11 +1027,12 @@ export default function AdminPricingPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="px-2 py-0.5 bg-slate-900 text-white rounded text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider">
+                    <div className="flex items-center gap-1.5 text-right shrink-0">
+                      <span className="text-[10px] sm:text-[11px] font-black text-slate-900 uppercase tracking-wider">
                         {rule.fuelType}
                       </span>
-                      <span className="px-1.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded text-[9px] sm:text-[9.5px] font-bold">
+                      <span className="text-slate-300 font-normal select-none">|</span>
+                      <span className="text-[9.5px] sm:text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
                         {rule.tripType}
                       </span>
                     </div>
@@ -1063,19 +1057,19 @@ export default function AdminPricingPage() {
                         <div className="grid grid-cols-3 gap-1.5 text-xs">
                           <div className="bg-white border border-slate-200 rounded-lg p-1.5 sm:p-2 text-center">
                             <div className="text-[9px] sm:text-[9.5px] font-bold text-slate-400">4h / {rule.localPackage4hrKm || 40}km</div>
-                            <div className="font-black text-emerald-700 text-xs sm:text-sm mt-0.5">
+                            <div className="font-black text-slate-900 text-xs sm:text-sm mt-0.5">
                               ₹{rule.localPackage4hrBase || (rule.category === 'HATCHBACK' ? 1000 : rule.category === 'SEDAN' ? 1200 : rule.category === 'SUV' ? 1600 : rule.category === 'SUV_PREMIUM' ? 2200 : 3000)}
                             </div>
                           </div>
                           <div className="bg-white border border-slate-200 rounded-lg p-1.5 sm:p-2 text-center">
                             <div className="text-[9px] sm:text-[9.5px] font-bold text-slate-400">8h / {rule.localPackage8hrKm || 80}km</div>
-                            <div className="font-black text-emerald-700 text-xs sm:text-sm mt-0.5">
+                            <div className="font-black text-slate-900 text-xs sm:text-sm mt-0.5">
                               ₹{rule.localPackage8hrBase || (rule.category === 'HATCHBACK' ? 1800 : rule.category === 'SEDAN' ? 2200 : rule.category === 'SUV' ? 2800 : rule.category === 'SUV_PREMIUM' ? 3800 : 5500)}
                             </div>
                           </div>
                           <div className="bg-white border border-slate-200 rounded-lg p-1.5 sm:p-2 text-center">
                             <div className="text-[9px] sm:text-[9.5px] font-bold text-slate-400">12h / {rule.localPackage12hrKm || 120}km</div>
-                            <div className="font-black text-emerald-700 text-xs sm:text-sm mt-0.5">
+                            <div className="font-black text-slate-900 text-xs sm:text-sm mt-0.5">
                               ₹{rule.localPackage12hrBase || (rule.category === 'HATCHBACK' ? 2600 : rule.category === 'SEDAN' ? 3200 : rule.category === 'SUV' ? 4000 : rule.category === 'SUV_PREMIUM' ? 5200 : 7500)}
                             </div>
                           </div>
@@ -1088,7 +1082,7 @@ export default function AdminPricingPage() {
                             Base Rate
                           </span>
                           <div className="flex items-baseline gap-1 mt-0.5">
-                            <span className="text-xl sm:text-2xl font-black text-emerald-700">₹{rule.baseRatePerKm}</span>
+                            <span className="text-xl sm:text-2xl font-black text-slate-900">₹{rule.baseRatePerKm}</span>
                             <span className="text-xs font-bold text-slate-500">/ km</span>
                           </div>
                         </div>
@@ -1144,12 +1138,12 @@ export default function AdminPricingPage() {
                           </svg>
                           <span className="truncate">GST Rate</span>
                         </div>
-                        <div className="font-black text-blue-700 text-[11px] sm:text-xs mt-0.5">{rule.gstRatePercent}%</div>
+                        <div className="font-black text-slate-900 text-[11px] sm:text-xs mt-0.5">{rule.gstRatePercent}%</div>
                       </div>
 
                       <div className="bg-white border border-slate-100 rounded-lg p-1.5 sm:p-2">
                         <div className="text-[9.5px] sm:text-[10px] font-bold text-slate-400 uppercase">Status</div>
-                        <div className={`font-black text-[11px] sm:text-xs mt-0.5 ${rule.isActive ? 'text-emerald-700' : 'text-rose-600'}`}>
+                        <div className={`font-black text-[11px] sm:text-xs mt-0.5 ${rule.isActive ? 'text-slate-900' : 'text-slate-400'}`}>
                           {rule.isActive ? '● Active' : '○ Inactive'}
                         </div>
                       </div>
@@ -1189,10 +1183,10 @@ export default function AdminPricingPage() {
 
       {/* Edit Rule Modal */}
       {editingRule && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-fade-in overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto p-4 sm:p-6 space-y-3.5 sm:space-y-4 shadow-2xl flex flex-col">
             {/* Modal Header */}
-            <div className="flex justify-between items-start pb-3 border-b border-slate-200">
+            <div className="flex justify-between items-start pb-2.5 sm:pb-3 border-b border-slate-200 shrink-0">
               <div>
                 <div className="flex items-center gap-2">
                   <svg className="w-5 h-5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1203,11 +1197,12 @@ export default function AdminPricingPage() {
                     Edit {editingRule.category} Rates
                   </h3>
                 </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="px-2 py-0.5 bg-slate-900 text-white rounded text-[10px] font-bold">
+                <div className="flex items-center gap-1.5 mt-1 text-[11px] font-bold">
+                  <span className="text-slate-900 font-black uppercase tracking-wider">
                     {editingRule.fuelType}
                   </span>
-                  <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded text-[10px] font-bold">
+                  <span className="text-slate-300 font-normal select-none">|</span>
+                  <span className="text-slate-500 uppercase tracking-wider">
                     {editingRule.tripType}
                   </span>
                 </div>
@@ -1223,8 +1218,8 @@ export default function AdminPricingPage() {
             {/* Modal Form */}
             <form onSubmit={handleSaveRule} className="space-y-4 text-xs">
               {editingRule.tripType === 'LOCAL' || editingRule.tripType === 'PACKAGE' ? (
-                <div className="space-y-3 bg-amber-50/60 border border-amber-200 p-3.5 rounded-xl">
-                  <div className="flex items-center justify-between border-b border-amber-200/80 pb-2">
+                <div className="space-y-3 bg-[#f5faff] border border-slate-200 p-3.5 rounded-xl">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                     <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
                       <svg className="w-4 h-4 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10" />

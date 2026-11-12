@@ -13,6 +13,7 @@ import {
   IconShield,
   IconCar,
   IconTag,
+  IconTicket,
   IconImage,
   IconFileText,
   IconLogout,
@@ -104,6 +105,13 @@ export function AdminNavbar() {
       description: 'Per-km rates, min km, night & pet charges',
       icon: IconTag,
       section: 'FLEET & DRIVERS',
+    },
+    {
+      href: '/coupons',
+      label: 'Coupons & Promos',
+      description: 'Flat amount (₹) & percentage (%) discount promo codes',
+      icon: IconTicket,
+      section: 'SYSTEM & ANALYTICS',
     },
     {
       href: '/analytics',
@@ -213,9 +221,6 @@ export function AdminNavbar() {
                   Login
                 </Link>
               )}
-
-              {/* Divider */}
-              <div className="h-6 w-px bg-slate-200 mx-0.5" />
 
               {/* Hamburger Menu Button (Right-aligned) */}
               <button

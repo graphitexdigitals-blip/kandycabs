@@ -24,6 +24,7 @@ import { locationSharer } from '../lib/location-sharer';
 import { customerRealtimeTracker } from '../lib/realtime-client';
 import { reviewManager } from '../lib/reviewManager';
 import { DriverRatingModal } from '../components/DriverRatingModal';
+import { TaxInvoiceModal } from '../components/TaxInvoiceModal';
 import {
   BookingStatus,
   TripType,
@@ -1024,21 +1025,8 @@ export default function CustomerDashboardScreen() {
     );
   };
 
-  const handleViewInvoice = async (booking: any) => {
+  const handleViewInvoice = (booking: any) => {
     setInvoiceBooking(booking);
-    setInvoiceLoading(true);
-    try {
-      const res = await customerApiClient.fetch(`/api/customer/bookings/${booking.id}/invoice`);
-      if (res.success) {
-        setInvoiceData(res.invoice);
-      } else {
-        Alert.alert('Invoice Error', res.message || 'Unable to generate invoice.');
-      }
-    } catch {
-      Alert.alert('Error', 'Failed to load tax invoice.');
-    } finally {
-      setInvoiceLoading(false);
-    }
   };
 
   const handleLogout = () => {
@@ -1794,49 +1782,14 @@ export default function CustomerDashboardScreen() {
         )}
       </ScrollView>
 
-      {/* Invoice Modal */}
-      <Modal visible={!!invoiceBooking} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Tax Invoice</Text>
-            {invoiceLoading ? (
-              <ActivityIndicator size="large" color="#f59e0b" style={{ marginVertical: 30 }} />
-            ) : invoiceData ? (
-              <View style={styles.invoiceContent}>
-                <Text style={styles.invoiceHeader}>KANDY CABS TOURS & TRAVELS</Text>
-                <Text style={styles.invoiceSub}>GSTIN: 29AABCK1234F1Z5</Text>
-                <View style={styles.divider} />
-                <Text style={styles.invoiceText}>Invoice No: {invoiceData.invoiceNumber}</Text>
-                <Text style={styles.invoiceText}>Booking Ref: {invoiceBooking?.humanReadableRef}</Text>
-                <Text style={styles.invoiceText}>Date: {new Date().toLocaleDateString()}</Text>
-                <View style={styles.divider} />
-                <View style={styles.invoiceRow}>
-                  <Text style={styles.invoiceText}>Base Fare:</Text>
-                  <Text style={styles.invoiceVal}>₹{invoiceData.baseFare}</Text>
-                </View>
-                <View style={styles.invoiceRow}>
-                  <Text style={styles.invoiceText}>GST (5%):</Text>
-                  <Text style={styles.invoiceVal}>₹{invoiceData.gstAmount}</Text>
-                </View>
-                <View style={styles.invoiceRow}>
-                  <Text style={[styles.invoiceText, { fontWeight: 'bold', color: '#f59e0b' }]}>
-                    Total Paid:
-                  </Text>
-                  <Text style={[styles.invoiceVal, { fontWeight: 'bold', color: '#f59e0b' }]}>
-                    ₹{invoiceData.totalAmount}
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-            <TouchableOpacity
-              style={styles.closeModalBtn}
-              onPress={() => setInvoiceBooking(null)}
-            >
-              <Text style={styles.closeModalText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {/* Tax Invoice Modal */}
+      {invoiceBooking && (
+        <TaxInvoiceModal
+          bookingId={invoiceBooking.id}
+          isOpen={!!invoiceBooking}
+          onClose={() => setInvoiceBooking(null)}
+        />
+      )}
 
       {/* Dedicated Interactive Location Dropdown / Search Modal */}
       <Modal

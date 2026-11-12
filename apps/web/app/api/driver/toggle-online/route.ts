@@ -25,11 +25,18 @@ export async function PATCH(req: NextRequest) {
     const newStatus = typeof body.onlineStatus === 'boolean' ? body.onlineStatus : !session.driver.onlineStatus;
 
     if (newStatus && session.driver.verificationStatus !== DriverVerificationStatus.APPROVED) {
-      // Auto-approve driver when going online so driver is never blocked by review status
-      await prisma.driver.update({
-        where: { id: session.driverId },
-        data: { verificationStatus: DriverVerificationStatus.APPROVED },
-      }).catch(() => {});
+      const isRejected = session.driver.verificationStatus === DriverVerificationStatus.REJECTED;
+      const res = NextResponse.json(
+        {
+          success: false,
+          error: 'VerificationRequired',
+          message: isRejected
+            ? 'Your registration was not approved. Please re-upload your documents in the Documents & KYC section.'
+            : 'Your documents and registration are currently under review. You will be able to go on-duty once verified and approved by admin.',
+        },
+        { status: 403 }
+      );
+      return setCorsHeaders(res);
     }
 
     const updatedDriver = await prisma.driver.update({

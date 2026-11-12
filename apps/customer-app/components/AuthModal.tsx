@@ -116,17 +116,19 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
           registeredName.trim().length > 0 &&
           res.hasRegisteredName !== false
         );
+        const isRegistered = res.isNewUser === false || hasName;
 
-        if (hasName) {
+        if (isRegistered) {
           // Existing registered customer -> auto show profile and complete
-          if (res.isNewUser) {
-            await flagNewUserRegistration();
-          }
-          customerTokenStorage.setUser(res.user);
-          onSuccess(res.user);
+          const validUser = {
+            ...res.user,
+            fullName: (registeredName && registeredName !== 'Kandy Customer') ? registeredName : 'Customer',
+          };
+          customerTokenStorage.setUser(validUser);
+          onSuccess(validUser);
           handleClose();
         } else {
-          // New customer without registered name -> ask for name
+          // Truly new customer without registered name -> ask for name
           setTempUser(res.user);
           setStep('NAME');
         }

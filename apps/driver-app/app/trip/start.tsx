@@ -67,6 +67,7 @@ export default function DriverTripStartScreen() {
   const [pickupOtp, setPickupOtp] = useState('');
   const [isOtpVerified, setIsOtpVerified] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [isCustomerBoarded, setIsCustomerBoarded] = useState(false);
   const [startingOdometer, setStartingOdometer] = useState('');
   const [odometerPhotoAttached, setOdometerPhotoAttached] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -113,6 +114,9 @@ export default function DriverTripStartScreen() {
       if (draft.pickupOtp) {
         setPickupOtp(draft.pickupOtp);
       }
+      if (typeof draft.isCustomerBoarded === 'boolean') {
+        setIsCustomerBoarded(draft.isCustomerBoarded);
+      }
       if (draft.inspectionPhotos) {
         setInspectionPhotos(
           draft.inspectionPhotos.map((p) => (p && p.includes('images.unsplash.com') ? 'demo_photo' : p))
@@ -124,6 +128,7 @@ export default function DriverTripStartScreen() {
       if (savedOtp) {
         setPickupOtp(savedOtp);
         setIsOtpVerified(true);
+        setIsCustomerBoarded(true);
       }
     });
     getVerifiedSelfie(bookingId).then((savedSelfie) => {
@@ -165,12 +170,11 @@ export default function DriverTripStartScreen() {
             setInspectionPhotos([
               res.activeBooking.vehicleInspectionPhotos[0] || 'demo_front',
               res.activeBooking.vehicleInspectionPhotos[1] || 'demo_rear',
-              res.activeBooking.vehicleInspectionPhotos[2] || 'demo_side',
-              res.activeBooking.vehicleInspectionPhotos[3] || 'demo_inside_front',
-              res.activeBooking.vehicleInspectionPhotos[4] || 'demo_inside_back',
+              res.activeBooking.vehicleInspectionPhotos[2] || 'demo_inside_front',
+              res.activeBooking.vehicleInspectionPhotos[3] || 'demo_inside_back',
             ]);
           } else {
-            setInspectionPhotos(['demo_front', 'demo_rear', 'demo_side', 'demo_inside_front', 'demo_inside_back']);
+            setInspectionPhotos(['demo_front', 'demo_rear', 'demo_inside_front', 'demo_inside_back']);
           }
           if (!driverSelfieUri) {
             setDriverSelfieUri(res.activeBooking.driverSelfie || 'demo_selfie');
@@ -268,10 +272,10 @@ export default function DriverTripStartScreen() {
     },
     {
       id: 'inside_front',
-      title: 'Inside Front Seat',
-      shortTitle: 'Front Seat',
-      tag: '5. FRONT SEAT',
-      desc: 'Open door view of dashboard, front seats & clean mats',
+      title: 'Inside Front (Door Open)',
+      shortTitle: 'Front Door',
+      tag: '5. FRONT DOOR',
+      desc: 'Front door opened, dashboard, steering & seats',
       icon: 'car-outline' as const,
       sampleSource: INSIDE_FRONT_SAMPLE,
       type: 'inspection' as const,
@@ -279,10 +283,10 @@ export default function DriverTripStartScreen() {
     },
     {
       id: 'inside_back',
-      title: 'Inside Back Seat',
-      shortTitle: 'Back Seat',
-      tag: '6. BACK SEAT',
-      desc: 'Open door view of rear passenger seats & clean floor',
+      title: 'Inside Back Seat (Door Open)',
+      shortTitle: 'Back Door',
+      tag: '6. BACK DOOR',
+      desc: 'Back seat door opened, passenger seats & floor mats',
       icon: 'people-outline' as const,
       sampleSource: INSIDE_BACK_SAMPLE,
       type: 'inspection' as const,
@@ -404,7 +408,6 @@ export default function DriverTripStartScreen() {
       setInspectionPhotos([
         'demo_front',
         'demo_rear',
-        'demo_side',
         'demo_inside_front',
         'demo_inside_back',
       ]);
@@ -622,7 +625,7 @@ export default function DriverTripStartScreen() {
     const finalSelfieUri = driverSelfieUri || draft?.driverSelfieUri || 'demo_selfie';
     const finalInspectionPhotos = inspectionPhotos.filter(Boolean).length > 0
       ? inspectionPhotos.filter(Boolean)
-      : (draft?.inspectionPhotos?.filter(Boolean) || ['demo_front', 'demo_rear', 'demo_side', 'demo_inside_front', 'demo_inside_back']);
+      : (draft?.inspectionPhotos?.filter(Boolean) || ['demo_front', 'demo_rear', 'demo_inside_front', 'demo_inside_back']);
 
     if (!finalStartingOdometer) {
       setError('Please capture starting odometer reading first.');
@@ -760,8 +763,8 @@ export default function DriverTripStartScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
-      {/* 4-Step Flow Header: 1. Pickup (✓) -> 2. Odometer (✓) -> 3. OTP (Active) -> 4. Drop */}
-      <TripFlowHeader currentStep={3} />
+      {/* 6-Step Flow Header: 1. Verify (✓) -> 2. Start (✓) -> 3. Odometer (✓) -> 4. OTP (Active) -> 5. On Trip -> 6. Drop */}
+      <TripFlowHeader currentStep={4} />
 
       <ScrollView
         ref={scrollViewRef}
@@ -1008,7 +1011,7 @@ export default function DriverTripStartScreen() {
                 <View style={styles.customerHeaderRow}>
                   <View style={styles.customerLeftGroup}>
                     <View style={styles.customerAvatarCircle}>
-                      <Ionicons name="person" size={26} color="#1d4ed8" />
+                      <Ionicons name="person" size={20} color="#1d4ed8" />
                     </View>
                     <View style={styles.customerInfoCol}>
                       <Text style={styles.customerTagText}>Customer Details</Text>
@@ -1036,13 +1039,48 @@ export default function DriverTripStartScreen() {
                         }}
                         activeOpacity={0.82}
                       >
-                        <Ionicons name="call" size={16} color="#ea580c" />
+                        <Ionicons name="call" size={14} color="#ea580c" />
                         <Text style={styles.callNowPillText}>Call Now</Text>
                       </TouchableOpacity>
                     );
                   })()}
                 </View>
               </LinearGradient>
+            )}
+
+            {/* Customer Boarded Slider (Slide Right to unlock OTP) */}
+            {!isAdminAuthorized && (
+              <View style={styles.boardedSection}>
+                {!isCustomerBoarded ? (
+                  <View style={styles.boardedSliderBox}>
+                    <SlideToAccept
+                      onAccept={() => {
+                        setIsCustomerBoarded(true);
+                        if (bookingId) {
+                          setTripStartDraft(bookingId, { isCustomerBoarded: true });
+                        }
+                      }}
+                      title="SLIDE RIGHT (CUSTOMER BOARDED)"
+                      acceptingTitle="CUSTOMER BOARDED"
+                    />
+                  </View>
+                ) : (
+                  <LinearGradient
+                    colors={['#059669', '#10b981']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.boardedCompletedBar}
+                  >
+                    <View style={styles.boardedCompletedKnob}>
+                      <Ionicons name="checkmark-sharp" size={20} color="#059669" />
+                    </View>
+                    <View style={styles.boardedCompletedTextCol}>
+                      <Text style={styles.boardedCompletedTitle}>CUSTOMER BOARDED ✓</Text>
+                    </View>
+                    <View style={{ width: 44 }} />
+                  </LinearGradient>
+                )}
+              </View>
             )}
 
             {/* Admin Authorization Notice OR Customer Pickup OTP Card */}
@@ -1054,20 +1092,39 @@ export default function DriverTripStartScreen() {
                 </View>
               </View>
             ) : (
-              <View style={styles.otpCard}>
+              <View
+                style={[
+                  styles.otpCard,
+                  !isCustomerBoarded && styles.otpCardDisabled,
+                ]}
+                pointerEvents={isCustomerBoarded ? 'auto' : 'none'}
+              >
+                {!isCustomerBoarded && (
+                  <View style={styles.otpLockNoticeBanner}>
+                    <Ionicons name="lock-closed" size={14} color="#d97706" />
+                    <Text style={styles.otpLockNoticeText}>
+                      Slide the green bar above to confirm customer boarding to enter OTP
+                    </Text>
+                  </View>
+                )}
+
                 {/* Header Row */}
                 <View style={styles.cardHeaderRow}>
-                  <View style={styles.orangeShieldWrapper}>
-                    <Ionicons name="shield" size={32} color="#f97316" />
-                    <View style={styles.shieldCheckOverlay}>
+                  <View style={[styles.orangeShieldWrapper, !isCustomerBoarded && { opacity: 0.55 }]}>
+                    <Ionicons name="shield" size={32} color={isCustomerBoarded ? '#f97316' : '#94a3b8'} />
+                    <View style={[styles.shieldCheckOverlay, !isCustomerBoarded && { opacity: 0.55 }]}>
                       <Ionicons name="checkmark" size={17} color="#ffffff" style={{ fontWeight: '900' }} />
                     </View>
                   </View>
                   <View style={styles.cardHeaderTextCol}>
-                    <Text style={styles.otpHeaderTitle}>
+                    <Text style={[styles.otpHeaderTitle, !isCustomerBoarded && { color: '#64748b' }]}>
                       Customer Pickup OTP <Text style={styles.requiredAsterisk}>*</Text>
                     </Text>
-                    <Text style={styles.otpHeaderSubtitle}>Enter the OTP shared by the customer</Text>
+                    <Text style={styles.otpHeaderSubtitle}>
+                      {isCustomerBoarded
+                        ? 'Enter the OTP shared by the customer'
+                        : 'Locked until customer boards'}
+                    </Text>
                   </View>
                 </View>
 
@@ -1076,13 +1133,14 @@ export default function DriverTripStartScreen() {
                   <View style={styles.otpBoxesWrapper}>
                     {[0, 1, 2, 3].map((idx) => {
                       const digit = pickupOtp[idx] || '';
-                      const isFocused = pickupOtp.length === idx;
+                      const isFocused = isCustomerBoarded && pickupOtp.length === idx;
                       const isFilled = Boolean(digit);
                       return (
                         <View
                           key={idx}
                           style={[
                             styles.otpBox,
+                            !isCustomerBoarded && styles.otpBoxDisabled,
                             isFocused && styles.otpBoxActive,
                             isFilled && styles.otpBoxFilled,
                           ]}
@@ -1090,7 +1148,7 @@ export default function DriverTripStartScreen() {
                           {isFocused && !digit && !isOtpVerified ? (
                             <View style={styles.otpCursor} />
                           ) : (
-                            <Text style={styles.otpDigit}>
+                            <Text style={[styles.otpDigit, !isCustomerBoarded && { color: '#94a3b8' }]}>
                               {digit}
                             </Text>
                           )}
@@ -1103,6 +1161,7 @@ export default function DriverTripStartScreen() {
                       style={styles.hiddenOtpInput}
                       value={pickupOtp}
                       onChangeText={(val) => {
+                        if (!isCustomerBoarded) return;
                         const clean = val.replace(/\D/g, '').slice(0, 4);
                         setPickupOtp(clean);
                         if (isOtpVerified) setIsOtpVerified(false);
@@ -1111,7 +1170,7 @@ export default function DriverTripStartScreen() {
                       keyboardType="number-pad"
                       maxLength={4}
                       caretHidden={true}
-                      editable={!isOtpVerified}
+                      editable={isCustomerBoarded && !isOtpVerified}
                     />
                   </View>
 
@@ -1119,10 +1178,11 @@ export default function DriverTripStartScreen() {
                   <TouchableOpacity
                     style={[
                       styles.verifyOtpBtn,
+                      (!isCustomerBoarded || pickupOtp.length < 4) && styles.verifyOtpBtnDisabled,
                       isOtpVerified && styles.verifyOtpBtnVerified,
                     ]}
                     onPress={handleVerifyOtp}
-                    disabled={pickupOtp.length < 4 || isVerifyingOtp || isOtpVerified}
+                    disabled={!isCustomerBoarded || pickupOtp.length < 4 || isVerifyingOtp || isOtpVerified}
                     activeOpacity={0.85}
                   >
                     {isVerifyingOtp ? (
@@ -1137,9 +1197,14 @@ export default function DriverTripStartScreen() {
                         <Ionicons
                           name="checkmark-circle-outline"
                           size={18}
-                          color="#ffffff"
+                          color={isCustomerBoarded && pickupOtp.length >= 4 ? '#ffffff' : '#94a3b8'}
                         />
-                        <Text style={styles.verifyOtpText}>
+                        <Text
+                          style={[
+                            styles.verifyOtpText,
+                            (!isCustomerBoarded || pickupOtp.length < 4) && { color: '#94a3b8' },
+                          ]}
+                        >
                           Verify
                         </Text>
                       </View>
@@ -1152,9 +1217,10 @@ export default function DriverTripStartScreen() {
                   style={[
                     styles.otpHelpBanner,
                     overrideRequested && styles.otpHelpBannerRequested,
+                    !isCustomerBoarded && { opacity: 0.6 },
                   ]}
                   onPress={handleRequestAdminOverride}
-                  disabled={overrideRequesting}
+                  disabled={!isCustomerBoarded || overrideRequesting}
                   activeOpacity={0.8}
                 >
                   <View style={styles.otpHelpLeft}>
@@ -1230,8 +1296,20 @@ export default function DriverTripStartScreen() {
             )}
           </TouchableOpacity>
         ) : (
-          <SlideToAccept
-            onAccept={async () => {
+          <TouchableOpacity
+            style={[
+              styles.continueTripBtn,
+              (isOtpVerified || isAdminAuthorized) && styles.continueTripBtnReady,
+              loading && styles.startButtonDisabled,
+            ]}
+            onPress={async () => {
+              if (!isCustomerBoarded) {
+                Alert.alert(
+                  'Customer Boarding Required',
+                  'Please slide the green bar on top to confirm customer boarded before continuing.'
+                );
+                return;
+              }
               const activeOtp = pickupOtpRef.current || pickupOtp;
               const activeVerified = isOtpVerifiedRef.current || isOtpVerified;
               const activeAdminAuth = isAdminAuthorizedRef.current || isAdminAuthorized;
@@ -1240,16 +1318,35 @@ export default function DriverTripStartScreen() {
                 setError('Please enter the 4-digit pickup OTP from the customer');
                 Alert.alert(
                   'Customer OTP Required',
-                  'Please enter the 4-digit pickup OTP shared by the customer before sliding to start the trip.'
+                  'Please enter and verify the 4-digit pickup OTP shared by the customer before continuing to trip.'
                 );
                 return;
               }
               await handleStartTrip();
             }}
-            isAccepting={loading}
-            title="SLIDE RIGHT (CUSTOMER BOARDED)"
-            acceptingTitle="STARTING TRIP..."
-          />
+            disabled={loading}
+            activeOpacity={0.88}
+          >
+            {loading ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <View style={styles.continueTripBtnContent}>
+                <Text
+                  style={[
+                    styles.continueTripBtnText,
+                    (isOtpVerified || isAdminAuthorized) && styles.continueTripBtnTextReady,
+                  ]}
+                >
+                  Continue to Trip
+                </Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={19}
+                  color={(isOtpVerified || isAdminAuthorized) ? '#ffffff' : '#94a3b8'}
+                />
+              </View>
+            )}
+          </TouchableOpacity>
         )}
       </View>
     </View>
@@ -1384,18 +1481,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   customerBannerCard: {
-    marginBottom: 14,
-    borderRadius: 22,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
+    marginBottom: 10,
+    borderRadius: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: '#fed7aa',
     overflow: 'hidden',
     position: 'relative',
     shadowColor: '#ea580c',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowRadius: 8,
     elevation: 2,
   },
   decorativeBlob1: {
@@ -1428,54 +1525,54 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   customerAvatarCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: '#dbeafe',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   customerInfoCol: {
     flex: 1,
     justifyContent: 'center',
   },
   customerTagText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: '#475569',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   customerName: {
-    fontSize: 19,
+    fontSize: 16,
     fontWeight: '900',
     color: '#0f172a',
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   customerIdText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
-    color: '#475569',
-    marginTop: 2,
+    color: '#64748b',
+    marginTop: 1,
   },
   callNowPill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 24,
-    gap: 7,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    gap: 5,
     borderWidth: 1,
     borderColor: '#ffedd5',
     shadowColor: '#ea580c',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 5,
+    shadowRadius: 4,
     elevation: 2,
   },
   callNowPillText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: '#0f172a',
   },
@@ -1704,6 +1801,30 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 3,
   },
+  otpCardDisabled: {
+    opacity: 0.42,
+    backgroundColor: '#f8fafc',
+    borderColor: '#e2e8f0',
+  },
+  otpLockNoticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fffbeb',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#fef3c7',
+    gap: 7,
+  },
+  otpLockNoticeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#b45309',
+    flex: 1,
+    lineHeight: 16,
+  },
   orangeShieldWrapper: {
     width: 36,
     height: 36,
@@ -1867,6 +1988,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0f172a',
   },
+  otpBoxDisabled: {
+    backgroundColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
+  },
   otpBoxVerified: {
     borderColor: '#e2e8f0',
     backgroundColor: '#ffffff',
@@ -1887,6 +2012,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
+  },
+  verifyOtpBtnDisabled: {
+    backgroundColor: '#94a3b8',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   verifyOtpBtnActive: {
     backgroundColor: '#0a192f',
@@ -2287,6 +2417,86 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     fontSize: 11,
     fontWeight: '700',
+  },
+  boardedSection: {
+    marginBottom: 14,
+  },
+  boardedSliderBox: {
+    width: '100%',
+  },
+  boardedCompletedBar: {
+    height: 56,
+    borderRadius: 28,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  boardedCompletedKnob: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  boardedCompletedTextCol: {
+    flex: 1,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  boardedCompletedTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.4,
+  },
+  continueTripBtn: {
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#cbd5e1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  continueTripBtnReady: {
+    backgroundColor: '#10b981',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  continueTripBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  continueTripBtnText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#94a3b8',
+    letterSpacing: 0.5,
+  },
+  continueTripBtnTextReady: {
+    color: '#ffffff',
   },
   bottomBar: {
     backgroundColor: '#ffffff',

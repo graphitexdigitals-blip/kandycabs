@@ -125,8 +125,8 @@ export async function POST(req: NextRequest) {
     }
 
     let banners = getStoredBanners();
-    const resolvedType = bannerType || (tagline ? 'APP_BANNER' : 'PROMO_GRAPHIC');
-    const resolvedShowOverlay = showTextOverlay !== undefined ? showTextOverlay : (resolvedType === 'APP_BANNER');
+    const resolvedType = bannerType || 'PROMO_GRAPHIC';
+    const resolvedShowOverlay = showTextOverlay !== undefined ? showTextOverlay : false;
     const resolvedShowCta = showCtaButton !== undefined ? showCtaButton : Boolean(btnText);
     const resolvedLinkUrl = (linkUrl || '').trim();
 

@@ -61,6 +61,7 @@ class LocationTrackerService {
   private hasForegroundPermission: boolean = false;
   private hasBackgroundPermission: boolean = false;
   private lastPingTime: number = 0;
+  private backgroundServiceUnavailable: boolean = false;
   private listeners: Set<LocationChangeListener> = new Set();
 
   // Coordinates state: null until a real device fix is acquired
@@ -267,6 +268,9 @@ class LocationTrackerService {
 
   private async ensureBackgroundLocationStarted(bookingId?: string | null) {
     try {
+      if (this.backgroundServiceUnavailable) {
+        return;
+      }
       if (!TaskManager || typeof TaskManager.isTaskDefined !== 'function') {
         // Safe fallback: TaskManager native module not present; foreground watcher is active
         return;
@@ -315,7 +319,11 @@ class LocationTrackerService {
         console.log(`[BackgroundService] Foreground notification started: ${notificationTitle} (${notificationBody})`);
       }
     } catch (err: any) {
-      console.warn('[BackgroundGPS] Failed to start background location updates:', err?.message || err);
+      const msg = err?.message || String(err);
+      if (msg.includes('Foreground service permissions were not found') || msg.includes('has been rejected')) {
+        this.backgroundServiceUnavailable = true;
+      }
+      console.warn('[BackgroundGPS] Foreground service skipped, using active foreground watcher:', msg);
     }
   }
 

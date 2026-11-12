@@ -77,3 +77,14 @@ extracted_apk_*
 *.4bd1a3
 *.log
 apps/web/public/uploads/
+apps/customer-app/_backup_originals/
+apps/customer-app/_backup_unused_assets/
+apps/driver-app/build_output/
+temp_apk_res/
+serve-*.js
+apps/web/public/serve-apk.js
+kandy-cabs-terms-and-conditions.pdf
+scripts/inspect-*.ps1
+scripts/update-apk.ps1
+scripts/list-db-drivers.js
+scripts/terms-multilingual.html

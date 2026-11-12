@@ -139,9 +139,6 @@ export default function DriverAppIndex() {
           style={styles.logoImage}
           resizeMode="contain"
         />
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>DRIVER PARTNER NETWORK</Text>
-        </View>
 
         {networkError ? (
           <View style={styles.errorContainer}>
@@ -197,21 +194,6 @@ const styles = StyleSheet.create({
     width: 235,
     height: 115,
     marginBottom: 8,
-  },
-  badge: {
-    backgroundColor: 'rgba(234, 88, 12, 0.09)',
-    borderColor: 'rgba(234, 88, 12, 0.35)',
-    borderWidth: 1,
-    paddingHorizontal: 13,
-    paddingVertical: 4,
-    borderRadius: 14,
-    marginTop: 4,
-  },
-  badgeText: {
-    fontSize: 10.5,
-    color: '#ea580c',
-    fontWeight: '800',
-    letterSpacing: 0.8,
   },
   spinnerWrapper: {
     marginTop: 20,

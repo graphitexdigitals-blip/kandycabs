@@ -88,6 +88,8 @@ function AdminVehicleEvidenceContent() {
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [mobileExpandedDriverId, setMobileExpandedDriverId] = useState<string | null>(null);
   const [inspectorVehicleIndex, setInspectorVehicleIndex] = useState(0);
+  const mobileSliderRef = useRef<HTMLDivElement>(null);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
 
   // Lightbox / Image Preview modal state
   const [previewDoc, setPreviewDoc] = useState<{ title: string; url: string } | null>(null);
@@ -367,6 +369,41 @@ function AdminVehicleEvidenceContent() {
     return displayedDrivers[0] || drivers[0] || null;
   }, [drivers, selectedDriverId, displayedDrivers]);
 
+  const activeDriverIndex = displayedDrivers.findIndex((d) => d.driverId === selectedDriver?.driverId);
+
+  const scrollSlider = (direction: 'left' | 'right') => {
+    if (mobileSliderRef.current) {
+      const scrollAmount = direction === 'left' ? -300 : 300;
+      mobileSliderRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  const selectPreviousDriver = () => {
+    if (activeDriverIndex > 0) {
+      const prevDriver = displayedDrivers[activeDriverIndex - 1];
+      setSelectedDriverId(prevDriver.driverId);
+      setInspectorVehicleIndex(0);
+    }
+  };
+
+  const selectNextDriver = () => {
+    if (activeDriverIndex < displayedDrivers.length - 1) {
+      const nextDriver = displayedDrivers[activeDriverIndex + 1];
+      setSelectedDriverId(nextDriver.driverId);
+      setInspectorVehicleIndex(0);
+    }
+  };
+
+  // Auto-scroll the active card into center view when selectedDriverId changes
+  useEffect(() => {
+    if (selectedDriverId && mobileSliderRef.current) {
+      const card = mobileSliderRef.current.querySelector(`[data-driver-id="${selectedDriverId}"]`) as HTMLElement;
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+  }, [selectedDriverId]);
+
   const renderDriverInspector = (driver: any, isMobileView: boolean = false) => {
     if (!driver) return null;
 
@@ -403,8 +440,8 @@ function AdminVehicleEvidenceContent() {
       : (driver.vehicle?.seatCount ? `${driver.vehicle.seatCount} Seater` : '4 Seater');
 
     return (
-      <div className="space-y-4">
-        {/* On desktop: show the top Driver Profile Header Card. On mobile: the summary card already displays this */}
+      <div className="space-y-2.5 sm:space-y-4">
+        {/* On Desktop: Full Profile Header Card. On Mobile: Compact 4 Action Buttons row */}
         {!isMobileView ? (
           <div className="bg-white border border-slate-100 rounded-2xl p-2.5 sm:p-3.5 shadow-2xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -425,7 +462,7 @@ function AdminVehicleEvidenceContent() {
                     </svg>
                   )}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-base sm:text-lg font-bold text-slate-900 truncate">
                       {driver.fullName}
@@ -459,7 +496,7 @@ function AdminVehicleEvidenceContent() {
                       </svg>
                       {driver.phone}
                     </span>
-                    <span className="hidden sm:inline">DL: {driver.licenseNumber || 'KA 19 2025/0002'}</span>
+                    <span className="inline">DL: {driver.licenseNumber || 'KA 19 2025/0002'}</span>
                     <span className="flex items-center gap-1">
                       <svg className="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
@@ -472,27 +509,27 @@ function AdminVehicleEvidenceContent() {
             </div>
 
             {/* 4 Action Buttons on Desktop */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1 border-t border-slate-100">
+            <div className="flex flex-row items-center gap-2 pt-1 border-t border-slate-100">
               <button
                 onClick={() => openEditModal(driver)}
-                className="flex-1 py-2 px-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                 title="Edit Driver & Vehicle Details"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
-                Edit Details
+                <span>Edit Details</span>
               </button>
               <button
                 disabled={submitting || driver.verificationStatus === 'APPROVED'}
                 onClick={() => handleReview(driver.driverId, DriverVerificationStatus.APPROVED)}
-                className="flex-1 py-2 px-3.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 py-2 px-3 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                Approve Driver
+                <span>Approve Driver</span>
               </button>
               <button
                 disabled={submitting || driver.verificationStatus === 'REJECTED'}
@@ -500,13 +537,13 @@ function AdminVehicleEvidenceContent() {
                   setSelectedDriverId(driver.driverId);
                   setRejectModalOpen(true);
                 }}
-                className="flex-1 py-2 px-3.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 py-2 px-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
-                Reject Driver
+                <span>Reject Driver</span>
               </button>
               <button
                 disabled={submitting || deleteLoading}
@@ -515,38 +552,39 @@ function AdminVehicleEvidenceContent() {
                   setDeleteError('');
                   setDeleteModalOpen(true);
                 }}
-                className="flex-1 py-2 px-3.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-semibold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 py-2 px-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-semibold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
                 title="Delete Driver Account"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="3 6 5 6 21 6" />
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                 </svg>
-                Delete Driver
+                <span>Delete</span>
               </button>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          /* Mobile Action Buttons: Compact, non-wrapping, clean paddings */
+          <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => openEditModal(driver)}
-              className="flex-1 py-2.5 px-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+              className="py-2 px-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
-              Edit Details
+              <span>Edit Details</span>
             </button>
             <button
               disabled={submitting || driver.verificationStatus === 'APPROVED'}
               onClick={() => handleReview(driver.driverId, DriverVerificationStatus.APPROVED)}
-              className="flex-1 py-2.5 px-3.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+              className="py-2 px-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
-              Approve Driver
+              <span>Approve</span>
             </button>
             <button
               disabled={submitting || driver.verificationStatus === 'REJECTED'}
@@ -554,13 +592,13 @@ function AdminVehicleEvidenceContent() {
                 setSelectedDriverId(driver.driverId);
                 setRejectModalOpen(true);
               }}
-              className="flex-1 py-2.5 px-3.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+              className="py-2 px-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
-              Reject Driver
+              <span>Reject</span>
             </button>
             <button
               disabled={submitting || deleteLoading}
@@ -569,13 +607,13 @@ function AdminVehicleEvidenceContent() {
                 setDeleteError('');
                 setDeleteModalOpen(true);
               }}
-              className="flex-1 py-2.5 px-3.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-semibold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
+              className="py-2 px-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="3 6 5 6 21 6" />
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
               </svg>
-              Delete Driver
+              <span>Delete</span>
             </button>
           </div>
         )}
@@ -597,7 +635,7 @@ function AdminVehicleEvidenceContent() {
 
         {/* Multi-Vehicle Fleet Selector Tabs in Admin */}
         {vehicles && vehicles.length > 1 && (
-          <div className="bg-slate-900 text-white rounded-2xl p-3 space-y-2 shadow-xs">
+          <div className="bg-slate-900 text-white rounded-2xl p-2.5 sm:p-3 space-y-2 shadow-xs">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5 uppercase tracking-wider">
                 <svg className="w-4 h-4 text-orange-400" viewBox="0 0 24 24" fill="currentColor">
@@ -624,7 +662,7 @@ function AdminVehicleEvidenceContent() {
                         : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700 text-slate-300'
                     }`}
                   >
-                    <span>🚗 {v.plateNumber || `Vehicle ${idx + 1}`}</span>
+                    <span>{v.plateNumber || `Vehicle ${idx + 1}`}</span>
                     <span className="opacity-75 text-[10px]">({v.carModel || v.category || 'Sedan'})</span>
                     <span className={`px-1.5 py-0.2 rounded-md text-[9px] font-bold ${
                       isSelected ? 'bg-black/30 text-white' : 'bg-slate-700 text-slate-300'
@@ -639,7 +677,7 @@ function AdminVehicleEvidenceContent() {
         )}
 
         {/* Vehicle Specifications Section */}
-        <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-3 sm:p-4 space-y-2.5">
+        <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-2.5 sm:p-3.5 space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
               <svg className="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="currentColor">
@@ -656,7 +694,7 @@ function AdminVehicleEvidenceContent() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-            <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-slate-200 shadow-2xs min-w-0">
+            <div className="bg-white p-2 sm:p-2.5 rounded-xl border border-slate-200 shadow-2xs min-w-0">
               <div className="text-[10px] text-slate-400 font-semibold uppercase flex items-center gap-1.5 truncate">
                 <svg className="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="2" y="7" width="20" height="10" rx="2" />
@@ -670,7 +708,7 @@ function AdminVehicleEvidenceContent() {
               </div>
             </div>
 
-            <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-slate-200 shadow-2xs min-w-0">
+            <div className="bg-white p-2 sm:p-2.5 rounded-xl border border-slate-200 shadow-2xs min-w-0">
               <div className="text-[10px] text-slate-400 font-semibold uppercase flex items-center gap-1.5 truncate">
                 <svg className="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M3 2v20M21 12h-4M17 6h4v12h-4M3 6h10v14H3z" />
@@ -682,7 +720,7 @@ function AdminVehicleEvidenceContent() {
               </div>
             </div>
 
-            <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-slate-200 shadow-2xs min-w-0">
+            <div className="bg-white p-2 sm:p-2.5 rounded-xl border border-slate-200 shadow-2xs min-w-0">
               <div className="text-[10px] text-slate-400 font-semibold uppercase flex items-center gap-1.5 truncate">
                 <svg className="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -697,7 +735,7 @@ function AdminVehicleEvidenceContent() {
               </div>
             </div>
 
-            <div className="bg-white p-2.5 sm:p-3 rounded-xl border border-slate-200 shadow-2xs min-w-0">
+            <div className="bg-white p-2 sm:p-2.5 rounded-xl border border-slate-200 shadow-2xs min-w-0">
               <div className="text-[10px] text-slate-400 font-semibold uppercase flex items-center gap-1.5 truncate">
                 <svg className="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
@@ -714,9 +752,9 @@ function AdminVehicleEvidenceContent() {
 
         {/* Urgent Document Expiry Alert Banner */}
         {driver.hasExpiringDocs && driver.expiringDocuments?.length > 0 && (
-          <div className="p-3 bg-red-50/90 border border-red-200 rounded-2xl flex items-start gap-3 shadow-2xs">
+          <div className="p-2.5 sm:p-3 bg-red-50/90 border border-red-200 rounded-2xl flex items-start gap-2.5 shadow-2xs">
             <div className="w-7 h-7 rounded-full bg-red-100 border border-red-200 flex items-center justify-center shrink-0 text-red-600 font-bold text-xs mt-0.5">
-              ⚠️
+              !
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-bold text-xs text-red-900 flex items-center gap-2">
@@ -848,23 +886,33 @@ function AdminVehicleEvidenceContent() {
             return (
               <div
                 key={item.key}
-                className={`bg-white border rounded-xl p-2.5 flex flex-col justify-between shadow-2xs hover:shadow-xs transition min-w-0 ${
+                className={`bg-white border rounded-xl p-2 sm:p-2.5 flex flex-col justify-between shadow-2xs hover:shadow-xs transition min-w-0 ${
                   item.url ? 'border-slate-200' : 'border-dashed border-slate-200 bg-slate-50/50'
                 }`}
               >
                 <div>
-                  <div className="flex items-start justify-between gap-1 mb-1">
+                  <div className="flex items-start justify-between gap-1.5 mb-1">
                     <div className="text-xs font-bold text-slate-800 truncate" title={item.title}>
                       {item.title}
                     </div>
                     {item.url ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-full shrink-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        Uploaded
+                      <span
+                        className="w-4.5 h-4.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs"
+                        title="Uploaded"
+                      >
+                        <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
                       </span>
                     ) : (
-                      <span className="text-[10px] font-medium text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded-full shrink-0">
-                        Missing
+                      <span
+                        className="w-4.5 h-4.5 rounded-full bg-red-50 border border-red-200 text-red-600 flex items-center justify-center shrink-0 shadow-2xs"
+                        title="Missing"
+                      >
+                        <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
                       </span>
                     )}
                   </div>
@@ -933,9 +981,9 @@ function AdminVehicleEvidenceContent() {
           };
 
           return (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {/* Section 1: Driver Identity & KYC Documents */}
-              <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-3 sm:p-4 space-y-2.5">
+              <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-2.5 sm:p-3.5 space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                     <svg className="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -946,16 +994,16 @@ function AdminVehicleEvidenceContent() {
                     <span>Driver Identity & KYC Documents</span>
                   </h3>
                   <span className="text-[10px] sm:text-xs font-bold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded-md shadow-2xs">
-                    {kycUploadedCount}/4 Uploaded
+                    {kycUploadedCount}/4
                   </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                   {kycDocs.map(renderCard)}
                 </div>
               </div>
 
               {/* Section 2: Vehicle Documents & Commercial Permits */}
-              <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-3 sm:p-4 space-y-2.5">
+              <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-2.5 sm:p-3.5 space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                     <svg className="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -967,10 +1015,10 @@ function AdminVehicleEvidenceContent() {
                     <span>Vehicle Documents & Commercial Permits</span>
                   </h3>
                   <span className="text-[10px] sm:text-xs font-bold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded-md shadow-2xs">
-                    {vehicleUploadedCount}/6 Uploaded
+                    {vehicleUploadedCount}/6
                   </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                   {vehicleDocs.map(renderCard)}
                 </div>
               </div>
@@ -979,7 +1027,7 @@ function AdminVehicleEvidenceContent() {
         })()}
 
         {/* Bank Account & Payout Details (RAZORPAYX) Section */}
-        <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-3 sm:p-4 space-y-2.5">
+        <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-2.5 sm:p-3.5 space-y-2">
           <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1149,7 +1197,7 @@ function AdminVehicleEvidenceContent() {
               { id: 'PENDING', label: 'Pending Review', count: counts.pending, badgeBg: 'bg-amber-100 text-amber-800' },
               { id: 'APPROVED', label: 'Approved', count: counts.approved, badgeBg: 'bg-emerald-100 text-emerald-800' },
               { id: 'REJECTED', label: 'Rejected', count: counts.rejected, badgeBg: 'bg-rose-100 text-rose-800' },
-              { id: 'EXPIRING', label: '⚠️ Expiring Soon (≤ 5 Days)', count: counts.expiringSoon || 0, badgeBg: 'bg-orange-100 text-orange-800' },
+              { id: 'EXPIRING', label: 'Expiring Soon (≤ 5 Days)', count: counts.expiringSoon || 0, badgeBg: 'bg-orange-100 text-orange-800' },
             ].map((tab) => {
               const isActive = statusFilter === tab.id;
               return (
@@ -1192,19 +1240,28 @@ function AdminVehicleEvidenceContent() {
           </div>
         </div>
 
-        {/* Mobile & Tablet Drivers List (< lg) */}
-        <div className="lg:hidden space-y-3">
+        {/* Mobile & Tablet Drivers List (< lg): 1 Page Down, Full-width cards with Tap to View Details */}
+        <div className="lg:hidden space-y-2.5">
+          <div className="px-1 flex items-center justify-between">
+            <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
+              REGISTERED DRIVERS ({displayedDrivers.length})
+            </span>
+            <span className="text-[11px] font-semibold text-slate-500">
+              Tap card to view full details
+            </span>
+          </div>
+
           {loading && drivers.length === 0 ? (
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-8 text-center text-slate-400 text-sm shadow-xs">
-              <div className="inline-block animate-spin text-2xl mb-2 text-slate-400">
-                <svg className="w-6 h-6 animate-spin mx-auto text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 text-center text-slate-400 text-xs shadow-xs">
+              <div className="inline-block animate-spin text-xl mb-2 text-slate-400">
+                <svg className="w-5 h-5 animate-spin mx-auto text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
               </div>
               <div>Loading drivers...</div>
             </div>
           ) : displayedDrivers.length === 0 ? (
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-8 text-center text-slate-400 text-xs shadow-xs">
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 text-center text-slate-400 text-xs shadow-xs">
               No drivers match the selected filter or search.
             </div>
           ) : (
@@ -1215,148 +1272,139 @@ function AdminVehicleEvidenceContent() {
               const carModelName = carModelMatch ? carModelMatch[1].trim() : (d.vehicle?.model || null);
               const vehicleCategory = d.vehicle?.category || 'SEDAN';
               const carType = carModelName || (vehicleCategory === 'SEDAN' ? 'Sedan' : vehicleCategory === 'HATCHBACK' ? 'Hatchback' : vehicleCategory === 'SUV' ? 'SUV' : vehicleCategory === 'SUV_PREMIUM' ? 'SUV Premium' : 'Cab');
+              const vehicleCount = Array.isArray(d.vehiclesList) && d.vehiclesList.length > 0 ? d.vehiclesList.length : (d.vehicle ? 1 : 0);
 
               return (
                 <div
                   key={d.driverId}
-                  className={`bg-white border rounded-2xl p-3 sm:p-4 shadow-xs transition ${
-                    isExpanded ? 'border-amber-300 ring-1 ring-amber-300/50' : 'border-slate-200/90'
+                  className={`w-full bg-white border rounded-2xl transition shadow-xs overflow-hidden ${
+                    isExpanded
+                      ? 'border-amber-400 ring-2 ring-amber-300/50 shadow-sm'
+                      : 'border-slate-200/90 hover:border-slate-300'
                   }`}
                 >
-                  {/* Summary row matching Image 2 with contents in clean horizontal rows and no blank spaces */}
+                  {/* Driver Card Summary Header (Tap to toggle) */}
                   <div
                     onClick={() => {
                       setMobileExpandedDriverId(isExpanded ? null : d.driverId);
                       setSelectedDriverId(d.driverId);
+                      setInspectorVehicleIndex(0);
                     }}
-                    className="cursor-pointer space-y-2.5"
+                    className={`p-2.5 sm:p-3 cursor-pointer select-none transition ${
+                      isExpanded ? 'bg-amber-50/25' : 'hover:bg-slate-50/60'
+                    }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-12 h-12 rounded-full bg-slate-100 border-2 flex-shrink-0 overflow-hidden flex items-center justify-center shadow-xs ${
+                    <div className="flex items-start gap-2.5">
+                      <div className={`w-10 h-10 rounded-full bg-slate-100 border-2 flex-shrink-0 overflow-hidden flex items-center justify-center shadow-2xs ${
                         d.verificationStatus === 'APPROVED' ? 'border-emerald-400' :
                         d.verificationStatus === 'REJECTED' ? 'border-rose-400' : 'border-amber-400'
                       }`}>
                         {d.profilePhotoUrl ? (
                           <img src={d.profilePhotoUrl} alt={d.fullName} className="w-full h-full object-cover" />
                         ) : (
-                          <svg className="w-6 h-6 text-slate-400" viewBox="0 0 24 24" fill="currentColor">
+                          <svg className="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                           </svg>
                         )}
                       </div>
-                      <div className="min-w-0 flex-1 space-y-1.5">
-                        {/* Line 1: Driver Name (left) & Status Badge (right) */}
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="font-bold text-slate-900 text-sm sm:text-base truncate">
-                            {d.fullName}
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {d.hasExpiringDocs && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-800 border border-orange-300 rounded-full text-[11px] font-bold whitespace-nowrap shadow-2xs">
-                                <span>⚠️</span>
-                                <span>{d.expiringDocuments.length} Expiring (≤ 5d)</span>
+
+                      <div className="flex-1 min-w-0">
+                        {/* Line 1: Name + Vehicles count pill + Status Badge */}
+                        <div className="flex justify-between items-center gap-1.5">
+                          <div className="font-bold text-slate-900 text-sm truncate flex items-center gap-1.5">
+                            <span className="truncate">{d.fullName}</span>
+                            {vehicleCount > 1 && (
+                              <span className="px-1.5 py-0.2 rounded-md text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
+                                {vehicleCount} Vehicles
                               </span>
                             )}
-                            {d.verificationStatus === 'APPROVED' ? (
-                            <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-semibold whitespace-nowrap shadow-2xs">
-                              <svg className="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                              Approved Driver
-                            </span>
-                          ) : d.verificationStatus === 'REJECTED' ? (
-                            <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-xs font-semibold whitespace-nowrap shadow-2xs">
-                              <svg className="w-3.5 h-3.5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <line x1="18" y1="6" x2="6" y2="18" />
-                                <line x1="6" y1="6" x2="18" y2="18" />
-                              </svg>
-                              Rejected Driver
-                            </span>
-                          ) : (
-                            <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-semibold whitespace-nowrap shadow-2xs">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                              Pending Review
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border flex-shrink-0 ${
+                              d.verificationStatus === 'APPROVED'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : d.verificationStatus === 'REJECTED'
+                                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}
+                          >
+                            {d.verificationStatus}
+                          </span>
+                        </div>
+
+                        {/* Line 2: Phone & DL */}
+                        <div className="text-xs text-slate-600 mt-1 flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                          </svg>
+                          <span className="font-medium text-slate-700">{d.phone}</span>
+                          {d.licenseNumber && (
+                            <span className="text-slate-400 text-[11px] truncate">
+                              • DL: {d.licenseNumber}
                             </span>
                           )}
                         </div>
 
-                        {/* Line 2: Phone (left) & Registration (right) */}
-                        <div className="text-xs text-slate-600 flex items-center justify-between gap-2">
-                          <span className="flex items-center gap-1 text-slate-500 whitespace-nowrap truncate">
-                            <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                        {/* Line 3: Car Category & Registration plate */}
+                        <div className="text-xs text-slate-700 mt-1 flex items-center justify-between gap-1 font-medium">
+                          <span className="flex items-center gap-1.5 truncate">
+                            <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
                             </svg>
-                            <span>{d.phone}</span>
+                            <span className="truncate">{carType}</span>
+                            <span className="text-[10px] uppercase font-bold text-slate-400">({vehicleCategory})</span>
                           </span>
-                          <span className="flex items-center gap-1 font-medium text-slate-700 whitespace-nowrap shrink-0">
-                            <span>Reg: {hasPlate ? d.vehicle.plateNumber : 'KA 19 2025'}</span>
+                          <span className="text-[11px] font-mono text-slate-600 font-semibold whitespace-nowrap shrink-0">
+                            {hasPlate ? d.vehicle.plateNumber : 'KA 19 2025'}
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Below Profile Image: Car Type & Vehicle Category on left, View Details on right (no line separator) */}
-                    <div className="pt-1 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-800 font-medium whitespace-nowrap shrink-0">
-                        <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
-                        </svg>
-                        <span className="font-semibold text-slate-900 whitespace-nowrap">{carType}</span>
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-700 border border-slate-200/90 whitespace-nowrap shrink-0 shadow-2xs">
-                          {vehicleCategory}
-                        </span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMobileExpandedDriverId(isExpanded ? null : d.driverId);
-                          setSelectedDriverId(d.driverId);
-                        }}
-                        className={`py-0.5 px-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap ${
-                          isExpanded
-                            ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/60'
-                            : 'text-orange-600 hover:text-orange-700 hover:bg-orange-50/60'
-                        }`}
-                      >
-                        <span>{isExpanded ? 'Hide Details' : 'View Details'}</span>
-                        <svg className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    {/* Toggle button bar */}
+                    <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        {isExpanded ? 'Showing full KYC details' : 'Tap to view full details'}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 font-bold text-xs ${
+                        isExpanded ? 'text-amber-800' : 'text-orange-600'
+                      }`}>
+                        <span>{isExpanded ? 'Hide Details' : 'View Full Details'}</span>
+                        <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <polyline points="6 9 12 15 18 9" />
                         </svg>
-                      </button>
+                      </span>
                     </div>
                   </div>
 
-                  {/* Expanded Inspector Section */}
+                  {/* Expanded Full Details */}
                   {isExpanded && (
-                    <div className="mt-4 pt-4 border-t border-slate-100 space-y-4">
+                    <div className="p-2 sm:p-3 bg-slate-50/60 border-t border-slate-200 space-y-2.5">
                       {renderDriverInspector(d, true)}
-                      <div className="pt-2 flex justify-center border-t border-slate-100">
+                      <div className="pt-2 flex justify-center border-t border-slate-200/80">
                         <button
                           type="button"
                           onClick={() => setMobileExpandedDriverId(null)}
-                          className="w-full py-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100/60 font-semibold text-xs rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer"
+                          className="w-full py-1.5 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                         >
                           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                             <polyline points="18 15 12 9 6 15" />
                           </svg>
-                          Hide Details
+                          <span>Hide Details ({d.fullName})</span>
                         </button>
                       </div>
                     </div>
                   )}
                 </div>
-              </div>
-            );
-          })
+              );
+            })
           )}
         </div>
 
-        {/* Master-Detail Layout */}
+        {/* Master-Detail Layout (Desktop lg:) */}
         <div className="hidden lg:grid lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: Registered Drivers List (Desktop) */}
-          <div className="hidden lg:flex lg:col-span-4 bg-white border border-slate-200/90 rounded-2xl overflow-hidden flex-col h-[750px] relative shadow-xs">
+          <div className={`${desktopSidebarOpen ? 'lg:flex lg:col-span-4' : 'hidden'} bg-white border border-slate-200/90 rounded-2xl overflow-hidden flex-col h-[750px] relative shadow-xs transition-all`}>
             {loading && (
               <div className="absolute top-0 left-0 right-0 h-1 bg-slate-100 overflow-hidden z-10">
                 <div className="h-full bg-orange-500 animate-pulse w-full" />
@@ -1364,6 +1412,14 @@ function AdminVehicleEvidenceContent() {
             )}
             <div className="px-4 py-3 bg-white border-b border-slate-100 text-xs font-bold text-slate-500 uppercase tracking-wider flex justify-between items-center">
               <span>REGISTERED DRIVERS ({displayedDrivers.length})</span>
+              <button
+                type="button"
+                onClick={() => setDesktopSidebarOpen(false)}
+                className="text-[11px] font-semibold text-slate-400 hover:text-slate-700 flex items-center gap-1 cursor-pointer transition"
+                title="Collapse sidebar to view all details full width"
+              >
+                <span>Collapse</span> ‹
+              </button>
             </div>
 
             <div className={`flex-1 overflow-y-auto p-3 space-y-2.5 transition-opacity ${loading && drivers.length > 0 ? 'opacity-80' : 'opacity-100'}`}>
@@ -1388,19 +1444,23 @@ function AdminVehicleEvidenceContent() {
                   const carModelName = carModelMatch ? carModelMatch[1].trim() : (d.vehicle?.model || null);
                   const vehicleCategory = d.vehicle?.category || 'SEDAN';
                   const carType = carModelName || (vehicleCategory === 'SEDAN' ? 'Sedan' : vehicleCategory === 'HATCHBACK' ? 'Hatchback' : vehicleCategory === 'SUV' ? 'SUV' : vehicleCategory === 'SUV_PREMIUM' ? 'SUV Premium' : 'Cab');
+                  const vehicleCount = Array.isArray(d.vehiclesList) && d.vehiclesList.length > 0 ? d.vehiclesList.length : (d.vehicle ? 1 : 0);
 
                   return (
                     <div
                       key={d.driverId}
                       onClick={() => setSelectedDriverId(d.driverId)}
-                      className={`p-3 rounded-2xl cursor-pointer transition border ${
+                      className={`p-3 rounded-2xl cursor-pointer transition border relative ${
                         isSelected
-                          ? 'bg-amber-50/40 border-amber-300 ring-1 ring-amber-300/60 shadow-xs'
+                          ? 'bg-amber-50/40 border-amber-400 ring-2 ring-amber-300/60 shadow-xs'
                           : 'bg-white border-slate-200/80 hover:bg-slate-50 hover:border-slate-300 shadow-2xs'
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                        <div className={`w-10 h-10 rounded-full bg-slate-100 border-2 flex-shrink-0 overflow-hidden flex items-center justify-center ${
+                          d.verificationStatus === 'APPROVED' ? 'border-emerald-400' :
+                          d.verificationStatus === 'REJECTED' ? 'border-rose-400' : 'border-amber-400'
+                        }`}>
                           {d.profilePhotoUrl ? (
                             <img src={d.profilePhotoUrl} alt={d.fullName} className="w-full h-full object-cover" />
                           ) : (
@@ -1412,10 +1472,10 @@ function AdminVehicleEvidenceContent() {
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-center gap-1">
                             <div className="font-bold text-slate-900 text-sm truncate flex items-center gap-1.5">
-                              <span>{d.fullName}</span>
-                              {d.vehiclesList && d.vehiclesList.length > 1 && (
+                              <span className="truncate">{d.fullName}</span>
+                              {vehicleCount > 1 && (
                                 <span className="px-1.5 py-0.2 rounded-md text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
-                                  🚗 {d.vehiclesList.length}
+                                  {vehicleCount} Vehicles
                                 </span>
                               )}
                             </div>
@@ -1457,7 +1517,21 @@ function AdminVehicleEvidenceContent() {
           </div>
 
           {/* Right Column: Evidence Inspector & Action Panel (Desktop) */}
-          <div className="lg:col-span-8 bg-white border border-slate-200/90 rounded-2xl p-5 flex flex-col h-[750px] overflow-y-auto shadow-xs space-y-4">
+          <div className={`${desktopSidebarOpen ? 'lg:col-span-8' : 'lg:col-span-12'} bg-white border border-slate-200/90 rounded-2xl p-5 flex flex-col h-[750px] overflow-y-auto shadow-xs space-y-4 transition-all`}>
+            {!desktopSidebarOpen && (
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setDesktopSidebarOpen(true)}
+                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                >
+                  › <span>Show Registered Drivers List ({displayedDrivers.length})</span>
+                </button>
+                <span className="text-xs font-semibold text-slate-500">
+                  Full Width Inspection Mode
+                </span>
+              </div>
+            )}
             {selectedDriver ? (
               renderDriverInspector(selectedDriver, false)
             ) : (
@@ -1904,7 +1978,7 @@ function AdminVehicleEvidenceContent() {
           <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center pb-2 border-b border-slate-200">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span>➕</span> Register Driver Account
+                Register Driver Account
               </h3>
               <button
                 type="button"
@@ -1917,7 +1991,7 @@ function AdminVehicleEvidenceContent() {
 
             {addDriverError && (
               <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg">
-                ⚠️ {addDriverError}
+                {addDriverError}
               </div>
             )}
 
@@ -2017,7 +2091,7 @@ function AdminVehicleEvidenceContent() {
               </div>
 
               <p className="text-[11px] text-amber-900 bg-amber-50 border border-amber-200 p-2.5 rounded-lg font-medium">
-                ⏳ Driver will be registered in <strong>PENDING</strong> status. The driver can immediately log into the Driver App to upload their Driving License, RC, Insurance & Vehicle Photos. Once uploaded, you can review and approve them here.
+                Driver will be registered in <strong>PENDING</strong> status. The driver can immediately log into the Driver App to upload their Driving License, RC, Insurance & Vehicle Photos. Once uploaded, you can review and approve them here.
               </p>
 
               <div className="flex justify-end gap-3 pt-2 border-t border-slate-200">

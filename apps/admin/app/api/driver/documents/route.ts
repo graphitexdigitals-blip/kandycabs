@@ -178,9 +178,11 @@ export async function POST(req: NextRequest) {
       carriageCapacity,
     } = body;
 
-    const dataToUpdate: any = {
-      verificationStatus: DriverVerificationStatus.PENDING,
-    };
+    const isNewKycDocUploaded = Boolean(licenseDocUrl || rcDocUrl || insuranceDocUrl || aadhaarDocUrl || panDocUrl);
+    const dataToUpdate: any = {};
+    if (session.driver.verificationStatus !== DriverVerificationStatus.APPROVED || isNewKycDocUploaded) {
+      dataToUpdate.verificationStatus = DriverVerificationStatus.PENDING;
+    }
 
     if (licenseNumber !== undefined && licenseNumber !== null) {
       const cleanLicense = String(licenseNumber).trim().toUpperCase();

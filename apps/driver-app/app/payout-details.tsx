@@ -199,18 +199,7 @@ export default function PayoutDetailsScreen() {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Intro / RazorpayX Info Card */}
-            <View style={styles.introCard}>
-              <View style={styles.introIconBox}>
-                <Ionicons name="card-outline" size={22} color="#162232" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.introTitle}>RazorpayX Driver Payouts</Text>
-                <Text style={styles.introDesc}>
-                  Select your preferred settlement method for trip earnings. Direct bank transfers or instant UPI transfers are supported.
-                </Text>
-              </View>
-            </View>
+
 
             {/* Payout Method Selector Tabs */}
             <View style={styles.methodSelectorBox}>

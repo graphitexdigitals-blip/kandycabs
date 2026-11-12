@@ -1,12 +1,19 @@
 import React, { useMemo } from 'react';
-import { View, ViewProps, StyleSheet } from 'react-native';
+import { View, ViewProps, StyleSheet, UIManager } from 'react-native';
 
-let ExpoLinearGradient: any = null;
-try {
-  // Use native Expo LinearGradient when available (Expo Go / prebuild)
-  ExpoLinearGradient = require('expo-linear-gradient').LinearGradient;
-} catch (_) {
-  ExpoLinearGradient = null;
+// In standalone Android APKs, ExpoLinearGradient native view manager is not linked.
+// Using null ensures the robust pure-JS View slice gradient fallback is always used,
+// completely preventing "requireNativeComponent: ViewManagerAdapter_ExpoLinearGradient was not found" errors.
+const ExpoLinearGradient: any = null;
+
+const isNativeGradientAvailable = (): boolean => false;
+
+let isNativeAvailableCached: boolean | null = null;
+function checkNativeAvailable(): boolean {
+  if (isNativeAvailableCached === null) {
+    isNativeAvailableCached = isNativeGradientAvailable();
+  }
+  return isNativeAvailableCached;
 }
 
 export interface LinearGradientProps extends ViewProps {
@@ -43,7 +50,7 @@ function parseColor(str: string): [number, number, number, number] {
 
 /**
  * Drop-in replacement for Expo's LinearGradient.
- * Uses native ExpoLinearGradient when available for GPU-accelerated smooth gradients,
+ * Uses native ExpoLinearGradient when available in UIManager for GPU-accelerated smooth gradients,
  * with pure JavaScript fallback if native module is absent.
  */
 export function LinearGradient({
@@ -55,19 +62,23 @@ export function LinearGradient({
   children,
   ...rest
 }: LinearGradientProps) {
-  if (ExpoLinearGradient) {
-    return (
-      <ExpoLinearGradient
-        colors={colors}
-        start={start}
-        end={end}
-        locations={locations}
-        style={style}
-        {...rest}
-      >
-        {children}
-      </ExpoLinearGradient>
-    );
+  if (ExpoLinearGradient && checkNativeAvailable()) {
+    try {
+      return (
+        <ExpoLinearGradient
+          colors={colors}
+          start={start}
+          end={end}
+          locations={locations}
+          style={style}
+          {...rest}
+        >
+          {children}
+        </ExpoLinearGradient>
+      );
+    } catch (_) {
+      isNativeAvailableCached = false;
+    }
   }
 
   const isHorizontal = Math.abs((end.x ?? 1) - (start.x ?? 0)) >= Math.abs((end.y ?? 0) - (start.y ?? 0));

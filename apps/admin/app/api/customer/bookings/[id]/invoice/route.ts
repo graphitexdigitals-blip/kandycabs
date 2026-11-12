@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@kandy-cabs/db';
-import { verifyAuthToken, UserRole } from '@kandy-cabs/shared';
+import { verifyAuthToken, UserRole, buildKandyInvoiceData, generateKandyInvoiceHtml } from '@kandy-cabs/shared';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
 
 export const dynamic = 'force-dynamic';
@@ -20,6 +20,11 @@ export async function GET(
       if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.substring(7).trim();
       }
+    }
+    // Support URL token for direct browser PDF/HTML downloads
+    if (!token) {
+      const url = new URL(req.url);
+      token = url.searchParams.get('auth') || url.searchParams.get('token') || undefined;
     }
 
     if (!token) {
@@ -56,6 +61,10 @@ export async function GET(
           },
         },
         vehicle: true,
+        tripEvents: {
+          where: { type: 'BOOKING_CREATED' },
+          take: 1,
+        },
         payments: {
           orderBy: { verifiedAt: 'desc' },
         },
@@ -84,73 +93,23 @@ export async function GET(
       return setCorsHeaders(res);
     }
 
-    // Server-authoritative calculations directly from database records
-    const estimatedFare = Number(booking.estimatedFare);
-    const advanceAmount = Number(booking.advanceAmount);
-    const balanceAmount = Number(booking.balanceAmount);
-    const tollAmount = Number(booking.tollAmount || 0);
-    const parkingAmount = Number(booking.parkingAmount || 0);
+    // Build official Kandy Cabs invoice data
+    const invoiceData = buildKandyInvoiceData(booking);
 
-    // Pre-tax subtotal & GST breakdown (5% flat)
-    const preTaxSubtotal = Math.round((estimatedFare / 1.05) * 100) / 100;
-    const gstTotal = Math.round((estimatedFare - preTaxSubtotal) * 100) / 100;
-    const cgst = Math.round((gstTotal / 2) * 100) / 100;
-    const sgst = Math.round((gstTotal - cgst) * 100) / 100;
+    // Check request format
+    const url = new URL(req.url);
+    const format = url.searchParams.get('format');
+    const autoPrint = url.searchParams.get('print') === 'true' || url.searchParams.get('download') === '1';
 
-    const invoiceData = {
-      invoiceNumber: `INV-${booking.humanReadableRef.replace('KC-', '')}`,
-      invoiceDate: new Date(booking.createdAt).toISOString(),
-      booking: {
-        id: booking.id,
-        ref: booking.humanReadableRef,
-        tripType: booking.tripType,
-        status: booking.status,
-        pickupAddress: booking.pickupAddress,
-        dropAddress: booking.dropAddress,
-        actualPickupAddress: booking.actualPickupAddress || null,
-        actualDropAddress: booking.actualDropAddress || null,
-        actualStartedAt: booking.actualStartedAt || null,
-        actualCompletedAt: booking.actualCompletedAt || null,
-        distanceKm: booking.distanceKm,
-        actualDistanceKm: booking.actualDistanceKm,
-      },
-      customer: {
-        name: booking.customer?.user?.fullName || 'Customer',
-        phone: booking.customer?.user?.phone || '',
-        email: booking.customer?.email || null,
-      },
-      driver: booking.assignedDriver
-        ? {
-            name: booking.assignedDriver.user.fullName,
-            phone: booking.assignedDriver.user.phone,
-            vehicle: booking.vehicle
-              ? `${booking.vehicle.category} (${booking.vehicle.plateNumber || 'N/A'})`
-              : 'Assigned Vehicle',
-          }
-        : null,
-      financials: {
-        preTaxSubtotal,
-        cgst,
-        sgst,
-        gstTotal,
-        tollAmount,
-        parkingAmount,
-        totalFare: estimatedFare + tollAmount + parkingAmount,
-        advancePaid: advanceAmount,
-        advanceStatus: booking.advancePaymentStatus,
-        balanceDue: balanceAmount + tollAmount + parkingAmount,
-        balanceStatus: booking.balancePaymentStatus,
-      },
-      payments: (booking.payments || []).map((p: any) => ({
-        id: p.id,
-        type: p.type,
-        amount: Number(p.amount),
-        razorpayOrderId: p.razorpayOrderId,
-        razorpayPaymentId: p.razorpayPaymentId,
-        status: p.status,
-        verifiedAt: p.verifiedAt,
-      })),
-    };
+    if (format === 'html' || format === 'download' || req.headers.get('accept')?.includes('text/html')) {
+      const html = generateKandyInvoiceHtml(invoiceData, { autoPrint });
+      const headers = new Headers();
+      headers.set('Content-Type', 'text/html; charset=utf-8');
+      if (format === 'download' && url.searchParams.get('attachment') === '1') {
+        headers.set('Content-Disposition', `attachment; filename="Kandy_Cabs_Tax_Invoice_${invoiceData.invoiceNumber}.html"`);
+      }
+      return new NextResponse(html, { status: 200, headers });
+    }
 
     const response = NextResponse.json(
       {
@@ -169,3 +128,4 @@ export async function GET(
     return setCorsHeaders(res);
   }
 }
+

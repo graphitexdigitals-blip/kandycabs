@@ -3,7 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { BookingStatus } from '@kandy-cabs/shared';
 import { reverseGeocodeLocation } from '@/lib/geocoding';
-import { parseIntermediateStops, getBookingMetadata } from '@/lib/bookingHelpers';
+import {
+  parseIntermediateStops,
+  getBookingMetadata,
+  getTripVerificationPhotos,
+  getTripTimingMilestones,
+} from '@/lib/bookingHelpers';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import {
   IconX,
@@ -271,6 +276,8 @@ Exclusions (If applicable):
   const auditLogs = data?.auditLogs || [];
   const assignedDriver = booking?.assignedDriver;
   const bookingMeta = getBookingMetadata(booking);
+  const verificationData = getTripVerificationPhotos(booking);
+  const timingData = getTripTimingMilestones(booking);
 
   const handleTogglePhoneRelease = async () => {
     if (!booking) return;
@@ -635,6 +642,41 @@ Exclusions (If applicable):
                           <span>Flight: {meta.flightNumber}</span>
                         </span>
                       )}
+                      {meta.isSeniorCitizen && (
+                        <span className="text-[10px] bg-orange-100 text-orange-900 font-extrabold px-2 py-0.5 rounded-md border border-orange-300 inline-flex items-center gap-1">
+                          <span>Senior Citizen (60+)</span>
+                        </span>
+                      )}
+                      {meta.isBabyOnBoard && (
+                        <span className="text-[10px] bg-pink-100 text-pink-900 font-extrabold px-2 py-0.5 rounded-md border border-pink-300 inline-flex items-center gap-1">
+                          <span>Baby on Board</span>
+                        </span>
+                      )}
+                      {meta.isPregnancyFriendly && (
+                        <span className="text-[10px] bg-purple-100 text-purple-900 font-extrabold px-2 py-0.5 rounded-md border border-purple-300 inline-flex items-center gap-1">
+                          <span>Pregnancy Friendly</span>
+                        </span>
+                      )}
+                      {meta.isAccessibilityAssistance && (
+                        <span className="text-[10px] bg-blue-100 text-blue-900 font-extrabold px-2 py-0.5 rounded-md border border-blue-300 inline-flex items-center gap-1">
+                          <span>Accessibility Assistance</span>
+                        </span>
+                      )}
+                      {meta.needReturnJourney && (
+                        <span className="text-[10px] bg-indigo-100 text-indigo-900 font-extrabold px-2 py-0.5 rounded-md border border-indigo-300 inline-flex items-center gap-1">
+                          <span>Return Journey Later</span>
+                        </span>
+                      )}
+                      {meta.needAirportDrop && (
+                        <span className="text-[10px] bg-sky-100 text-sky-900 font-extrabold px-2 py-0.5 rounded-md border border-sky-300 inline-flex items-center gap-1">
+                          <span>Airport Drop</span>
+                        </span>
+                      )}
+                      {meta.needAirportPickup && (
+                        <span className="text-[10px] bg-teal-100 text-teal-900 font-extrabold px-2 py-0.5 rounded-md border border-teal-300 inline-flex items-center gap-1">
+                          <span>Airport Pickup</span>
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -822,6 +864,62 @@ Exclusions (If applicable):
                           <span className="font-bold text-sky-950 truncate block text-[11px]">{meta.alternateEmail}</span>
                         </div>
                       ) : null}
+                      {meta.isSeniorCitizen ? (
+                        <div className="bg-orange-50/90 p-2 sm:p-2.5 rounded-lg border border-orange-300">
+                          <span className="flex items-center gap-1 text-[10px] text-orange-800 font-bold mb-0.5">
+                            <span>Senior Citizen (60+)</span>
+                          </span>
+                          <span className="font-black text-orange-950 block text-[11px]">Easy Access &amp; Assistance</span>
+                        </div>
+                      ) : null}
+                      {meta.isBabyOnBoard ? (
+                        <div className="bg-pink-50/90 p-2 sm:p-2.5 rounded-lg border border-pink-300">
+                          <span className="flex items-center gap-1 text-[10px] text-pink-800 font-bold mb-0.5">
+                            <span>Baby on Board</span>
+                          </span>
+                          <span className="font-black text-pink-950 block text-[11px]">Infant / Child Safety</span>
+                        </div>
+                      ) : null}
+                      {meta.isPregnancyFriendly ? (
+                        <div className="bg-purple-50/90 p-2 sm:p-2.5 rounded-lg border border-purple-300">
+                          <span className="flex items-center gap-1 text-[10px] text-purple-800 font-bold mb-0.5">
+                            <span>Pregnancy Care</span>
+                          </span>
+                          <span className="font-black text-purple-950 block text-[11px]">Extra Smooth Driving</span>
+                        </div>
+                      ) : null}
+                      {meta.isAccessibilityAssistance ? (
+                        <div className="bg-blue-50/90 p-2 sm:p-2.5 rounded-lg border border-blue-300">
+                          <span className="flex items-center gap-1 text-[10px] text-blue-800 font-bold mb-0.5">
+                            <span>Accessibility</span>
+                          </span>
+                          <span className="font-black text-blue-950 block text-[11px]">Driver Boarding Assistance</span>
+                        </div>
+                      ) : null}
+                      {meta.needReturnJourney ? (
+                        <div className="bg-indigo-50/90 p-2 sm:p-2.5 rounded-lg border border-indigo-300">
+                          <span className="flex items-center gap-1 text-[10px] text-indigo-800 font-bold mb-0.5">
+                            <span>Return Trip</span>
+                          </span>
+                          <span className="font-black text-indigo-950 block text-[11px]">Return Journey Later</span>
+                        </div>
+                      ) : null}
+                      {meta.needAirportDrop ? (
+                        <div className="bg-sky-50/90 p-2 sm:p-2.5 rounded-lg border border-sky-300">
+                          <span className="flex items-center gap-1 text-[10px] text-sky-800 font-bold mb-0.5">
+                            <span>Airport Drop</span>
+                          </span>
+                          <span className="font-black text-sky-950 block text-[11px]">Airport Drop Requested</span>
+                        </div>
+                      ) : null}
+                      {meta.needAirportPickup ? (
+                        <div className="bg-teal-50/90 p-2 sm:p-2.5 rounded-lg border border-teal-300">
+                          <span className="flex items-center gap-1 text-[10px] text-teal-800 font-bold mb-0.5">
+                            <span>Airport Pickup</span>
+                          </span>
+                          <span className="font-black text-teal-950 block text-[11px]">Airport Pickup Requested</span>
+                        </div>
+                      ) : null}
                       {(meta.notes || meta.specialRequirements) ? (
                         <div className="sm:col-span-4 bg-slate-50 p-2 sm:p-2.5 rounded-lg border border-slate-200">
                           <span className="text-[10px] text-slate-500 block font-semibold mb-0.5">Special Instructions / Notes</span>
@@ -953,69 +1051,136 @@ Exclusions (If applicable):
               </div>
             </div>
 
-            {/* Vehicle Inspection Photos (Trip Start 4 Angles) & Odometer Evidence */}
-            <div className="p-3 sm:p-4 rounded-xl border border-sky-200 bg-sky-50/40 space-y-2.5 sm:space-y-3">
+            {/* Trip Execution Timings & Milestones */}
+            <div className="space-y-2 sm:space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-1.5">
-                  <IconImage className="w-4 h-4 text-sky-900 shrink-0" />
-                  <h4 className="font-bold text-sky-950 text-xs uppercase tracking-wider">
-                    Vehicle Inspection & Odometer Evidence
+                  <span className="w-2 h-2 rounded-full bg-slate-400" />
+                  <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                    Trip Execution Timings & Milestones
                   </h4>
                 </div>
-                <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-md border border-sky-200">
-                  {Array.isArray(booking.vehicleInspectionPhotos) && booking.vehicleInspectionPhotos.length > 0
-                    ? `${booking.vehicleInspectionPhotos.filter(Boolean).length}/4 Photos`
-                    : 'Pending Start'}
-                </span>
+                {timingData.totalTripDuration && (
+                  <span className="text-[10px] bg-indigo-50 text-indigo-800 font-bold px-2 py-0.5 rounded-md border border-indigo-200">
+                    Duration: {timingData.totalTripDuration}
+                  </span>
+                )}
               </div>
 
-              {/* 4 Inspection Angles */}
-              <div>
-                <span className="text-[11px] font-bold text-slate-700 block mb-1">
-                  Cab Inspection Photos (4 Angles):
-                </span>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
-                  {[
-                    { label: 'Front Photo', sub: 'Bumper & Plate', idx: 0 },
-                    { label: 'Rear Photo', sub: 'Tail & Boot', idx: 1 },
-                    { label: 'Side Photo', sub: 'Doors & Body', idx: 2 },
-                    { label: 'Inside Photo', sub: 'Interior Cabin', idx: 3 },
-                  ].map((angle) => {
-                    const photoUrl = Array.isArray(booking.vehicleInspectionPhotos)
-                      ? booking.vehicleInspectionPhotos[angle.idx]
-                      : null;
-                    return (
-                      <div
-                        key={angle.label}
-                        className="bg-white border border-slate-200 rounded-lg p-1.5 sm:p-2 flex flex-col items-center text-center shadow-2xs"
-                      >
-                        <span className="text-[11px] font-bold text-slate-800">{angle.label}</span>
-                        <span className="text-[9px] text-slate-500 mb-1">{angle.sub}</span>
-                        {photoUrl ? (
-                          <div
-                            onClick={() => setPreviewImage({ url: resolveImageUrl(photoUrl), title: angle.label })}
-                            className="w-full h-20 bg-slate-100 rounded border border-emerald-300 overflow-hidden cursor-pointer relative group"
-                          >
-                            <img
-                              src={resolveImageUrl(photoUrl)}
-                              alt={angle.label}
-                              className="w-full h-full object-cover group-hover:scale-105 transition"
-                            />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-[10px] font-bold">
-                              View Full
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="w-full h-20 bg-slate-100 rounded border border-dashed border-slate-300 flex flex-col items-center justify-center text-[10px] text-slate-400 p-1">
-                            <IconImage className="w-4 h-4 text-slate-300 mb-0.5" />
-                            <span>Not Captured</span>
-                          </div>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {timingData.milestones.map((m) => (
+                  <div
+                    key={m.id}
+                    className="p-2 sm:p-2.5 rounded-lg border border-slate-200 bg-slate-50/80 flex flex-col justify-between"
+                  >
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-800 block leading-tight">
+                        {m.label}
+                      </span>
+                      <span className="text-[9px] text-slate-500 block truncate mt-0.5">
+                        {m.sub}
+                      </span>
+                    </div>
+
+                    <div className="mt-2.5 pt-1.5 border-t border-slate-200 flex items-end justify-between gap-1">
+                      <div>
+                        <span className="text-xs font-mono font-bold text-indigo-950 block">
+                          {m.timeStr || '--:--'}
+                        </span>
+                        {m.extraInfo && (
+                          <span className="text-[9px] text-slate-600 block truncate font-medium mt-0.5">
+                            {m.extraInfo}
+                          </span>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
+
+                      {/* Status Icon Arranged Below */}
+                      {m.status === 'COMPLETED' ? (
+                        <span
+                          className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300 flex items-center justify-center shrink-0 shadow-2xs mb-0.5"
+                          title="Completed"
+                        >
+                          <svg className="w-3 h-3 stroke-[3]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        </span>
+                      ) : m.status === 'IN_PROGRESS' ? (
+                        <span
+                          className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 border border-blue-300 flex items-center justify-center shrink-0 shadow-2xs mb-0.5"
+                          title="In Progress"
+                        >
+                          <svg className="w-3 h-3 stroke-[2.5] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                          </svg>
+                        </span>
+                      ) : (
+                        <span
+                          className="w-5 h-5 rounded-full bg-slate-100 text-slate-400 border border-slate-200 flex items-center justify-center shrink-0 mb-0.5"
+                          title="Pending"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
+            </div>
+
+            {/* Verification Photos (5 Photos) & Odometer Evidence */}
+            <div className="p-3 sm:p-4 rounded-xl border border-sky-200 bg-sky-50/40 space-y-2.5 sm:space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1.5">
+                      <IconImage className="w-4 h-4 text-sky-900 shrink-0" />
+                      <h4 className="font-bold text-sky-950 text-xs uppercase tracking-wider">
+                        Driver Verification & Inspection Evidence
+                      </h4>
+                    </div>
+                    <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-md border border-sky-200">
+                      {verificationData.uploadedCount}/5 Photos
+                    </span>
+                  </div>
+
+                  {/* 5 Inspection Angles */}
+                  <div>
+                    <span className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Pre-Trip Verification Photos (5 Photos):
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:gap-2">
+                      {verificationData.photos.map((item) => {
+                        const photoUrl = item.url;
+                        return (
+                          <div
+                            key={item.key}
+                            className="bg-white border border-slate-200 rounded-lg p-1.5 sm:p-2 flex flex-col items-center text-center shadow-2xs"
+                          >
+                            <span className="text-[11px] font-bold text-slate-800 leading-tight">{item.label}</span>
+                            <span className="text-[9px] text-slate-500 mb-1 truncate max-w-full">{item.sub}</span>
+                            {photoUrl ? (
+                              <div
+                                onClick={() => setPreviewImage({ url: resolveImageUrl(photoUrl), title: item.label })}
+                                className="w-full h-20 bg-slate-100 rounded border border-emerald-300 overflow-hidden cursor-pointer relative group"
+                              >
+                                <img
+                                  src={resolveImageUrl(photoUrl)}
+                                  alt={item.label}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition"
+                                />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-[10px] font-bold">
+                                  View Full
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="w-full h-20 bg-slate-100 rounded border border-dashed border-slate-300 flex flex-col items-center justify-center text-[10px] text-slate-400 p-1">
+                                <IconImage className="w-4 h-4 text-slate-300 mb-0.5" />
+                                <span>Not Captured</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
 
               {/* Odometer Evidence Comparison */}
               <div className="pt-2 border-t border-sky-100 grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">

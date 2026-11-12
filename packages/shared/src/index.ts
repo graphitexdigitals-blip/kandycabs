@@ -16,4 +16,6 @@ export * from './utils/logger';
 export * from './utils/distance';
 export * from './utils/polyfill';
 export * from './utils/documentExpiry';
+export * from './utils/invoice';
+export * from './types/coupon';
 

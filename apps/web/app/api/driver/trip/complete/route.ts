@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
       finalOdometer,
       finalOdometerImagePath,
       tollAmount = 0,
+      nhTollAmount = 0,
+      niceRoadTollAmount = 0,
       parkingAmount = 0,
       paymentMethod = 'CASH', // CASH or UPI_QR
       actualDropLat,
@@ -80,7 +82,10 @@ export async function POST(req: NextRequest) {
 
     // Calculate actual distance from start/end odometer readings
     const actualDistanceKm = Math.max(0, Math.round((endOdo - startOdo) * 10) / 10);
-    const parsedToll = Math.max(0, parseFloat(String(tollAmount)) || 0);
+    const parsedNhToll = Math.max(0, parseFloat(String(nhTollAmount)) || 0);
+    const parsedNiceRoadToll = Math.max(0, parseFloat(String(niceRoadTollAmount)) || 0);
+    const calculatedToll = parsedNhToll + parsedNiceRoadToll;
+    const parsedToll = calculatedToll > 0 ? calculatedToll : Math.max(0, parseFloat(String(tollAmount)) || 0);
     const parsedParking = Math.max(0, parseFloat(String(parkingAmount)) || 0);
 
     const baseBalance = Number(booking.balanceAmount);
@@ -130,6 +135,8 @@ export async function POST(req: NextRequest) {
               startOdometer: startOdo,
               finalOdometer: endOdo,
               actualDistanceKm,
+              nhTollAmount: parsedNhToll,
+              niceRoadTollAmount: parsedNiceRoadToll,
               tollAmount: parsedToll,
               parkingAmount: parsedParking,
               totalBalanceCollected,

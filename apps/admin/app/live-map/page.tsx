@@ -138,7 +138,8 @@ export default function AdminLiveMapPage() {
                           currentLat: payload.new.currentLat,
                           currentLng: payload.new.currentLng,
                           lastPingAt: payload.new.lastPingAt,
-                          onlineStatus: payload.new.onlineStatus,
+                          onlineStatus: payload.new.onlineStatus !== undefined ? payload.new.onlineStatus : d.onlineStatus,
+                          verificationStatus: payload.new.verificationStatus !== undefined ? payload.new.verificationStatus : d.verificationStatus,
                         }
                       : d
                   )
@@ -151,6 +152,8 @@ export default function AdminLiveMapPage() {
                         currentLat: payload.new.currentLat,
                         currentLng: payload.new.currentLng,
                         lastPingAt: payload.new.lastPingAt,
+                        onlineStatus: payload.new.onlineStatus !== undefined ? payload.new.onlineStatus : curr.onlineStatus,
+                        verificationStatus: payload.new.verificationStatus !== undefined ? payload.new.verificationStatus : curr.verificationStatus,
                       }
                     : curr
                 );
@@ -209,20 +212,64 @@ export default function AdminLiveMapPage() {
     }
   }, [selectedDriver]);
 
-  // Helper checks for true trip in progress vs idle
+  // Helper checks for true trip in progress vs idle vs offline vs pending review
+  const isDriverApproved = (d: DriverMapMarker) => d.verificationStatus === 'APPROVED';
+  const isDriverOnline = (d: DriverMapMarker) => Boolean(d.onlineStatus);
   const isDriverOnTrip = (d: DriverMapMarker) => d.assignedBookings.some((b) => b.status === 'TRIP_STARTED');
-  const isDriverEnRoute = (d: DriverMapMarker) => d.assignedBookings.some((b) => b.status === 'DRIVER_EN_ROUTE');
+  const isDriverEnRoute = (d: DriverMapMarker) =>
+    !isDriverOnTrip(d) && d.assignedBookings.some((b) => b.status === 'DRIVER_EN_ROUTE');
+  const isDriverAvailable = (d: DriverMapMarker) =>
+    isDriverApproved(d) && isDriverOnline(d) && !isDriverOnTrip(d) && !isDriverEnRoute(d);
+
+  const getDriverStatusMeta = (d: DriverMapMarker) => {
+    if (!isDriverApproved(d)) {
+      return {
+        label: d.verificationStatus === 'REJECTED' ? 'KYC Rejected' : 'Pending Review',
+        badgeClass: 'bg-amber-100 text-amber-900 border-amber-300',
+        isAvailable: false,
+      };
+    }
+    if (!isDriverOnline(d)) {
+      return {
+        label: 'Offline',
+        badgeClass: 'bg-slate-100 text-slate-700 border-slate-300',
+        isAvailable: false,
+      };
+    }
+    if (isDriverOnTrip(d)) {
+      return {
+        label: 'Trip in Progress',
+        badgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+        isAvailable: false,
+      };
+    }
+    if (isDriverEnRoute(d)) {
+      return {
+        label: 'En-Route',
+        badgeClass: 'bg-blue-100 text-blue-800 border-blue-300',
+        isAvailable: false,
+      };
+    }
+    return {
+      label: 'Idle / Available',
+      badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+      isAvailable: true,
+    };
+  };
 
   // Filtered drivers based on category tab
   const filteredDrivers: DriverMapMarker[] = drivers.filter((d) => {
     if (selectedBookingFilter === 'ALL') return true;
-    if (selectedBookingFilter === 'IDLE') return !isDriverOnTrip(d);
-    if (selectedBookingFilter === 'ON_TRIP') return isDriverOnTrip(d);
+    if (selectedBookingFilter === 'IDLE' || selectedBookingFilter === 'AVAILABLE') return isDriverAvailable(d);
+    if (selectedBookingFilter === 'ON_TRIP') return isDriverOnTrip(d) || isDriverEnRoute(d);
+    if (selectedBookingFilter === 'OFFLINE') return !isDriverOnline(d) || !isDriverApproved(d);
     return true;
   });
 
-  const idleCount = drivers.filter((d) => !isDriverOnTrip(d)).length;
-  const onTripCount = drivers.filter((d) => isDriverOnTrip(d)).length;
+  const availableCount = drivers.filter((d) => isDriverAvailable(d)).length;
+  const idleCount = availableCount;
+  const onTripCount = drivers.filter((d) => isDriverOnTrip(d) || isDriverEnRoute(d)).length;
+  const offlineCount = drivers.filter((d) => !isDriverOnline(d) || !isDriverApproved(d)).length;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
@@ -340,12 +387,12 @@ export default function AdminLiveMapPage() {
         {/* Drawer Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-3.5 space-y-3">
           {/* Category Filter Tabs */}
-          <div className="bg-slate-100 p-0.5 rounded-lg border border-slate-200 flex gap-1 text-[11px] sm:text-xs font-semibold">
+          <div className="bg-slate-100 p-0.5 rounded-lg border border-slate-200 grid grid-cols-4 gap-1 text-[10px] sm:text-[11px] font-semibold">
             <button
               onClick={() => {
                 setSelectedBookingFilter('ALL');
               }}
-              className={`flex-1 py-1 px-2 rounded-md text-center transition ${
+              className={`py-1 px-1 rounded-md text-center transition ${
                 selectedBookingFilter === 'ALL'
                   ? 'bg-amber-500 text-slate-950 shadow-xs font-bold'
                   : 'text-slate-600 hover:text-slate-900'
@@ -357,25 +404,37 @@ export default function AdminLiveMapPage() {
               onClick={() => {
                 setSelectedBookingFilter('IDLE');
               }}
-              className={`flex-1 py-1 px-2 rounded-md text-center transition ${
-                selectedBookingFilter === 'IDLE'
+              className={`py-1 px-1 rounded-md text-center transition ${
+                selectedBookingFilter === 'IDLE' || selectedBookingFilter === 'AVAILABLE'
                   ? 'bg-emerald-600 text-white shadow-xs font-bold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Idle ({idleCount})
+              Available ({availableCount})
             </button>
             <button
               onClick={() => {
                 setSelectedBookingFilter('ON_TRIP');
               }}
-              className={`flex-1 py-1 px-2 rounded-md text-center transition ${
+              className={`py-1 px-1 rounded-md text-center transition ${
                 selectedBookingFilter === 'ON_TRIP'
                   ? 'bg-blue-600 text-white shadow-xs font-bold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               On-Trip ({onTripCount})
+            </button>
+            <button
+              onClick={() => {
+                setSelectedBookingFilter('OFFLINE');
+              }}
+              className={`py-1 px-1 rounded-md text-center transition ${
+                selectedBookingFilter === 'OFFLINE'
+                  ? 'bg-slate-700 text-white shadow-xs font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Offline/Pending ({offlineCount})
             </button>
           </div>
 
@@ -403,19 +462,10 @@ export default function AdminLiveMapPage() {
                   <p className="text-[11px] text-slate-500 font-mono">{selectedDriver.user.phone}</p>
                 </div>
                 {(() => {
-                  const isTripActive = selectedDriver.assignedBookings.some((b) => b.status === 'TRIP_STARTED');
-                  const isEnRoute = !isTripActive && selectedDriver.assignedBookings.some((b) => b.status === 'DRIVER_EN_ROUTE');
+                  const meta = getDriverStatusMeta(selectedDriver);
                   return (
-                    <span
-                      className={`text-[9px] font-bold px-2 py-0.5 rounded-md border ${
-                        isTripActive
-                          ? 'bg-amber-100 text-amber-800 border-amber-300'
-                          : isEnRoute
-                          ? 'bg-blue-100 text-blue-800 border-blue-300'
-                          : 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                      }`}
-                    >
-                      {isTripActive ? 'Trip in Progress' : isEnRoute ? 'En-Route' : 'Idle / Available'}
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border ${meta.badgeClass}`}>
+                      {meta.label}
                     </span>
                   );
                 })()}
@@ -514,7 +564,11 @@ export default function AdminLiveMapPage() {
                 </div>
               ) : (
                 <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-500 text-center">
-                  Driver is online and currently available for ride dispatches.
+                  {isDriverAvailable(selectedDriver)
+                    ? 'Driver is approved, online, and currently available for ride dispatches.'
+                    : !isDriverApproved(selectedDriver)
+                    ? 'Driver is pending KYC registration review. Cannot be dispatched.'
+                    : 'Driver is currently offline / off-duty.'}
                 </div>
               )}
 
@@ -554,10 +608,12 @@ export default function AdminLiveMapPage() {
               <div className="flex justify-between items-center pb-1 border-b border-slate-200">
                 <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500">
                   {selectedBookingFilter === 'ALL'
-                    ? `All Online Drivers (${filteredDrivers.length})`
-                    : selectedBookingFilter === 'IDLE'
-                    ? `Idle / Available Drivers (${filteredDrivers.length})`
-                    : `On-Trip Drivers (${filteredDrivers.length})`}
+                    ? `All Drivers (${filteredDrivers.length})`
+                    : selectedBookingFilter === 'IDLE' || selectedBookingFilter === 'AVAILABLE'
+                    ? `Available Drivers (${filteredDrivers.length})`
+                    : selectedBookingFilter === 'ON_TRIP'
+                    ? `On-Trip Drivers (${filteredDrivers.length})`
+                    : `Offline / Pending Drivers (${filteredDrivers.length})`}
                 </span>
                 <span className="text-[9px] text-amber-600 font-medium">Click to track</span>
               </div>
@@ -566,7 +622,7 @@ export default function AdminLiveMapPage() {
                 <div className="text-center py-8 text-slate-500 text-xs space-y-1">
                   <IconCar className="w-6 h-6 text-slate-400 mx-auto mb-1" />
                   <p className="font-semibold text-slate-700 text-xs">No drivers matching this filter</p>
-                  <p className="text-[10px]">Drivers will appear here when they come online.</p>
+                  <p className="text-[10px]">Drivers will appear here when they match this category.</p>
                 </div>
               ) : (
                 <div className="space-y-1.5 max-h-[calc(100vh-250px)] overflow-y-auto pr-1">
@@ -575,6 +631,7 @@ export default function AdminLiveMapPage() {
                     const isEnRoute = !isTripStarted && d.assignedBookings.some((b) => b.status === 'DRIVER_EN_ROUTE');
                     const vehicle = d.vehicles[0];
                     const resolvedLocation = driverLocations[d.id];
+                    const meta = getDriverStatusMeta(d);
 
                     return (
                       <div
@@ -590,16 +647,8 @@ export default function AdminLiveMapPage() {
                             </h4>
                             <p className="text-[10px] text-slate-500 font-mono">{d.user.phone}</p>
                           </div>
-                          <span
-                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${
-                              isTripStarted
-                                ? 'bg-amber-100 text-amber-800 border-amber-300'
-                                : isEnRoute
-                                ? 'bg-blue-100 text-blue-800 border-blue-300'
-                                : 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                            }`}
-                          >
-                            {isTripStarted ? 'Trip in Progress' : isEnRoute ? 'En-Route' : 'Idle / Available'}
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${meta.badgeClass}`}>
+                            {meta.label}
                           </span>
                         </div>
 
@@ -646,10 +695,11 @@ export default function AdminLiveMapPage() {
         </div>
 
         {/* Drawer Bottom Summary Pill */}
-        <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 px-3.5 py-2.5 flex justify-between text-[11px] text-slate-600 font-mono shrink-0">
-          <span>Online: <strong className="text-slate-900">{drivers.length}</strong></span>
-          <span>Idle: <strong className="text-emerald-600">{idleCount}</strong></span>
+        <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 px-3.5 py-2.5 flex justify-between items-center text-[10px] sm:text-[11px] text-slate-600 font-mono shrink-0">
+          <span>Total: <strong className="text-slate-900">{drivers.length}</strong></span>
+          <span>Available: <strong className="text-emerald-600">{availableCount}</strong></span>
           <span>On-Trip: <strong className="text-blue-600">{onTripCount}</strong></span>
+          <span>Off/Pending: <strong className="text-amber-700">{offlineCount}</strong></span>
         </div>
       </aside>
     </div>

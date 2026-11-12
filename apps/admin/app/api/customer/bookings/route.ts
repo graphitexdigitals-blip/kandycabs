@@ -12,6 +12,7 @@ import {
 } from '@kandy-cabs/shared';
 import { calculateRouteDistance } from '@/lib/distance';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
+import { recordCouponUsage } from '@/lib/couponStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -267,9 +268,15 @@ export async function POST(req: NextRequest) {
             alternateEmail: alternateEmail ? String(alternateEmail).trim() : (body.alternateEmail ? String(body.alternateEmail).trim() : undefined),
             companyName: companyName ? String(companyName).trim() : (body.companyName ? String(body.companyName).trim() : undefined),
             gstin: gstin ? String(gstin).trim().toUpperCase() : (body.gstin ? String(body.gstin).trim().toUpperCase() : undefined),
+            couponCode: couponCode ? String(couponCode).trim().toUpperCase() : undefined,
+            couponDiscount: pricing.discount || Number(body.couponDiscount) || 0,
           },
         },
       });
+
+      if (couponCode) {
+        recordCouponUsage(String(couponCode)).catch(() => {});
+      }
 
       if (isPayOnApproval) {
         await tx.tripEvent.create({

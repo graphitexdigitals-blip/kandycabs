@@ -406,10 +406,18 @@ export function calculateFare(input: PricingCalculationInput): PricingBreakdown 
   let discount = 0;
   if (couponCode) {
     const code = couponCode.trim().toUpperCase();
-    if (code === 'KANDY10') {
-      discount = Math.min(Math.round(subtotal * 0.1), 500); // 10% max ₹500
-    } else if (code === 'FIRST50') {
-      discount = 50;
+    if (code === 'WELCOME100') {
+      discount = Math.min(100, subtotal);
+    } else if (code === 'KANDY15' || code === 'SAVE15') {
+      discount = Math.min(Math.round(subtotal * 0.15), 400); // 15% max ₹400
+    } else if (code === 'FESTIVE500' || code === 'KCD500') {
+      discount = Math.min(500, subtotal);
+    } else if (code === 'AIRPORT10') {
+      discount = Math.min(Math.round(subtotal * 0.1), 250); // 10% max ₹250
+    } else if (code === 'KANDY10' || code === 'SAVE10') {
+      discount = Math.min(Math.round(subtotal * 0.1), 300); // 10% max ₹300
+    } else if (code === 'FIRST50' || code === 'WELCOME50') {
+      discount = Math.min(50, subtotal);
     }
   }
 

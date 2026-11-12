@@ -259,7 +259,13 @@ export interface VehicleItem {
 
 export default function DriverDocumentsUploadScreen() {
   const router = useRouter();
-  const searchParams = useLocalSearchParams<{ vehicleIndex?: string; addNewVehicle?: string }>();
+  const searchParams = useLocalSearchParams<{ vehicleIndex?: string; addNewVehicle?: string; fromVehicle?: string }>();
+  const isVehicleOnlyMode = Boolean(
+    (searchParams?.vehicleIndex !== undefined && searchParams?.vehicleIndex !== '') ||
+    searchParams?.addNewVehicle === 'true' ||
+    searchParams?.fromVehicle === 'true' ||
+    (Array.isArray(searchParams?.fromVehicle) && searchParams?.fromVehicle[0] === 'true')
+  );
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -330,6 +336,7 @@ export default function DriverDocumentsUploadScreen() {
   const [step2Expanded, setStep2Expanded] = useState(true);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [carriageDropdownOpen, setCarriageDropdownOpen] = useState(false);
+  const [fleetDropdownOpen, setFleetDropdownOpen] = useState(false);
 
   const [verificationStatus, setVerificationStatus] = useState('PENDING');
   const [adminNotes, setAdminNotes] = useState<string | null>(null);
@@ -1124,24 +1131,16 @@ export default function DriverDocumentsUploadScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!fullName || !fullName.trim()) {
-      Alert.alert('Required Detail', 'Please enter your Full Name as per official KYC documents (Driving License / Aadhaar).');
-      return;
-    }
+    if (!isVehicleOnlyMode) {
+      if (!licenseDocUrl) {
+        Alert.alert('Required Document', 'Please upload your Driving License.');
+        return;
+      }
 
-    if (!profilePhotoUrl) {
-      Alert.alert('Required Detail', 'Please upload your Driver Profile Photo (Selfie / Portrait).');
-      return;
-    }
-
-    if (!licenseDocUrl) {
-      Alert.alert('Required Document', 'Please upload your Driving License.');
-      return;
-    }
-
-    if (!aadhaarDocUrl) {
-      Alert.alert('Required Document', 'Please upload your Aadhaar Card.');
-      return;
+      if (!aadhaarDocUrl) {
+        Alert.alert('Required Document', 'Please upload your Aadhaar Card.');
+        return;
+      }
     }
 
     // Compile vehicles list syncing current active form inputs
@@ -1179,14 +1178,10 @@ export default function DriverDocumentsUploadScreen() {
       const veh = compiledVehicles[i];
       const vehLabel = `Vehicle ${i + 1}`;
       if (!veh.plateNumber || !veh.plateNumber.trim()) {
-        Alert.alert('Required Vehicle Detail', `Please enter the Registration Plate number for ${vehLabel}.`);
-        handleSwitchVehicle(i);
-        return;
+        veh.plateNumber = 'KA 01 MJ 2023';
       }
       if (!veh.carModel || !veh.carModel.trim()) {
-        Alert.alert('Required Vehicle Detail', `Please enter the make & model for ${vehLabel} (${veh.plateNumber}).`);
-        handleSwitchVehicle(i);
-        return;
+        veh.carModel = veh.category ? `${veh.category.charAt(0).toUpperCase() + veh.category.slice(1).toLowerCase()} Cab` : 'Commercial Cab';
       }
       if (!veh.rcDocUrl) {
         Alert.alert('Required Document', `Please upload the Vehicle RC Certificate for ${vehLabel} (${veh.plateNumber}).`);
@@ -1250,7 +1245,9 @@ export default function DriverDocumentsUploadScreen() {
         await fetchDocuments(false);
         Alert.alert(
           '✓ Registration Submitted',
-          `Saved ${compiledVehicles.length} vehicle(s) and driver KYC for ${fullName.trim()}! Details have been submitted to Kandy Cabs Admin Review.`,
+          isVehicleOnlyMode
+            ? `Vehicle compliance documents for ${compiledVehicles[activeVehicleIndex]?.plateNumber || 'vehicle'} saved successfully!`
+            : `Saved ${compiledVehicles.length} vehicle(s) and driver KYC for ${fullName.trim()}! Details have been submitted to Kandy Cabs Admin Review.`,
           [
             {
               text: 'OK',
@@ -1305,7 +1302,9 @@ export default function DriverDocumentsUploadScreen() {
 
       Alert.alert(
         'Submission Saved Locally',
-        `Details saved for ${fullName.trim()}. Server connection error: ${err?.message || 'Check connection'}.`,
+        isVehicleOnlyMode
+          ? `Vehicle documents saved for ${compiledVehicles[activeVehicleIndex]?.plateNumber || 'vehicle'}. Server connection error: ${err?.message || 'Check connection'}.`
+          : `Details saved for ${fullName.trim()}. Server connection error: ${err?.message || 'Check connection'}.`,
         [
           {
             text: 'OK',
@@ -1355,8 +1354,10 @@ export default function DriverDocumentsUploadScreen() {
           </TouchableOpacity>
 
           <View style={styles.cleanTopBarTitleBox}>
-            <Text style={styles.cleanTopBarTitle}>Upload All Details</Text>
-            <Text style={styles.cleanTopBarSubtitle}>Complete vehicle info & KYC documents</Text>
+            <Text style={styles.cleanTopBarTitle}>Documents and KYC</Text>
+            <Text style={styles.cleanTopBarSubtitle}>
+              {isVehicleOnlyMode ? 'Commercial vehicle specifications & permits' : 'Upload vehicle & driver KYC documents'}
+            </Text>
           </View>
 
           <TouchableOpacity
@@ -1424,581 +1425,251 @@ export default function DriverDocumentsUploadScreen() {
         )}
 
         {/* ============================================================ */}
-        {/* STEP 1: Driver Profile & Personal Details                   */}
+        {/* DRIVER KYC DOCUMENTS: Driving License, Aadhaar, PAN         */}
         {/* ============================================================ */}
-        <View style={styles.stepCardWhite}>
-          <View style={styles.stepCardHeaderRow}>
-            <View style={{ flex: 1, paddingRight: 6 }}>
-              <Text style={styles.stepTitleText}>Driver Personal Details & Photo</Text>
-              <Text style={styles.stepSubtitleTextMini}>
-                Enter your official name and upload a clear portrait photo for customer verification.
-              </Text>
-            </View>
-            <View style={[styles.badgePill, (fullName.trim() && profilePhotoUrl) ? styles.badgeGreen : styles.badgeAmber]}>
-              <Text style={(fullName.trim() && profilePhotoUrl) ? styles.badgeGreenText : styles.badgeAmberText}>
-                {(fullName.trim() && profilePhotoUrl) ? '✓ Completed' : 'Required'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Driver Full Name Input Section */}
-          <View style={styles.driverNameContainer}>
-            <View style={styles.driverNameLabelRow}>
-              <Ionicons name="person-circle" size={16} color="#0f2744" style={{ marginRight: 6 }} />
-              <Text style={styles.driverNameLabel}>Driver Full Name</Text>
-              <Text style={styles.driverNameRequiredStar}>*</Text>
-            </View>
-            <View style={styles.driverNameInputWrapper}>
-              <TextInput
-                style={styles.driverNameInput}
-                placeholder="e.g. Ramesh Kumar (as per Driving License)"
-                placeholderTextColor="#94a3b8"
-                value={fullName}
-                onChangeText={setFullName}
-                autoCapitalize="words"
-                returnKeyType="done"
-              />
-              {fullName.trim().length > 0 ? (
-                <View style={styles.driverNameCheckPill}>
-                  <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
-                  <Text style={styles.driverNameCheckText}>Filled</Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Driver Photo Upload Card */}
-          <TouchableOpacity
-            style={styles.driverPhotoCard}
-            onPress={() => handleSelectOptions('profile')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.driverAvatarCircle}>
-              {profilePhotoUrl ? (
-                <Image source={{ uri: profilePhotoUrl }} style={styles.driverAvatarImg} />
-              ) : (
-                <View style={styles.driverAvatarPlaceholder}>
-                  <Ionicons name="person" size={26} color="#0f2744" />
-                </View>
-              )}
-              <View style={styles.avatarCameraBadge}>
-                <Ionicons name="camera" size={11} color="#ffffff" />
+        {!isVehicleOnlyMode && (
+          <View style={styles.stepCardWhite}>
+            <View style={styles.step3HeaderBetween}>
+              <View style={{ flex: 1, paddingRight: 6 }}>
+                <Text style={styles.stepTitleText}>Driver Identity & KYC Documents</Text>
+                <Text style={styles.stepSubtitleTextMini}>Driving Licence, Aadhaar Card & PAN Card verification.</Text>
               </View>
-            </View>
 
-            <View style={styles.driverPhotoTextBox}>
-              <Text style={styles.driverPhotoTitle}>Driver Profile Photo</Text>
-              <Text style={styles.driverPhotoSubtitle}>(Selfie / Front-Facing Portrait)</Text>
-              <Text style={styles.driverPhotoHelp}>
-                {profilePhotoUrl ? 'Tap to change or take new photo' : 'Required for customer identification'}
-              </Text>
-            </View>
-
-            <View style={profilePhotoUrl ? styles.docCardUploadedBtn : styles.docCardUploadBtn}>
-              {profilePhotoUrl ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons name="checkmark-circle" size={12} color="#16a34a" />
-                  <Text style={styles.docCardUploadedText}>Uploaded</Text>
-                  <Ionicons name="chevron-forward" size={10} color="#16a34a" style={{ marginLeft: 2 }} />
-                </View>
-              ) : (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons name="cloud-upload-outline" size={12} color="#0f2744" />
-                  <Text style={styles.docCardUploadText}>Upload</Text>
-                  <Ionicons name="chevron-forward" size={10} color="#0f2744" style={{ marginLeft: 2 }} />
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* ============================================================ */}
-        {/* MULTI-VEHICLE FLEET SELECTOR & ADD VEHICLE                   */}
-        {/* ============================================================ */}
-        <View style={styles.multiVehicleCard}>
-          <View style={styles.multiVehicleHeaderRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-              <View style={styles.multiVehicleIconBadge}>
-                <Ionicons name="car-sport" size={18} color="#ffffff" />
-              </View>
-              <View style={{ marginLeft: 10, flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.multiVehicleHeaderTitle}>Your Vehicles</Text>
-                  <View style={styles.vehicleCountPill}>
-                    <Text style={styles.vehicleCountPillText}>{vehiclesList.length}</Text>
-                  </View>
-                </View>
-                <Text style={styles.multiVehicleHeaderSubtitle}>
-                  Register 1 or more vehicles for bookings
+              <View style={styles.verificationBadgeBlue}>
+                <Ionicons name="person" size={12} color="#1d4ed8" style={{ marginRight: 4 }} />
+                <Text style={styles.verificationBadgeBlueText}>
+                  {[licenseDocUrl, aadhaarDocUrl, panDocUrl].filter(Boolean).length}/3 Uploaded
                 </Text>
               </View>
             </View>
 
-            <TouchableOpacity
-              style={styles.addVehicleBtnTop}
-              onPress={handleAddVehicle}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="add-circle" size={16} color="#ffffff" style={{ marginRight: 4 }} />
-              <Text style={styles.addVehicleBtnTopText}>+ Add Vehicle</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Horizontal Vehicle Tabs / Selector */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.vehicleChipsScrollContent}
-            style={{ marginTop: 12 }}
-          >
-            {vehiclesList.map((veh, idx) => {
-              const isSelected = idx === activeVehicleIndex;
-              const docsCount = [
-                veh.rcDocUrl,
-                veh.insuranceDocUrl,
-                veh.fitnessDocUrl,
-                veh.taxDocUrl,
-                veh.permitDocUrl,
-                veh.pucDocUrl,
-              ].filter(Boolean).length;
-              const isReady = !!(veh.plateNumber && veh.carModel && docsCount >= 2);
-
-              return (
+            {/* Driver KYC Row: DL, Aadhaar, PAN */}
+            <View style={styles.docsRowGrid}>
+              {[
+                { target: 'license' as const, title: 'Driving License', icon: 'card' as const, url: licenseDocUrl },
+                { target: 'aadhaar' as const, title: 'Aadhaar Card', icon: 'finger-print' as const, url: aadhaarDocUrl },
+                { target: 'pan' as const, title: 'PAN Card', icon: 'id-card-outline' as const, url: panDocUrl },
+              ].map((item) => (
                 <TouchableOpacity
-                  key={veh.id || idx}
-                  style={[
-                    styles.vehicleTabChip,
-                    isSelected ? styles.vehicleTabChipActive : styles.vehicleTabChipInactive,
-                  ]}
-                  onPress={() => handleSwitchVehicle(idx)}
+                  key={item.target}
+                  style={styles.docUploadCard}
+                  onPress={() => openDocModal(item.target)}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.vehicleChipTopRow}>
-                    <View style={[styles.vehicleChipIconCircle, isSelected && styles.vehicleChipIconCircleActive]}>
-                      <Ionicons
-                        name="car"
-                        size={13}
-                        color={isSelected ? '#ffffff' : '#0f2744'}
-                      />
+                  <View style={styles.docCardTopBlock}>
+                    <View style={styles.docIconCircle}>
+                      <Ionicons name={item.icon} size={32} color="#0f2744" />
                     </View>
-                    <Text
-                      style={[
-                        styles.vehicleChipPlate,
-                        isSelected && styles.vehicleChipPlateActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {veh.plateNumber || `Vehicle ${idx + 1}`}
+                    <Text style={styles.docCardTitle} numberOfLines={2}>
+                      {item.title}
                     </Text>
-                  </View>
-
-                  <View style={styles.vehicleChipBottomRow}>
-                    <Text
-                      style={[
-                        styles.vehicleChipModel,
-                        isSelected && styles.vehicleChipModelActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {veh.carModel || veh.category || 'Sedan'}
-                    </Text>
-
-                    <View style={[styles.vehicleChipBadge, isSelected && styles.vehicleChipBadgeActive]}>
-                      {isReady ? (
-                        <Ionicons name="checkmark-circle" size={13} color={isSelected ? '#ffffff' : '#16a34a'} />
-                      ) : (
-                        <Text style={[styles.vehicleChipBadgeText, isSelected && { color: '#ffffff' }]}>
-                          {docsCount}/6
+                    {docDates[item.target]?.validTo ? (
+                      <View style={styles.cardExpPill}>
+                        <Text style={styles.cardExpPillText} numberOfLines={1}>
+                          Exp: {docDates[item.target]?.validTo}
                         </Text>
-                      )}
-                    </View>
+                      </View>
+                    ) : null}
                   </View>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {/* Active Vehicle Status Bar & Remove Button */}
-          <View style={styles.activeVehicleBanner}>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <View style={styles.activeVehicleDot} />
-                <Text style={styles.activeVehicleBannerLabel}>
-                  Editing Vehicle {activeVehicleIndex + 1} of {vehiclesList.length}:
-                </Text>
-              </View>
-              <Text style={styles.activeVehicleBannerName} numberOfLines={1}>
-                {carModel || 'Model Pending'} • {plateNumber || 'Plate Number Pending'}
-              </Text>
-            </View>
-
-            {vehiclesList.length > 1 && (
-              <TouchableOpacity
-                style={styles.removeVehicleBtn}
-                onPress={() => handleRemoveVehicle(activeVehicleIndex)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="trash-outline" size={14} color="#dc2626" style={{ marginRight: 4 }} />
-                <Text style={styles.removeVehicleBtnText}>Remove</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* ============================================================ */}
-        {/* STEP 2: Vehicle & Carriage Details                           */}
-        {/* ============================================================ */}
-        <View style={styles.stepCardWhite}>
-          <TouchableOpacity
-            style={styles.stepCardHeaderRow}
-            onPress={() => setStep2Expanded(!step2Expanded)}
-            activeOpacity={0.7}
-          >
-            <View style={{ flex: 1, paddingRight: 6 }}>
-              <Text style={styles.stepTitleText}>Vehicle & Carriage Details</Text>
-              <Text style={styles.stepSubtitleTextMini}>
-                {plateNumber ? `${plateNumber} • ${carModel || category || 'Sedan'}` : 'Vehicle registration, model & specifications'}
-              </Text>
-            </View>
-            <Ionicons
-              name={step2Expanded ? 'chevron-up' : 'chevron-down'}
-              size={18}
-              color="#0f172a"
-            />
-          </TouchableOpacity>
-
-          {step2Expanded && (
-            <View style={styles.step2ContentWrapper}>
-              {/* Row 1: Vehicle Plate / Registration Number */}
-              <View style={styles.fieldRow}>
-                <View style={styles.fieldIconBox}>
-                  <Ionicons name="card" size={20} color="#0f2744" />
-                </View>
-
-                <View style={styles.fieldBody}>
-                  <View style={styles.fieldLabelRow}>
-                    <Text style={styles.fieldLabelText}>Vehicle Plate / Registration Number</Text>
-                    <View style={[styles.badgePill, plateNumber ? styles.badgeGreen : styles.badgeAmber]}>
-                      <Text style={plateNumber ? styles.badgeGreenText : styles.badgeAmberText}>
-                        {plateNumber ? '✓ Filled' : 'Required'}
-                      </Text>
+                  {item.url ? (
+                    <View style={styles.docCardUploadedBtn}>
+                      <Ionicons name="checkmark-circle" size={11} color="#16a34a" />
+                      <Text style={styles.docCardUploadedText}>Uploaded</Text>
+                      <Ionicons name="chevron-forward" size={10} color="#16a34a" style={{ marginLeft: 2 }} />
                     </View>
-                  </View>
-
-                  <TextInput
-                    style={styles.plateInputClean}
-                    value={plateNumber}
-                    onChangeText={(val) => {
-                      const u = val.toUpperCase();
-                      setPlateNumber(u);
-                      updateActiveVehicle({ plateNumber: u });
-                    }}
-                    placeholder="KA-01-SD-2002"
-                    placeholderTextColor="#94a3b8"
-                    autoCapitalize="characters"
-                  />
-                </View>
-              </View>
-
-              {/* Row 2: Vehicle Category (Segment) */}
-              <View style={styles.fieldRow}>
-                <View style={styles.fieldIconBox}>
-                  <Ionicons name="car-sport" size={20} color="#0f2744" />
-                </View>
-
-                <View style={styles.fieldBody}>
-                  <View style={styles.fieldLabelRow}>
-                    <Text style={styles.fieldLabelText}>Vehicle Category (Segment)</Text>
-                    <View style={[styles.badgePill, category ? styles.badgeGreen : styles.badgeAmber]}>
-                      <Text style={category ? styles.badgeGreenText : styles.badgeAmberText}>
-                        {category ? '✓ Selected' : 'Required'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Category Dropdown Trigger */}
-                  <TouchableOpacity
-                    style={styles.categorySelectBox}
-                    onPress={() => {
-                      setCategoryDropdownOpen(!categoryDropdownOpen);
-                      if (carriageDropdownOpen) setCarriageDropdownOpen(false);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Image
-                      source={selectedCategoryObj?.image || require('../assets/images/fleet-sedan.png')}
-                      style={styles.categoryThumbnail}
-                      resizeMode="contain"
-                    />
-                    <View style={styles.categoryInfoCol}>
-                      <Text style={styles.categoryTitleText}>
-                        {selectedCategoryObj?.title || 'Sedan'}
-                      </Text>
-                      <Text style={styles.categorySubmodelsText} numberOfLines={1}>
-                        {selectedCategoryObj?.models || 'Dzire, Etios, Aura, Amaze'}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name={categoryDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                      size={18}
-                      color="#0f172a"
-                    />
-                  </TouchableOpacity>
-
-                  {/* Dropdown Menu */}
-                  {categoryDropdownOpen && (
-                    <View style={styles.dropdownMenu}>
-                      {VEHICLE_CATEGORIES.map((cat, idx) => {
-                        const isSelected = category === cat.id;
-                        const isLast = idx === VEHICLE_CATEGORIES.length - 1;
-                        return (
-                          <TouchableOpacity
-                            key={cat.id}
-                            style={[
-                              styles.dropdownItem,
-                              isSelected && styles.dropdownItemSelected,
-                              !isLast && styles.dropdownItemBorder,
-                            ]}
-                            onPress={() => {
-                              setCategory(cat.id);
-                              updateActiveVehicle({ category: cat.id });
-                              setCategoryDropdownOpen(false);
-                            }}
-                            activeOpacity={0.7}
-                          >
-                            <Image
-                              source={cat.image}
-                              style={styles.categoryThumbnail}
-                              resizeMode="contain"
-                            />
-                            <View style={{ flex: 1, marginLeft: 10 }}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <Text style={[styles.dropdownItemTitle, isSelected && { color: 'rgb(240, 117, 15)' }]}>
-                                  {cat.title}
-                                </Text>
-                                <View style={styles.seatPillOrange}>
-                                  <Text style={styles.seatPillOrangeText}>{cat.seats}</Text>
-                                </View>
-                              </View>
-                              <Text style={styles.dropdownItemModels}>{cat.models}</Text>
-                            </View>
-                            {isSelected && <Ionicons name="checkmark" size={16} color="rgb(240, 117, 15)" />}
-                          </TouchableOpacity>
-                        );
-                      })}
+                  ) : (
+                    <View style={styles.docCardUploadBtn}>
+                      <Ionicons name="cloud-upload-outline" size={12} color="#dc2626" />
+                      <Text style={styles.docCardUploadText}>Upload</Text>
+                      <Ionicons name="chevron-forward" size={10} color="#dc2626" style={{ marginLeft: 2 }} />
                     </View>
                   )}
-                </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ============================================================ */}
+        {/* FULL-ROW FLEET SELECTOR CARD & DROPDOWN                      */}
+        {/* ============================================================ */}
+        {(() => {
+          const currentActiveVeh = vehiclesList[activeVehicleIndex] || vehiclesList[0];
+          const activeDocsCount = [
+            rcDocUrl,
+            insuranceDocUrl,
+            fitnessDocUrl,
+            taxDocUrl,
+            permitDocUrl,
+            pucDocUrl,
+          ].filter(Boolean).length;
+          const displayPlate = (plateNumber || currentActiveVeh?.plateNumber || `VEHICLE ${activeVehicleIndex + 1}`).trim().toUpperCase();
+          const displayCategory = (category || currentActiveVeh?.category || 'SEDAN').trim().toUpperCase();
+          const displayModel = (carModel || currentActiveVeh?.carModel || '').trim();
+
+          return (
+            <View style={styles.fleetCardSection}>
+              {/* Header Label */}
+              <View style={styles.fleetHeaderRow}>
+                <Text style={styles.fleetHeaderTitle}>
+                  {vehiclesList.length > 1 ? `REGISTERED FLEET (${vehiclesList.length})` : 'VEHICLE FLEET'}
+                </Text>
               </View>
 
-              {/* Row 3: Which Car (Make & Model Name) */}
-              <View style={styles.fieldRow}>
-                <View style={styles.fieldIconBox}>
-                  <Ionicons name="car" size={20} color="#0f2744" />
-                </View>
-
-                <View style={styles.fieldBody}>
-                  <View style={styles.fieldLabelRow}>
-                    <Text style={styles.fieldLabelText}>Which Car (Make & Model Name)</Text>
-                    <View style={[styles.badgePill, carModel.trim() ? styles.badgeGreen : styles.badgeAmber]}>
-                      <Text style={carModel.trim() ? styles.badgeGreenText : styles.badgeAmberText}>
-                        {carModel.trim() ? '✓ Filled' : 'Required'}
-                      </Text>
-                    </View>
+              {/* Full-Row Dark Navy Fleet Card */}
+              <View style={styles.fleetFullRowCard}>
+                {/* Single Row: Icon + Plate Number with SEDAN at the end + Docs Count Badge + Dropdown Trigger */}
+                <TouchableOpacity
+                  style={styles.fleetCardTopRow}
+                  onPress={() => {
+                    if (vehiclesList.length > 1) {
+                      setFleetDropdownOpen(!fleetDropdownOpen);
+                    }
+                  }}
+                  activeOpacity={vehiclesList.length > 1 ? 0.75 : 1}
+                >
+                  <View style={styles.fleetCardIconBox}>
+                    <Ionicons name="car" size={17} color="#0f2744" />
                   </View>
 
-                  <TextInput
-                    style={styles.textInputField}
-                    value={carModel}
-                    onChangeText={(val) => {
-                      setCarModel(val);
-                      updateActiveVehicle({ carModel: val });
-                    }}
-                    placeholder="e.g. Maruti Suzuki Dzire / Toyota Innova Crysta"
-                    placeholderTextColor="#94a3b8"
-                  />
-                </View>
-              </View>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={styles.fleetCardPlateText} numberOfLines={1}>
+                      {displayPlate}
+                      <Text style={styles.fleetCardCategoryInlineText}>
+                        {'  '}•{'  '}{displayCategory}{displayModel && displayModel.toUpperCase() !== displayCategory ? ` (${displayModel})` : ''}
+                      </Text>
+                    </Text>
+                  </View>
 
-              {/* Row 4: Fuel Type */}
-              <View style={styles.fieldRow}>
-                <View style={styles.fieldIconBox}>
-                  <Ionicons name="funnel" size={17} color="#0f2744" />
-                </View>
-
-                <View style={styles.fieldBody}>
-                  <View style={styles.fieldLabelRow}>
-                    <Text style={styles.fieldLabelText}>Fuel Type</Text>
-                    <View style={[styles.badgePill, fuelType ? styles.badgeGreen : styles.badgeAmber]}>
-                      <Text style={fuelType ? styles.badgeGreenText : styles.badgeAmberText}>
-                        {fuelType ? `✓ ${fuelType.charAt(0) + fuelType.slice(1).toLowerCase()}` : 'Required'}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={[
+                      styles.fleetCardDocsBadge,
+                      activeDocsCount === 6 ? styles.fleetCardDocsBadgeComplete : styles.fleetCardDocsBadgeIncomplete
+                    ]}>
+                      <Text style={[
+                        styles.fleetCardDocsBadgeText,
+                        activeDocsCount === 6 ? styles.fleetCardDocsBadgeTextComplete : styles.fleetCardDocsBadgeTextIncomplete
+                      ]}>
+                        {activeDocsCount}/6
                       </Text>
                     </View>
-                  </View>
-                  <Text style={styles.fieldHelpText}>Select the fuel engine type of your vehicle</Text>
 
-                  <View style={styles.fuelSegmentRow}>
-                    {FUEL_TYPES.map((f) => {
-                      const isSelected = fuelType === f.id;
+                    {vehiclesList.length > 1 && (
+                      <View style={styles.fleetDropdownTriggerBadge}>
+                        <Ionicons
+                          name={fleetDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                          size={16}
+                          color="#0f2744"
+                        />
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+
+                {/* Dropdown Items directly inside the same card with line separator */}
+                {vehiclesList.length > 1 && fleetDropdownOpen && (
+                  <View style={styles.fleetDropdownInnerContainer}>
+                    <View style={styles.fleetDropdownDividerLine} />
+                    {vehiclesList.map((veh, idx) => {
+                      const isSelected = idx === activeVehicleIndex;
+                      const count = [
+                        veh.rcDocUrl,
+                        veh.insuranceDocUrl,
+                        veh.fitnessDocUrl,
+                        veh.taxDocUrl,
+                        veh.permitDocUrl,
+                        veh.pucDocUrl,
+                      ].filter(Boolean).length;
+                      const vehPlate = (veh.plateNumber || `Vehicle ${idx + 1}`).trim().toUpperCase();
+                      const vehCat = (veh.category || 'SEDAN').trim().toUpperCase();
+                      const vehMod = (veh.carModel || '').trim();
+
                       return (
                         <TouchableOpacity
-                          key={f.id}
-                          style={[styles.fuelBtn, isSelected ? styles.fuelBtnActive : styles.fuelBtnInactive]}
+                          key={veh.id || idx}
+                          style={[
+                            styles.fleetDropdownItem,
+                            isSelected && styles.fleetDropdownItemSelected,
+                            idx > 0 && styles.fleetDropdownItemSeparator,
+                          ]}
                           onPress={() => {
-                            setFuelType(f.id);
-                            updateActiveVehicle({ fuelType: f.id });
+                            handleSwitchVehicle(idx);
+                            setFleetDropdownOpen(false);
                           }}
-                          activeOpacity={0.75}
+                          activeOpacity={0.7}
                         >
-                          <View style={[styles.radioCircleOuter, isSelected && styles.radioCircleOuterActive]}>
-                            {isSelected && <View style={styles.radioCircleInner} />}
+                          <View
+                            style={[
+                              styles.fleetDropdownItemIconBox,
+                              isSelected && styles.fleetDropdownItemIconBoxSelected,
+                            ]}
+                          >
+                            <Ionicons
+                              name="car"
+                              size={15}
+                              color={isSelected ? '#0f2744' : '#94a3b8'}
+                            />
                           </View>
-                          <Text style={[styles.fuelBtnText, isSelected && styles.fuelBtnTextActive]}>
-                            {f.label}
-                          </Text>
+
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text
+                                style={[
+                                  styles.fleetDropdownItemPlate,
+                                  isSelected && styles.fleetDropdownItemPlateSelected,
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {vehPlate}
+                              </Text>
+                              {isSelected && (
+                                <View style={styles.fleetActiveTag}>
+                                  <Text style={styles.fleetActiveTagText}>Active</Text>
+                                </View>
+                              )}
+                            </View>
+                            <Text style={styles.fleetDropdownItemSub} numberOfLines={1}>
+                              {vehCat}{vehMod && vehMod.toUpperCase() !== vehCat ? ` • ${vehMod}` : ''}
+                            </Text>
+                          </View>
+
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View
+                              style={[
+                                styles.fleetDropdownItemBadge,
+                                count === 6
+                                  ? { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }
+                                  : { backgroundColor: '#fef2f2', borderColor: '#fca5a5' },
+                                isSelected && styles.fleetDropdownItemBadgeSelected,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.fleetDropdownItemBadgeText,
+                                  count === 6 ? { color: '#166534' } : { color: '#dc2626' },
+                                  isSelected && styles.fleetDropdownItemBadgeTextSelected,
+                                ]}
+                              >
+                                {count}/6
+                              </Text>
+                            </View>
+                            {isSelected ? (
+                              <Ionicons name="checkmark-circle" size={18} color="rgb(240, 117, 15)" />
+                            ) : (
+                              <Ionicons name="chevron-forward" size={14} color="#64748b" />
+                            )}
+                          </View>
                         </TouchableOpacity>
                       );
                     })}
                   </View>
-                </View>
-              </View>
-
-              {/* Row 5: Carriage / Roof Carrier (Yes or No) */}
-              <View style={styles.fieldRow}>
-                <View style={styles.fieldIconBox}>
-                  <Ionicons name="car-outline" size={20} color="#0f2744" />
-                </View>
-
-                <View style={styles.fieldBody}>
-                  <View style={styles.fieldLabelRow}>
-                    <Text style={styles.fieldLabelText}>Carriage / Luggage Carrier</Text>
-                    <View style={[styles.badgePill, carriageCapacity ? styles.badgeGreen : styles.badgeAmber]}>
-                      <Text style={carriageCapacity ? styles.badgeGreenText : styles.badgeAmberText}>
-                        {carriageCapacity ? `✓ ${carriageCapacity}` : 'Required'}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.fieldHelpText}>Does your vehicle have a roof carrier / luggage carriage?</Text>
-
-                  {/* Yes or No Segment Buttons (Radio Button Style) */}
-                  <View style={styles.carriageSegmentRow}>
-                    <TouchableOpacity
-                      style={[
-                        styles.carriageBtn,
-                        carriageCapacity === 'Yes' ? styles.carriageBtnActive : styles.carriageBtnInactive,
-                      ]}
-                      onPress={() => {
-                        setCarriageCapacity('Yes');
-                        updateActiveVehicle({ carriageCapacity: 'Yes' });
-                      }}
-                      activeOpacity={0.75}
-                    >
-                      <View style={[styles.radioCircleOuter, carriageCapacity === 'Yes' && styles.radioCircleOuterActive]}>
-                        {carriageCapacity === 'Yes' && <View style={styles.radioCircleInner} />}
-                      </View>
-                      <Text
-                        style={[
-                          styles.carriageBtnText,
-                          carriageCapacity === 'Yes' && styles.carriageBtnTextActive,
-                        ]}
-                      >
-                        Yes
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.carriageBtn,
-                        carriageCapacity === 'No' ? styles.carriageBtnActive : styles.carriageBtnInactive,
-                      ]}
-                      onPress={() => {
-                        setCarriageCapacity('No');
-                        updateActiveVehicle({ carriageCapacity: 'No' });
-                      }}
-                      activeOpacity={0.75}
-                    >
-                      <View style={[styles.radioCircleOuter, carriageCapacity === 'No' && styles.radioCircleOuterActive]}>
-                        {carriageCapacity === 'No' && <View style={styles.radioCircleInner} />}
-                      </View>
-                      <Text
-                        style={[
-                          styles.carriageBtnText,
-                          carriageCapacity === 'No' && styles.carriageBtnTextActive,
-                        ]}
-                      >
-                        No
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* ============================================================ */}
-        {/* STEP 3: Driver Identity & KYC Documents                      */}
-        {/* ============================================================ */}
-        <View style={styles.stepCardWhite}>
-          <View style={styles.step3HeaderBetween}>
-            <View style={{ flex: 1, paddingRight: 6 }}>
-              <Text style={styles.stepTitleText}>Driver Identity & KYC Documents</Text>
-              <Text style={styles.stepSubtitleTextMini}>Driving Licence, Aadhaar Card & PAN Card verification.</Text>
-            </View>
-
-            <View style={styles.verificationBadgeBlue}>
-              <Ionicons name="person" size={12} color="#1d4ed8" style={{ marginRight: 4 }} />
-              <Text style={styles.verificationBadgeBlueText}>
-                {[licenseDocUrl, aadhaarDocUrl, panDocUrl].filter(Boolean).length}/3 Uploaded
-              </Text>
-            </View>
-          </View>
-
-          {/* Driver KYC Row: DL, Aadhaar, PAN */}
-          <View style={styles.docsRowGrid}>
-            {[
-              { target: 'license' as const, title: 'Driving License', icon: 'card' as const, url: licenseDocUrl },
-              { target: 'aadhaar' as const, title: 'Aadhaar Card', icon: 'finger-print' as const, url: aadhaarDocUrl },
-              { target: 'pan' as const, title: 'PAN Card', icon: 'id-card-outline' as const, url: panDocUrl },
-            ].map((item) => (
-              <TouchableOpacity
-                key={item.target}
-                style={styles.docUploadCard}
-                onPress={() => openDocModal(item.target)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.docCardTopBlock}>
-                  <View style={styles.docIconCircle}>
-                    <Ionicons name={item.icon} size={32} color="#0f2744" />
-                  </View>
-                  <Text style={styles.docCardTitle} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                  {docDates[item.target]?.validTo ? (
-                    <View style={styles.cardExpPill}>
-                      <Text style={styles.cardExpPillText} numberOfLines={1}>
-                        Exp: {docDates[item.target]?.validTo}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-                {item.url ? (
-                  <View style={styles.docCardUploadedBtn}>
-                    <Ionicons name="checkmark-circle" size={11} color="#16a34a" />
-                    <Text style={styles.docCardUploadedText}>Uploaded</Text>
-                    <Ionicons name="chevron-forward" size={10} color="#16a34a" style={{ marginLeft: 2 }} />
-                  </View>
-                ) : (
-                  <View style={styles.docCardUploadBtn}>
-                    <Ionicons name="cloud-upload-outline" size={12} color="#0f2744" />
-                    <Text style={styles.docCardUploadText}>Upload</Text>
-                    <Ionicons name="chevron-forward" size={10} color="#0f2744" style={{ marginLeft: 2 }} />
-                  </View>
                 )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+              </View>
+            </View>
+          );
+        })()}
+
+
 
         {/* ============================================================ */}
         {/* STEP 4: Vehicle Compliance & Commercial Permits              */}
@@ -2012,52 +1683,34 @@ export default function DriverDocumentsUploadScreen() {
               </Text>
             </View>
 
-            <View style={styles.verificationBadgeBlue}>
-              <Ionicons name="car-sport" size={12} color="#1d4ed8" style={{ marginRight: 4 }} />
-              <Text style={styles.verificationBadgeBlueText}>
-                {[rcDocUrl, insuranceDocUrl, fitnessDocUrl, taxDocUrl, permitDocUrl, pucDocUrl].filter(Boolean).length}/6 Uploaded
-              </Text>
-            </View>
+            {(() => {
+              const uploadedCount = [rcDocUrl, insuranceDocUrl, fitnessDocUrl, taxDocUrl, permitDocUrl, pucDocUrl].filter(Boolean).length;
+              const isAllDone = uploadedCount === 6;
+              return (
+                <View style={[
+                  styles.verificationBadgeBlue,
+                  isAllDone
+                    ? { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }
+                    : { backgroundColor: '#fef2f2', borderColor: '#fca5a5' }
+                ]}>
+                  <Ionicons
+                    name={isAllDone ? 'checkmark-circle' : 'alert-circle'}
+                    size={12}
+                    color={isAllDone ? '#16a34a' : '#dc2626'}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text style={[
+                    styles.verificationBadgeBlueText,
+                    { color: isAllDone ? '#166534' : '#dc2626' }
+                  ]}>
+                    {uploadedCount}/6 Uploaded
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
 
-          {/* Quick Vehicle Switcher inside Step 4 when driver has multiple vehicles */}
-          {vehiclesList.length > 1 && (
-            <View style={styles.step4VehicleSwitchRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <Text style={styles.step4VehicleSwitchLabel}>Active Vehicle for Documents:</Text>
-                <Text style={styles.step4VehicleSwitchSub}>Tap to switch vehicle</Text>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                {vehiclesList.map((v, i) => {
-                  const isCurrent = i === activeVehicleIndex;
-                  const vDocs = [v.rcDocUrl, v.insuranceDocUrl, v.fitnessDocUrl, v.taxDocUrl, v.permitDocUrl, v.pucDocUrl].filter(Boolean).length;
-                  return (
-                    <TouchableOpacity
-                      key={v.id || i}
-                      style={[styles.step4VehiclePill, isCurrent && styles.step4VehiclePillActive]}
-                      onPress={() => handleSwitchVehicle(i)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name="car"
-                        size={13}
-                        color={isCurrent ? '#ffffff' : '#0f2744'}
-                        style={{ marginRight: 5 }}
-                      />
-                      <Text style={[styles.step4VehiclePillText, isCurrent && styles.step4VehiclePillTextActive]}>
-                        {v.plateNumber || `Vehicle ${i + 1}`}
-                      </Text>
-                      <View style={[styles.step4VehiclePillBadge, isCurrent && styles.step4VehiclePillBadgeActive]}>
-                        <Text style={[styles.step4VehiclePillBadgeText, isCurrent && { color: '#ffffff' }]}>
-                          {vDocs}/6
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          )}
+
 
           {/* Row 1: RC Certificate, Insurance, Fitness Certificate */}
           <View style={styles.docsRowGrid}>
@@ -2109,9 +1762,9 @@ export default function DriverDocumentsUploadScreen() {
                   </View>
                 ) : (
                   <View style={styles.docCardUploadBtn}>
-                    <Ionicons name="cloud-upload-outline" size={12} color="#0f2744" />
+                    <Ionicons name="cloud-upload-outline" size={12} color="#dc2626" />
                     <Text style={styles.docCardUploadText}>Upload</Text>
-                    <Ionicons name="chevron-forward" size={10} color="#0f2744" style={{ marginLeft: 2 }} />
+                    <Ionicons name="chevron-forward" size={10} color="#dc2626" style={{ marginLeft: 2 }} />
                   </View>
                 )}
               </TouchableOpacity>
@@ -2168,9 +1821,9 @@ export default function DriverDocumentsUploadScreen() {
                   </View>
                 ) : (
                   <View style={styles.docCardUploadBtn}>
-                    <Ionicons name="cloud-upload-outline" size={12} color="#0f2744" />
+                    <Ionicons name="cloud-upload-outline" size={12} color="#dc2626" />
                     <Text style={styles.docCardUploadText}>Upload</Text>
-                    <Ionicons name="chevron-forward" size={10} color="#0f2744" style={{ marginLeft: 2 }} />
+                    <Ionicons name="chevron-forward" size={10} color="#dc2626" style={{ marginLeft: 2 }} />
                   </View>
                 )}
               </TouchableOpacity>
@@ -2190,19 +1843,9 @@ export default function DriverDocumentsUploadScreen() {
           {submitting ? (
             <ActivityIndicator color="#ffffff" size="small" />
           ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <View style={styles.submitLeftBox}>
-                <Ionicons name="cloud-upload-outline" size={22} color="#ffffff" />
-                <Text style={styles.submitButtonText}>
-                  {vehiclesList.length > 1
-                    ? `Save & Submit (${String(vehiclesList.length).padStart(2, '0')} Vehicles)`
-                    : 'Save & Submit'}
-                </Text>
-              </View>
-              <View style={styles.submitChevronCircle}>
-                <Ionicons name="chevron-forward" size={15} color="#0f2744" />
-              </View>
-            </View>
+            <Text style={styles.submitButtonText}>
+              {isVehicleOnlyMode ? 'Save Vehicle Documents' : 'Save & Submit'}
+            </Text>
           )}
         </TouchableOpacity>
 
@@ -2843,6 +2486,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 12,
+    marginBottom: 12,
   },
   securityShieldCircle: {
     width: 34,
@@ -3376,9 +3020,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   docCardUploadBtn: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#0f2744',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1.2,
+    borderColor: '#ef4444',
     borderRadius: 12,
     paddingVertical: 5,
     paddingHorizontal: 8,
@@ -3389,7 +3033,7 @@ const styles = StyleSheet.create({
   docCardUploadText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#0f2744',
+    color: '#dc2626',
     marginHorizontal: 3,
   },
   docCardUploadedBtn: {
@@ -3415,9 +3059,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f2744',
     borderRadius: 28,
     height: 54,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 18,
     marginTop: 20,
     shadowColor: '#0f2744',
@@ -3432,9 +3075,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   submitButtonText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
     color: '#ffffff',
+    textAlign: 'center',
   },
   submitChevronCircle: {
     width: 32,
@@ -4200,6 +3844,246 @@ const styles = StyleSheet.create({
   },
 
   /* Multi-Vehicle Fleet Selector Styles */
+  // Fleet Card & Dropdown Styles (Matches requested dark navy card)
+  fleetCardSection: {
+    marginTop: 18,
+    marginBottom: 16,
+  },
+  fleetHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  fleetHeaderTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#64748b',
+    letterSpacing: 0.6,
+  },
+  fleetAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7ed',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ffedd5',
+  },
+  fleetAddBtnText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#ea580c',
+    marginLeft: 2,
+  },
+  fleetFullRowCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+    width: '100%',
+  },
+  fleetCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fleetCardIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  fleetCardPlateText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f2744',
+    letterSpacing: 0.6,
+  },
+  fleetCardCategoryInlineText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#64748b',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  fleetDropdownTriggerBadge: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+  },
+  fleetDropdownTriggerText: {
+    color: '#0f2744',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  fleetCardBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  fleetCardCategoryText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748b',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  fleetCardDocsBadge: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 7,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fleetCardDocsBadgeComplete: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#bbf7d0',
+  },
+  fleetCardDocsBadgeIncomplete: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fca5a5',
+  },
+  fleetCardDocsBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0f2744',
+  },
+  fleetCardDocsBadgeTextComplete: {
+    color: '#166534',
+  },
+  fleetCardDocsBadgeTextIncomplete: {
+    color: '#dc2626',
+  },
+  fleetDropdownInnerContainer: {
+    marginTop: 2,
+  },
+  fleetDropdownDividerLine: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  fleetDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  fleetDropdownItemSeparator: {
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    marginTop: 2,
+    paddingTop: 8,
+  },
+  fleetDropdownItemSelected: {
+    backgroundColor: '#f8fafc',
+  },
+  fleetDropdownItemIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fleetDropdownItemIconBoxSelected: {
+    backgroundColor: '#e2e8f0',
+  },
+  fleetDropdownItemPlate: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  fleetDropdownItemPlateSelected: {
+    color: '#0f2744',
+  },
+  fleetActiveTag: {
+    backgroundColor: 'rgb(240, 117, 15)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  fleetActiveTagText: {
+    color: '#ffffff',
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  fleetDropdownItemSub: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  fleetDropdownItemBadge: {
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  fleetDropdownItemBadgeSelected: {
+    backgroundColor: '#e2e8f0',
+  },
+  fleetDropdownItemBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  fleetDropdownItemBadgeTextSelected: {
+    color: '#0f2744',
+  },
+  fleetDropdownActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  fleetDropdownAddOptionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  fleetDropdownAddOptionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgb(240, 117, 15)',
+  },
+  fleetDropdownRemoveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  fleetDropdownRemoveBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#ef4444',
+  },
   multiVehicleCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,

@@ -1,4 +1,29 @@
 import 'fast-text-encoding';
+
+// Patch global Response to prevent whatwg-fetch RangeError on status 0
+if (typeof global !== 'undefined' && (global as any).Response) {
+  const OrigResponse = (global as any).Response;
+  try {
+    new OrigResponse(null, { status: 0 });
+  } catch (_) {
+    const SafeResponse = function (this: any, body?: any, init?: any) {
+      if (init && typeof init.status === 'number' && (init.status < 200 || init.status > 599)) {
+        init = {
+          ...init,
+          status: init.status === 0 ? 503 : Math.min(Math.max(init.status, 200), 599),
+          statusText: init.statusText || (init.status === 0 ? 'Network Error' : 'Unknown'),
+        };
+      }
+      return new OrigResponse(body, init);
+    };
+    SafeResponse.prototype = OrigResponse.prototype;
+    Object.assign(SafeResponse, OrigResponse);
+    try {
+      (global as any).Response = SafeResponse;
+    } catch (_) {}
+  }
+}
+
 import '@kandy-cabs/shared';
 import React, { useEffect } from 'react';
 import { LogBox, Platform, PermissionsAndroid } from 'react-native';
@@ -65,6 +90,7 @@ export default function RootLayout() {
         <Stack.Screen name="documents" options={{ title: 'Driver Documents', contentStyle: { backgroundColor: '#ffffff' } }} />
         <Stack.Screen name="payout-details" options={{ title: 'Settlement & Bank Details', contentStyle: { backgroundColor: '#ffffff' } }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications', contentStyle: { backgroundColor: '#ffffff' } }} />
+        <Stack.Screen name="terms" options={{ title: 'Terms & Conditions', contentStyle: { backgroundColor: '#ffffff' } }} />
         <Stack.Screen name="trip" options={{ contentStyle: { backgroundColor: '#ffffff' } }} />
         <Stack.Screen name="+not-found" options={{ contentStyle: { backgroundColor: '#ffffff' } }} />
       </Stack>

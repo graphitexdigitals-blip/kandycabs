@@ -8,7 +8,7 @@ import { BroadcastDispatchModal } from '@/components/BroadcastDispatchModal';
 import { OtpOverrideModal } from '@/components/OtpOverrideModal';
 import { BookingDetailDrawer } from '@/components/BookingDetailDrawer';
 import { AdminNavbar } from '@/components/AdminNavbar';
-import { parseIntermediateStops, getBookingMetadata } from '@/lib/bookingHelpers';
+import { parseIntermediateStops, getBookingMetadata, getTripVerificationPhotos, getTripTimingMilestones } from '@/lib/bookingHelpers';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import {
   IconMap,
@@ -38,6 +38,7 @@ import {
   IconCalendar,
   IconX,
   IconClock,
+  IconMapPin,
 } from '@/components/Icons';
 
 export const dynamic = 'force-dynamic';
@@ -648,12 +649,17 @@ export default function AdminBookingsPage() {
                       <div>
                         {b.driverPaymentStatus === 'PAID' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#edfbf3] text-[#1e8a4a] border border-[#c4f0d5] mt-1">
-                            <span>✔</span>
+                            <svg className="w-3 h-3 text-[#1e8a4a] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
                             <span>Driver Paid</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#fff1f1] text-[#cf2a2a] border border-[#fed6d6] mt-1">
-                            <span>✕</span>
+                            <svg className="w-3 h-3 text-[#cf2a2a] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="18" y1="6" x2="6" y2="18" />
+                              <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
                             <span>Driver Not Paid</span>
                           </span>
                         )}
@@ -737,7 +743,7 @@ export default function AdminBookingsPage() {
 
                     {/* Secondary Controls (Photos & Details) */}
                     <div className="flex items-center gap-3 mt-2 text-xs font-medium">
-                      {(Array.isArray(b.vehicleInspectionPhotos) && b.vehicleInspectionPhotos.filter(Boolean).length > 0 || b.startingOdometerImagePath || b.finalOdometerImagePath) && (
+                      {(Array.isArray(b.vehicleInspectionPhotos) && b.vehicleInspectionPhotos.filter(Boolean).length > 0 || b.driverSelfie || b.startingOdometerImagePath || b.finalOdometerImagePath) && (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -811,7 +817,7 @@ export default function AdminBookingsPage() {
                   <div className="w-full xl:flex-1 min-w-0 space-y-1.5 xl:pr-1 flex flex-col justify-center">
                     {/* Pickup */}
                     <div className="flex items-center gap-2 text-xs text-slate-700">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-200 shrink-0" />
+                      <IconMapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                       <span className="truncate font-medium text-slate-800 flex-1 min-w-0" title={b.actualPickupAddress || b.pickupAddress}>
                         {b.actualPickupAddress || b.pickupAddress}
                       </span>
@@ -831,7 +837,7 @@ export default function AdminBookingsPage() {
 
                     {/* Dropoff */}
                     <div className="flex items-center gap-2 text-xs text-slate-700">
-                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-rose-200 shrink-0" />
+                      <IconMapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                       <span className="truncate font-medium text-slate-800 flex-1 min-w-0" title={b.actualDropAddress || b.dropAddress}>
                         {b.actualDropAddress || b.dropAddress}
                       </span>
@@ -862,7 +868,95 @@ export default function AdminBookingsPage() {
                           <span>{meta.flightNumber}</span>
                         </span>
                       )}
+                      {meta.isSeniorCitizen && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-800 border border-orange-200">
+                          <span>Senior Citizen</span>
+                        </span>
+                      )}
+                      {meta.isBabyOnBoard && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-pink-50 text-pink-800 border border-pink-200">
+                          <span>Baby on Board</span>
+                        </span>
+                      )}
+                      {meta.isPregnancyFriendly && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-200">
+                          <span>Pregnancy Friendly</span>
+                        </span>
+                      )}
+                      {meta.isAccessibilityAssistance && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+                          <span>Accessibility</span>
+                        </span>
+                      )}
+                      {meta.needReturnJourney && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-800 border border-indigo-200">
+                          <span>Return Journey</span>
+                        </span>
+                      )}
+                      {meta.needAirportDrop && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-800 border border-sky-200">
+                          <span>Airport Drop</span>
+                        </span>
+                      )}
+                      {meta.needAirportPickup && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200">
+                          <span>Airport Pickup</span>
+                        </span>
+                      )}
                     </div>
+
+                    {/* Trip Milestones Quick Timing Strip */}
+                    {(() => {
+                      const t = getTripTimingMilestones(b);
+                      const hasAnyTiming =
+                        t.photosTime || t.arrivedPickupTime || t.startedTime || t.completedTime || t.waitingMinutes > 0;
+                      if (!hasAnyTiming) return null;
+                      return (
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2 pt-2 border-t border-slate-100 text-[11px]">
+                          <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
+                            Timings:
+                          </span>
+                          {t.photosTime && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-50 border border-slate-200 text-slate-700 font-medium font-mono">
+                              <span>Photos:</span>
+                              <strong className="text-slate-900">{t.photosTime}</strong>
+                            </span>
+                          )}
+                          {t.arrivedPickupTime && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-800 font-medium font-mono">
+                              <span>Arrived:</span>
+                              <strong className="text-blue-950">{t.arrivedPickupTime}</strong>
+                            </span>
+                          )}
+                          {t.waitingMinutes > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 border border-amber-300 text-amber-900 font-medium font-mono">
+                              <span>Waited:</span>
+                              <strong className="text-amber-950">{t.waitingMinutes}m</strong>
+                              {t.waitingTimeWindow && (
+                                <span className="text-[10px] text-amber-700">({t.waitingTimeWindow})</span>
+                              )}
+                            </span>
+                          )}
+                          {t.startedTime && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-50 border border-indigo-200 text-indigo-800 font-medium font-mono">
+                              <span>Started:</span>
+                              <strong className="text-indigo-950">{t.startedTime}</strong>
+                            </span>
+                          )}
+                          {t.completedTime && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 font-medium font-mono">
+                              <span>Drop:</span>
+                              <strong className="text-emerald-950">{t.completedTime}</strong>
+                            </span>
+                          )}
+                          {t.totalTripDuration && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
+                              <span>Total: {t.totalTripDuration}</span>
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Mobile/Tablet Status & View Details Row */}
@@ -1032,72 +1126,149 @@ export default function AdminBookingsPage() {
 
             {/* Modal Body */}
             <div className="p-3 sm:p-5 overflow-y-auto space-y-4 sm:space-y-5 flex-1">
-              {/* 1. Pre-Trip Vehicle Inspection (4 Angles) */}
-              <div className="space-y-2 sm:space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-1.5">
-                    <IconCar className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <h4 className="text-[11px] sm:text-xs font-black uppercase text-slate-800 tracking-wider">
-                      Pre-Trip Vehicle Condition (4 Angles)
-                    </h4>
-                  </div>
-                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 whitespace-nowrap">
-                    {Array.isArray(galleryBooking.vehicleInspectionPhotos)
-                      ? `${galleryBooking.vehicleInspectionPhotos.filter(Boolean).length} of 4 Uploaded`
-                      : '0 of 4 Uploaded'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                  {[
-                    { label: 'Front Angle', sub: 'Front Bumper & Plate', idx: 0 },
-                    { label: 'Rear Angle', sub: 'Rear Boot & Tail Lights', idx: 1 },
-                    { label: 'Side Profile', sub: 'Side Panels & Doors', idx: 2 },
-                    { label: 'Inside / Back Seat', sub: 'Clean Passenger Seats', idx: 3 },
-                  ].map((angle) => {
-                    const photoUrl = Array.isArray(galleryBooking.vehicleInspectionPhotos)
-                      ? galleryBooking.vehicleInspectionPhotos[angle.idx]
-                      : null;
-                    return (
-                      <div
-                        key={angle.label}
-                        className="bg-slate-50 border border-slate-200 rounded-xl p-2 sm:p-2.5 flex flex-col items-center text-center shadow-2xs"
-                      >
-                        <span className="text-[11px] sm:text-xs font-bold text-slate-800 leading-tight">{angle.label}</span>
-                        <span className="text-[9px] sm:text-[10px] text-slate-500 mb-1.5 truncate max-w-full">{angle.sub}</span>
-                        {photoUrl ? (
-                          <div
-                            onClick={() =>
-                              setPreviewImage({
-                                url: resolveImageUrl(photoUrl),
-                                title: `${galleryBooking.humanReadableRef} — ${angle.label}`,
-                              })
-                            }
-                            className="w-full h-24 sm:h-32 bg-slate-200 rounded-lg border border-emerald-300 overflow-hidden cursor-pointer relative group shadow-inner"
-                          >
-                            <img
-                              src={resolveImageUrl(photoUrl)}
-                              alt={angle.label}
-                              className="w-full h-full object-cover group-hover:scale-105 transition"
-                            />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-[11px] font-bold">
-                              Click to Zoom
-                            </div>
-                            <div className="absolute bottom-1 right-1 bg-emerald-600/90 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-xs">
-                              ✓ Verified
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="w-full h-24 sm:h-32 bg-slate-100 rounded-lg border border-dashed border-slate-300 flex flex-col items-center justify-center text-[11px] text-slate-400 p-2">
-                            <IconImage className="w-5 h-5 text-slate-300 mb-1" />
-                            <span>Not Captured</span>
-                          </div>
-                        )}
+              {/* Trip Timings & Execution Milestones */}
+              {(() => {
+                const timings = getTripTimingMilestones(galleryBooking);
+                return (
+                  <div className="space-y-2 sm:space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <IconClock className="w-4 h-4 text-slate-600" />
+                        <h4 className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-800">
+                          Trip Timings & Execution Milestones
+                        </h4>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
+                      {timings.totalTripDuration && (
+                        <span className="text-[10px] sm:text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
+                          Total Duration: {timings.totalTripDuration}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5">
+                      {timings.milestones.map((m) => (
+                        <div
+                          key={m.id}
+                          className="bg-white border border-slate-200 rounded-lg p-2 sm:p-2.5 flex flex-col justify-between shadow-2xs"
+                        >
+                          <div>
+                            <span className="text-[11px] font-bold text-slate-900 block leading-tight">
+                              {m.label}
+                            </span>
+                            <span className="text-[9px] text-slate-500 truncate block mt-0.5">
+                              {m.sub}
+                            </span>
+                          </div>
+
+                          <div className="mt-2.5 pt-1.5 border-t border-slate-100 flex items-end justify-between gap-1">
+                            <div>
+                              <span className="text-xs sm:text-sm font-black font-mono text-slate-900 block">
+                                {m.timeStr || '--:--'}
+                              </span>
+                              {m.extraInfo && (
+                                <span className="text-[9px] text-slate-600 font-medium truncate block mt-0.5">
+                                  {m.extraInfo}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Status Icon Arranged Below */}
+                            {m.status === 'COMPLETED' ? (
+                              <span
+                                className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300 flex items-center justify-center shrink-0 shadow-2xs mb-0.5"
+                                title="Completed"
+                              >
+                                <svg className="w-3 h-3 stroke-[3]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              </span>
+                            ) : m.status === 'IN_PROGRESS' ? (
+                              <span
+                                className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 border border-blue-300 flex items-center justify-center shrink-0 shadow-2xs mb-0.5"
+                                title="In Progress"
+                              >
+                                <svg className="w-3 h-3 stroke-[2.5] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                                </svg>
+                              </span>
+                            ) : (
+                              <span
+                                className="w-5 h-5 rounded-full bg-slate-100 text-slate-400 border border-slate-200 flex items-center justify-center shrink-0 mb-0.5"
+                                title="Pending"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* 1. Pre-Trip Verification & Vehicle Condition (5 Photos) */}
+              {(() => {
+                const verificationData = getTripVerificationPhotos(galleryBooking);
+                return (
+                  <div className="space-y-2 sm:space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5">
+                        <IconCar className="w-4 h-4 text-indigo-600 shrink-0" />
+                        <h4 className="text-[11px] sm:text-xs font-black uppercase text-slate-800 tracking-wider">
+                          Pre-Trip Verification & Vehicle Condition (5 Photos)
+                        </h4>
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 whitespace-nowrap">
+                        {verificationData.uploadedCount} of 5 Uploaded
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5">
+                      {verificationData.photos.map((item) => {
+                        const photoUrl = item.url;
+                        return (
+                          <div
+                            key={item.key}
+                            className="bg-slate-50 border border-slate-200 rounded-xl p-2 sm:p-2.5 flex flex-col items-center text-center shadow-2xs"
+                          >
+                            <span className="text-[11px] sm:text-xs font-bold text-slate-800 leading-tight">{item.label}</span>
+                            <span className="text-[9px] sm:text-[10px] text-slate-500 mb-1.5 truncate max-w-full">{item.sub}</span>
+                            {photoUrl ? (
+                              <div
+                                onClick={() =>
+                                  setPreviewImage({
+                                    url: resolveImageUrl(photoUrl),
+                                    title: `${galleryBooking.humanReadableRef} — ${item.label}`,
+                                  })
+                                }
+                                className="w-full h-24 sm:h-32 bg-slate-200 rounded-lg border border-emerald-300 overflow-hidden cursor-pointer relative group shadow-inner"
+                              >
+                                <img
+                                  src={resolveImageUrl(photoUrl)}
+                                  alt={item.label}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition"
+                                />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-[11px] font-bold">
+                                  Click to Zoom
+                                </div>
+                                <div className="absolute bottom-1 right-1 bg-emerald-600/90 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-xs">
+                                  ✓ Verified
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="w-full h-24 sm:h-32 bg-slate-100 rounded-lg border border-dashed border-slate-300 flex flex-col items-center justify-center text-[11px] text-slate-400 p-2">
+                                <IconImage className="w-5 h-5 text-slate-300 mb-1" />
+                                <span>Not Captured</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* 2. Odometer Readings & Verification */}
               <div className="space-y-2.5 sm:space-y-3 pt-3 sm:pt-4 border-t border-slate-200">

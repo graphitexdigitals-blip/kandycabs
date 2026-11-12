@@ -145,6 +145,22 @@ export default function AdditionalDetailsScreen() {
       Alert.alert('Select Travellers', 'Please select at least 1 traveller before proceeding.');
       return;
     }
+    const norm = (tripType || '').toUpperCase().trim();
+    // Only exclude local trips and corporate from mandatory luggage selection
+    const isLuggageOptional =
+      norm === 'LOCAL' ||
+      norm === 'LOCAL_TRIP' ||
+      norm === 'LOCAL TRIP' ||
+      norm === 'HOURLY' ||
+      norm === 'PACKAGE' ||
+      norm === 'RENTAL' ||
+      norm === 'CORPORATE' ||
+      norm === 'CORPORATE_TRAVEL' ||
+      norm === 'CORPORATE TRAVEL';
+    if (!isLuggageOptional && (selectedLuggage === 'No Luggage' || !selectedLuggage || selectedLuggage === '0 Luggage')) {
+      Alert.alert('Select Travellers', 'Please select the number of travellers and luggage before continuing.');
+      return;
+    }
     router.push({
       pathname: '/booking',
       params: {

@@ -43,6 +43,51 @@ export async function POST(req: NextRequest) {
     const otpHash = await hashOtp(otp);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
 
+    // Check if phone number is already registered in DB or has prior bookings
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone: normalizedPhone },
+          { phone: phone.trim().replace(/\D/g, '') },
+          { phone: `+91${phone.trim().replace(/\D/g, '').slice(-10)}` },
+        ],
+      },
+      select: {
+        id: true,
+        fullName: true,
+        roles: true,
+      },
+    });
+
+    let resolvedExistingName = existingUser?.fullName?.trim() || '';
+    if (!resolvedExistingName || resolvedExistingName === 'Kandy Customer') {
+      const pastBooking = await prisma.booking.findFirst({
+        where: {
+          customer: {
+            user: {
+              OR: [
+                { phone: normalizedPhone },
+                { phone: phone.trim().replace(/\D/g, '').slice(-10) },
+              ],
+            },
+          },
+        },
+        select: {
+          customer: {
+            select: {
+              user: {
+                select: { fullName: true },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (pastBooking?.customer?.user?.fullName && pastBooking.customer.user.fullName.trim().length > 0) {
+        resolvedExistingName = pastBooking.customer.user.fullName.trim();
+      }
+    }
+
     // Save OTP to database
     await prisma.otpVerification.create({
       data: {
@@ -60,6 +105,8 @@ export async function POST(req: NextRequest) {
     const responsePayload: any = {
       success: true,
       message: 'OTP sent successfully',
+      isRegistered: !!existingUser || Boolean(resolvedExistingName),
+      existingName: resolvedExistingName || null,
     };
 
     if (isDev || isMasterAdmin || isTestDriver || enableDemoOtp) {

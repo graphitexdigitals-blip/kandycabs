@@ -210,6 +210,8 @@ export interface TripCompletionDraft {
   finalOdometer?: string;
   odometerImageUri?: string | null;
   tollAmount?: string;
+  nhTollAmount?: string;
+  niceRoadTollAmount?: string;
   parkingAmount?: string;
   photoLocation?: { lat: number; lng: number; time: string } | null;
   ocrResultText?: any;
@@ -243,6 +245,7 @@ export interface TripStartDraft {
   inspectionPhotos?: (string | null)[];
   driverSelfieUri?: string | null;
   pickupOtp?: string;
+  isCustomerBoarded?: boolean;
 }
 
 const memoryStartDrafts: Record<string, TripStartDraft> = {};
@@ -336,6 +339,52 @@ export async function clearTripPickupReached(bookingId: string) {
     await SecureStore.deleteItemAsync(`kandy_trip_reached_${bookingId}`);
   } catch {}
 }
+
+export interface WaitingSession {
+  id: string;
+  startedAt: string; // e.g. "11:30 AM"
+  pausedAt?: string;
+  resumedAt?: string;
+  stoppedAt?: string;
+  durationSeconds: number;
+}
+
+export interface TripWaitingState {
+  isWaitingActive: boolean;
+  isWaitingPaused: boolean;
+  totalAccumulatedSeconds: number;
+  activeRunningStartedAt: number | null; // Date.now() timestamp
+  currentSessionStartTime: string | null; // e.g. "11:30 AM"
+  sessions: WaitingSession[];
+}
+
+const memoryWaitingStates: Record<string, TripWaitingState> = {};
+
+export function setTripWaitingState(bookingId: string, state: Partial<TripWaitingState>) {
+  if (!bookingId) return;
+  memoryWaitingStates[bookingId] = {
+    ...(memoryWaitingStates[bookingId] || {
+      isWaitingActive: false,
+      isWaitingPaused: false,
+      totalAccumulatedSeconds: 0,
+      activeRunningStartedAt: null,
+      currentSessionStartTime: null,
+      sessions: [],
+    }),
+    ...state,
+  };
+}
+
+export function getTripWaitingState(bookingId: string): TripWaitingState | null {
+  if (!bookingId) return null;
+  return memoryWaitingStates[bookingId] || null;
+}
+
+export function clearTripWaitingState(bookingId: string) {
+  if (!bookingId) return;
+  delete memoryWaitingStates[bookingId];
+}
+
 
 
 

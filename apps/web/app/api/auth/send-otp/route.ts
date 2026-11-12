@@ -80,11 +80,28 @@ export async function POST(req: NextRequest) {
     const isPlaceholderSms = !process.env.SMS_PROVIDER_API_KEY || process.env.SMS_PROVIDER_API_KEY.includes('placeholder');
     const enableDemoOtp = process.env.ENABLE_DEMO_OTP !== 'false';
 
+    let resolvedExistingName = existingUser?.fullName?.trim() || '';
+    if (!resolvedExistingName || resolvedExistingName === 'Kandy Customer') {
+      const pastBooking = await prisma.booking.findFirst({
+        where: {
+          OR: [
+            { customerPhone: normalizedPhone },
+            { customerPhone: phone.trim().replace(/\D/g, '').slice(-10) },
+          ],
+        },
+        select: { customerName: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (pastBooking?.customerName && pastBooking.customerName.trim().length > 0) {
+        resolvedExistingName = pastBooking.customerName.trim();
+      }
+    }
+
     const responsePayload: any = {
       success: true,
       message: 'OTP sent successfully',
-      isRegistered: !!existingUser,
-      existingName: existingUser?.fullName || null,
+      isRegistered: !!existingUser || Boolean(resolvedExistingName),
+      existingName: resolvedExistingName || null,
       roles: existingUser?.roles || [],
       isDriver,
       driverStatus: existingUser?.driver?.verificationStatus || null,

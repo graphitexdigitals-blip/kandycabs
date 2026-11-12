@@ -72,7 +72,7 @@ export function OtpOverrideModal({
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800">
-            ⚠️ <strong>Audit Notice:</strong> Manual OTP override forces the trip status to <strong>TRIP_STARTED</strong>. This action is permanently logged to the immutable audit trail with your admin account credentials.
+            <strong>Audit Notice:</strong> Manual OTP override forces the trip status to <strong>TRIP_STARTED</strong>. This action is permanently logged to the immutable audit trail with your admin account credentials.
           </div>
 
           {error && (

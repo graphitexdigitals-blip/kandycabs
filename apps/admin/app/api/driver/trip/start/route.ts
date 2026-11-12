@@ -108,8 +108,13 @@ export async function POST(req: NextRequest) {
     if (Array.isArray(vehicleInspectionPhotos) && vehicleInspectionPhotos.length > 0) {
       storedInspectionPhotos = await uploadInspectionPhotos(bookingId, vehicleInspectionPhotos);
     }
-    if (storedDriverSelfie && !storedInspectionPhotos.includes(storedDriverSelfie)) {
+    // Only prepend storedDriverSelfie if vehicleInspectionPhotos did not already include the selfie (e.g. length is 4)
+    if (storedDriverSelfie && storedInspectionPhotos.length === 4) {
       storedInspectionPhotos.unshift(storedDriverSelfie);
+    }
+    // Cap at exactly 5 verification photos: [Selfie, Front, Rear, Front Door, Back Door]
+    if (storedInspectionPhotos.length > 5) {
+      storedInspectionPhotos = storedInspectionPhotos.slice(0, 5);
     }
 
     // If trip was already authorized/started by Admin override

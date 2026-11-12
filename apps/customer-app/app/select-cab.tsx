@@ -176,7 +176,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     fuelTypes: ['CNG'],
     hasCarrier: true,
     carrierCapacityText: 'Roof Carrier Available',
-    carrierExcludedCars: 'Tata Tiago (No Roof Carrier - Boot space only)',
+    carrierExcludedCars: '',
     features: [
       '4 Passengers Capacity',
       '2 Standard Luggage Bags',
@@ -853,7 +853,7 @@ export default function SelectCabScreen() {
           {/* Bottom Row: Subtext on Left, Edit Search Button on Right */}
           <View style={styles.routeBottomRow}>
             <View style={styles.routeSubtextCol}>
-              <Text style={[styles.tripTypeSubtext, isSmallDevice && { fontSize: 11, lineHeight: 15 }]} numberOfLines={2}>
+              <Text style={[styles.tripTypeSubtext, isSmallDevice && { fontSize: 12.5, lineHeight: 17 }]} numberOfLines={2}>
                 {tripType === 'CORPORATE'
                   ? params.corporateMode === 'DAILY'
                     ? t('selectCab.corporateDaily', { days: params.corporateTotalDays || 'Multiple', defaultValue: `Corporate Daily (${params.corporateTotalDays || 'Multiple'} days)` })
@@ -867,7 +867,7 @@ export default function SelectCabScreen() {
                           ? t('selectCab.airportTransferVia', { count: viaStops.length, defaultValue: `Airport Transfer (${viaStops.length} via)` })
                           : t('selectCab.airportTransfer', { defaultValue: 'Airport Transfer' })
                         : t('selectCab.oneWayDrop', { defaultValue: 'One Way Drop' })}
-                {' • '}~{estimatedKm} {t('common.km', { defaultValue: 'km' })}
+                {' • '}{estimatedKm} {t('common.km', { defaultValue: 'km' })}
               </Text>
             </View>
 
@@ -1361,37 +1361,6 @@ export default function SelectCabScreen() {
                               {t('selectCab.carrierAvailable', { defaultValue: 'Roof Carrier Available' })}
                             </Text>
                           </View>
-
-                          {item.carrierExcludedCars ? (
-                            <View
-                              style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                gap: 6,
-                                paddingVertical: 5,
-                                paddingHorizontal: 8,
-                                borderRadius: 8,
-                                backgroundColor: '#fffbeb',
-                                borderWidth: 1,
-                                borderColor: '#fde68a',
-                              }}
-                            >
-                              <Ionicons name="alert-circle" size={14} color="#d97706" />
-                              <Text
-                                style={{
-                                  fontSize: 11,
-                                  fontWeight: '700',
-                                  color: '#92400e',
-                                  flex: 1,
-                                }}
-                              >
-                                {t('selectCab.excludedPrefix', { defaultValue: 'Excluded: ' })}
-                                {t(`selectCab.fleets.${item.id}.carrierExcludedCars`, {
-                                  defaultValue: item.carrierExcludedCars,
-                                })}
-                              </Text>
-                            </View>
-                          ) : null}
                         </View>
                       ) : (
                         <View
@@ -1994,12 +1963,13 @@ const styles = StyleSheet.create({
   },
   routeSubtextCol: {
     flex: 1,
+    paddingLeft: 6,
   },
   tripTypeSubtext: {
-    fontSize: 11.5,
-    color: '#475569',
+    fontSize: 13.5,
+    color: '#334155',
     fontWeight: '600',
-    lineHeight: 16,
+    lineHeight: 18,
   },
   editSearchBtn: {
     flexDirection: 'row',

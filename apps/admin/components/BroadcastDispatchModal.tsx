@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { parseIntermediateStops, getBookingMetadata } from '@/lib/bookingHelpers';
+import { IconMapPin } from '@/components/Icons';
 
 interface DriverOption {
   id: string;
@@ -198,8 +199,10 @@ export function BroadcastDispatchModal({
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-900/60 p-5 backdrop-blur-xs animate-fade-in">
             <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-amber-300 animate-scale-up">
               <div className="flex items-center gap-3 mb-3.5">
-                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-xl font-bold flex-shrink-0">
-                  ⚠️
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 flex-shrink-0">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-slate-900">KYC Verification Incomplete</h4>
@@ -264,7 +267,7 @@ export function BroadcastDispatchModal({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <span>📡</span> Broadcast Ride Dispatch
+                Broadcast Ride Dispatch
               </h3>
               <p className="text-xs text-slate-500">
                 Booking Ref: <span className="font-semibold text-slate-800">{bookingRef}</span>
@@ -288,8 +291,47 @@ export function BroadcastDispatchModal({
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {getBookingMetadata(bookingData).hasCarrier && (
                     <span className="text-[10px] text-emerald-900 font-extrabold bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md flex items-center gap-1">
-                      <span>📦</span>
                       <span>Roof Carrier Requested</span>
+                    </span>
+                  )}
+                  {getBookingMetadata(bookingData).hasPet && (
+                    <span className="text-[10px] text-amber-900 font-extrabold bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span>Pet Friendly (+₹{getBookingMetadata(bookingData).petFee || 500})</span>
+                    </span>
+                  )}
+                  {getBookingMetadata(bookingData).isSeniorCitizen && (
+                    <span className="text-[10px] text-orange-900 font-extrabold bg-orange-100 border border-orange-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span>Senior Citizen</span>
+                    </span>
+                  )}
+                  {getBookingMetadata(bookingData).isBabyOnBoard && (
+                    <span className="text-[10px] text-pink-900 font-extrabold bg-pink-100 border border-pink-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span>Baby on Board</span>
+                    </span>
+                  )}
+                  {getBookingMetadata(bookingData).isPregnancyFriendly && (
+                    <span className="text-[10px] text-purple-900 font-extrabold bg-purple-100 border border-purple-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span>Pregnancy Friendly</span>
+                    </span>
+                  )}
+                  {getBookingMetadata(bookingData).isAccessibilityAssistance && (
+                    <span className="text-[10px] text-blue-900 font-extrabold bg-blue-100 border border-blue-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span>Accessibility Assistance</span>
+                    </span>
+                  )}
+                  {getBookingMetadata(bookingData).needReturnJourney && (
+                    <span className="text-[10px] text-indigo-900 font-extrabold bg-indigo-100 border border-indigo-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span>Return Journey Later</span>
+                    </span>
+                  )}
+                  {getBookingMetadata(bookingData).needAirportDrop && (
+                    <span className="text-[10px] text-sky-900 font-extrabold bg-sky-100 border border-sky-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span>Airport Drop</span>
+                    </span>
+                  )}
+                  {getBookingMetadata(bookingData).needAirportPickup && (
+                    <span className="text-[10px] text-teal-900 font-extrabold bg-teal-100 border border-teal-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span>Airport Pickup</span>
                     </span>
                   )}
                   <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
@@ -300,7 +342,7 @@ export function BroadcastDispatchModal({
 
               <div className="text-slate-800 font-medium space-y-1">
                 <div className="flex items-center gap-1.5 truncate">
-                  <span className="text-emerald-600 font-bold shrink-0">📍</span>
+                  <IconMapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                   <span className="truncate">{bookingData.pickupAddress}</span>
                 </div>
 
@@ -319,7 +361,7 @@ export function BroadcastDispatchModal({
                 )}
 
                 <div className="flex items-center gap-1.5 truncate text-slate-600">
-                  <span className="text-rose-600 font-bold shrink-0">🏁</span>
+                  <IconMapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                   <span className="truncate">{bookingData.dropAddress}</span>
                 </div>
               </div>
@@ -337,8 +379,10 @@ export function BroadcastDispatchModal({
         <div className="py-3 space-y-2.5">
           {/* Live Search Box */}
           <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-sm">
-              🔍
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
             </span>
             <input
               type="text"
@@ -410,7 +454,7 @@ export function BroadcastDispatchModal({
         <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[160px] max-h-80">
           {loading ? (
             <div className="py-12 text-center text-xs text-slate-500">
-              <div className="inline-block animate-spin text-lg mb-1">🔄</div>
+              <div className="w-5 h-5 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin mx-auto mb-1.5" />
               <div>Loading registered drivers...</div>
             </div>
           ) : filteredDrivers.length === 0 ? (
@@ -483,7 +527,9 @@ export function BroadcastDispatchModal({
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <span className="text-base">👨🏽‍✈️</span>
+                        <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
                       )}
                     </div>
                     <div className="min-w-0">

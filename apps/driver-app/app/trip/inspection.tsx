@@ -11,20 +11,40 @@ import {
   Platform,
   StatusBar,
   Image,
+  PermissionsAndroid,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { locationTracker } from '../../lib/location-tracker';
 import { driverApiClient } from '../../lib/api';
-import { setTripVerificationCompleted } from '../../lib/tripState';
+import {
+  setTripVerificationCompleted,
+  setVerifiedSelfie,
+  getVerifiedSelfie,
+  setTripStartDraft,
+  getTripStartDraft,
+} from '../../lib/tripState';
+import { TripFlowHeader } from '../../components/TripFlowHeader';
 import { Ionicons } from '@expo/vector-icons';
 
-// Local reference sample assets (same vehicle across all 4 angles)
-const FRONT_SAMPLE = require('../../assets/images/inspection/front.jpg');
-const REAR_SAMPLE = require('../../assets/images/inspection/rear.jpg');
-const SIDE_SAMPLE = require('../../assets/images/inspection/side.jpg');
-const INSIDE_SAMPLE = require('../../assets/images/inspection/inside.jpg');
+import {
+  FRONT_SAMPLE_URI,
+  REAR_SAMPLE_URI,
+  SIDE_SAMPLE_URI,
+  INSIDE_FRONT_SAMPLE_URI,
+  INSIDE_BACK_SAMPLE_URI,
+  DRIVER_SELFIE_SAMPLE_URI,
+} from '../../assets/inspectionSamples';
+
+// Local reference sample assets (5 vehicle angles + driver cabin selfie)
+// Sourced from optimized base64 data URIs for guaranteed offline rendering across all Android versions
+const FRONT_SAMPLE = { uri: FRONT_SAMPLE_URI };
+const REAR_SAMPLE = { uri: REAR_SAMPLE_URI };
+const SIDE_SAMPLE = { uri: SIDE_SAMPLE_URI };
+const INSIDE_FRONT_SAMPLE = { uri: INSIDE_FRONT_SAMPLE_URI };
+const INSIDE_BACK_SAMPLE = { uri: INSIDE_BACK_SAMPLE_URI };
+const DRIVER_SELFIE_SAMPLE = { uri: DRIVER_SELFIE_SAMPLE_URI };
 
 export default function DriverVehicleInspectionScreen() {
   const router = useRouter();
@@ -37,10 +57,21 @@ export default function DriverVehicleInspectionScreen() {
   const [saving, setSaving] = useState(false);
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
 
-  // 4 Core Angles with Consistent Vehicle Sample Images
+  // 5 Verification Steps: Driver Cabin Selfie first, followed by 4 Vehicle Angles (Side profile removed)
   const inspectionAngleConfigs = [
     {
       id: 0,
+      title: 'Driver Cabin Selfie',
+      shortTitle: 'Selfie',
+      desc: 'Front face selfie from driving seat required',
+      icon: 'person-outline' as const,
+      iconBg: '#eff6ff',
+      iconColor: '#2563eb',
+      sampleSource: DRIVER_SELFIE_SAMPLE,
+      isFrontCamera: true,
+    },
+    {
+      id: 1,
       title: 'Front Angle',
       shortTitle: 'Front',
       desc: 'Front bumper & number plate clearly visible',
@@ -48,9 +79,10 @@ export default function DriverVehicleInspectionScreen() {
       iconBg: '#e0f2fe',
       iconColor: '#0284c7',
       sampleSource: FRONT_SAMPLE,
+      isFrontCamera: false,
     },
     {
-      id: 1,
+      id: 2,
       title: 'Back / Rear Angle',
       shortTitle: 'Rear',
       desc: 'Rear bumper, tail lights & boot clearly visible',
@@ -58,30 +90,33 @@ export default function DriverVehicleInspectionScreen() {
       iconBg: '#f3e8ff',
       iconColor: '#9333ea',
       sampleSource: REAR_SAMPLE,
-    },
-    {
-      id: 2,
-      title: 'Side Profile',
-      shortTitle: 'Side',
-      desc: 'Full side profile & doors clearly visible',
-      icon: 'car-outline' as const,
-      iconBg: '#dcfce7',
-      iconColor: '#16a34a',
-      sampleSource: SIDE_SAMPLE,
+      isFrontCamera: false,
     },
     {
       id: 3,
-      title: 'Inside / Back Seat',
-      shortTitle: 'Inside',
-      desc: 'Clean passenger seats & floor mats',
+      title: 'Inside Front (Door Open)',
+      shortTitle: 'Front Door',
+      desc: 'Front door opened, dashboard, steering & front seats',
+      icon: 'car-outline' as const,
+      iconBg: '#fef3c7',
+      iconColor: '#d97706',
+      sampleSource: INSIDE_FRONT_SAMPLE,
+      isFrontCamera: false,
+    },
+    {
+      id: 4,
+      title: 'Inside Back Seat (Door Open)',
+      shortTitle: 'Back Door',
+      desc: 'Back seat door opened, passenger seats & floor mats',
       icon: 'people-outline' as const,
       iconBg: '#fce7f3',
       iconColor: '#db2777',
-      sampleSource: INSIDE_SAMPLE,
+      sampleSource: INSIDE_BACK_SAMPLE,
+      isFrontCamera: false,
     },
   ];
 
-  const [photos, setPhotos] = useState<(string | null)[]>([null, null, null, null]);
+  const [photos, setPhotos] = useState<(string | null)[]>([null, null, null, null, null]);
   const [currentAngleIndex, setCurrentAngleIndex] = useState(0);
 
   // Live GPS
@@ -101,18 +136,42 @@ export default function DriverVehicleInspectionScreen() {
         const b = res.activeBooking;
         if (b) {
           setBooking(b);
-          if (Array.isArray(b.vehicleInspectionPhotos) && b.vehicleInspectionPhotos.length > 0) {
-            const initialPhotos = [
-              b.vehicleInspectionPhotos[0] || null,
-              b.vehicleInspectionPhotos[1] || null,
-              b.vehicleInspectionPhotos[2] || null,
-              b.vehicleInspectionPhotos[3] || null,
+          let initialPhotos: (string | null)[] = [null, null, null, null, null];
+          if (Array.isArray(b.vehicleInspectionPhotos) && b.vehicleInspectionPhotos.length === 5) {
+            initialPhotos = [
+              b.vehicleInspectionPhotos[0] || null, // 0: Driver Cabin Selfie
+              b.vehicleInspectionPhotos[1] || null, // 1: Front
+              b.vehicleInspectionPhotos[2] || null, // 2: Rear
+              b.vehicleInspectionPhotos[3] || null, // 3: Front Door
+              b.vehicleInspectionPhotos[4] || null, // 4: Back Door
             ];
-            setPhotos(initialPhotos);
-            const firstUnattached = initialPhotos.findIndex((p) => !p);
-            if (firstUnattached !== -1) {
-              setCurrentAngleIndex(firstUnattached);
+          } else if (Array.isArray(b.vehicleInspectionPhotos) && b.vehicleInspectionPhotos.length === 4) {
+            initialPhotos = [
+              null, // 0: Driver Cabin Selfie
+              b.vehicleInspectionPhotos[0] || null, // 1: Front
+              b.vehicleInspectionPhotos[1] || null, // 2: Rear
+              b.vehicleInspectionPhotos[2] || null, // 3: Front Door
+              b.vehicleInspectionPhotos[3] || null, // 4: Back Door
+            ];
+          }
+
+          // Check if driver selfie is already attached or drafted
+          const targetId = b.id || bookingId;
+          if (targetId) {
+            const draft = getTripStartDraft(targetId);
+            if (draft?.driverSelfieUri) {
+              initialPhotos[0] = draft.driverSelfieUri;
             }
+            const savedSelfie = await getVerifiedSelfie(targetId);
+            if (savedSelfie?.uri) {
+              initialPhotos[0] = savedSelfie.uri;
+            }
+          }
+
+          setPhotos(initialPhotos);
+          const firstUnattached = initialPhotos.findIndex((p) => !p);
+          if (firstUnattached !== -1) {
+            setCurrentAngleIndex(firstUnattached);
           }
         }
       }
@@ -121,68 +180,126 @@ export default function DriverVehicleInspectionScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [bookingId]);
 
   useEffect(() => {
     fetchBooking();
   }, [fetchBooking]);
 
-  const handleCapturePhoto = async (index: number) => {
-    try {
-      const pickerOptions: ImagePicker.ImagePickerOptions = {
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.35,
-        base64: true,
-        allowsEditing: false,
-      };
+  const applyCapturedPhoto = (index: number, dataUri: string) => {
+    setPhotos((prev) => {
+      const next = [...prev];
+      next[index] = dataUri;
+      return next;
+    });
 
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    const bId = bookingId || booking?.id;
+    if (index === 0 && bId) {
+      const latest = locationTracker.getCurrentCoordinates();
+      let locStamp = null;
+      if (latest.lat != null && latest.lng != null) {
+        locStamp = {
+          lat: latest.lat,
+          lng: latest.lng,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        };
+      }
+      setVerifiedSelfie(bId, dataUri, locStamp);
+      setTripStartDraft(bId, { driverSelfieUri: dataUri });
+    }
+
+    // Advance to next angle if not at last
+    if (index < 4) {
+      setCurrentAngleIndex(index + 1);
+    }
+  };
+
+  const handleCameraCapture = async (index: number) => {
+    try {
+      const isFront = inspectionAngleConfigs[index]?.isFrontCamera;
+
+      if (Platform.OS === 'android') {
+        try {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.CAMERA,
+            {
+              title: 'Camera Permission',
+              message: 'Kandy Cabs driver app needs camera access to capture vehicle inspection photos.',
+              buttonPositive: 'OK',
+            }
+          );
+          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            Alert.alert('Permission Denied', 'Camera permission is required to capture photos.');
+            return;
+          }
+        } catch (_) {}
+      }
+
+      const { status } = await ImagePicker.requestCameraPermissionsAsync().catch(() => ({ status: 'denied' }));
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Camera access is required to capture vehicle inspection photo.');
+        Alert.alert('Permission Denied', 'Camera access is required to capture photos.');
         return;
       }
 
-      const result = await ImagePicker.launchCameraAsync(pickerOptions);
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
-        setPhotos((prev) => {
-          const next = [...prev];
-          next[index] = dataUri;
-          return next;
+      let result: ImagePicker.ImagePickerResult | null = null;
+      try {
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 0.35,
+          base64: true,
+          allowsEditing: false,
+          cameraType: isFront ? ImagePicker.CameraType.front : ImagePicker.CameraType.back,
         });
-
-        // "after attaching one. next one to next one."
-        if (index < 3) {
-          setCurrentAngleIndex(index + 1);
+      } catch (camErr: any) {
+        // Fallback retry without cameraType parameter
+        try {
+          result = await ImagePicker.launchCameraAsync({
+            allowsEditing: false,
+            quality: 0.35,
+            base64: true,
+          });
+        } catch (camErr2: any) {
+          Alert.alert('Camera Error', camErr2?.message || 'Could not launch camera');
+          return;
         }
       }
+
+      if (result && !result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        applyCapturedPhoto(index, dataUri);
+      }
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to capture photo');
+      Alert.alert('Camera Error', err?.message || 'Could not capture photo');
     }
   };
 
   const handleFillDemoPhotos = () => {
     setPhotos([
-      'http://10.0.2.2:3000/inspection/front.jpg',
-      'http://10.0.2.2:3000/inspection/rear.jpg',
-      'http://10.0.2.2:3000/inspection/side.jpg',
-      'http://10.0.2.2:3000/inspection/inside.jpg',
+      'demo_selfie',
+      'demo_front',
+      'demo_rear',
+      'demo_inside_front',
+      'demo_inside_back',
     ]);
-    setCurrentAngleIndex(3);
-    Alert.alert('Demo Photos Loaded', '4 consistent vehicle inspection angles loaded! You can now tap Save Inspection.');
+    const bId = bookingId || booking?.id;
+    if (bId) {
+      setVerifiedSelfie(bId, 'demo_selfie');
+      setTripStartDraft(bId, { driverSelfieUri: 'demo_selfie' });
+    }
+    setCurrentAngleIndex(4);
+    Alert.alert('Demo Evidence Loaded', 'Driver Cabin Selfie and 4 vehicle inspection angles loaded!');
   };
 
   const attachedCount = photos.filter(Boolean).length;
-  const isAllAttached = attachedCount === 4;
+  const isAllAttached = attachedCount === 5;
 
   const handleBottomBarPress = () => {
     if (isAllAttached) {
       handleSaveInspection();
     } else if (!photos[currentAngleIndex]) {
-      handleCapturePhoto(currentAngleIndex);
-    } else if (currentAngleIndex < 3) {
+      handleCameraCapture(currentAngleIndex);
+    } else if (currentAngleIndex < 4) {
       setCurrentAngleIndex(currentAngleIndex + 1);
     } else {
       const firstMissing = photos.findIndex((p) => !p);
@@ -198,7 +315,7 @@ export default function DriverVehicleInspectionScreen() {
     if (!isAllAttached) {
       Alert.alert(
         'Missing Photos',
-        `Please attach all 4 mandatory inspection photos before proceeding (${attachedCount}/4 attached).`,
+        `Please attach driver cabin selfie and 4 vehicle inspection photos before proceeding (${attachedCount}/5 attached).`,
         [
           { text: 'OK' },
           { text: '⚡ Use Demo Photos', onPress: handleFillDemoPhotos },
@@ -219,29 +336,28 @@ export default function DriverVehicleInspectionScreen() {
         method: 'POST',
         body: JSON.stringify({
           bookingId: bId,
-          vehicleInspectionPhotos: photos,
+          vehicleInspectionPhotos: photos, // All 5 verification photos: [0: Selfie, 1: Front, 2: Rear, 3: Front Door, 4: Back Door]
+          driverSelfie: photos[0],
         }),
       });
 
-      if (res.success) {
-        await setTripVerificationCompleted(bId, true);
-        router.replace({
-          pathname: '/dashboard',
-          params: { inspectionSaved: 'true' },
-        });
-      } else {
-        await setTripVerificationCompleted(bId, true);
-        router.replace({
-          pathname: '/dashboard',
-          params: { inspectionSaved: 'true' },
-        });
+      if (photos[0]) {
+        setVerifiedSelfie(bId, photos[0]);
+        setTripStartDraft(bId, { driverSelfieUri: photos[0] });
       }
+
+      await setTripVerificationCompleted(bId, true);
+      // Navigate to Step 2: Pickup Page
+      router.replace({
+        pathname: '/trip/en-route',
+        params: { bookingId: bId },
+      });
     } catch (err: any) {
       console.warn('Vehicle inspection save error:', err);
       await setTripVerificationCompleted(bId, true);
       router.replace({
-        pathname: '/dashboard',
-        params: { inspectionSaved: 'true' },
+        pathname: '/trip/en-route',
+        params: { bookingId: bId },
       });
     } finally {
       setSaving(false);
@@ -261,19 +377,15 @@ export default function DriverVehicleInspectionScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
+      {/* 6-Step Connected Progress Stepper: 1. Verify (Active) -> 2. Pickup -> 3. Odometer -> 4. OTP -> 5. On Trip -> 6. Drop */}
+      <TripFlowHeader currentStep={1} />
+
       {/* Top Navigation Bar */}
-      <View style={[styles.topNavBar, { paddingTop: Platform.OS === 'android' ? topInset : 8 }]}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.replace('/dashboard')}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="arrow-back" size={20} color="#0f172a" />
-          <Text style={styles.backBtnText}>Dashboard</Text>
-        </TouchableOpacity>
+      <View style={[styles.topNavBar, { paddingTop: 6 }]}>
+        <View style={styles.navPlaceholder} />
 
         <View style={styles.navTitleCenter}>
-          <Text style={styles.navTitle}>Vehicle Inspection</Text>
+          <Text style={styles.navTitle}>Verification</Text>
         </View>
 
         <TouchableOpacity
@@ -290,34 +402,6 @@ export default function DriverVehicleInspectionScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Notice Card */}
-        <View style={styles.noticeCard}>
-          <View style={styles.noticeHeaderRow}>
-            <Ionicons name="shield-checkmark" size={20} color="#2563eb" />
-            <Text style={styles.noticeTitle}>Mandatory Vehicle Condition Check</Text>
-          </View>
-          <Text style={styles.noticeSub}>
-            Upload all 4 exterior & interior cab photos before starting this trip ({booking?.humanReadableRef || 'KC-2026-984985'}).
-          </Text>
-
-          {/* Progress Bar Indicator */}
-          <View style={styles.progressContainer}>
-            <View style={styles.progressHeaderRow}>
-              <Text style={styles.progressLabel}>Inspection Progress</Text>
-              <Text style={styles.progressCount}>{attachedCount} of 4 Photos Attached</Text>
-            </View>
-            <View style={styles.progressBarTrack}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  { width: `${(attachedCount / 4) * 100}%` },
-                  isAllAttached ? styles.progressBarFillComplete : null,
-                ]}
-              />
-            </View>
-          </View>
-        </View>
-
         {/* Focused Hero Angle Card (One by One) */}
         {(() => {
           const currentAngle = inspectionAngleConfigs[currentAngleIndex];
@@ -331,7 +415,7 @@ export default function DriverVehicleInspectionScreen() {
                 <View style={{ flex: 1 }}>
                   <View style={styles.stepTagRow}>
                     <Text style={styles.stepTagText}>
-                      STEP {currentAngleIndex + 1} OF 4
+                      STEP {currentAngleIndex + 1} OF 5
                     </Text>
                     <View
                       style={[
@@ -351,28 +435,29 @@ export default function DriverVehicleInspectionScreen() {
                     </View>
                   </View>
                   <Text style={styles.heroCardTitle}>{currentAngle.title}</Text>
-                  <Text style={styles.heroCardDesc}>{currentAngle.desc}</Text>
                 </View>
               </View>
 
-              {/* Viewfinder Image Preview */}
+              {/* Top: Blank Box to Upload / Attached Clicked Photo */}
               <TouchableOpacity
-                style={styles.heroImageBox}
-                onPress={() => handleCapturePhoto(currentAngleIndex)}
+                style={[
+                  styles.photoBox,
+                  !isCurrentAttached && styles.photoBoxBlank,
+                ]}
+                onPress={() => handleCameraCapture(currentAngleIndex)}
                 activeOpacity={0.88}
               >
-                <Image
-                  source={
-                    isCurrentAttached
-                      ? { uri: currentPhotoUri! }
-                      : currentAngle.sampleSource
-                  }
-                  style={styles.heroImage}
-                  resizeMode="cover"
-                />
-
                 {isCurrentAttached ? (
                   <>
+                    <Image
+                      source={
+                        currentPhotoUri?.startsWith('demo_')
+                          ? currentAngle.sampleSource
+                          : { uri: currentPhotoUri! }
+                      }
+                      style={styles.photoImage}
+                      resizeMode="cover"
+                    />
                     <View style={styles.heroAttachedRibbon}>
                       <Ionicons name="checkmark-circle" size={15} color="#ffffff" />
                       <Text style={styles.heroAttachedRibbonText}>✓ PHOTO ATTACHED</Text>
@@ -383,30 +468,62 @@ export default function DriverVehicleInspectionScreen() {
                     </View>
                   </>
                 ) : (
-                  <>
-                    <View style={styles.heroCenterCameraCircle}>
-                      <Ionicons name="camera" size={26} color="#ffffff" />
+                  <View style={styles.blankUploadContent}>
+                    <View style={styles.blankCameraCircle}>
+                      <Ionicons
+                        name={currentAngle.isFrontCamera ? 'person' : 'camera'}
+                        size={22}
+                        color="#2563eb"
+                      />
                     </View>
-                    <View style={styles.sampleGuideOverlay}>
-                      <Ionicons name="eye-outline" size={13} color="#ffffff" />
-                      <Text style={styles.sampleGuideOverlayText}>
-                        Reference Guide • Tap to capture
-                      </Text>
-                    </View>
-                  </>
+                    <Text style={styles.blankUploadTitle}>Upload {currentAngle.title}</Text>
+                    <Text style={styles.blankUploadSubtitle}>
+                      {currentAngle.isFrontCamera
+                        ? 'Tap to open front camera & capture selfie'
+                        : 'Tap to open camera & capture photo'}
+                    </Text>
+                  </View>
                 )}
               </TouchableOpacity>
+
+              {/* Bottom: Reference Guide Image */}
+              <View style={styles.referenceSection}>
+                <View style={styles.referenceHeaderRow}>
+                  <Ionicons name="eye-outline" size={13} color="#64748b" />
+                  <Text style={styles.referenceHeaderTitle}>
+                    Reference Guide • {currentAngle.title}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.referenceImageBox}
+                  onPress={() => handleCameraCapture(currentAngleIndex)}
+                  activeOpacity={0.9}
+                >
+                  <Image
+                    source={currentAngle.sampleSource}
+                    style={styles.referenceImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.referenceOverlayBadge}>
+                    <Text style={styles.referenceOverlayBadgeText}>SAMPLE REFERENCE</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
             </View>
           );
         })()}
 
-        {/* 4-Angle Thumbnail Strip for Quick Navigation */}
+        {/* 5-Angle Thumbnail Strip for Quick Navigation */}
         <View style={styles.stripSection}>
           <View style={styles.stripHeaderRow}>
-            <Text style={styles.stripSectionTitle}>ALL 4 ANGLES REVIEW</Text>
+            <Text style={styles.stripSectionTitle}>VERIFICATION REVIEW (5 STEPS)</Text>
             <Text style={styles.stripSubTitle}>Tap any angle to jump</Text>
           </View>
-          <View style={styles.stripRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.stripRow}
+          >
             {inspectionAngleConfigs.map((angle, idx) => {
               const photoUrl = photos[idx];
               const isSelected = idx === currentAngleIndex;
@@ -421,7 +538,11 @@ export default function DriverVehicleInspectionScreen() {
                   activeOpacity={0.8}
                 >
                   <Image
-                    source={photoUrl ? { uri: photoUrl } : angle.sampleSource}
+                    source={
+                      photoUrl && !photoUrl.startsWith('demo_')
+                        ? { uri: photoUrl }
+                        : angle.sampleSource
+                    }
                     style={styles.stripThumb}
                     resizeMode="cover"
                   />
@@ -437,19 +558,21 @@ export default function DriverVehicleInspectionScreen() {
                       color="#ffffff"
                     />
                   </View>
-                  <Text
-                    style={[
-                      styles.stripTitle,
-                      isSelected && styles.stripTitleSelected,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {angle.shortTitle}
-                  </Text>
+                  <View style={styles.stripLabelBar}>
+                    <Text
+                      style={[
+                        styles.stripTitle,
+                        isSelected && styles.stripTitleSelected,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {angle.shortTitle}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
         </View>
       </ScrollView>
 
@@ -476,14 +599,13 @@ export default function DriverVehicleInspectionScreen() {
               <View style={styles.ctaIconCircle}>
                 <Ionicons name="checkmark-sharp" size={15} color="#059669" />
               </View>
-              <Text style={styles.submitButtonText}>SAVE INSPECTION</Text>
+              <Text style={styles.submitButtonText}>PROCEED TO PICKUP</Text>
               <Ionicons name="arrow-forward" size={17} color="#ffffff" />
             </>
           ) : !photos[currentAngleIndex] ? (
             <>
               <View style={styles.btnLeftGroup}>
-                <Ionicons name="camera" size={20} color="#0f172a" />
-                <View style={styles.btnDividerDark} />
+                <Ionicons name={inspectionAngleConfigs[currentAngleIndex].isFrontCamera ? 'person' : 'camera'} size={20} color="#0f172a" />
                 <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
                   Capture {inspectionAngleConfigs[currentAngleIndex].title}
                 </Text>
@@ -493,9 +615,9 @@ export default function DriverVehicleInspectionScreen() {
           ) : (
             <>
               <Text style={styles.submitButtonText}>
-                {currentAngleIndex < 3
-                  ? `NEXT: ${inspectionAngleConfigs[currentAngleIndex + 1].shortTitle.toUpperCase()} ANGLE`
-                  : `SAVE INSPECTION (${attachedCount}/4)`}
+                {currentAngleIndex < 4
+                  ? `NEXT: ${inspectionAngleConfigs[currentAngleIndex + 1].shortTitle.toUpperCase()}`
+                  : `PROCEED TO PICKUP (${attachedCount}/5)`}
               </Text>
               <Ionicons name="arrow-forward" size={17} color="#ffffff" />
             </>
@@ -521,17 +643,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingRight: 8,
-  },
-  backBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0f172a',
+  navPlaceholder: {
+    width: 60,
   },
   navTitleCenter: {
     alignItems: 'center',
@@ -722,20 +835,10 @@ const styles = StyleSheet.create({
 
   // Hero Angle Card
   heroAngleCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 14,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   heroCardHeader: {
-    marginBottom: 12,
+    marginBottom: 6,
   },
   stepTagRow: {
     flexDirection: 'row',
@@ -775,14 +878,107 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   heroCardTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
     color: '#0f172a',
   },
   heroCardDesc: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: '#64748b',
-    marginTop: 2,
+    marginTop: 1,
+  },
+  photoBox: {
+    width: '100%',
+    height: 125,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  photoBoxBlank: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+    borderStyle: 'dashed',
+    padding: 8,
+  },
+  photoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  blankUploadContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blankCameraCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+    borderWidth: 1.5,
+    borderColor: '#bfdbfe',
+  },
+  blankUploadTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 2,
+  },
+  blankUploadSubtitle: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  referenceSection: {
+    marginTop: 0,
+    marginBottom: 4,
+  },
+  referenceHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 4,
+  },
+  referenceHeaderTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#475569',
+    letterSpacing: 0.3,
+  },
+  referenceImageBox: {
+    width: '100%',
+    height: 110,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  referenceImage: {
+    width: '100%',
+    height: '100%',
+  },
+  referenceOverlayBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  referenceOverlayBadgeText: {
+    color: '#ffffff',
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   heroImageBox: {
     width: '100%',
@@ -943,17 +1139,17 @@ const styles = StyleSheet.create({
   // Review Strip
   stripSection: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    padding: 12,
-    marginBottom: 12,
+    padding: 10,
+    marginBottom: 10,
   },
   stripHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   stripSectionTitle: {
     fontSize: 11,
@@ -968,51 +1164,67 @@ const styles = StyleSheet.create({
   },
   stripRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
+    paddingVertical: 2,
+    paddingHorizontal: 2,
   },
   stripCard: {
-    flex: 1,
-    borderRadius: 10,
+    width: 76,
+    height: 76,
+    borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    padding: 4,
-    backgroundColor: '#f8fafc',
-    alignItems: 'center',
+    borderColor: '#cbd5e1',
+    backgroundColor: '#f1f5f9',
     position: 'relative',
+    overflow: 'hidden',
   },
   stripCardSelected: {
     borderColor: '#2563eb',
+    borderWidth: 2.5,
     backgroundColor: '#eff6ff',
+    elevation: 3,
   },
   stripThumb: {
     width: '100%',
-    height: 52,
-    borderRadius: 6,
-    marginBottom: 4,
+    height: '100%',
   },
   stripBadge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    top: 5,
+    right: 5,
+    width: 17,
+    height: 17,
+    borderRadius: 8.5,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 2,
   },
   stripBadgeDone: {
     backgroundColor: '#059669',
   },
   stripBadgePending: {
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+  },
+  stripLabelBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
+    paddingVertical: 2.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
   stripTitle: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '700',
-    color: '#64748b',
+    color: '#ffffff',
+    textAlign: 'center',
   },
   stripTitleSelected: {
-    color: '#1d4ed8',
+    color: '#93c5fd',
     fontWeight: '800',
   },
 
@@ -1098,12 +1310,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     marginRight: 8,
-  },
-  btnDividerDark: {
-    width: 1.5,
-    height: 20,
-    backgroundColor: 'rgba(15, 23, 42, 0.25)',
-    marginHorizontal: 12,
+    gap: 10,
   },
   yellowPrimaryButtonText: {
     color: '#0f172a',

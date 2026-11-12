@@ -27,6 +27,26 @@ import {
   parseCustomerRequirements,
   extractCustomerNotes,
 } from '../../lib/tripRequirements';
+import {
+  setTripWaitingState,
+  getTripWaitingState,
+  clearTripWaitingState,
+  WaitingSession,
+} from '../../lib/tripState';
+
+const formatTimerDisplay = (totalSecs: number) => {
+  const hrs = Math.floor(totalSecs / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  if (hrs > 0) {
+    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+};
+
+const formatTimeOfDay = (date: Date = new Date()) => {
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
 
 export default function DriverTripActiveScreen() {
   const router = useRouter();
@@ -164,6 +184,200 @@ export default function DriverTripActiveScreen() {
     );
   };
 
+  // Waiting Timer State
+  const [isWaitingActive, setIsWaitingActive] = useState(false);
+  const [isWaitingPaused, setIsWaitingPaused] = useState(false);
+  const [totalAccumulatedSeconds, setTotalAccumulatedSeconds] = useState(0);
+  const [activeRunningStartedAt, setActiveRunningStartedAt] = useState<number | null>(null);
+  const [displaySeconds, setDisplaySeconds] = useState(0);
+  const [currentSessionStartTime, setCurrentSessionStartTime] = useState<string | null>(null);
+  const [waitingSessions, setWaitingSessions] = useState<WaitingSession[]>([]);
+
+  // Restore saved waiting state for this booking
+  useEffect(() => {
+    const id = bookingId || booking?.id;
+    if (!id) return;
+    const saved = getTripWaitingState(id);
+    if (saved) {
+      setIsWaitingActive(saved.isWaitingActive);
+      setIsWaitingPaused(saved.isWaitingPaused);
+      setTotalAccumulatedSeconds(saved.totalAccumulatedSeconds);
+      setActiveRunningStartedAt(saved.activeRunningStartedAt);
+      setCurrentSessionStartTime(saved.currentSessionStartTime);
+      setWaitingSessions(saved.sessions || []);
+
+      let initialSecs = saved.totalAccumulatedSeconds;
+      if (saved.isWaitingActive && !saved.isWaitingPaused && saved.activeRunningStartedAt) {
+        initialSecs += Math.max(0, Math.floor((Date.now() - saved.activeRunningStartedAt) / 1000));
+      }
+      setDisplaySeconds(initialSecs);
+    }
+  }, [bookingId, booking?.id]);
+
+  // Live timer interval
+  useEffect(() => {
+    let interval: any = null;
+    if (isWaitingActive && !isWaitingPaused && activeRunningStartedAt) {
+      const calcSecs = () => {
+        const elapsed = Math.max(0, Math.floor((Date.now() - activeRunningStartedAt) / 1000));
+        setDisplaySeconds(totalAccumulatedSeconds + elapsed);
+      };
+      calcSecs();
+      interval = setInterval(calcSecs, 1000);
+    } else if (isWaitingPaused || !isWaitingActive) {
+      setDisplaySeconds(totalAccumulatedSeconds);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isWaitingActive, isWaitingPaused, activeRunningStartedAt, totalAccumulatedSeconds]);
+
+  const handleStartWaiting = () => {
+    const now = Date.now();
+    const timeStr = formatTimeOfDay(new Date(now));
+    setIsWaitingActive(true);
+    setIsWaitingPaused(false);
+    setActiveRunningStartedAt(now);
+    setCurrentSessionStartTime(timeStr);
+
+    const id = bookingId || booking?.id;
+    if (id) {
+      setTripWaitingState(id, {
+        isWaitingActive: true,
+        isWaitingPaused: false,
+        activeRunningStartedAt: now,
+        currentSessionStartTime: timeStr,
+      });
+    }
+  };
+
+  const handlePauseWaiting = () => {
+    const now = Date.now();
+    let additionalSecs = 0;
+    if (activeRunningStartedAt) {
+      additionalSecs = Math.max(0, Math.floor((now - activeRunningStartedAt) / 1000));
+    }
+    const newTotal = totalAccumulatedSeconds + additionalSecs;
+    setTotalAccumulatedSeconds(newTotal);
+    setDisplaySeconds(newTotal);
+    setActiveRunningStartedAt(null);
+    setIsWaitingPaused(true);
+
+    const id = bookingId || booking?.id;
+    if (id) {
+      setTripWaitingState(id, {
+        isWaitingActive: true,
+        isWaitingPaused: true,
+        totalAccumulatedSeconds: newTotal,
+        activeRunningStartedAt: null,
+      });
+    }
+  };
+
+  const handleContinueWaiting = () => {
+    const now = Date.now();
+    setActiveRunningStartedAt(now);
+    setIsWaitingPaused(false);
+
+    const id = bookingId || booking?.id;
+    if (id) {
+      setTripWaitingState(id, {
+        isWaitingActive: true,
+        isWaitingPaused: false,
+        activeRunningStartedAt: now,
+      });
+    }
+  };
+
+  const handleStopWaiting = () => {
+    Alert.alert(
+      'Finish Waiting Session?',
+      'Do you want to stop and record the customer waiting time for this session?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Finish & Record',
+          style: 'default',
+          onPress: () => {
+            const now = Date.now();
+            let additionalSecs = 0;
+            if (activeRunningStartedAt && !isWaitingPaused) {
+              additionalSecs = Math.max(0, Math.floor((now - activeRunningStartedAt) / 1000));
+            }
+            const finalTotal = totalAccumulatedSeconds + additionalSecs;
+            const stopTimeStr = formatTimeOfDay(new Date(now));
+
+            const newSession: WaitingSession = {
+              id: String(Date.now()),
+              startedAt: currentSessionStartTime || stopTimeStr,
+              stoppedAt: stopTimeStr,
+              durationSeconds: finalTotal,
+            };
+
+            const updatedSessions = [...waitingSessions, newSession];
+
+            setIsWaitingActive(false);
+            setIsWaitingPaused(false);
+            setActiveRunningStartedAt(null);
+            setTotalAccumulatedSeconds(finalTotal);
+            setDisplaySeconds(finalTotal);
+            setWaitingSessions(updatedSessions);
+
+            const id = bookingId || booking?.id;
+            if (id) {
+              setTripWaitingState(id, {
+                isWaitingActive: false,
+                isWaitingPaused: false,
+                activeRunningStartedAt: null,
+                totalAccumulatedSeconds: finalTotal,
+                sessions: updatedSessions,
+              });
+              // Sync waiting time live to backend
+              driverApiClient.fetch('/api/driver/trip/waiting', {
+                method: 'POST',
+                body: JSON.stringify({
+                  bookingId: id,
+                  durationSeconds: finalTotal,
+                  waitingMinutes: Math.round(finalTotal / 60),
+                  sessions: updatedSessions,
+                  startedAt: currentSessionStartTime || stopTimeStr,
+                  stoppedAt: stopTimeStr,
+                }),
+              }).catch(() => {});
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleResetWaiting = () => {
+    Alert.alert(
+      'Reset Waiting Timer?',
+      'Are you sure you want to clear the waiting timer and recorded timings?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: () => {
+            setIsWaitingActive(false);
+            setIsWaitingPaused(false);
+            setTotalAccumulatedSeconds(0);
+            setActiveRunningStartedAt(null);
+            setDisplaySeconds(0);
+            setCurrentSessionStartTime(null);
+            setWaitingSessions([]);
+            const id = bookingId || booking?.id;
+            if (id) {
+              clearTripWaitingState(id);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading || !booking) {
     return (
       <View style={[styles.container, { justifyContent: 'center' }]}>
@@ -176,8 +390,8 @@ export default function DriverTripActiveScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
-      {/* 3-Step Flow Header: 1. Pickup (✓) -> 2. OTP (✓) -> 3. Drop (Active) */}
-      <TripFlowHeader currentStep={3} />
+      {/* 6-Step Flow Header: 1. Verify (✓) -> 2. Start (✓) -> 3. Odometer (✓) -> 4. OTP (✓) -> 5. On Trip (Active) -> 6. Drop */}
+      <TripFlowHeader currentStep={5} />
 
       <ScrollView
         style={styles.scrollArea}
@@ -231,50 +445,36 @@ export default function DriverTripActiveScreen() {
                 {booking.dropAddress || 'Destination'}
               </Text>
             </View>
-          </View>
 
-          {/* Main Navigation Button with Blue Gradient */}
-          <TouchableOpacity
-            style={styles.navButtonWrap}
-            onPress={openDropNavigation}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={['#2563eb', '#1d4ed8', '#1e40af']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.navButtonGradient}
+            {/* Small Selectable Floating Open Navigation Button (Inside Map, No Arrow, Low Padding) */}
+            <TouchableOpacity
+              style={styles.floatingNavBtn}
+              onPress={openDropNavigation}
+              activeOpacity={0.82}
             >
-              <Ionicons name="navigate" size={20} color="#ffffff" style={{ marginRight: 10 }} />
-              <Text style={styles.navButtonText}>{t('active_trip.navigate_to_drop')}</Text>
-              <Ionicons name="chevron-forward" size={19} color="#ffffff" />
-            </LinearGradient>
-          </TouchableOpacity>
+              <Ionicons name="navigate" size={13} color="#ffffff" style={{ marginRight: 5 }} />
+              <Text style={styles.floatingNavBtnText}>{t('active_trip.navigate_to_drop') || 'Navigate'}</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Quick Actions Row: Vehicle Breakdown & Call Kandy Cabs */}
           <View style={styles.emergencyActionsRow}>
-            {/* Vehicle Breakdown Button */}
+            {/* Breakdown Button */}
             <TouchableOpacity
               style={styles.breakdownPillButton}
               onPress={handleVehicleBreakdown}
               activeOpacity={0.82}
             >
-              <LinearGradient
-                colors={['#ffffff', '#ffffff', '#fee2e2']}
-                locations={[0, 0.52, 1]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={styles.breakdownGradient}
-              >
-                <Ionicons name="warning" size={18} color="#e11d48" style={{ marginRight: 6 }} />
+              <View style={styles.breakdownGradient}>
+                <Ionicons name="warning" size={16} color="#e11d48" style={{ marginRight: 6 }} />
                 <Text
                   style={styles.breakdownPillText}
                   numberOfLines={1}
                 >
-                  {t('trip_flow.emergency')}
+                  Breakdown
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color="#be123c" />
-              </LinearGradient>
+                <Ionicons name="chevron-forward" size={15} color="#be123c" />
+              </View>
             </TouchableOpacity>
 
             {/* Call Kandy Cabs Helpline Button */}
@@ -283,25 +483,144 @@ export default function DriverTripActiveScreen() {
               onPress={handleCallKandyCabs}
               activeOpacity={0.82}
             >
-              <LinearGradient
-                colors={['#ffffff', '#ffffff', '#dcfce7']}
-                locations={[0, 0.52, 1]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={styles.callSupportGradient}
-              >
-                <Ionicons name="call" size={18} color="#059669" style={{ marginRight: 6 }} />
+              <View style={styles.callSupportGradient}>
+                <Ionicons name="call" size={17} color="#059669" style={{ marginRight: 6 }} />
                 <Text
                   style={styles.callSupportPillText}
                   numberOfLines={1}
-                  adjustsFontSizeToFit={true}
-                  minimumFontScale={0.85}
                 >
-                  {t('active_trip.call_kandy_cabs')}
+                  {t('active_trip.call_kandy_cabs', 'Call Kandy Cabs')}
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color="#047857" />
-              </LinearGradient>
+                <Ionicons name="chevron-forward" size={15} color="#047857" />
+              </View>
             </TouchableOpacity>
+          </View>
+
+          {/* Customer Waiting Timer Section - Stays compact single row, live timer in description */}
+          <View style={styles.waitingSectionWrapper}>
+            <View style={styles.waitingCardCompact}>
+              <View style={styles.waitingTriggerLeft}>
+                <Ionicons
+                  name={
+                    isWaitingActive
+                      ? isWaitingPaused
+                        ? 'pause-circle-outline'
+                        : 'time'
+                      : totalAccumulatedSeconds > 0
+                      ? 'checkmark-circle-outline'
+                      : 'time-outline'
+                  }
+                  size={24}
+                  color={
+                    isWaitingActive
+                      ? isWaitingPaused
+                        ? '#d97706'
+                        : '#2563eb'
+                      : totalAccumulatedSeconds > 0
+                      ? '#059669'
+                      : '#d97706'
+                  }
+                  style={styles.waitingIconPlain}
+                />
+                <View style={styles.waitingTriggerTexts}>
+                  <Text style={styles.waitingTriggerTitle}>
+                    {isWaitingActive
+                      ? isWaitingPaused
+                        ? 'Waiting Paused'
+                        : 'Waiting in Progress'
+                      : totalAccumulatedSeconds > 0
+                      ? 'Waiting Recorded ✓'
+                      : 'Waiting'}
+                  </Text>
+                  <Text style={styles.waitingTriggerSub} numberOfLines={1}>
+                    {isWaitingActive
+                      ? isWaitingPaused
+                        ? `⏱ ${formatTimerDisplay(displaySeconds)} • Paused`
+                        : `⏱ ${formatTimerDisplay(displaySeconds)} • Tracking waiting time`
+                      : totalAccumulatedSeconds > 0
+                      ? `⏱ ${formatTimerDisplay(totalAccumulatedSeconds)} recorded`
+                      : 'Tap to track & record customer waiting time'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Actions on right */}
+              <View style={styles.waitingActionsRight}>
+                {isWaitingActive && !isWaitingPaused && (
+                  <>
+                    <TouchableOpacity
+                      style={styles.waitingPauseBtnCompact}
+                      onPress={handlePauseWaiting}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="pause" size={13} color="#92400e" style={{ marginRight: 3 }} />
+                      <Text style={styles.waitingPauseBtnTextCompact}>Pause</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.waitingFinishBtnCompact}
+                      onPress={handleStopWaiting}
+                      activeOpacity={0.8}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Ionicons name="stop" size={12} color="#dc2626" />
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                {isWaitingActive && isWaitingPaused && (
+                  <>
+                    <TouchableOpacity
+                      style={styles.waitingResumeBtnCompact}
+                      onPress={handleContinueWaiting}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="play" size={13} color="#ffffff" style={{ marginRight: 3 }} />
+                      <Text style={styles.waitingResumeBtnTextCompact}>Resume</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.waitingFinishBtnCompact}
+                      onPress={handleStopWaiting}
+                      activeOpacity={0.8}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Ionicons name="stop" size={12} color="#dc2626" />
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                {!isWaitingActive && totalAccumulatedSeconds === 0 && (
+                  <TouchableOpacity
+                    style={styles.waitingStartBtnCompact}
+                    onPress={handleStartWaiting}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="play" size={13} color="#ffffff" style={{ marginRight: 4 }} />
+                    <Text style={styles.waitingStartBtnTextCompact}>Start</Text>
+                  </TouchableOpacity>
+                )}
+
+                {!isWaitingActive && totalAccumulatedSeconds > 0 && (
+                  <>
+                    <TouchableOpacity
+                      style={styles.waitingStartBtnCompact}
+                      onPress={handleStartWaiting}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="play" size={13} color="#ffffff" style={{ marginRight: 3 }} />
+                      <Text style={styles.waitingStartBtnTextCompact}>Start</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.waitingResetBtnCompact}
+                      onPress={handleResetWaiting}
+                      activeOpacity={0.8}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Ionicons name="refresh" size={13} color="#64748b" />
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </View>
           </View>
         </View>
 
@@ -386,7 +705,7 @@ export default function DriverTripActiveScreen() {
           <LinearGradient
             colors={['#059669', '#047857']}
             start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
+            end={{ x: 1, y: 0 }}
             style={styles.completeButtonGradient}
           >
             <Ionicons name="location-sharp" size={20} color="#ffffff" style={{ marginRight: 10 }} />
@@ -560,12 +879,12 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   mapCanvas: {
-    height: 146,
-    borderRadius: 14,
+    height: 220,
+    borderRadius: 20,
     backgroundColor: '#f1f5f9',
     overflow: 'hidden',
     position: 'relative',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   mapWaterArea: {
     position: 'absolute',
@@ -574,22 +893,22 @@ const styles = StyleSheet.create({
     left: 0,
     width: '32%',
     backgroundColor: '#dbeafe',
-    borderTopRightRadius: 40,
-    borderBottomRightRadius: 80,
+    borderTopRightRadius: 60,
+    borderBottomRightRadius: 100,
     opacity: 0.85,
   },
   mapRoadH1: {
     position: 'absolute',
-    top: 45,
+    top: 60,
     left: 0,
     right: 0,
-    height: 6,
+    height: 7,
     backgroundColor: '#e2e8f0',
     transform: [{ rotate: '-8deg' }],
   },
   mapRoadH2: {
     position: 'absolute',
-    top: 95,
+    top: 140,
     left: 0,
     right: 0,
     height: 8,
@@ -616,9 +935,9 @@ const styles = StyleSheet.create({
   },
   mapRouteCurve1: {
     position: 'absolute',
-    top: 80,
+    top: 120,
     left: '40%',
-    width: 64,
+    width: 72,
     height: 5,
     backgroundColor: '#2563eb',
     transform: [{ rotate: '-38deg' }],
@@ -626,9 +945,9 @@ const styles = StyleSheet.create({
   },
   mapRouteCurve2: {
     position: 'absolute',
-    top: 50,
+    top: 75,
     left: '52%',
-    width: 68,
+    width: 78,
     height: 5,
     backgroundColor: '#2563eb',
     transform: [{ rotate: '-20deg' }],
@@ -636,7 +955,7 @@ const styles = StyleSheet.create({
   },
   driverMarkerContainer: {
     position: 'absolute',
-    top: 90,
+    top: 135,
     left: '38%',
     transform: [{ translateX: -16 }, { translateY: -16 }],
   },
@@ -660,12 +979,12 @@ const styles = StyleSheet.create({
   },
   destinationPinContainer: {
     position: 'absolute',
-    top: 34,
+    top: 55,
     right: 140,
   },
   destinationTagPill: {
     position: 'absolute',
-    top: 38,
+    top: 60,
     right: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -684,6 +1003,28 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: '#0f172a',
+  },
+  floatingNavBtn: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: '#1d63ed',
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  floatingNavBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: 0.2,
   },
   highlightBlack: {
     color: '#0f172a',
@@ -754,10 +1095,10 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     backgroundColor: '#ffffff',
     shadowColor: '#e11d48',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   breakdownGradient: {
     flexDirection: 'row',
@@ -766,19 +1107,20 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
     paddingRight: 10,
     borderRadius: 24,
-    borderWidth: 1.2,
+    backgroundColor: '#fff5f5',
+    borderWidth: 1,
     borderColor: '#fecdd3',
     height: 46,
   },
   breakdownDividerV: {
-    width: 1.2,
+    width: 1,
     height: 18,
     backgroundColor: '#fca5a5',
     marginHorizontal: 8,
   },
   breakdownPillText: {
-    fontSize: 12.5,
-    fontWeight: '900',
+    fontSize: 13,
+    fontWeight: '800',
     color: '#881337',
     letterSpacing: -0.2,
     flex: 1,
@@ -788,10 +1130,10 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     backgroundColor: '#ffffff',
     shadowColor: '#16a34a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   callSupportGradient: {
     flexDirection: 'row',
@@ -800,22 +1142,134 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
     paddingRight: 10,
     borderRadius: 24,
-    borderWidth: 1.2,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
     borderColor: '#bbf7d0',
     height: 46,
   },
   callSupportDividerV: {
-    width: 1.2,
+    width: 1,
     height: 18,
     backgroundColor: '#86efac',
     marginHorizontal: 8,
   },
   callSupportPillText: {
-    fontSize: 12.5,
-    fontWeight: '900',
+    fontSize: 13,
+    fontWeight: '800',
     color: '#064e3b',
     letterSpacing: -0.2,
     flex: 1,
+  },
+  waitingSectionWrapper: {
+    marginTop: 10,
+  },
+  waitingCardCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    shadowColor: '#d97706',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  waitingTriggerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  waitingIconPlain: {
+    marginRight: 10,
+  },
+  waitingTriggerTexts: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  waitingTriggerTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#92400e',
+    letterSpacing: -0.2,
+  },
+  waitingTriggerSub: {
+    fontSize: 11,
+    color: '#78350f',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  waitingActionsRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  waitingStartBtnCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#d97706',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+  },
+  waitingStartBtnTextCompact: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  waitingPauseBtnCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef3c7',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  waitingPauseBtnTextCompact: {
+    color: '#92400e',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  waitingResumeBtnCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#d97706',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+  },
+  waitingResumeBtnTextCompact: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  waitingFinishBtnCompact: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fee2e2',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+  },
+  waitingResetBtnCompact: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f1f5f9',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
   },
   metaCard: {
     backgroundColor: '#ffffff',

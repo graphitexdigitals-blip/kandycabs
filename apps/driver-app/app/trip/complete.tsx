@@ -29,6 +29,8 @@ import {
   setTripCompletionDraft,
   getTripCompletionDraft,
   clearTripCompletionDraft,
+  getTripWaitingState,
+  clearTripWaitingState,
 } from '../../lib/tripState';
 
 const ODOMETER_SAMPLE = require('../../assets/images/inspection/odometer_sample.jpg');
@@ -45,7 +47,8 @@ export default function DriverTripCompleteScreen() {
   const [finalOdometer, setFinalOdometer] = useState('');
   const [odometerImageUri, setOdometerImageUri] = useState<string | null>(null);
   const [odometerPhotoAttached, setOdometerPhotoAttached] = useState(false);
-  const [tollAmount, setTollAmount] = useState('');
+  const [nhTollAmount, setNhTollAmount] = useState('');
+  const [niceRoadTollAmount, setNiceRoadTollAmount] = useState('');
   const [parkingAmount, setParkingAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -101,8 +104,13 @@ export default function DriverTripCompleteScreen() {
         setOdometerImageUri(draft.odometerImageUri);
         setOdometerPhotoAttached(true);
       }
-      if (draft.tollAmount) {
-        setTollAmount(draft.tollAmount);
+      if (draft.nhTollAmount) {
+        setNhTollAmount(draft.nhTollAmount);
+      } else if (draft.tollAmount) {
+        setNhTollAmount(draft.tollAmount);
+      }
+      if (draft.niceRoadTollAmount) {
+        setNiceRoadTollAmount(draft.niceRoadTollAmount);
       }
       if (draft.parkingAmount) {
         setParkingAmount(draft.parkingAmount);
@@ -217,9 +225,11 @@ export default function DriverTripCompleteScreen() {
   const isOdometerComplete = Boolean(odometerImageUri && finalOdometer.trim());
 
   const baseBalance = parseFloat(booking?.balanceAmount) || 0;
-  const parsedToll = parseFloat(tollAmount) || 0;
+  const parsedNhToll = parseFloat(nhTollAmount) || 0;
+  const parsedNiceRoadToll = parseFloat(niceRoadTollAmount) || 0;
   const parsedParking = parseFloat(parkingAmount) || 0;
-  const totalRemainingAmount = Math.max(0, Math.round(baseBalance + parsedToll + parsedParking));
+  const totalExtraCharges = parsedNhToll + parsedNiceRoadToll + parsedParking;
+  const totalRemainingAmount = Math.max(0, Math.round(baseBalance + totalExtraCharges));
 
   const adminUpiId = process.env.EXPO_PUBLIC_ADMIN_UPI_ID || 'kandycabs@icici';
   const adminUpiName = process.env.EXPO_PUBLIC_ADMIN_UPI_NAME || 'Kandy Cabs';
@@ -259,7 +269,9 @@ export default function DriverTripCompleteScreen() {
 
   const handleConfirmPayment = async (method: 'UPI_QR' | 'CASH') => {
     const endOdo = parseFloat(finalOdometer);
-    const parsedTollVal = parseFloat(tollAmount) || 0;
+    const parsedNhTollVal = parseFloat(nhTollAmount) || 0;
+    const parsedNiceRoadTollVal = parseFloat(niceRoadTollAmount) || 0;
+    const parsedTollVal = parsedNhTollVal + parsedNiceRoadTollVal;
     const parsedParkingVal = parseFloat(parkingAmount) || 0;
 
     setLoading(true);
@@ -276,26 +288,37 @@ export default function DriverTripCompleteScreen() {
         booking?.dropAddress
       );
 
+      const bId = bookingId || booking?.id;
+      const waitingState = bId ? getTripWaitingState(bId) : null;
+      const totalWaitSeconds = waitingState?.totalAccumulatedSeconds || 0;
+      const waitMins = Math.round(totalWaitSeconds / 60);
+
       const res = await driverApiClient.fetch('/api/driver/trip/complete', {
         method: 'POST',
         timeoutMs: 35000,
         body: JSON.stringify({
-          bookingId: bookingId || booking?.id,
+          bookingId: bId,
           finalOdometer: endOdo,
           finalOdometerImagePath: odometerImageUri,
+          nhTollAmount: parsedNhTollVal,
+          niceRoadTollAmount: parsedNiceRoadTollVal,
           tollAmount: parsedTollVal,
           parkingAmount: parsedParkingVal,
           paymentMethod: method,
           actualDropLat: actualLat,
           actualDropLng: actualLng,
           actualDropAddress: actualAddress,
+          waitingMinutes: waitMins,
+          waitingDurationSeconds: totalWaitSeconds,
+          waitingSessions: waitingState?.sessions || [],
         }),
       } as any);
 
       if (res.success) {
-        if (bookingId || booking?.id) {
-          await setTripInProcess(bookingId || booking?.id, false);
-          clearTripCompletionDraft(bookingId || booking?.id);
+        if (bId) {
+          await setTripInProcess(bId, false);
+          clearTripCompletionDraft(bId);
+          clearTripWaitingState(bId);
         }
         await locationTracker.sendFinalTrackingPoint(bookingId || booking?.id);
         await locationTracker.stopTracking();
@@ -324,8 +347,8 @@ export default function DriverTripCompleteScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
-      {/* 4-Step Flow Header: 1. Pickup (✓) -> 2. Odometer (✓) -> 3. OTP (✓) -> 4. Drop (Active) */}
-      <TripFlowHeader currentStep={4} />
+      {/* 6-Step Flow Header: 1. Verify (✓) -> 2. Start (✓) -> 3. Odometer (✓) -> 4. OTP (✓) -> 5. On Trip (✓) -> 6. Drop (Active) */}
+      <TripFlowHeader currentStep={6} />
 
       <ScrollView
         style={styles.scrollArea}
@@ -405,7 +428,7 @@ export default function DriverTripCompleteScreen() {
                       <Text style={styles.gpsStampText}>
                         📍 {photoLocation
                           ? `${photoLocation.lat.toFixed(4)}° N, ${photoLocation.lng.toFixed(4)}° E • ${photoLocation.time}`
-                          : `${currentCoords.lat.toFixed(4)}° N, ${currentCoords.lng.toFixed(4)}° E`}
+                          : `${currentCoords?.lat ? currentCoords.lat.toFixed(4) : '0.0000'}° N, ${currentCoords?.lng ? currentCoords.lng.toFixed(4) : '0.0000'}° E`}
                       </Text>
                     </View>
                   )}
@@ -484,7 +507,7 @@ export default function DriverTripCompleteScreen() {
           </View>
         </View>
 
-        {/* 2. Extra Charges: Toll Gate & Parking */}
+        {/* 2. Extra Charges: NH Toll, Nice Road Toll & Parking */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.walletIconCircle}>
@@ -492,28 +515,29 @@ export default function DriverTripCompleteScreen() {
             </View>
             <View style={styles.cardHeaderTextCol}>
               <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionTitle}>{t('trip_flow.additional_charges')}</Text>
+                <Text style={styles.sectionTitle}>{t('trip_flow.additional_charges', 'Additional Charges')}</Text>
               </View>
               <Text style={styles.sectionSubtitle}>
-                {t('trip_flow.additional_charges_desc')}
+                {t('trip_flow.additional_charges_desc', 'Enter any toll or parking fees paid during this trip')}
               </Text>
             </View>
           </View>
 
+          {/* Row 1: NH Toll & Nice Road Toll */}
           <View style={styles.extraChargesRow}>
-            {/* Toll Gate Fare Box */}
-            <View style={styles.tollChargeBox}>
+            {/* NH Toll Box */}
+            <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
                 <Ionicons name="business" size={16} color="#059669" />
-                <Text style={styles.chargeLabel}>{t('trip_flow.toll_fare')}</Text>
+                <Text style={styles.chargeLabel}>{t('trip_flow.nh_toll_fare', 'NH Toll (₹)')}</Text>
               </View>
               <TextInput
                 style={styles.chargeInput}
-                value={tollAmount}
+                value={nhTollAmount}
                 onChangeText={(val) => {
-                  setTollAmount(val);
+                  setNhTollAmount(val);
                   const id = bookingId || booking?.id;
-                  if (id) setTripCompletionDraft(id, { tollAmount: val });
+                  if (id) setTripCompletionDraft(id, { nhTollAmount: val });
                 }}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
@@ -521,13 +545,36 @@ export default function DriverTripCompleteScreen() {
               />
             </View>
 
+            {/* Nice Road Toll Box */}
+            <View style={styles.chargeBox}>
+              <View style={styles.chargeHeaderRow}>
+                <Ionicons name="git-merge" size={16} color="#d97706" />
+                <Text style={styles.chargeLabel}>{t('trip_flow.nice_road_toll_fare', 'Nice Road Toll (₹)')}</Text>
+              </View>
+              <TextInput
+                style={styles.chargeInput}
+                value={niceRoadTollAmount}
+                onChangeText={(val) => {
+                  setNiceRoadTollAmount(val);
+                  const id = bookingId || booking?.id;
+                  if (id) setTripCompletionDraft(id, { niceRoadTollAmount: val });
+                }}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+          </View>
+
+          {/* Row 2: Parking Fare & Total Extra Summary */}
+          <View style={[styles.extraChargesRow, { marginTop: 12 }]}>
             {/* Parking Fare Box */}
-            <View style={styles.parkingChargeBox}>
+            <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
                 <View style={styles.parkingBadge}>
                   <Text style={styles.parkingBadgeText}>P</Text>
                 </View>
-                <Text style={styles.chargeLabel}>{t('trip_flow.parking_fare')}</Text>
+                <Text style={styles.chargeLabel}>{t('trip_flow.parking_fare', 'Parking (₹)')}</Text>
               </View>
               <TextInput
                 style={styles.chargeInput}
@@ -541,6 +588,19 @@ export default function DriverTripCompleteScreen() {
                 placeholder="0.00"
                 placeholderTextColor="#94a3b8"
               />
+            </View>
+
+            {/* Total Additional Charges Summary Box */}
+            <View style={styles.totalExtraBox}>
+              <View style={styles.chargeHeaderRow}>
+                <Ionicons name="calculator" size={15} color="#7c3aed" />
+                <Text style={[styles.chargeLabel, { color: '#6d28d9' }]}>Total Extra</Text>
+              </View>
+              <View style={styles.totalExtraAmountRow}>
+                <Text style={styles.totalExtraAmount}>
+                  ₹{totalExtraCharges.toFixed(2)}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
@@ -810,7 +870,7 @@ export default function DriverTripCompleteScreen() {
                         <>
                           <Ionicons name="checkmark-circle-outline" size={20} color="#ffffff" />
                           <Text style={styles.confirmPaymentBtnText}>
-                            Confirm QR Payment Received (₹{totalRemainingAmount})
+                            Confirm QR Payment Received
                           </Text>
                         </>
                       )}
@@ -858,7 +918,7 @@ export default function DriverTripCompleteScreen() {
                         <>
                           <Ionicons name="hand-right-outline" size={20} color="#ffffff" />
                           <Text style={styles.confirmPaymentBtnText}>
-                            Confirm Cash Collected (₹{totalRemainingAmount})
+                            Confirm Cash Collected
                           </Text>
                         </>
                       )}
@@ -1497,11 +1557,35 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 12,
   },
+  chargeBox: {
+    flex: 1,
+  },
   tollChargeBox: {
     flex: 1,
   },
   parkingChargeBox: {
     flex: 1,
+  },
+  totalExtraBox: {
+    flex: 1,
+    backgroundColor: '#f5f3ff',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#ddd6fe',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 6,
+    justifyContent: 'center',
+  },
+  totalExtraAmountRow: {
+    height: 46,
+    justifyContent: 'center',
+  },
+  totalExtraAmount: {
+    fontSize: 16.5,
+    fontWeight: '900',
+    color: '#7c3aed',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   chargeHeaderRow: {
     flexDirection: 'row',

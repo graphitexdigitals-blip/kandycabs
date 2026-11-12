@@ -648,13 +648,12 @@ export default function MyBookingsScreen() {
 
                           {/* Intermediate / Via Stops */}
                           {parseViaStops(booking).map((stopName, sIdx) => (
-                            <View key={`via-stop-${sIdx}`} style={[styles.locationItemRow, { marginTop: 14 }]}>
-                              <View style={styles.viaBadgeCircle}>
+                            <View key={`via-stop-${sIdx}`} style={[styles.locationItemRow, { marginTop: 14, alignItems: 'center' }]}>
+                              <View style={[styles.viaBadgeCircle, { marginTop: 0 }]}>
                                 <Text style={styles.viaBadgeNum}>{sIdx + 1}</Text>
                               </View>
                               <View style={styles.locationItemText}>
-                                <Text style={styles.routeNodeLabel}>VIA STOP #{sIdx + 1}</Text>
-                                <Text style={styles.routeAddressText} numberOfLines={1}>{stopName}</Text>
+                                <Text style={[styles.routeAddressText, { marginTop: 0 }]} numberOfLines={1}>{stopName}</Text>
                               </View>
                             </View>
                           ))}
@@ -737,7 +736,7 @@ export default function MyBookingsScreen() {
                         <View style={styles.distanceTopRow}>
                           <Ionicons name="trending-up" size={14} color="rgb(22, 34, 50)" style={{ marginRight: 4 }} />
                           <Text style={styles.distanceBadgeText}>
-                            {booking.distanceKm ? `~${booking.distanceKm} km` : '~50 km'}
+                            {booking.distanceKm ? `${booking.distanceKm} km` : '50 km'}
                           </Text>
                         </View>
                         <Text style={styles.tripTypeSubText}>

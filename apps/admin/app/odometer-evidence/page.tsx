@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AdminNavbar } from '@/components/AdminNavbar';
 import { reverseGeocodeLocation } from '@/lib/geocoding';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
+import { getTripVerificationPhotos, getTripTimingMilestones } from '@/lib/bookingHelpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,7 +81,7 @@ export default function AdminOdometerEvidencePage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2">
-              <span>🔍</span> Odometer & GPS Distance Audit
+              Odometer & GPS Distance Audit
             </h1>
             <p className="text-xs text-slate-500 mt-1">
               Verify starting vs final odometer photos against Flow A breadcrumb GPS distance
@@ -90,7 +91,7 @@ export default function AdminOdometerEvidencePage() {
             onClick={() => fetchOdometerData()}
             className="px-3.5 py-2 bg-white hover:bg-slate-100 text-xs font-semibold rounded-lg border border-slate-200 flex items-center gap-1.5 text-slate-700 transition shadow-xs"
           >
-            <span>🔄</span> Refresh
+            Refresh
           </button>
         </div>
 
@@ -140,12 +141,11 @@ export default function AdminOdometerEvidencePage() {
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
           {loading ? (
             <div className="py-20 text-center text-slate-400 text-sm">
-              <div className="inline-block animate-spin text-2xl mb-2">🔄</div>
+              <div className="w-6 h-6 border-2 border-slate-300 border-t-amber-500 rounded-full animate-spin mx-auto mb-2" />
               <div>Analyzing odometer photos and GPS breadcrumbs...</div>
             </div>
           ) : displayedItems.length === 0 ? (
             <div className="py-16 text-center text-slate-400 text-sm">
-              <div className="text-3xl mb-2">✅</div>
               <div>No trip evidence found matching the selected filter.</div>
             </div>
           ) : (
@@ -189,7 +189,7 @@ export default function AdminOdometerEvidencePage() {
                         </div>
                         {item.startingOdometerImagePath ? (
                           <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-700 font-semibold">
-                            <span>📷</span> Photo attached
+                            Photo attached
                           </div>
                         ) : (
                           <div className="mt-1 text-[10px] text-slate-400">No photo</div>
@@ -202,7 +202,7 @@ export default function AdminOdometerEvidencePage() {
                         </div>
                         {item.finalOdometerImagePath ? (
                           <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-700 font-semibold">
-                            <span>📷</span> Photo attached
+                            Photo attached
                           </div>
                         ) : (
                           <div className="mt-1 text-[10px] text-slate-400">No photo</div>
@@ -237,7 +237,7 @@ export default function AdminOdometerEvidencePage() {
                             <div className="font-bold text-slate-900">{item.discrepancyPercent}%</div>
                             {item.hasDiscrepancy ? (
                               <span className="inline-block mt-0.5 px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 rounded text-[10px] font-black animate-pulse">
-                                🚨 &gt;{threshold}% VARIANCE
+                                &gt;{threshold}% VARIANCE
                               </span>
                             ) : (
                               <span className="inline-block mt-0.5 px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[10px] font-semibold">
@@ -255,7 +255,7 @@ export default function AdminOdometerEvidencePage() {
                           onClick={() => setLightboxItem(item)}
                           className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-lg text-xs font-semibold transition shadow-2xs"
                         >
-                          Compare Photos 🔎
+                          Compare Photos
                         </button>
                       </td>
                     </tr>
@@ -275,7 +275,7 @@ export default function AdminOdometerEvidencePage() {
             <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <span>📸</span> Odometer Photo Evidence: {lightboxItem.humanReadableRef}
+                  Odometer Photo Evidence: {lightboxItem.humanReadableRef}
                 </h3>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 mt-0.5">
                   <span>Driver: <strong className="text-slate-800">{lightboxItem.driverName}</strong> ({lightboxItem.driverPhone})</span>
@@ -325,7 +325,6 @@ export default function AdminOdometerEvidencePage() {
                     />
                   ) : (
                     <div className="w-full h-72 flex flex-col items-center justify-center bg-white rounded-lg text-slate-500 border border-slate-200 p-4 text-center">
-                      <div className="text-3xl mb-2">📸</div>
                       <div className="text-xs font-semibold text-slate-700">
                         {lightboxItem.startingOdometerImagePath?.startsWith('file://')
                           ? 'Photo captured on driver device (Local URI from older test)'
@@ -342,7 +341,7 @@ export default function AdminOdometerEvidencePage() {
                   {/* Starting Photo Location Details Card */}
                   <div className="mt-3 bg-white border border-slate-200 rounded-lg p-3 text-xs space-y-1.5 shadow-2xs">
                     <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-700">
-                      <span>📍 START GPS LOCATION</span>
+                      <span>START GPS LOCATION</span>
                       {lightboxItem.startGpsLat && lightboxItem.startGpsLng && (
                         <a
                           href={`https://www.google.com/maps?q=${lightboxItem.startGpsLat},${lightboxItem.startGpsLng}`}
@@ -358,7 +357,7 @@ export default function AdminOdometerEvidencePage() {
                       Coordinates: <span className="text-slate-900 font-bold">{lightboxItem.startGpsLat ? `${lightboxItem.startGpsLat.toFixed(5)}° N, ${lightboxItem.startGpsLng.toFixed(5)}° E` : 'Not recorded'}</span>
                     </div>
                     <div className="text-[11px] text-slate-700">
-                      🏢 <strong className="text-slate-900">Area / Building:</strong>{' '}
+                      <strong className="text-slate-900">Area / Building:</strong>{' '}
                       <span className="text-emerald-700 font-medium">
                         {startLocName || lightboxItem.pickupAddress || 'Locating area...'}
                       </span>
@@ -387,7 +386,6 @@ export default function AdminOdometerEvidencePage() {
                     />
                   ) : (
                     <div className="w-full h-72 flex flex-col items-center justify-center bg-white rounded-lg text-slate-500 border border-slate-200 p-4 text-center">
-                      <div className="text-3xl mb-2">📸</div>
                       <div className="text-xs font-semibold text-slate-700">
                         {lightboxItem.finalOdometerImagePath?.startsWith('file://')
                           ? 'Photo captured on driver device (Local URI from older test)'
@@ -404,7 +402,7 @@ export default function AdminOdometerEvidencePage() {
                   {/* Final Photo Location Details Card */}
                   <div className="mt-3 bg-white border border-slate-200 rounded-lg p-3 text-xs space-y-1.5 shadow-2xs">
                     <div className="flex items-center justify-between text-[11px] font-semibold text-blue-700">
-                      <span>📍 FINAL GPS LOCATION</span>
+                      <span>FINAL GPS LOCATION</span>
                       {lightboxItem.finalGpsLat && lightboxItem.finalGpsLng && (
                         <a
                           href={`https://www.google.com/maps?q=${lightboxItem.finalGpsLat},${lightboxItem.finalGpsLng}`}
@@ -420,7 +418,7 @@ export default function AdminOdometerEvidencePage() {
                       Coordinates: <span className="text-slate-900 font-bold">{lightboxItem.finalGpsLat ? `${lightboxItem.finalGpsLat.toFixed(5)}° N, ${lightboxItem.finalGpsLng.toFixed(5)}° E` : 'Not recorded'}</span>
                     </div>
                     <div className="text-[11px] text-slate-700">
-                      🏢 <strong className="text-slate-900">Area / Building:</strong>{' '}
+                      <strong className="text-slate-900">Area / Building:</strong>{' '}
                       <span className="text-blue-700 font-medium">
                         {finalLocName || lightboxItem.dropAddress || 'Locating area...'}
                       </span>
@@ -429,66 +427,141 @@ export default function AdminOdometerEvidencePage() {
                 </div>
               </div>
 
-              {/* Trip Start Vehicle Inspection Photos (4 Angles) */}
-              <div className="bg-sky-50/50 border border-sky-200 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">📸</span>
-                    <span className="text-xs font-bold text-sky-950 uppercase tracking-wider">
-                      Trip Start Vehicle Inspection Photos (4 Angles)
-                    </span>
-                  </div>
-                  <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-md border border-sky-200">
-                    {Array.isArray(lightboxItem.vehicleInspectionPhotos) && lightboxItem.vehicleInspectionPhotos.length > 0
-                      ? `${lightboxItem.vehicleInspectionPhotos.filter(Boolean).length}/4 Attached`
-                      : 'None Attached'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { label: 'Front Photo', sub: 'Bumper & Plate', idx: 0 },
-                    { label: 'Rear Photo', sub: 'Tail & Boot', idx: 1 },
-                    { label: 'Side Photo', sub: 'Doors & Body', idx: 2 },
-                    { label: 'Inside Photo', sub: 'Interior Cabin', idx: 3 },
-                  ].map((angle) => {
-                    const photoUrl = Array.isArray(lightboxItem.vehicleInspectionPhotos)
-                      ? lightboxItem.vehicleInspectionPhotos[angle.idx]
-                      : null;
-                    return (
-                      <div
-                        key={angle.label}
-                        className="bg-white border border-slate-200 rounded-lg p-2.5 flex flex-col items-center text-center shadow-2xs"
-                      >
-                        <span className="text-[11px] font-bold text-slate-800">{angle.label}</span>
-                        <span className="text-[9px] text-slate-500 mb-1.5">{angle.sub}</span>
-                        {photoUrl ? (
-                          <div className="w-full h-28 bg-slate-900 rounded border border-emerald-300 overflow-hidden relative group">
-                            <img
-                              src={photoUrl}
-                              alt={angle.label}
-                              className="w-full h-full object-cover group-hover:scale-105 transition"
-                            />
-                            <a
-                              href={photoUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-[10px] font-bold"
-                            >
-                              Open Full HD ↗
-                            </a>
-                          </div>
-                        ) : (
-                          <div className="w-full h-28 bg-slate-100 rounded border border-dashed border-slate-300 flex flex-col items-center justify-center text-[10px] text-slate-400 p-2">
-                            <span className="text-xl mb-1">📷</span>
-                            <span>Not Captured</span>
-                          </div>
-                        )}
+              {/* Trip Execution Timings & Milestones */}
+              {(() => {
+                const timings = getTripTimingMilestones(lightboxItem);
+                return (
+                  <div className="space-y-2 sm:space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-slate-400" />
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                          Trip Timings & Execution Milestones
+                        </h4>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
+                      {timings.totalTripDuration && (
+                        <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded">
+                          Total Duration: {timings.totalTripDuration}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                      {timings.milestones.map((m) => (
+                        <div
+                          key={m.id}
+                          className="bg-white border border-slate-200 rounded-lg p-2.5 flex flex-col justify-between shadow-2xs"
+                        >
+                          <div>
+                            <span className="text-[11px] font-bold text-slate-900 block leading-tight">
+                              {m.label}
+                            </span>
+                            <span className="text-[9px] text-slate-500 truncate block mt-0.5">
+                              {m.sub}
+                            </span>
+                          </div>
+
+                          <div className="mt-2.5 pt-1.5 border-t border-slate-100 flex items-end justify-between gap-1">
+                            <div>
+                              <span className="text-xs sm:text-sm font-black font-mono text-slate-900 block">
+                                {m.timeStr || '--:--'}
+                              </span>
+                              {m.extraInfo && (
+                                <span className="text-[9px] text-slate-600 font-medium truncate block mt-0.5">
+                                  {m.extraInfo}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Status Icon Arranged Below */}
+                            {m.status === 'COMPLETED' ? (
+                              <span
+                                className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300 flex items-center justify-center shrink-0 shadow-2xs mb-0.5"
+                                title="Completed"
+                              >
+                                <svg className="w-3 h-3 stroke-[3]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              </span>
+                            ) : m.status === 'IN_PROGRESS' ? (
+                              <span
+                                className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 border border-blue-300 flex items-center justify-center shrink-0 shadow-2xs mb-0.5"
+                                title="In Progress"
+                              >
+                                <svg className="w-3 h-3 stroke-[2.5] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                                </svg>
+                              </span>
+                            ) : (
+                              <span
+                                className="w-5 h-5 rounded-full bg-slate-100 text-slate-400 border border-slate-200 flex items-center justify-center shrink-0 mb-0.5"
+                                title="Pending"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Trip Start Verification & Vehicle Inspection Photos (5 Photos) */}
+              {(() => {
+                const verificationData = getTripVerificationPhotos(lightboxItem);
+                return (
+                  <div className="bg-sky-50/50 border border-sky-200 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-sky-950 uppercase tracking-wider">
+                          Trip Start Verification & Inspection (5 Photos)
+                        </span>
+                      </div>
+                      <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-md border border-sky-200">
+                        {verificationData.uploadedCount}/5 Attached
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                      {verificationData.photos.map((item) => {
+                        const photoUrl = item.url ? resolveImageUrl(item.url) : null;
+                        return (
+                          <div
+                            key={item.key}
+                            className="bg-white border border-slate-200 rounded-lg p-2.5 flex flex-col items-center text-center shadow-2xs"
+                          >
+                            <span className="text-[11px] font-bold text-slate-800 leading-tight">{item.label}</span>
+                            <span className="text-[9px] text-slate-500 mb-1.5 truncate max-w-full">{item.sub}</span>
+                            {photoUrl ? (
+                              <div className="w-full h-28 bg-slate-900 rounded border border-emerald-300 overflow-hidden relative group">
+                                <img
+                                  src={photoUrl}
+                                  alt={item.label}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition"
+                                />
+                                <a
+                                  href={photoUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-[10px] font-bold"
+                                >
+                                  Open Full HD ↗
+                                </a>
+                              </div>
+                            ) : (
+                              <div className="w-full h-28 bg-slate-100 rounded border border-dashed border-slate-300 flex flex-col items-center justify-center text-[10px] text-slate-400 p-2">
+                                <span>Not Captured</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Distance Summary Metrics */}
               <div className="bg-white border border-slate-200 rounded-xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center shadow-xs">

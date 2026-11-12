@@ -228,7 +228,9 @@
     "additional_charges": "अतिरिक्त शुल्क",
     "additional_charges_desc": "इस ट्रिप के दौरान भुगतान किया गया टोल या पार्किंग शुल्क दर्ज करें",
     "toll_fare": "टोल गेट शुल्क (₹)",
-    "parking_fare": "पार्किंग शुल्क (₹)",
+    "nh_toll_fare": "एनएच टोल (₹)",
+    "nice_road_toll_fare": "नाइस रोड टोल (₹)",
+    "parking_fare": "पार्किंग (₹)",
     "complete_trip": "ट्रिप समाप्त करें"
   },
   "active_trip": {
@@ -241,6 +243,7 @@
     "below": "पर क्लिक करें।",
     "navigate_to_drop": "ड्रॉप स्थान के लिए नेविगेट करें",
     "call_kandy_cabs": "कैंडी कैब्स को कॉल करें",
+    "vehicle_breakdown": "गाड़ी का ब्रेकडाउन",
     "passenger": "यात्री",
     "phone_protected": "फ़ोन सुरक्षित",
     "trip_type": "ट्रिप प्रकार",

@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 interface TripFlowHeaderProps {
-  currentStep: 1 | 2 | 3 | 4; // 1: Pickup, 2: Odometer, 3: OTP, 4: Drop
+  currentStep: 1 | 2 | 3 | 4 | 5 | 6; // 1: Verify, 2: Pickup, 3: Odometer, 4: OTP, 5: On Trip, 6: Drop
   bookingRef?: string;
   statusLabel?: string;
 }
@@ -15,15 +15,17 @@ export function TripFlowHeader({ currentStep }: TripFlowHeaderProps) {
   const topPad = Platform.OS === 'android' ? 6 : Math.max(insets.top, 6);
 
   const steps = [
-    { num: 1, label: 'Pickup', icon: 'location-sharp' as const },
-    { num: 2, label: 'Odometer', icon: 'speedometer' as const },
-    { num: 3, label: 'OTP', icon: 'key' as const },
-    { num: 4, label: 'Drop', icon: 'flag' as const },
+    { num: 1, label: 'Verify', icon: 'shield-checkmark' as const },
+    { num: 2, label: 'Pickup', icon: 'location-sharp' as const },
+    { num: 3, label: 'Odometer', icon: 'speedometer' as const },
+    { num: 4, label: 'OTP', icon: 'key' as const },
+    { num: 5, label: 'On Trip', icon: 'car-sport' as const },
+    { num: 6, label: 'Drop', icon: 'flag' as const },
   ];
 
   return (
     <View style={[styles.headerContainer, { paddingTop: topPad }]}>
-      {/* 4-Step Connected Progress Stepper Bar */}
+      {/* 5-Step Connected Progress Stepper Bar */}
       <View style={styles.stepperWrapper}>
         {steps.map((step, idx) => {
           const isCompleted = currentStep > step.num;
@@ -43,9 +45,9 @@ export function TripFlowHeader({ currentStep }: TripFlowHeaderProps) {
                   ]}
                 >
                   {isCompleted ? (
-                    <Ionicons name="checkmark" size={15} color="#ffffff" style={styles.checkIcon} />
+                    <Ionicons name="checkmark" size={14} color="#ffffff" style={styles.checkIcon} />
                   ) : isActive ? (
-                    <Ionicons name={step.icon} size={14} color="#ffffff" />
+                    <Ionicons name={step.icon} size={13} color="#ffffff" />
                   ) : (
                     <Text style={styles.pendingNumText}>{step.num}</Text>
                   )}
@@ -86,7 +88,7 @@ export function TripFlowHeader({ currentStep }: TripFlowHeaderProps) {
 const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingBottom: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
@@ -100,16 +102,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
   },
   stepNode: {
     alignItems: 'center',
-    width: 56,
+    width: 44,
   },
   stepCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 25,
+    height: 25,
+    borderRadius: 12.5,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
@@ -124,7 +126,7 @@ const styles = StyleSheet.create({
   },
   circleActive: {
     backgroundColor: '#ea580c',
-    borderWidth: 2.5,
+    borderWidth: 2,
     borderColor: '#ffedd5',
     shadowColor: '#ea580c',
     shadowOffset: { width: 0, height: 1 },
@@ -141,14 +143,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   pendingNumText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#94a3b8',
   },
   stepLabel: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '700',
-    letterSpacing: 0.1,
+    letterSpacing: 0,
   },
   labelCompleted: {
     color: '#0f172a',
@@ -167,7 +169,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 14,
-    paddingHorizontal: 2,
+    paddingHorizontal: 1,
   },
   line: {
     width: '100%',

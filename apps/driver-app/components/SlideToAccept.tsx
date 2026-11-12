@@ -20,6 +20,7 @@ interface SlideToAcceptProps {
   disabled?: boolean;
   title?: string;
   acceptingTitle?: string;
+  fontSize?: number;
 }
 
 export function SlideToAccept({
@@ -28,10 +29,11 @@ export function SlideToAccept({
   disabled = false,
   title = 'SLIDE RIGHT TO ACCEPT',
   acceptingTitle = 'ACCEPTING RIDE...',
+  fontSize = 12,
 }: SlideToAcceptProps) {
   const [trackWidth, setTrackWidth] = useState(300);
-  const knobWidth = 48;
-  const padding = 4;
+  const knobWidth = 44;
+  const padding = 6;
   const maxSlide = Math.max(0, trackWidth - knobWidth - padding * 2);
 
   const pan = useRef(new Animated.Value(0)).current;
@@ -189,7 +191,7 @@ export function SlideToAccept({
           >
             {/* Animated Center Text & Chevrons */}
             <Animated.View style={[styles.textWrapper, { opacity: isAccepting ? 0.3 : textOpacity }]}>
-              <Text style={styles.trackText}>{isAccepting ? acceptingTitle : title}</Text>
+              <Text style={[styles.trackText, fontSize ? { fontSize } : null]}>{isAccepting ? acceptingTitle : title}</Text>
               {!isAccepting && (
                 <Animated.View
                   style={[
@@ -197,9 +199,9 @@ export function SlideToAccept({
                     { transform: [{ translateX: shimmerTranslate }] },
                   ]}
                 >
-                  <Ionicons name="chevron-forward" size={17} color="#a7f3d0" style={{ opacity: 0.55 }} />
-                  <Ionicons name="chevron-forward" size={17} color="#d1fae5" style={{ opacity: 0.8, marginLeft: -7 }} />
-                  <Ionicons name="chevron-forward" size={17} color="#ffffff" style={{ marginLeft: -7 }} />
+                  <Ionicons name="chevron-forward" size={15} color="#a7f3d0" style={{ opacity: 0.55 }} />
+                  <Ionicons name="chevron-forward" size={15} color="#d1fae5" style={{ opacity: 0.8, marginLeft: -7 }} />
+                  <Ionicons name="chevron-forward" size={15} color="#ffffff" style={{ marginLeft: -7 }} />
                 </Animated.View>
               )}
             </Animated.View>
@@ -218,7 +220,7 @@ export function SlideToAccept({
                 <ActivityIndicator size="small" color="#0c9035" />
               ) : (
                 <View style={styles.knobInner}>
-                  <Ionicons name="arrow-forward" size={26} color="#0c9035" />
+                  <Ionicons name="arrow-forward" size={24} color="#0c9035" />
                 </View>
               )}
             </Animated.View>
@@ -236,17 +238,18 @@ const styles = StyleSheet.create({
   },
   trackShadowContainer: {
     width: '100%',
-    borderRadius: 29,
+    borderRadius: 28,
     shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 5,
   },
   trackGradient: {
     height: 56,
     borderRadius: 28,
-    padding: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
     justifyContent: 'center',
     position: 'relative',
     overflow: 'hidden',
@@ -256,7 +259,8 @@ const styles = StyleSheet.create({
     height: 56,
     backgroundColor: '#059669',
     borderRadius: 28,
-    padding: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
     justifyContent: 'center',
     position: 'relative',
     overflow: 'hidden',
@@ -285,40 +289,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingLeft: 42,
-    gap: 8,
+    paddingLeft: 56,
+    paddingRight: 16,
+    gap: 6,
   },
   trackText: {
     color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 0.6,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
     textShadowColor: 'rgba(0, 0, 0, 0.25)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   trackTextDisabled: {
     color: '#f1f5f9',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
   chevronsRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   knob: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.28,
-    shadowRadius: 5,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
     zIndex: 10,
   },
   knobDisabled: {

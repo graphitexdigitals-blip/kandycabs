@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
     }
 
     const isRevert = action === 'NOT_REACHED' || action === 'REVERT' || requestedStatus === BookingStatus.DRIVER_ACCEPTED;
+    const isReached = action === 'REACHED';
     const targetStatus = isRevert ? BookingStatus.DRIVER_ACCEPTED : BookingStatus.DRIVER_EN_ROUTE;
 
     // Do not downgrade if already TRIP_STARTED or TRIP_COMPLETED
@@ -67,20 +68,29 @@ export async function POST(req: NextRequest) {
       return setCorsHeaders(res);
     }
 
+    const nowIso = new Date().toISOString();
+
     await prisma.$transaction(async (tx) => {
       await tx.booking.update({
         where: { id: bookingId },
         data: { status: targetStatus },
       });
 
+      const eventType = isRevert
+        ? 'DRIVER_ACCEPTED'
+        : isReached
+        ? 'DRIVER_ARRIVED_AT_PICKUP'
+        : 'DRIVER_EN_ROUTE';
+
       await tx.tripEvent.create({
         data: {
           bookingId,
-          type: isRevert ? 'DRIVER_ACCEPTED' : 'DRIVER_EN_ROUTE',
+          type: eventType,
           payloadJson: {
             driverId: session.driverId,
-            timestamp: new Date().toISOString(),
-            action: isRevert ? 'NOT_REACHED' : 'START_TRIP_CLICKED',
+            timestamp: nowIso,
+            action: isRevert ? 'NOT_REACHED' : isReached ? 'ARRIVED_AT_PICKUP' : 'START_TRIP_CLICKED',
+            arrivedAt: isReached ? nowIso : undefined,
           },
         },
       });

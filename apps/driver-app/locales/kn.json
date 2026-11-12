@@ -228,7 +228,9 @@
     "additional_charges": "ಹೆಚ್ಚುವರಿ ಶುಲ್ಕಗಳು",
     "additional_charges_desc": "ಈ ಟ್ರಿಪ್‌ನಲ್ಲಿ ಪಾವತಿಸಿದ ಟೋಲ್ ಅಥವಾ ಪಾರ್ಕಿಂಗ್ ಶುಲ್ಕವನ್ನು ನಮೂದಿಸಿ",
     "toll_fare": "ಟೋಲ್ ಗೇಟ್ ಶುಲ್ಕ (₹)",
-    "parking_fare": "ಪಾರ್ಕಿಂಗ್ ಶುಲ್ಕ (₹)",
+    "nh_toll_fare": "ಎನ್‌ಎಚ್ ಟೋಲ್ (₹)",
+    "nice_road_toll_fare": "ನೈಸ್ ರೋಡ್ ಟೋಲ್ (₹)",
+    "parking_fare": "ಪಾರ್ಕಿಂಗ್ (₹)",
     "complete_trip": "ಟ್ರಿಪ್ ಪೂರ್ಣಗೊಳಿಸಿ"
   },
   "active_trip": {
@@ -241,6 +243,7 @@
     "below": "ಕ್ಲಿಕ್ ಮಾಡಿ.",
     "navigate_to_drop": "ಡ್ರಾಪ್ ಸ್ಥಳಕ್ಕೆ ನ್ಯಾವಿಗೇಟ್ ಮಾಡಿ",
     "call_kandy_cabs": "ಕರೆ ಮಾಡಿ ಕ್ಯಾಂಡಿ ಕ್ಯಾಬ್ಸ್",
+    "vehicle_breakdown": "ವಾಹನ ಕೆಟ್ಟುಹೋಗಿದೆ",
     "passenger": "ಪ್ರಯಾಣಿಕರು",
     "phone_protected": "ಫೋನ್ ಸಂರಕ್ಷಿತವಾಗಿದೆ",
     "trip_type": "ಟ್ರಿಪ್ ಪ್ರಕಾರ",

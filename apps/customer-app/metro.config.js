@@ -39,7 +39,6 @@ config.resolver.extraNodeModules = {
   ...(config.resolver.extraNodeModules || {}),
   '@kandy-cabs/shared': path.resolve(monorepoRoot, 'packages/shared'),
   react: projectReact,
-  'react-native': path.resolve(monorepoRoot, 'node_modules/react-native'),
 };
 
 module.exports = config;

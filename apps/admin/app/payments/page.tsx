@@ -203,24 +203,24 @@ export default function AdminPaymentsPage() {
     const webBaseUrl = typeof window !== 'undefined' ? window.location.origin.replace(':3001', ':3000') : 'http://localhost:3000';
     const payUrl = `${webBaseUrl}/pay/${t.humanReadableRef}`;
 
-    const message = `🚖 *KANDY CABS — TRIP INVOICE & BALANCE DUE*
+    const message = `*KANDY CABS — TRIP INVOICE & BALANCE DUE*
 ----------------------------------------
 *Booking Ref:* ${t.humanReadableRef}
 *Customer:* ${t.customerName}
 *Trip Type:* ${t.tripType}
 
-💰 *FARE BREAKDOWN*
+*FARE BREAKDOWN*
 • Total Trip Fare: ₹${t.estimatedFare.toLocaleString('en-IN')}
-• Advance Paid (Online): -₹${t.advanceAmount.toLocaleString('en-IN')} (✓ Confirmed)
+• Advance Paid (Online): -₹${t.advanceAmount.toLocaleString('en-IN')} (Confirmed)
 ${t.tollAmount > 0 ? `• Tolls: +₹${t.tollAmount.toLocaleString('en-IN')}\n` : ''}${t.parkingAmount > 0 ? `• Parking: +₹${t.parkingAmount.toLocaleString('en-IN')}\n` : ''}----------------------------------------
-🔴 *Pending Balance to Pay: ₹${t.balanceAmount.toLocaleString('en-IN')}*
+*Pending Balance to Pay: ₹${t.balanceAmount.toLocaleString('en-IN')}*
 ----------------------------------------
 
-💳 *Pay Online & View Tax Invoice:*
+*Pay Online & View Tax Invoice:*
 ${payUrl}
 
 Thank you for traveling with Kandy Cabs!
-📞 Support: +91 9786452563`;
+Support: +91 9786452563`;
 
     const waUrl = phone
       ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
@@ -236,20 +236,20 @@ Thank you for traveling with Kandy Cabs!
     const webBaseUrl = typeof window !== 'undefined' ? window.location.origin.replace(':3001', ':3000') : 'http://localhost:3000';
     const receiptUrl = `${webBaseUrl}/pay/${t.humanReadableRef}`;
 
-    const message = `🎉 *KANDY CABS — PAYMENT RECEIVED & CONFIRMED*
+    const message = `*KANDY CABS — PAYMENT RECEIVED & CONFIRMED*
 ----------------------------------------
 *Booking Ref:* ${t.humanReadableRef}
 *Customer:* ${t.customerName}
 *Receipt No:* RCP-${t.humanReadableRef}
 
 *Balance Paid:* ₹${t.balanceAmount.toLocaleString('en-IN')}
-*Status:* ✓ 100% SETTLED & PAID
+*Status:* 100% SETTLED & PAID
 
-🧾 *View & Download Tax Invoice Receipt:*
+*View & Download Tax Invoice Receipt:*
 ${receiptUrl}
 
 Thank you for choosing Kandy Cabs Mangalore!
-📞 Support: +91 9786452563`;
+Support: +91 9786452563`;
 
     const waUrl = phone
       ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
@@ -859,12 +859,11 @@ Thank you for choosing Kandy Cabs Mangalore!
 
           {loading ? (
             <div className="py-20 text-center text-slate-400 text-sm">
-              <div className="inline-block animate-spin text-2xl mb-2">🔄</div>
+              <div className="w-6 h-6 border-2 border-slate-300 border-t-amber-500 rounded-full animate-spin mx-auto mb-2" />
               <div>Loading financial ledger & driver payouts...</div>
             </div>
           ) : transactions.length === 0 ? (
             <div className="py-16 text-center text-slate-400 text-sm">
-              <div className="text-3xl mb-2">🧾</div>
               <div>No payment transactions found matching the filter criteria.</div>
             </div>
           ) : (
@@ -1426,7 +1425,7 @@ Thank you for choosing Kandy Cabs Mangalore!
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div>
                 <h3 className="font-black text-slate-900 text-base flex items-center gap-1.5">
-                  <span>💵</span> Edit Driver Payout
+                  Edit Driver Payout
                 </h3>
                 <p className="text-xs text-amber-800 font-mono mt-0.5 font-bold">
                   {editModalBooking.humanReadableRef} • {editModalBooking.driverName || 'Driver'}
@@ -1442,7 +1441,7 @@ Thank you for choosing Kandy Cabs Mangalore!
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block text-slate-700 font-bold mb-1">🚗 Driver Allowance (₹)</label>
+                <label className="block text-slate-700 font-bold mb-1">Driver Allowance (₹)</label>
                 <input
                   type="number"
                   min="0"
@@ -1456,7 +1455,7 @@ Thank you for choosing Kandy Cabs Mangalore!
               </div>
 
               <div>
-                <label className="block text-slate-700 font-bold mb-1">💰 Driver Final Payee (₹)</label>
+                <label className="block text-slate-700 font-bold mb-1">Driver Final Payee (₹)</label>
                 <input
                   type="number"
                   min="0"
@@ -1470,14 +1469,14 @@ Thank you for choosing Kandy Cabs Mangalore!
               </div>
 
               <div>
-                <label className="block text-slate-700 font-bold mb-1">💳 Driver Payment Status</label>
+                <label className="block text-slate-700 font-bold mb-1">Driver Payment Status</label>
                 <select
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value)}
                   className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
                 >
-                  <option value="PAID">✓ DRIVER PAID (Settled)</option>
-                  <option value="PENDING">✗ DRIVER UNPAID (Pending)</option>
+                  <option value="PAID">DRIVER PAID (Settled)</option>
+                  <option value="PENDING">DRIVER UNPAID (Pending)</option>
                 </select>
               </div>
 
@@ -1503,7 +1502,7 @@ Thank you for choosing Kandy Cabs Mangalore!
                 onClick={handleSaveDriverPayoutEdit}
                 className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition shadow-xs flex items-center gap-1.5"
               >
-                {savingEdit ? <span>Saving...</span> : <span>💾 Save Payout</span>}
+                {savingEdit ? <span>Saving...</span> : <span>Save Payout</span>}
               </button>
             </div>
           </div>
@@ -1516,7 +1515,7 @@ Thank you for choosing Kandy Cabs Mangalore!
           <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl text-slate-900">
             <div className="flex justify-between items-center pb-3 border-b border-slate-200">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <span>💵</span> Record Balance Payment — {balanceModalBooking.humanReadableRef}
+                Record Balance Payment — {balanceModalBooking.humanReadableRef}
               </h3>
               <button
                 type="button"
@@ -1548,21 +1547,21 @@ Thank you for choosing Kandy Cabs Mangalore!
               </div>
 
               <div>
-                <label className="block text-slate-700 font-bold mb-1">💳 Payment Collection Method</label>
+                <label className="block text-slate-700 font-bold mb-1">Payment Collection Method</label>
                 <select
                   value={balanceMethod}
                   onChange={(e) => setBalanceMethod(e.target.value)}
                   className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
                 >
-                  <option value="UPI_QR">📱 UPI QR / GPay / PhonePe</option>
-                  <option value="CASH">💵 Cash Collected by Driver / Office</option>
-                  <option value="RAZORPAY">🌐 Online Razorpay Gateway</option>
-                  <option value="BANK_TRANSFER">🏦 Direct Bank Transfer / NEFT</option>
+                  <option value="UPI_QR">UPI QR / GPay / PhonePe</option>
+                  <option value="CASH">Cash Collected by Driver / Office</option>
+                  <option value="RAZORPAY">Online Razorpay Gateway</option>
+                  <option value="BANK_TRANSFER">Direct Bank Transfer / NEFT</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-slate-700 font-bold mb-1">🔖 Transaction Reference / UTR (Optional)</label>
+                <label className="block text-slate-700 font-bold mb-1">Transaction Reference / UTR (Optional)</label>
                 <input
                   type="text"
                   value={balanceTxnRef}
@@ -1573,7 +1572,7 @@ Thank you for choosing Kandy Cabs Mangalore!
               </div>
 
               <div>
-                <label className="block text-slate-700 font-bold mb-1">📝 Internal Note (Optional)</label>
+                <label className="block text-slate-700 font-bold mb-1">Internal Note (Optional)</label>
                 <input
                   type="text"
                   value={balanceNotes}

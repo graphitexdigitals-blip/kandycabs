@@ -34,6 +34,9 @@ export async function POST(req: NextRequest) {
       actualDropLat,
       actualDropLng,
       actualDropAddress,
+      waitingMinutes,
+      waitingDurationSeconds,
+      waitingSessions,
     } = body;
 
     if (!bookingId || finalOdometer === undefined || !finalOdometerImagePath) {
@@ -138,10 +141,30 @@ export async function POST(req: NextRequest) {
               actualDropAddress: resolvedDropAddress || booking.dropAddress,
               actualDropLat: resolvedDropLat ?? booking.dropLat,
               actualDropLng: resolvedDropLng ?? booking.dropLng,
+              waitingMinutes: typeof waitingMinutes === 'number' ? waitingMinutes : undefined,
+              waitingDurationSeconds: typeof waitingDurationSeconds === 'number' ? waitingDurationSeconds : undefined,
+              waitingSessions: Array.isArray(waitingSessions) ? waitingSessions : undefined,
               timestamp: now.toISOString(),
             },
           },
         });
+
+        // 3b. Insert WAITING_RECORDED event if waiting time was tracked
+        if (waitingMinutes || waitingDurationSeconds) {
+          await tx.tripEvent.create({
+            data: {
+              bookingId,
+              type: 'WAITING_RECORDED',
+              payloadJson: {
+                driverId: session.driverId,
+                waitingMinutes: waitingMinutes ?? Math.round((waitingDurationSeconds || 0) / 60),
+                durationSeconds: waitingDurationSeconds ?? (waitingMinutes ? waitingMinutes * 60 : 0),
+                sessions: waitingSessions || [],
+                timestamp: now.toISOString(),
+              },
+            },
+          });
+        }
 
         // 4. Insert AuditLog
         await tx.auditLog.create({

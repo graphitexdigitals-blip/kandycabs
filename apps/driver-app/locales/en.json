@@ -228,7 +228,9 @@
     "additional_charges": "Additional Charges",
     "additional_charges_desc": "Enter any toll or parking fees paid during this trip",
     "toll_fare": "Toll Gate Fare (₹)",
-    "parking_fare": "Parking Fare (₹)",
+    "nh_toll_fare": "NH Toll (₹)",
+    "nice_road_toll_fare": "Nice Road Toll (₹)",
+    "parking_fare": "Parking (₹)",
     "complete_trip": "COMPLETE TRIP"
   },
   "active_trip": {
@@ -241,6 +243,7 @@
     "below": "below.",
     "navigate_to_drop": "Navigate to Drop Location",
     "call_kandy_cabs": "Call Kandy Cabs",
+    "vehicle_breakdown": "Vehicle Breakdown",
     "passenger": "Passenger",
     "phone_protected": "Phone Protected",
     "trip_type": "Trip Type",

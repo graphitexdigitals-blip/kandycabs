@@ -74,11 +74,19 @@ export async function GET(req: NextRequest) {
       }
 
       let multiVehicles: any[] = [];
+      let profileExtra: Record<string, any> = {};
       if (d.adminNotes) {
         const multiMatch = d.adminNotes.match(/\[MultiVehicles:\s*(\[[\s\S]*?\])\]/);
         if (multiMatch && multiMatch[1]) {
           try {
             multiVehicles = JSON.parse(multiMatch[1]);
+          } catch {}
+        }
+
+        const profileMatch = d.adminNotes.match(/\[ProfileExtra:\s*(\{.*?\})\]/);
+        if (profileMatch && profileMatch[1]) {
+          try {
+            profileExtra = JSON.parse(profileMatch[1]);
           } catch {}
         }
       }
@@ -90,6 +98,12 @@ export async function GET(req: NextRequest) {
         userId: d.userId,
         fullName: d.user.fullName,
         phone: d.user.phone,
+        email: profileExtra.email || null,
+        altPhone: profileExtra.altPhone || profileExtra.emergencyContact || null,
+        emergencyContact: profileExtra.emergencyContact || profileExtra.altPhone || null,
+        city: profileExtra.city || null,
+        address: profileExtra.address || null,
+        experienceYears: profileExtra.experienceYears || null,
         licenseNumber: d.licenseNumber,
         profilePhotoUrl: d.profilePhotoUrl,
         licenseDocUrl: d.licenseDocUrl,

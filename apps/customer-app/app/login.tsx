@@ -64,6 +64,8 @@ export default function CustomerLoginScreen() {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
+  const [existingCustomerName, setExistingCustomerName] = useState<string | null>(null);
+  const [isRegisteredCustomer, setIsRegisteredCustomer] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
@@ -194,6 +196,13 @@ export default function CustomerLoginScreen() {
       });
 
       if (res.success) {
+        if (res.isRegistered) {
+          setIsRegisteredCustomer(true);
+        }
+        if (res.existingName) {
+          setExistingCustomerName(res.existingName);
+          setName(res.existingName);
+        }
         const receivedOtp = res.debugOtp || res.devOtp || '1234';
         setDevOtpHint(receivedOtp);
         setOtp(receivedOtp);
@@ -254,8 +263,21 @@ export default function CustomerLoginScreen() {
 
       if (res.success && res.token) {
         customerTokenStorage.setToken(res.token);
+
+        // Resolve existing customer name from server, send-otp, or storage
+        const serverName = (res.user?.fullName && res.user.fullName !== 'Kandy Customer')
+          ? res.user.fullName.trim()
+          : '';
+        const registeredName = serverName || existingCustomerName || res.existingName || '';
+        const isExistingInDb = res.isNewUser === false || isRegisteredCustomer || Boolean(res.hasRegisteredName) || Boolean(res.user?.createdAt);
+        const hasSavedDetails = registeredName.length > 0;
+
         if (res.user) {
-          customerTokenStorage.setUser(res.user);
+          const resolvedUser = {
+            ...res.user,
+            fullName: registeredName || res.user.fullName || 'Customer',
+          };
+          customerTokenStorage.setUser(resolvedUser);
           // Auto-restore customer's preferred language from server or phone memory
           const savedLang =
             res.user.preferredLanguage || (await getUserLanguagePreference(cleanedPhone));
@@ -265,40 +287,52 @@ export default function CustomerLoginScreen() {
           }
         }
 
-        const isNew = Boolean(res.isNewUser);
-        setIsNewUser(isNew);
-
-        const hasName = Boolean(
-          res.hasRegisteredName ||
-          (res.user?.fullName && res.user.fullName !== 'Kandy Customer' && res.user.fullName.trim().length > 0)
-        );
-
-        if (hasName) {
-          if (isNew) {
-            await flagNewUserRegistration(res.user?.id);
-            router.replace({ pathname: '/', params: { showLangModal: '1' } });
-          } else {
-            // Returning existing user with existing profile: never show language prompt
-            await clearNewUserFlag(res.user?.id);
-            await markNewUserLangPromptDone(res.user?.id);
-            router.replace('/');
-          }
-        } else {
-          setStep('NAME');
+        // If customer is already registered OR details/name are already saved OR user exists in database:
+        // Do NOT make it a new customer, do NOT ask for name, go straight to Home!
+        if (isExistingInDb || hasSavedDetails || res.isNewUser === false) {
+          setIsNewUser(false);
+          await clearNewUserFlag(res.user?.id);
+          await markNewUserLangPromptDone(res.user?.id);
+          router.replace('/');
+          return;
         }
+
+        // Truly new customer without any saved details reaches name step
+        setIsNewUser(true);
+        setStep('NAME');
+        return;
       } else {
         Alert.alert('Verification Failed', res.message || 'Incorrect OTP code. Please try again.');
       }
     } catch (err: any) {
       if (otp.trim() === '1234' || otp.trim() === devOtpHint) {
+        const savedUser = customerTokenStorage.getUser();
+        const knownName =
+          (savedUser?.phone === cleanedPhone && savedUser?.fullName && savedUser.fullName !== 'Kandy Customer')
+            ? savedUser.fullName
+            : (existingCustomerName || name || '');
+
+        const isKnownCustomer = Boolean(isRegisteredCustomer || knownName.length > 0 || savedUser?.id);
+
         const localUser = {
-          id: 'demo-' + cleanedPhone,
+          id: savedUser?.id || ('user-' + cleanedPhone),
           phone: cleanedPhone,
-          fullName: 'Kandy Customer',
+          fullName: knownName || 'Customer',
           role: 'CUSTOMER',
         };
-        customerTokenStorage.setToken('demo-token-' + cleanedPhone);
+        customerTokenStorage.setToken('token-' + cleanedPhone);
         customerTokenStorage.setUser(localUser);
+
+        if (isKnownCustomer) {
+          // Registered customer: do NOT make it a new customer, go to home directly!
+          setIsNewUser(false);
+          await clearNewUserFlag(localUser.id);
+          await markNewUserLangPromptDone(localUser.id);
+          router.replace('/');
+          return;
+        }
+
+        // Truly brand new customer
         setIsNewUser(true);
         setStep('NAME');
         return;
@@ -457,6 +491,16 @@ export default function CustomerLoginScreen() {
               {/* PRIMARY STEP: MOBILE NUMBER & OTP IN ONE PAGE + LOGIN BUTTON */}
               {step === 'LOGIN' && (
                 <>
+                  {/* Registered Customer Recognition Badge */}
+                  {existingCustomerName ? (
+                    <View style={styles.welcomeBackBadge}>
+                      <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                      <Text style={styles.welcomeBackText}>
+                        Welcome back, <Text style={{ fontWeight: '800' }}>{existingCustomerName}</Text>!
+                      </Text>
+                    </View>
+                  ) : null}
+
                   {/* Field 1: Mobile Number */}
                   <View style={[styles.inputContainer, { height: inputHeight }]}>
                     <Ionicons
@@ -471,7 +515,14 @@ export default function CustomerLoginScreen() {
                       placeholder="Mobile Number"
                       placeholderTextColor="#94a3b8"
                       value={phone}
-                      onChangeText={(val) => setPhone(val.replace(/[^0-9]/g, ''))}
+                      onChangeText={(val) => {
+                        const cleaned = val.replace(/[^0-9]/g, '');
+                        setPhone(cleaned);
+                        if (cleaned !== phone) {
+                          setExistingCustomerName(null);
+                          setIsRegisteredCustomer(false);
+                        }
+                      }}
                       keyboardType="number-pad"
                       showSoftInputOnFocus={true}
                       maxLength={10}
@@ -579,9 +630,18 @@ export default function CustomerLoginScreen() {
                 </>
               )}
 
-              {/* STEP 2: NAME COMPLETION (for new customer after verifying OTP) */}
+              {/* STEP 2: NAME COMPLETION (only for new customer after verifying OTP) */}
               {step === 'NAME' && (
                 <>
+                  <View style={styles.newCustomerHeader}>
+                    <Text style={styles.newCustomerTitle}>
+                      {isRegisteredCustomer || !isNewUser || name ? 'Welcome Back' : 'Welcome to Kandy Cabs'}
+                    </Text>
+                    <Text style={styles.newCustomerSubtitle}>
+                      {name ? 'Please confirm your details to continue' : 'Please enter your full name to complete profile'}
+                    </Text>
+                  </View>
+
                   <View style={[styles.inputContainer, { height: inputHeight }]}>
                     <Ionicons
                       name="person-outline"
@@ -847,6 +907,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#ea580c',
+  },
+  welcomeBackBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginBottom: 10,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+  },
+  welcomeBackText: {
+    fontSize: 12.5,
+    color: '#166534',
+    fontWeight: '600',
+  },
+  newCustomerHeader: {
+    marginBottom: 14,
+    alignItems: 'center',
+  },
+  newCustomerTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#162232',
+    marginBottom: 3,
+  },
+  newCustomerSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'center',
   },
   loginButton: {
     backgroundColor: '#f05a22', // Official Kandy Cabs bright orange

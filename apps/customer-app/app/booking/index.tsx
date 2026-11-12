@@ -480,6 +480,22 @@ export default function BookingFunnelScreen() {
 
   const isNoLuggage = totalLuggageBags === 0;
 
+  // Trips that do NOT require mandatory luggage selection: LOCAL TRIPS and CORPORATE TRAVEL only
+  const isLuggageOptionalTrip = useMemo(() => {
+    const norm = (tripTypeParam || (params.tripType as string) || (params.category as string) || '').toUpperCase().trim();
+    return (
+      norm === 'LOCAL' ||
+      norm === 'LOCAL_TRIP' ||
+      norm === 'LOCAL TRIP' ||
+      norm === 'HOURLY' ||
+      norm === 'PACKAGE' ||
+      norm === 'RENTAL' ||
+      norm === 'CORPORATE' ||
+      norm === 'CORPORATE_TRAVEL' ||
+      norm === 'CORPORATE TRAVEL'
+    );
+  }, [tripTypeParam, params.tripType, params.category]);
+
   const selectedLuggageList = useMemo(() => {
     return LUGGAGE_OPTIONS.filter((opt) => luggageCounts[opt.id] > 0);
   }, [luggageCounts]);
@@ -1389,16 +1405,17 @@ export default function BookingFunnelScreen() {
         const rawName = res.user?.fullName;
         const registeredName = (rawName === 'Kandy Customer' ? '' : (rawName || '')).trim();
         const hasName = Boolean(registeredName.length > 0 && res.hasRegisteredName !== false);
+        const isRegistered = res.isNewUser === false || hasName;
 
-        if (hasName) {
+        if (isRegistered) {
           // Existing customer with registered name -> auto login
-          const validUser = { ...res.user, fullName: registeredName };
+          const validUser = { ...res.user, fullName: registeredName || 'Customer' };
           customerTokenStorage.setUser(validUser);
           setUser(validUser);
-          setPassengerName(registeredName);
+          setPassengerName(validUser.fullName);
           setPassengerPhone(cleaned);
-          setPassengerEmail(res.user.email || '');
-          Alert.alert('Signed In Successfully! 👋', `Welcome, ${registeredName}!`);
+          setPassengerEmail(res.user?.email || '');
+          Alert.alert('Signed In Successfully! 👋', `Welcome, ${validUser.fullName}!`);
         } else {
           // New customer without name -> ask for name in step 2 (do NOT set user yet, keep auth card open)
           setUser(null);
@@ -1454,34 +1471,92 @@ export default function BookingFunnelScreen() {
     }
   };
 
-  // Handle Apply Coupon
-  const handleApplyCoupon = () => {
+  // Handle Apply Coupon (Live validation with backend + smart offline fallback)
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+
+  const handleApplyCoupon = async () => {
     const code = couponCode.trim().toUpperCase();
     if (!code) {
       setCouponMsg('Please enter a coupon code.');
       return;
     }
 
-    if (code === 'KCD500') {
-      const discount = 500;
+    setIsApplyingCoupon(true);
+    setCouponMsg('Validating coupon...');
+
+    try {
+      const res = await customerApiClient.fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code,
+          fare: baseEstimatedFare,
+          tripType: tripTypeParam,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.valid && data.coupon) {
+        setCouponDiscount(Number(data.coupon.discountAmount));
+        setCouponApplied(true);
+        setCouponMsg(data.message || `🎉 Promo "${code}" applied! You saved ₹${data.coupon.discountAmount}`);
+        return;
+      } else if (data.message) {
+        setCouponApplied(false);
+        setCouponDiscount(0);
+        setCouponMsg(data.message);
+        return;
+      }
+    } catch (networkErr) {
+      // Graceful offline fallback
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+
+    // Offline / fallback rules if server is unreachable
+    if (code === 'WELCOME100') {
+      const discount = Math.min(100, baseEstimatedFare);
+      setCouponDiscount(discount);
+      setCouponApplied(true);
+      setCouponMsg(`🎉 Promo "${code}" applied! You saved ₹${discount}`);
+    } else if (code === 'KANDY15' || code === 'SAVE15') {
+      const discount = Math.min(Math.round(baseEstimatedFare * 0.15), 400);
+      setCouponDiscount(discount);
+      setCouponApplied(true);
+      setCouponMsg(`🎉 Promo "${code}" applied! You saved ₹${discount}`);
+    } else if (code === 'FESTIVE500' || code === 'KCD500') {
+      const discount = Math.min(500, baseEstimatedFare);
       setCouponDiscount(discount);
       setCouponApplied(true);
       setCouponMsg(`🎉 Festive Promo "${code}" applied! You saved ₹${discount}`);
+    } else if (code === 'AIRPORT10') {
+      const discount = Math.min(Math.round(baseEstimatedFare * 0.1), 250);
+      setCouponDiscount(discount);
+      setCouponApplied(true);
+      setCouponMsg(`🎉 Promo "${code}" applied! You saved ₹${discount}`);
     } else if (code === 'KANDY10' || code === 'SAVE10') {
-      const discount = Math.round(baseEstimatedFare * 0.1);
+      const discount = Math.min(Math.round(baseEstimatedFare * 0.1), 300);
       setCouponDiscount(discount);
       setCouponApplied(true);
       setCouponMsg(`🎉 Promo "${code}" applied! You saved ₹${discount}`);
     } else if (code === 'FIRST50' || code === 'WELCOME50') {
-      const discount = 50;
+      const discount = Math.min(50, baseEstimatedFare);
       setCouponDiscount(discount);
       setCouponApplied(true);
       setCouponMsg(`🎉 Promo "${code}" applied! You saved ₹${discount}`);
     } else {
       setCouponApplied(false);
       setCouponDiscount(0);
-      setCouponMsg('Invalid coupon code. Try KANDY10 or FIRST50.');
+      setCouponMsg('Invalid coupon code. Try WELCOME100 or KANDY15.');
     }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponApplied(false);
+    setCouponDiscount(0);
+    setCouponCode('');
+    setCouponMsg('');
   };
 
   // Pet Friendly convenience fee (dynamically determined by selected pet: Cat, Dog, or Bird)
@@ -1501,7 +1576,13 @@ export default function BookingFunnelScreen() {
 
   // Proceed to Step 2
   const handleProceedToStep2 = () => {
-    if (passengerCount <= 0) {
+    const isTravellersMissing = passengerCount <= 0;
+    const isLuggageMissing = !isLuggageOptionalTrip && totalLuggageBags <= 0;
+
+    if (isTravellersMissing || isLuggageMissing) {
+      if (isLuggageMissing && !isTravellersMissing) {
+        setIsLuggageDropdownOpen(true);
+      }
       setShowTravellersRequiredModal(true);
       return;
     }
@@ -1602,6 +1683,7 @@ export default function BookingFunnelScreen() {
           durationDays: 1,
           packageHours: localHours,
           couponCode: couponApplied ? couponCode.trim().toUpperCase() : undefined,
+          couponDiscount: couponApplied ? couponDiscount : 0,
           passengerName: passengerName.trim(),
           passengerPhone: passengerPhone.replace(/\D/g, '').slice(-10),
           passengerEmail: passengerEmail.trim() || undefined,
@@ -2771,40 +2853,67 @@ export default function BookingFunnelScreen() {
                           style={{
                             flex: 1,
                             borderWidth: 1,
-                            borderColor: '#cbd5e1',
+                            borderColor: couponApplied ? '#86efac' : '#cbd5e1',
                             borderRadius: 6,
                             paddingHorizontal: 6,
                             paddingVertical: 3,
                             fontSize: 10,
                             fontWeight: '700',
-                            backgroundColor: '#ffffff',
+                            backgroundColor: couponApplied ? '#f0fdf4' : '#ffffff',
                             color: 'rgb(22, 34, 50)',
                           }}
-                          placeholder={t('bookingReview.tryCouponPlaceholder', { defaultValue: 'Try KANDY10' })}
+                          placeholder={t('bookingReview.tryCouponPlaceholder', { defaultValue: 'Try WELCOME100, KANDY15' })}
                           placeholderTextColor="#94a3b8"
                           autoCapitalize="characters"
+                          editable={!couponApplied}
                           value={couponCode}
-                          onChangeText={setCouponCode}
-                        />
-                        <TouchableOpacity
-                          style={{
-                            backgroundColor: 'rgb(240, 117, 15)',
-                            borderRadius: 6,
-                            paddingHorizontal: 8,
-                            justifyContent: 'center',
+                          onChangeText={(txt) => {
+                            setCouponCode(txt);
+                            if (couponApplied) {
+                              setCouponApplied(false);
+                              setCouponDiscount(0);
+                              setCouponMsg('');
+                            }
                           }}
-                          onPress={handleApplyCoupon}
-                        >
-                          <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '700' }}>
-                            {t('bookingReview.apply', { defaultValue: 'Apply' })}
-                          </Text>
-                        </TouchableOpacity>
+                        />
+                        {couponApplied ? (
+                          <TouchableOpacity
+                            style={{
+                              backgroundColor: '#fee2e2',
+                              borderRadius: 6,
+                              paddingHorizontal: 8,
+                              justifyContent: 'center',
+                              borderWidth: 1,
+                              borderColor: '#fca5a5',
+                            }}
+                            onPress={handleRemoveCoupon}
+                          >
+                            <Text style={{ color: '#b91c1c', fontSize: 10, fontWeight: '700' }}>
+                              ✕ Remove
+                            </Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            style={{
+                              backgroundColor: isApplyingCoupon ? '#cbd5e1' : 'rgb(240, 117, 15)',
+                              borderRadius: 6,
+                              paddingHorizontal: 8,
+                              justifyContent: 'center',
+                            }}
+                            disabled={isApplyingCoupon}
+                            onPress={handleApplyCoupon}
+                          >
+                            <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '700' }}>
+                              {isApplyingCoupon ? '...' : t('bookingReview.apply', { defaultValue: 'Apply' })}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
-                      {couponMsg && (
-                        <Text style={{ fontSize: 8.5, color: couponApplied ? '#16a34a' : '#dc2626', marginTop: 2 }}>
+                      {couponMsg ? (
+                        <Text style={{ fontSize: 8.5, color: couponApplied ? '#16a34a' : '#dc2626', marginTop: 2, fontWeight: couponApplied ? '700' : '500' }}>
                           {couponMsg}
                         </Text>
-                      )}
+                      ) : null}
                     </View>
                   )}
                 </View>
@@ -4221,6 +4330,14 @@ export default function BookingFunnelScreen() {
                     );
                     return;
                   }
+                  if (!isLuggageOptionalTrip && totalLuggageBags <= 0) {
+                    Alert.alert(
+                      t('additionalRequirements.travellersRequiredTitle', { defaultValue: 'Select Travellers' }),
+                      'Please select the number of travellers and luggage before continuing.'
+                    );
+                    setIsLuggageDropdownOpen(true);
+                    return;
+                  }
                   setShowRequirementsModal(false);
                 }}
                 activeOpacity={0.85}
@@ -4329,6 +4446,9 @@ export default function BookingFunnelScreen() {
                 style={styles.travellersAlertSelectBtn}
                 onPress={() => {
                   setShowTravellersRequiredModal(false);
+                  if (passengerCount > 0 && !isLuggageOptionalTrip && totalLuggageBags <= 0) {
+                    setIsLuggageDropdownOpen(true);
+                  }
                   setTimeout(() => {
                     setShowRequirementsModal(true);
                   }, 300);

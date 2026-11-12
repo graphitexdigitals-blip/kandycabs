@@ -188,81 +188,88 @@ export default function DriverEnRouteScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
-      {/* 3-Step Flow Header: 1. Pickup (Active) -> 2. OTP -> 3. Drop */}
-      <TripFlowHeader currentStep={1} />
+      {/* 6-Step Flow Header: 1. Verify -> 2. Pickup (Active) -> 3. Odometer -> 4. OTP -> 5. On Trip -> 6. Drop */}
+      <TripFlowHeader currentStep={2} />
 
       <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Customer Details Banner (Redesigned per Reference) */}
-        <LinearGradient
-          colors={['#fff8f2', '#ffedd5', '#fed7aa']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.customerBannerCard}
-        >
-          {/* Decorative Warm Shapes */}
-          <View style={styles.decorativeBlob1} />
-          <View style={styles.decorativeBlob2} />
-
-          <View style={styles.customerHeaderRow}>
-            <View style={styles.customerLeftGroup}>
-              <View style={styles.customerAvatarCircle}>
-                <Ionicons name="person" size={26} color="#1d4ed8" />
-              </View>
-              <View style={styles.customerInfoCol}>
-                <Text style={styles.customerTagText}>Customer Details</Text>
-                <Text style={styles.customerName} numberOfLines={1}>
-                  {booking.customer?.user?.fullName || 'Customer'}
-                </Text>
-                <Text style={styles.customerIdText}>
-                  Customer ID: {booking?.humanReadableRef || booking?.bookingNumber || 'KC-2026-925966'}
-                </Text>
-              </View>
-            </View>
-
-            {/* Call Now Pill Button */}
-            {(() => {
-              const phone = booking.customer?.user?.phone || booking.customerPhone || booking.phone;
-              return (
-                <TouchableOpacity
-                  style={styles.callNowPill}
-                  onPress={() => {
-                    if (phone) {
-                      Linking.openURL(`tel:${phone}`);
-                    } else {
-                      Alert.alert('Customer Contact', 'Customer contact will be available upon arrival.');
-                    }
-                  }}
-                  activeOpacity={0.82}
-                >
-                  <Ionicons name="call" size={16} color="#ea580c" />
-                  <Text style={styles.callNowPillText}>Call Now</Text>
-                </TouchableOpacity>
-              );
-            })()}
-          </View>
-        </LinearGradient>
-
-        {/* Trip Details Card (Pickup Location & Trip Type) */}
-        <View style={styles.tripDetailsCard}>
-          {/* Pickup Location Row (No icons, label on left side of content) */}
-          <TouchableOpacity
-            style={styles.infoDetailRow}
-            onPress={openNavigation}
-            activeOpacity={0.7}
+        {/* Unified Customer & Trip Details Card */}
+        <View style={styles.unifiedCard}>
+          {/* Top Section: Orange Gradient Customer Details */}
+          <LinearGradient
+            colors={['#fff8f2', '#ffedd5', '#fed7aa']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.customerBannerTop}
           >
-            <Text style={styles.detailLabelLeft}>Pickup Location:</Text>
-            <Text style={styles.detailValDark} numberOfLines={2}>{booking.pickupAddress}</Text>
-          </TouchableOpacity>
+            {/* Decorative Warm Shapes */}
+            <View style={styles.decorativeBlob1} />
+            <View style={styles.decorativeBlob2} />
 
-          <View style={styles.divider} />
+            <View style={styles.customerHeaderRow}>
+              <View style={styles.customerLeftGroup}>
+                <View style={styles.customerAvatarCircle}>
+                  <Ionicons name="person" size={20} color="#1d4ed8" />
+                </View>
+                <View style={styles.customerInfoCol}>
+                  <Text style={styles.customerTagText}>Customer Details</Text>
+                  <Text style={styles.customerName} numberOfLines={1}>
+                    {booking.customer?.user?.fullName || 'Customer'}
+                  </Text>
+                  <Text style={styles.customerIdText}>
+                    Customer ID: {booking?.humanReadableRef || booking?.bookingNumber || 'KC-2026-925966'}
+                  </Text>
+                </View>
+              </View>
 
-          {/* Trip Type Row (No icons, label on left side of content) */}
-          <View style={styles.infoDetailRow}>
-            <Text style={styles.detailLabelLeft}>Trip Type:</Text>
-            <Text style={styles.detailValOrange}>
-              {booking.tripType?.toUpperCase() || 'ONEWAY'}
-              {booking.distanceKm ? ` (${booking.distanceKm} km)` : ''}
-            </Text>
+              {/* Call Now Pill Button */}
+              {(() => {
+                const phone = booking.customer?.user?.phone || booking.customerPhone || booking.phone;
+                return (
+                  <TouchableOpacity
+                    style={styles.callNowPill}
+                    onPress={() => {
+                      if (phone) {
+                        Linking.openURL(`tel:${phone}`);
+                      } else {
+                        Alert.alert('Customer Contact', 'Customer contact will be available upon arrival.');
+                      }
+                    }}
+                    activeOpacity={0.82}
+                  >
+                    <Ionicons name="call" size={16} color="#ea580c" />
+                    <Text style={styles.callNowPillText}>Call Now</Text>
+                  </TouchableOpacity>
+                );
+              })()}
+            </View>
+          </LinearGradient>
+
+          {/* Line Separator between Top Orange and Bottom White */}
+          <View style={styles.sectionDivider} />
+
+          {/* Bottom Section: White Background Trip Details */}
+          <View style={styles.tripDetailsBottom}>
+            {/* Pickup Location Row */}
+            <TouchableOpacity
+              style={styles.infoDetailRow}
+              onPress={openNavigation}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.detailLabelLeft}>Pickup Location:</Text>
+              <Text style={styles.detailValDark} numberOfLines={2}>{booking.pickupAddress}</Text>
+            </TouchableOpacity>
+
+            {/* Line Separator between rows */}
+            <View style={styles.divider} />
+
+            {/* Trip Type Row */}
+            <View style={styles.infoDetailRow}>
+              <Text style={styles.detailLabelLeft}>Trip Type:</Text>
+              <Text style={styles.detailValOrange}>
+                {booking.tripType?.toUpperCase() || 'ONEWAY'}
+                {booking.distanceKm ? ` (${booking.distanceKm} km)` : ''}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -303,18 +310,21 @@ export default function DriverEnRouteScreen() {
                 {booking.pickupAddress || 'Pickup Point'}
               </Text>
             </View>
-          </View>
 
-          {/* Open Navigation Button */}
-          <TouchableOpacity style={styles.openNavButton} onPress={openNavigation} activeOpacity={0.85}>
-            <Ionicons name="navigate" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-            <Text style={styles.openNavButtonText}>Open Navigation</Text>
-            <Ionicons name="chevron-forward" size={18} color="#ffffff" />
-          </TouchableOpacity>
+            {/* Small Selectable Floating Open Navigation Button (Inside Map) */}
+            <TouchableOpacity
+              style={styles.floatingNavBtn}
+              onPress={openNavigation}
+              activeOpacity={0.82}
+            >
+              <Ionicons name="navigate" size={13} color="#ffffff" style={{ marginRight: 5 }} />
+              <Text style={styles.floatingNavBtnText}>Open Navigation</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
-      {/* Bottom Action: SLIDE RIGHT (REACHED) */}
+      {/* Bottom Action: SLIDE TO VERIFY VEHICLE */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         {/* Clear Instructions Banner */}
         <View style={isArrived ? styles.arrivedNoticeBox : styles.arrivedInstructionsBox}>
@@ -324,24 +334,22 @@ export default function DriverEnRouteScreen() {
             color={isArrived ? '#059669' : '#0284c7'}
             style={{ marginTop: 2, marginRight: 8 }}
           />
-          <Text style={isArrived ? styles.arrivedNoticeText : styles.arrivedInstructionsText}>
-            {isArrived ? (
-              <Text>
-                You have reached <Text style={styles.highlightText}>{booking.pickupAddress || 'Pickup Location'}</Text>. Slide right to verify customer OTP & meter.
-              </Text>
-            ) : (
-              <Text>
-                Drive to <Text style={styles.highlightText}>{booking.pickupAddress || 'Pickup Location'}</Text>. After reaching the pickup location, slide right below to continue.
-              </Text>
-            )}
-          </Text>
+          {isArrived ? (
+            <Text style={styles.arrivedNoticeText}>
+              You have reached <Text style={styles.highlightText}>{booking.pickupAddress || 'Pickup Location'}</Text>. Slide right to start trip & record odometer.
+            </Text>
+          ) : (
+            <Text style={styles.arrivedInstructionsText}>
+              Heading to <Text style={styles.highlightText}>{booking.pickupAddress || 'Pickup Location'}</Text>. Slide right once arrived at customer pickup.
+            </Text>
+          )}
         </View>
 
         <SlideToAccept
           onAccept={handleSlideReached}
           isAccepting={isSlidingReached}
-          title="SLIDE RIGHT (REACHED)"
-          acceptingTitle="CONFIRMING REACHED..."
+          title="SLIDE: ARRIVED AT PICKUP"
+          acceptingTitle="STARTING TRIP..."
         />
       </View>
     </View>
@@ -481,7 +489,8 @@ const styles = StyleSheet.create({
     marginTop: 0,
     backgroundColor: '#ffffff',
     borderRadius: 20,
-    padding: 8,
+    padding: 0,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     shadowColor: '#0f172a',
@@ -492,8 +501,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   mapCanvas: {
-    height: 146,
-    borderRadius: 14,
+    height: 220,
+    borderRadius: 20,
     backgroundColor: '#f1f5f9',
     overflow: 'hidden',
     position: 'relative',
@@ -505,22 +514,22 @@ const styles = StyleSheet.create({
     left: 0,
     width: '32%',
     backgroundColor: '#dbeafe',
-    borderTopRightRadius: 40,
-    borderBottomRightRadius: 80,
+    borderTopRightRadius: 60,
+    borderBottomRightRadius: 100,
     opacity: 0.85,
   },
   mapRoadH1: {
     position: 'absolute',
-    top: 45,
+    top: 60,
     left: 0,
     right: 0,
-    height: 6,
+    height: 7,
     backgroundColor: '#e2e8f0',
     transform: [{ rotate: '-8deg' }],
   },
   mapRoadH2: {
     position: 'absolute',
-    top: 95,
+    top: 140,
     left: 0,
     right: 0,
     height: 8,
@@ -547,9 +556,9 @@ const styles = StyleSheet.create({
   },
   mapRouteCurve1: {
     position: 'absolute',
-    top: 80,
+    top: 120,
     left: '40%',
-    width: 64,
+    width: 72,
     height: 5,
     backgroundColor: '#2563eb',
     transform: [{ rotate: '-38deg' }],
@@ -557,9 +566,9 @@ const styles = StyleSheet.create({
   },
   mapRouteCurve2: {
     position: 'absolute',
-    top: 50,
+    top: 75,
     left: '52%',
-    width: 68,
+    width: 78,
     height: 5,
     backgroundColor: '#2563eb',
     transform: [{ rotate: '-20deg' }],
@@ -567,7 +576,7 @@ const styles = StyleSheet.create({
   },
   driverMarkerContainer: {
     position: 'absolute',
-    top: 90,
+    top: 135,
     left: '38%',
     transform: [{ translateX: -16 }, { translateY: -16 }],
   },
@@ -591,12 +600,12 @@ const styles = StyleSheet.create({
   },
   destinationPinContainer: {
     position: 'absolute',
-    top: 34,
+    top: 55,
     right: 140,
   },
   destinationTagPill: {
     position: 'absolute',
-    top: 38,
+    top: 60,
     right: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -616,42 +625,71 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0f172a',
   },
-  openNavButton: {
+  floatingNavBtn: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
     backgroundColor: '#1d63ed',
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 11,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    shadowColor: '#1d63ed',
-    shadowOffset: { width: 0, height: 3 },
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  openNavButtonText: {
-    fontSize: 15,
+  floatingNavBtnText: {
+    fontSize: 12,
     fontWeight: '700',
     color: '#ffffff',
-    flex: 1,
+    letterSpacing: 0.2,
+  },
+  unifiedCard: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 14,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  customerBannerTop: {
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: '#fed7aa',
+  },
+  tripDetailsBottom: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingVertical: 4,
   },
   customerBannerCard: {
     marginHorizontal: 16,
-    marginTop: 14,
+    marginTop: 10,
     marginBottom: 10,
-    borderRadius: 22,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
+    borderRadius: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: '#fed7aa',
     overflow: 'hidden',
     position: 'relative',
     shadowColor: '#ea580c',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowRadius: 8,
     elevation: 2,
   },
   decorativeBlob1: {
@@ -684,44 +722,44 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   customerAvatarCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: '#dbeafe',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   customerInfoCol: {
     flex: 1,
     justifyContent: 'center',
   },
   customerTagText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: '#475569',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   customerName: {
-    fontSize: 19,
+    fontSize: 16,
     fontWeight: '900',
     color: '#0f172a',
     letterSpacing: -0.3,
   },
   customerIdText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '600',
     color: '#475569',
-    marginTop: 2,
+    marginTop: 1,
   },
   callNowPill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 24,
-    gap: 7,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    gap: 6,
     borderWidth: 1,
     borderColor: '#ffedd5',
     shadowColor: '#ea580c',
@@ -731,7 +769,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   callNowPillText: {
-    fontSize: 14,
+    fontSize: 12.5,
     fontWeight: '800',
     color: '#0f172a',
   },
