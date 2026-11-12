@@ -525,9 +525,7 @@ export default function DriverTripActiveScreen() {
                 <View style={styles.waitingTriggerTexts}>
                   <Text style={styles.waitingTriggerTitle}>
                     {isWaitingActive
-                      ? isWaitingPaused
-                        ? 'Waiting Paused'
-                        : 'Waiting in Progress'
+                      ? 'Waiting in Progress'
                       : totalAccumulatedSeconds > 0
                       ? 'Waiting Recorded ✓'
                       : 'Waiting'}
@@ -535,9 +533,7 @@ export default function DriverTripActiveScreen() {
                   {(isWaitingActive || totalAccumulatedSeconds > 0) && (
                     <Text style={styles.waitingTriggerSub} numberOfLines={1}>
                       {isWaitingActive
-                        ? isWaitingPaused
-                          ? `⏱ ${formatTimerDisplay(displaySeconds)} • Paused`
-                          : `⏱ ${formatTimerDisplay(displaySeconds)} • Tracking waiting time`
+                        ? `⏱ ${formatTimerDisplay(displaySeconds)} • Tracking waiting time`
                         : `⏱ ${formatTimerDisplay(totalAccumulatedSeconds)} recorded`}
                     </Text>
                   )}
@@ -546,44 +542,41 @@ export default function DriverTripActiveScreen() {
 
               {/* Actions on right */}
               <View style={styles.waitingActionsRight}>
-                {isWaitingActive && !isWaitingPaused && (
+                {isWaitingActive ? (
+                  <TouchableOpacity
+                    style={styles.waitingStopBtnCompact}
+                    onPress={handleStopWaiting}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="stop" size={13} color="#ffffff" style={{ marginRight: 4 }} />
+                    <Text style={styles.waitingStopBtnTextCompact}>Stop</Text>
+                  </TouchableOpacity>
+                ) : totalAccumulatedSeconds === 0 ? (
+                  <TouchableOpacity
+                    style={styles.waitingStartBtnCompact}
+                    onPress={handleStartWaiting}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="play" size={13} color="#ffffff" style={{ marginRight: 4 }} />
+                    <Text style={styles.waitingStartBtnTextCompact}>Start</Text>
+                  </TouchableOpacity>
+                ) : (
                   <>
                     <TouchableOpacity
-                      style={styles.waitingPauseBtnCompact}
-                      onPress={handlePauseWaiting}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="pause" size={13} color="#92400e" style={{ marginRight: 3 }} />
-                      <Text style={styles.waitingPauseBtnTextCompact}>Pause</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.waitingFinishBtnCompact}
-                      onPress={handleStopWaiting}
-                      activeOpacity={0.8}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                    >
-                      <Ionicons name="stop" size={12} color="#dc2626" />
-                    </TouchableOpacity>
-                  </>
-                )}
-
-                {isWaitingActive && isWaitingPaused && (
-                  <>
-                    <TouchableOpacity
-                      style={styles.waitingResumeBtnCompact}
-                      onPress={handleContinueWaiting}
+                      style={styles.waitingStartBtnCompact}
+                      onPress={handleStartWaiting}
                       activeOpacity={0.8}
                     >
                       <Ionicons name="play" size={13} color="#ffffff" style={{ marginRight: 3 }} />
-                      <Text style={styles.waitingResumeBtnTextCompact}>Resume</Text>
+                      <Text style={styles.waitingStartBtnTextCompact}>Start</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={styles.waitingFinishBtnCompact}
-                      onPress={handleStopWaiting}
+                      style={styles.waitingResetBtnCompact}
+                      onPress={handleResetWaiting}
                       activeOpacity={0.8}
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     >
-                      <Ionicons name="stop" size={12} color="#dc2626" />
+                      <Ionicons name="refresh" size={13} color="#64748b" />
                     </TouchableOpacity>
                   </>
                 )}
@@ -1218,6 +1211,20 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   waitingStartBtnTextCompact: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  waitingStopBtnCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#dc2626',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+  },
+  waitingStopBtnTextCompact: {
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '800',
