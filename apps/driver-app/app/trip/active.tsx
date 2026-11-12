@@ -574,38 +574,6 @@ export default function DriverTripActiveScreen() {
                     </TouchableOpacity>
                   </>
                 )}
-
-                {!isWaitingActive && totalAccumulatedSeconds === 0 && (
-                  <TouchableOpacity
-                    style={styles.waitingStartBtnCompact}
-                    onPress={handleStartWaiting}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="play" size={13} color="#ffffff" style={{ marginRight: 4 }} />
-                    <Text style={styles.waitingStartBtnTextCompact}>Start</Text>
-                  </TouchableOpacity>
-                )}
-
-                {!isWaitingActive && totalAccumulatedSeconds > 0 && (
-                  <>
-                    <TouchableOpacity
-                      style={styles.waitingStartBtnCompact}
-                      onPress={handleStartWaiting}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="play" size={13} color="#ffffff" style={{ marginRight: 3 }} />
-                      <Text style={styles.waitingStartBtnTextCompact}>Start</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.waitingResetBtnCompact}
-                      onPress={handleResetWaiting}
-                      activeOpacity={0.8}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                    >
-                      <Ionicons name="refresh" size={13} color="#64748b" />
-                    </TouchableOpacity>
-                  </>
-                )}
               </View>
             </View>
           </View>
