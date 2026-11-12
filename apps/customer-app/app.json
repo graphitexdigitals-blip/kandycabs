@@ -20,7 +20,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FC5204"
+        "backgroundColor": "#012643"
       },
       "package": "com.kandycabs.customer",
       "permissions": [
