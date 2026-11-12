@@ -187,7 +187,10 @@ export function SlideToAccept({
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={styles.trackGradient}
+            style={[
+              styles.trackGradient,
+              isAccepting && styles.trackAccepting,
+            ]}
           >
             {/* Animated Center Text & Chevrons */}
             <Animated.View style={[styles.textWrapper, { opacity: isAccepting ? 0.3 : textOpacity }]}>
