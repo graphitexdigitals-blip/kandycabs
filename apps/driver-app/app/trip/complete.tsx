@@ -20,7 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { locationTracker } from '../../lib/location-tracker';
 import { reverseGeocodeAddress } from '../../lib/reverse-geocoding';
 import { driverApiClient } from '../../lib/api';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from '../../components/SafeLinearGradient';
 import { TripFlowHeader } from '../../components/TripFlowHeader';
 import { useTranslation } from 'react-i18next';
@@ -511,7 +511,7 @@ export default function DriverTripCompleteScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.walletIconCircle}>
-              <Ionicons name="card" size={24} color="#7c3aed" />
+              <Ionicons name="card" size={20} color="#475569" />
             </View>
             <View style={styles.cardHeaderTextCol}>
               <View style={styles.sectionTitleRow}>
@@ -525,7 +525,7 @@ export default function DriverTripCompleteScreen() {
             {/* NH Toll Box */}
             <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
-                <Ionicons name="business" size={16} color="#059669" />
+                <Ionicons name="business" size={16} color="#475569" />
                 <Text style={styles.chargeLabel}>{t('trip_flow.nh_toll_fare', 'NH Toll (₹)')}</Text>
               </View>
               <TextInput
@@ -545,7 +545,7 @@ export default function DriverTripCompleteScreen() {
             {/* Nice Road Toll Box */}
             <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
-                <Ionicons name="git-merge" size={16} color="#d97706" />
+                <Ionicons name="git-merge" size={16} color="#475569" />
                 <Text style={styles.chargeLabel}>{t('trip_flow.nice_road_toll_fare', 'Nice Road Toll (₹)')}</Text>
               </View>
               <TextInput
@@ -568,9 +568,7 @@ export default function DriverTripCompleteScreen() {
             {/* Parking Fare Box */}
             <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
-                <View style={styles.parkingBadge}>
-                  <Text style={styles.parkingBadgeText}>P</Text>
-                </View>
+                <MaterialCommunityIcons name="parking" size={16} color="#475569" />
                 <Text style={styles.chargeLabel}>{t('trip_flow.parking_fare', 'Parking (₹)')}</Text>
               </View>
               <TextInput
@@ -588,12 +586,12 @@ export default function DriverTripCompleteScreen() {
             </View>
 
             {/* Total Additional Charges Summary Box */}
-            <View style={styles.totalExtraBox}>
+            <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
-                <Ionicons name="calculator" size={15} color="#7c3aed" />
-                <Text style={[styles.chargeLabel, { color: '#6d28d9' }]}>Total Extra</Text>
+                <Ionicons name="calculator" size={16} color="#475569" />
+                <Text style={styles.chargeLabel}>Total Extra</Text>
               </View>
-              <View style={styles.totalExtraAmountRow}>
+              <View style={styles.totalExtraDisplayBox}>
                 <Text style={styles.totalExtraAmount}>
                   ₹{totalExtraCharges.toFixed(2)}
                 </Text>
@@ -1564,24 +1562,19 @@ const styles = StyleSheet.create({
   parkingChargeBox: {
     flex: 1,
   },
-  totalExtraBox: {
-    flex: 1,
-    backgroundColor: '#f5f3ff',
+  totalExtraDisplayBox: {
+    backgroundColor: '#ffffff',
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#ddd6fe',
+    borderColor: '#e2e8f0',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    justifyContent: 'center',
-  },
-  totalExtraAmountRow: {
     height: 40,
     justifyContent: 'center',
   },
   totalExtraAmount: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#7c3aed',
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0f172a',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   chargeHeaderRow: {
