@@ -21,6 +21,30 @@ Copy-Item $baseApk $tempUnsigned -Force
 Write-Output "2. Updating zip entries in APK..."
 $zip = [System.IO.Compression.ZipFile]::Open($tempUnsigned, [System.IO.Compression.ZipArchiveMode]::Update)
 
+# Patch AndroidManifest.xml binary versionCode to 25 and versionName to 1.1.0
+$manifestEntry = $zip.GetEntry("AndroidManifest.xml")
+if ($null -ne $manifestEntry) {
+    $mStream = $manifestEntry.Open()
+    $mMem = New-Object System.IO.MemoryStream
+    $mStream.CopyTo($mMem)
+    $mBytes = $mMem.ToArray()
+    $mStream.Dispose()
+    $manifestEntry.Delete()
+
+    # Patch versionCode at offset 6008 to 25
+    $vcBytes = [System.BitConverter]::GetBytes([uint32]25)
+    [System.Array]::Copy($vcBytes, 0, $mBytes, 6008, 4)
+
+    # Patch versionName at offset 1208 to "1.1.0"
+    $vnBytes = [System.Text.Encoding]::Unicode.GetBytes("1.1.0")
+    [System.Array]::Copy($vnBytes, 0, $mBytes, 1208, $vnBytes.Length)
+
+    $newManifestPath = Join-Path $root "apps\customer-app\dist_bundle\AndroidManifest.xml"
+    [System.IO.File]::WriteAllBytes($newManifestPath, $mBytes)
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $newManifestPath, "AndroidManifest.xml")
+    Write-Output "Patched AndroidManifest.xml with versionCode=25, versionName=1.1.0!"
+}
+
 $toDelete = @()
 foreach ($entry in $zip.Entries) {
     if ($entry.FullName.StartsWith("META-INF/") -or $entry.FullName -eq "assets/index.android.bundle") {

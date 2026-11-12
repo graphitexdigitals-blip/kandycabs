@@ -283,6 +283,7 @@ export default function CustomerLoginScreen() {
         // - OR registeredName.length > 0
         const isExistingUser = res.isNewUser === false || isRegisteredCustomer || Boolean(res.hasRegisteredName) || Boolean(res.user?.id) || registeredName.length > 0;
 
+        // If user returned from server, store profile
         if (res.user) {
           const resolvedUser = {
             ...res.user,
@@ -298,19 +299,13 @@ export default function CustomerLoginScreen() {
           }
         }
 
-        // If customer is already registered OR details/name are already saved OR user exists in database:
-        // Do NOT make it a new customer, do NOT ask for name, go straight to Home!
-        if (isExistingUser) {
-          setIsNewUser(false);
-          await clearNewUserFlag(res.user?.id);
-          await markNewUserLangPromptDone(res.user?.id);
-          router.replace('/');
-          return;
+        // Customer is authenticated! Directly enter Home screen - NO blocking name screen
+        setIsNewUser(false);
+        if (res.user?.id) {
+          await clearNewUserFlag(res.user.id);
+          await markNewUserLangPromptDone(res.user.id);
         }
-
-        // Truly new customer without any saved details reaches name step
-        setIsNewUser(true);
-        setStep('NAME');
+        router.replace('/');
         return;
       } else {
         Alert.alert('Verification Failed', res.message || 'Incorrect OTP code. Please try again.');
@@ -326,8 +321,6 @@ export default function CustomerLoginScreen() {
           ? ''
           : rawKnown;
 
-        const isKnownCustomer = Boolean(isRegisteredCustomer || cleanKnown.length > 0 || (savedUser?.id && savedUser?.phone === cleanedPhone));
-
         const localUser = {
           id: savedUser?.id || ('user-' + cleanedPhone),
           phone: cleanedPhone,
@@ -337,18 +330,11 @@ export default function CustomerLoginScreen() {
         customerTokenStorage.setToken('token-' + cleanedPhone);
         customerTokenStorage.setUser(localUser);
 
-        if (isKnownCustomer) {
-          // Registered customer: do NOT make it a new customer, go to home directly!
-          setIsNewUser(false);
-          await clearNewUserFlag(localUser.id);
-          await markNewUserLangPromptDone(localUser.id);
-          router.replace('/');
-          return;
-        }
-
-        // Truly brand new customer
-        setIsNewUser(true);
-        setStep('NAME');
+        // Directly enter Home screen
+        setIsNewUser(false);
+        await clearNewUserFlag(localUser.id);
+        await markNewUserLangPromptDone(localUser.id);
+        router.replace('/');
         return;
       }
       Alert.alert('Verification Error', err.message || 'OTP verification failed. Please try again.');
@@ -379,36 +365,26 @@ export default function CustomerLoginScreen() {
     await handleVerifyOtp();
   };
 
-  // STEP 3 for new users: Complete Profile Name & Language
+  // STEP 3: Complete Profile Name (optional, non-blocking)
   const handleSaveName = async () => {
-    if (!name.trim()) {
-      Alert.alert('Name Required', 'Please enter your name to complete registration.');
-      return;
-    }
-
     setLoading(true);
     const cleanedPhone = phone.trim().replace(/\D/g, '');
-    const titleCaseName = formatTitleCase(name);
+    const titleCaseName = formatTitleCase(name.trim());
     try {
-      // 1. Persist name on backend
-      const res = await customerApiClient.fetch('/api/auth/update-profile', {
-        method: 'POST',
-        body: JSON.stringify({ fullName: titleCaseName }),
-      });
-      const updatedUser = res?.user || { ...customerTokenStorage.getUser(), fullName: titleCaseName };
-      customerTokenStorage.setUser(updatedUser);
-
-      // 2. Trigger language selection modal on Home page
-      await flagNewUserRegistration(updatedUser?.id);
-      router.replace({ pathname: '/', params: { showLangModal: '1' } });
+      if (titleCaseName) {
+        const res = await customerApiClient.fetch('/api/auth/update-profile', {
+          method: 'POST',
+          body: JSON.stringify({ fullName: titleCaseName }),
+        });
+        const updatedUser = res?.user || { ...customerTokenStorage.getUser(), fullName: titleCaseName };
+        customerTokenStorage.setUser(updatedUser);
+      }
+      router.replace('/');
     } catch (err: any) {
-      console.warn('Update profile fallback:', err);
       const existing = customerTokenStorage.getUser() || { phone: cleanedPhone };
-      const updatedUser = { ...existing, fullName: titleCaseName };
+      const updatedUser = { ...existing, fullName: titleCaseName || existing.fullName || '' };
       customerTokenStorage.setUser(updatedUser);
-
-      await flagNewUserRegistration(updatedUser?.id);
-      router.replace({ pathname: '/', params: { showLangModal: '1' } });
+      router.replace('/');
     } finally {
       setLoading(false);
     }
@@ -693,6 +669,16 @@ export default function CustomerLoginScreen() {
                         GET STARTED
                       </Text>
                     )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{ marginTop: 10, alignItems: 'center', paddingVertical: 6 }}
+                    activeOpacity={0.75}
+                    onPress={() => router.replace('/')}
+                  >
+                    <Text style={{ fontSize: 14, color: '#FF5F01', fontWeight: '600' }}>
+                      Skip & Continue to Booking →
+                    </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
