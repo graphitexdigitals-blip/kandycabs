@@ -564,7 +564,7 @@ export default function DriverTripCompleteScreen() {
           </View>
 
           {/* Row 2: Parking Fare & Total Extra Summary */}
-          <View style={[styles.extraChargesRow, { marginTop: 12 }]}>
+          <View style={[styles.extraChargesRow, { marginTop: 8 }]}>
             {/* Parking Fare Box */}
             <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
@@ -1048,9 +1048,10 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     shadowColor: '#0f172a',
@@ -1282,8 +1283,8 @@ const styles = StyleSheet.create({
   cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 6,
   },
   speedometerIconCircle: {
     width: 32,
@@ -1551,8 +1552,8 @@ const styles = StyleSheet.create({
   },
   extraChargesRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
+    gap: 10,
+    marginTop: 8,
   },
   chargeBox: {
     flex: 1,
@@ -1566,20 +1567,19 @@ const styles = StyleSheet.create({
   totalExtraBox: {
     flex: 1,
     backgroundColor: '#f5f3ff',
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: '#ddd6fe',
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     justifyContent: 'center',
   },
   totalExtraAmountRow: {
-    height: 46,
+    height: 40,
     justifyContent: 'center',
   },
   totalExtraAmount: {
-    fontSize: 16.5,
+    fontSize: 16,
     fontWeight: '900',
     color: '#7c3aed',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
@@ -1587,8 +1587,8 @@ const styles = StyleSheet.create({
   chargeHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
+    gap: 5,
+    marginBottom: 5,
   },
   parkingBadge: {
     backgroundColor: '#0284c7',
@@ -1604,17 +1604,17 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   chargeLabel: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: '800',
     color: '#334155',
   },
   chargeInput: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 12,
-    height: 46,
+    paddingHorizontal: 10,
+    height: 40,
     color: '#0f172a',
     fontSize: 15,
     fontWeight: '800',
