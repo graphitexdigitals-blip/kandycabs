@@ -503,9 +503,7 @@ export default function DriverTripActiveScreen() {
                 <Ionicons
                   name={
                     isWaitingActive
-                      ? isWaitingPaused
-                        ? 'pause-circle-outline'
-                        : 'time'
+                      ? 'time'
                       : totalAccumulatedSeconds > 0
                       ? 'checkmark-circle-outline'
                       : 'time-outline'
@@ -513,9 +511,7 @@ export default function DriverTripActiveScreen() {
                   size={24}
                   color={
                     isWaitingActive
-                      ? isWaitingPaused
-                        ? '#d97706'
-                        : '#2563eb'
+                      ? '#2563eb'
                       : totalAccumulatedSeconds > 0
                       ? '#059669'
                       : '#d97706'
@@ -527,14 +523,12 @@ export default function DriverTripActiveScreen() {
                     {isWaitingActive
                       ? 'Waiting in Progress'
                       : totalAccumulatedSeconds > 0
-                      ? 'Waiting Recorded ✓'
+                      ? 'Waiting Recorded'
                       : 'Waiting'}
                   </Text>
                   {(isWaitingActive || totalAccumulatedSeconds > 0) && (
-                    <Text style={styles.waitingTriggerSub} numberOfLines={1}>
-                      {isWaitingActive
-                        ? `⏱ ${formatTimerDisplay(displaySeconds)} • Tracking waiting time`
-                        : `⏱ ${formatTimerDisplay(totalAccumulatedSeconds)} recorded`}
+                    <Text style={styles.waitingTimerBig}>
+                      {formatTimerDisplay(isWaitingActive ? displaySeconds : totalAccumulatedSeconds)}
                     </Text>
                   )}
                 </View>
@@ -1183,13 +1177,23 @@ const styles = StyleSheet.create({
   },
   waitingTriggerTexts: {
     flex: 1,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
   },
   waitingTriggerTitle: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '800',
     color: '#92400e',
     letterSpacing: -0.2,
+  },
+  waitingTimerBig: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#000000',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0.5,
   },
   waitingTriggerSub: {
     fontSize: 11,
