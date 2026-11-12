@@ -517,9 +517,6 @@ export default function DriverTripCompleteScreen() {
               <View style={styles.sectionTitleRow}>
                 <Text style={styles.sectionTitle}>{t('trip_flow.additional_charges', 'Additional Charges')}</Text>
               </View>
-              <Text style={styles.sectionSubtitle}>
-                {t('trip_flow.additional_charges_desc', 'Enter any toll or parking fees paid during this trip')}
-              </Text>
             </View>
           </View>
 
