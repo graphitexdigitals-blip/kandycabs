@@ -91,3 +91,4 @@ async function createMasterIcon() {
 }
 
 createMasterIcon().catch(console.error);
+

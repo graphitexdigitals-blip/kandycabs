@@ -140,7 +140,7 @@ if ((Test-Path $iconPath) -and (Test-Path $adaptiveIconPath)) {
             $g.Clear([System.Drawing.Color]::Transparent)
             $g.DrawImage($adaptiveBmp, 0, 0, $item.Width, $item.Height)
         } else {
-            $g.Clear([System.Drawing.Color]::White)
+            $g.Clear([System.Drawing.Color]::FromArgb(255, 1, 38, 67))
             $g.DrawImage($iconBmp, 0, 0, $item.Width, $item.Height)
         }
         $g.Dispose()
