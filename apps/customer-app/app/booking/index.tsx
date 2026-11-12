@@ -2831,37 +2831,51 @@ export default function BookingFunnelScreen() {
                     <Text style={styles.partPaymentPillAmount}>₹ {payableAmount.toLocaleString('en-IN')}</Text>
                   </View>
 
-                  {/* Optional Promo Code Toggle */}
+                  {/* Optional Promo Code Toggle Button with Background and Border */}
                   <TouchableOpacity
-                    style={{ marginTop: 6, alignSelf: 'flex-start' }}
+                    style={[
+                      styles.promoCodeToggleBtn,
+                      couponApplied && styles.promoCodeToggleBtnApplied,
+                      showCouponInput && !couponApplied && styles.promoCodeToggleBtnActive,
+                    ]}
                     activeOpacity={0.7}
                     onPress={() => setShowCouponInput((prev) => !prev)}
                   >
-                    <Text style={{ fontSize: 9.5, color: '#2563eb', fontWeight: '700' }}>
+                    <View style={styles.promoCodeIconBox}>
+                      <Ionicons
+                        name={couponApplied ? "checkmark-circle" : "pricetag-outline"}
+                        size={13}
+                        color={couponApplied ? "#16a34a" : "#1d4ed8"}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.promoCodeToggleText,
+                        couponApplied && styles.promoCodeToggleTextApplied,
+                      ]}
+                      numberOfLines={1}
+                    >
                       {couponApplied
                         ? t('bookingReview.promoApplied', { code: couponCode, defaultValue: `Promo Applied: ${couponCode} (Edit)` })
                         : showCouponInput
                         ? t('bookingReview.hidePromoCode', { defaultValue: 'Hide Promo Code' })
                         : t('bookingReview.applyPromoCoupon', { defaultValue: '+ Apply Promo / Coupon Code' })}
                     </Text>
+                    <Ionicons
+                      name={showCouponInput ? "chevron-up" : "chevron-forward"}
+                      size={13}
+                      color={couponApplied ? "#16a34a" : "#1d4ed8"}
+                    />
                   </TouchableOpacity>
 
                   {showCouponInput && (
-                    <View style={{ marginTop: 5 }}>
-                      <View style={{ flexDirection: 'row', gap: 4 }}>
+                    <View style={styles.couponInputContainer}>
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
                         <TextInput
-                          style={{
-                            flex: 1,
-                            borderWidth: 1,
-                            borderColor: couponApplied ? '#86efac' : '#cbd5e1',
-                            borderRadius: 6,
-                            paddingHorizontal: 6,
-                            paddingVertical: 3,
-                            fontSize: 10,
-                            fontWeight: '700',
-                            backgroundColor: couponApplied ? '#f0fdf4' : '#ffffff',
-                            color: 'rgb(22, 34, 50)',
-                          }}
+                          style={[
+                            styles.couponTextInput,
+                            couponApplied && { borderColor: '#86efac', backgroundColor: '#f0fdf4' },
+                          ]}
                           placeholder={t('bookingReview.tryCouponPlaceholder', { defaultValue: 'Try WELCOME100, KANDY15' })}
                           placeholderTextColor="#94a3b8"
                           autoCapitalize="characters"
@@ -2878,39 +2892,28 @@ export default function BookingFunnelScreen() {
                         />
                         {couponApplied ? (
                           <TouchableOpacity
-                            style={{
-                              backgroundColor: '#fee2e2',
-                              borderRadius: 6,
-                              paddingHorizontal: 8,
-                              justifyContent: 'center',
-                              borderWidth: 1,
-                              borderColor: '#fca5a5',
-                            }}
+                            style={styles.couponRemoveBtn}
                             onPress={handleRemoveCoupon}
                           >
-                            <Text style={{ color: '#b91c1c', fontSize: 10, fontWeight: '700' }}>
-                              ✕ Remove
-                            </Text>
+                            <Text style={styles.couponRemoveText}>✕ Remove</Text>
                           </TouchableOpacity>
                         ) : (
                           <TouchableOpacity
-                            style={{
-                              backgroundColor: isApplyingCoupon ? '#cbd5e1' : 'rgb(240, 117, 15)',
-                              borderRadius: 6,
-                              paddingHorizontal: 8,
-                              justifyContent: 'center',
-                            }}
+                            style={[
+                              styles.couponApplyBtn,
+                              isApplyingCoupon && { opacity: 0.6 },
+                            ]}
                             disabled={isApplyingCoupon}
                             onPress={handleApplyCoupon}
                           >
-                            <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '700' }}>
+                            <Text style={styles.couponApplyText}>
                               {isApplyingCoupon ? '...' : t('bookingReview.apply', { defaultValue: 'Apply' })}
                             </Text>
                           </TouchableOpacity>
                         )}
                       </View>
                       {couponMsg ? (
-                        <Text style={{ fontSize: 8.5, color: couponApplied ? '#16a34a' : '#dc2626', marginTop: 2, fontWeight: couponApplied ? '700' : '500' }}>
+                        <Text style={[styles.couponMsgText, couponApplied && styles.couponMsgTextSuccess]}>
                           {couponMsg}
                         </Text>
                       ) : null}
@@ -5481,6 +5484,94 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  promoCodeToggleBtn: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    alignSelf: 'stretch',
+  },
+  promoCodeToggleBtnApplied: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#86efac',
+  },
+  promoCodeToggleBtnActive: {
+    borderColor: '#93c5fd',
+    backgroundColor: '#ebf5ff',
+  },
+  promoCodeIconBox: {
+    marginRight: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  promoCodeToggleText: {
+    fontSize: 10.5,
+    color: '#1d4ed8',
+    fontWeight: '700',
+    flex: 1,
+  },
+  promoCodeToggleTextApplied: {
+    color: '#15803d',
+  },
+  couponInputContainer: {
+    marginTop: 6,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    padding: 7,
+  },
+  couponTextInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    fontSize: 10.5,
+    fontWeight: '700',
+    backgroundColor: '#ffffff',
+    color: 'rgb(22, 34, 50)',
+  },
+  couponRemoveBtn: {
+    backgroundColor: '#fee2e2',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+  },
+  couponRemoveText: {
+    color: '#b91c1c',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  couponApplyBtn: {
+    backgroundColor: 'rgb(240, 117, 15)',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
+  couponApplyText: {
+    color: '#ffffff',
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  couponMsgText: {
+    fontSize: 9,
+    color: '#dc2626',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  couponMsgTextSuccess: {
+    color: '#16a34a',
+    fontWeight: '700',
   },
   badgeDivider: {
     height: 1,
