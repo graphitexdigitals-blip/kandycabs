@@ -78,3 +78,15 @@ for (const ftPath of fastTextPaths) {
   }
 }
 
+// Ensure local react exists for driver-app Metro deduplication
+const localReactDir = path.resolve(__dirname, '../node_modules/react');
+if (!fs.existsSync(localReactDir)) {
+  const customerReact = path.resolve(__dirname, '../../customer-app/node_modules/react');
+  const rootReact = path.resolve(__dirname, '../../../node_modules/react');
+  const sourceReact = fs.existsSync(customerReact) ? customerReact : (fs.existsSync(rootReact) ? rootReact : null);
+  if (sourceReact) {
+    fs.cpSync(sourceReact, localReactDir, { recursive: true });
+    console.log(`[patch-screens] Copied React from ${sourceReact} to ${localReactDir}`);
+  }
+}
+
