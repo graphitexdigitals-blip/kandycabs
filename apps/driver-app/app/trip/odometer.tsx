@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { TripFlowHeader } from '../../components/TripFlowHeader';
 import { driverApiClient } from '../../lib/api';
 import { locationTracker } from '../../lib/location-tracker';
+import { useTranslation } from 'react-i18next';
 import {
   getTripStartDraft,
   setTripStartDraft,
@@ -32,6 +33,7 @@ const DRIVER_SELFIE_SAMPLE = require('../../assets/images/driver-selfie-referenc
 const ODOMETER_SAMPLE = require('../../assets/images/inspection/odometer_sample.jpg');
 
 export default function DriverOdometerScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
@@ -102,7 +104,10 @@ export default function DriverOdometerScreen() {
         const successOcr = {
           status: 'success' as const,
           reading: res.reading,
-          message: `Auto-detected ${res.reading} KM from odometer photo`,
+          message: t('start_odometer.auto_detected_km', {
+            reading: res.reading,
+            defaultValue: `Auto-detected ${res.reading} KM from odometer photo`,
+          }),
         };
         setOcrResultText(successOcr);
         if (bookingId) {
@@ -114,13 +119,13 @@ export default function DriverOdometerScreen() {
       } else {
         setOcrResultText({
           status: 'failed',
-          message: 'Could not auto-read gauge numbers. Please check and type reading manually.',
+          message: t('start_odometer.could_not_read_gauge', 'Could not auto-read gauge numbers. Please check and type reading manually.'),
         });
       }
     } catch (err: any) {
       setOcrResultText({
         status: 'failed',
-        message: 'Could not auto-read. Please enter reading manually.',
+        message: t('start_odometer.could_not_read', 'Could not auto-read. Please enter reading manually.'),
       });
     } finally {
       setOcrScanning(false);
@@ -131,7 +136,10 @@ export default function DriverOdometerScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Gallery access is required to upload odometer photo.');
+        Alert.alert(
+          t('start_odometer.permission_required', 'Permission Required'),
+          t('start_odometer.gallery_permission_required', 'Gallery access is required to upload odometer photo.')
+        );
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -165,7 +173,10 @@ export default function DriverOdometerScreen() {
         }
       }
     } catch (err: any) {
-      Alert.alert('Gallery Error', err.message || 'Failed to select image');
+      Alert.alert(
+        t('start_odometer.gallery_error', 'Gallery Error'),
+        err.message || t('start_odometer.failed_select_image', 'Failed to select image')
+      );
     }
   };
 
@@ -176,13 +187,16 @@ export default function DriverOdometerScreen() {
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.CAMERA,
             {
-              title: 'Camera Permission',
-              message: 'Kandy Cabs driver app needs camera access to capture driver cabin selfie.',
+              title: t('start_odometer.camera_permission_title', 'Camera Permission'),
+              message: t('start_odometer.selfie_camera_permission_msg', 'Kandy Cabs driver app needs camera access to capture driver cabin selfie.'),
               buttonPositive: 'OK',
             }
           );
           if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-            Alert.alert('Permission Denied', 'Camera permission is required to capture selfie.');
+            Alert.alert(
+              t('start_odometer.permission_denied', 'Permission Denied'),
+              t('start_odometer.camera_permission_required', 'Camera permission is required to capture selfie.')
+            );
             return;
           }
         } catch (_) {}
@@ -190,7 +204,10 @@ export default function DriverOdometerScreen() {
 
       const { status } = await ImagePicker.requestCameraPermissionsAsync().catch(() => ({ status: 'denied' }));
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Camera permission is required to capture driver selfie.');
+        Alert.alert(
+          t('start_odometer.permission_required', 'Permission Required'),
+          t('start_odometer.camera_permission_required', 'Camera permission is required to capture driver selfie.')
+        );
         return;
       }
       let result: any = null;
@@ -211,7 +228,10 @@ export default function DriverOdometerScreen() {
             base64: true,
           });
         } catch (camErr2: any) {
-          Alert.alert('Camera Error', camErr2?.message || 'Could not launch camera');
+          Alert.alert(
+            t('start_odometer.camera_error', 'Camera Error'),
+            camErr2?.message || t('start_odometer.cannot_launch_camera', 'Could not launch camera')
+          );
           return;
         }
       }
@@ -222,7 +242,10 @@ export default function DriverOdometerScreen() {
         applySelfiePhoto(dataUri);
       }
     } catch (err: any) {
-      Alert.alert('Camera Error', err?.message || 'Failed to capture selfie');
+      Alert.alert(
+        t('start_odometer.camera_error', 'Camera Error'),
+        err?.message || t('start_odometer.failed_capture_selfie', 'Failed to capture selfie')
+      );
     }
   };
 
@@ -260,13 +283,16 @@ export default function DriverOdometerScreen() {
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.CAMERA,
             {
-              title: 'Camera Permission',
-              message: 'Kandy Cabs driver app needs camera access to capture vehicle odometer photo.',
+              title: t('start_odometer.camera_permission_title', 'Camera Permission'),
+              message: t('start_odometer.camera_permission_msg', 'Kandy Cabs driver app needs camera access to capture vehicle odometer photo.'),
               buttonPositive: 'OK',
             }
           );
           if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-            Alert.alert('Permission Denied', 'Camera permission is required to capture odometer photo.');
+            Alert.alert(
+              t('start_odometer.permission_denied', 'Permission Denied'),
+              t('start_odometer.camera_permission_required', 'Camera permission is required to capture odometer photo.')
+            );
             return;
           }
         } catch (_) {}
@@ -274,7 +300,10 @@ export default function DriverOdometerScreen() {
 
       const { status } = await ImagePicker.requestCameraPermissionsAsync().catch(() => ({ status: 'denied' }));
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Camera permission is required to capture odometer photo.');
+        Alert.alert(
+          t('start_odometer.permission_required', 'Permission Required'),
+          t('start_odometer.camera_permission_required', 'Camera permission is required to capture odometer photo.')
+        );
         return;
       }
       let result: any = null;
@@ -286,7 +315,10 @@ export default function DriverOdometerScreen() {
           base64: true,
         });
       } catch (camErr: any) {
-        Alert.alert('Camera Error', camErr?.message || 'Could not launch camera');
+        Alert.alert(
+          t('start_odometer.camera_error', 'Camera Error'),
+          camErr?.message || t('start_odometer.cannot_launch_camera', 'Could not launch camera')
+        );
         return;
       }
 
@@ -315,7 +347,10 @@ export default function DriverOdometerScreen() {
         }
       }
     } catch (err: any) {
-      Alert.alert('Camera Error', err?.message || 'Failed to capture odometer');
+      Alert.alert(
+        t('start_odometer.camera_error', 'Camera Error'),
+        err?.message || t('start_odometer.failed_capture_odometer', 'Failed to capture odometer')
+      );
     }
   };
 
@@ -333,28 +368,39 @@ export default function DriverOdometerScreen() {
         startingOdometer: '42850',
       });
     }
-    Alert.alert('⚡ Demo Evidence Loaded', 'Driver cabin selfie, odometer photo and 42,850 KM loaded!');
+    Alert.alert(
+      t('start_odometer.demo_loaded_title', '⚡ Demo Evidence Loaded'),
+      t('start_odometer.demo_loaded_msg', 'Driver cabin selfie, odometer photo and 42,850 KM loaded!')
+    );
   };
 
   const handleProceedToOtp = () => {
     if (!driverSelfieUri) {
-      setError('Driver cabin selfie is required.');
-      Alert.alert('Driver Selfie Required', 'Please capture a clear face selfie from the driving seat before continuing.', [
-        { text: '📷 Capture Selfie', onPress: handleOpenSelfieCamera },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
+      setError(t('start_odometer.selfie_required_error', 'Driver cabin selfie is required.'));
+      Alert.alert(
+        t('start_odometer.selfie_required_title', 'Driver Selfie Required'),
+        t('start_odometer.selfie_required_msg', 'Please capture a clear face selfie from the driving seat before continuing.'),
+        [
+          { text: t('start_odometer.capture_selfie_btn', '📷 Capture Selfie'), onPress: handleOpenSelfieCamera },
+          { text: t('start_odometer.cancel_btn', 'Cancel'), style: 'cancel' },
+        ]
+      );
       return;
     }
     if (!odometerImageUri) {
-      setError('Starting odometer photo is required.');
-      Alert.alert('Odometer Photo Required', 'Please capture a clear photo of the starting odometer gauge before continuing.', [
-        { text: '📷 Capture Photo', onPress: handleOpenCamera },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
+      setError(t('start_odometer.odometer_photo_required_error', 'Starting odometer photo is required.'));
+      Alert.alert(
+        t('start_odometer.odometer_photo_required_title', 'Odometer Photo Required'),
+        t('start_odometer.odometer_photo_required_msg', 'Please capture a clear photo of the starting odometer gauge before continuing.'),
+        [
+          { text: t('start_odometer.capture_photo_btn', '📷 Capture Photo'), onPress: handleOpenCamera },
+          { text: t('start_odometer.cancel_btn', 'Cancel'), style: 'cancel' },
+        ]
+      );
       return;
     }
     if (!startingOdometer.trim()) {
-      setError('Please enter the starting odometer reading in KM.');
+      setError(t('start_odometer.enter_starting_km_error', 'Please enter the starting odometer reading in KM.'));
       return;
     }
 
@@ -414,9 +460,11 @@ export default function DriverOdometerScreen() {
                     <Ionicons name="person" size={16} color="#ffffff" />
                   </View>
                   <View style={styles.headerTextCol}>
-                    <Text style={styles.headerTitle}>Driver Cabin Selfie *</Text>
+                    <Text style={styles.headerTitle}>{t('start_odometer.driver_cabin_selfie_title', 'Driver Cabin Selfie *')}</Text>
                     <Text style={styles.headerSubtitle}>
-                      {driverSelfieUri ? 'Cabin selfie attached ✓' : 'Front face selfie from driving seat required'}
+                      {driverSelfieUri
+                        ? t('start_odometer.cabin_selfie_attached', 'Cabin selfie attached ✓')
+                        : t('start_odometer.cabin_selfie_required_sub', 'Front face selfie from driving seat required')}
                     </Text>
                   </View>
                 </View>
@@ -427,7 +475,7 @@ export default function DriverOdometerScreen() {
                   activeOpacity={0.7}
                 >
                   <Ionicons name="flash" size={11} color="#ea580c" />
-                  <Text style={styles.demoBtnText}>Demo</Text>
+                  <Text style={styles.demoBtnText}>{t('start_odometer.demo_btn', 'Demo')}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -455,11 +503,11 @@ export default function DriverOdometerScreen() {
                       />
                       <View style={styles.attachedRibbon}>
                         <Ionicons name="checkmark-circle" size={13} color="#ffffff" />
-                        <Text style={styles.attachedRibbonText}>✓ PHOTO ATTACHED</Text>
+                        <Text style={styles.attachedRibbonText}>{t('start_odometer.photo_attached_ribbon', '✓ PHOTO ATTACHED')}</Text>
                       </View>
                       <View style={styles.retakeBtn}>
                         <Ionicons name="camera-reverse" size={12} color="#ffffff" />
-                        <Text style={styles.retakeBtnText}>Tap to Retake</Text>
+                        <Text style={styles.retakeBtnText}>{t('start_odometer.tap_to_retake', 'Tap to Retake')}</Text>
                       </View>
 
                       {/* GPS Stamp */}
@@ -476,8 +524,8 @@ export default function DriverOdometerScreen() {
                       <View style={[styles.blankCameraCircle, { borderColor: '#bfdbfe', backgroundColor: '#eff6ff' }]}>
                         <Ionicons name="person" size={28} color="#2563eb" />
                       </View>
-                      <Text style={styles.blankUploadTitle}>Upload Driver Cabin Selfie</Text>
-                      <Text style={styles.blankUploadSubtitle}>Tap to open front camera & capture selfie</Text>
+                      <Text style={styles.blankUploadTitle}>{t('start_odometer.upload_selfie_title', 'Upload Driver Cabin Selfie')}</Text>
+                      <Text style={styles.blankUploadSubtitle}>{t('start_odometer.upload_selfie_sub', 'Tap to open front camera & capture selfie')}</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -491,7 +539,7 @@ export default function DriverOdometerScreen() {
                       resizeMode="cover"
                     />
                     <View style={styles.referenceOverlayBadge}>
-                      <Text style={styles.referenceOverlayBadgeText}>SAMPLE REFERENCE</Text>
+                      <Text style={styles.referenceOverlayBadgeText}>{t('start_odometer.sample_reference', 'SAMPLE REFERENCE')}</Text>
                     </View>
                   </View>
                 </View>
@@ -508,11 +556,11 @@ export default function DriverOdometerScreen() {
                       <Ionicons name="speedometer" size={16} color="#ffffff" />
                     </View>
                     <View style={styles.headerTextCol}>
-                      <Text style={styles.headerTitle}>Starting Odometer Reading *</Text>
+                      <Text style={styles.headerTitle}>{t('start_odometer.starting_odometer_title', 'Starting Odometer Reading *')}</Text>
                       <Text style={styles.headerSubtitle}>
                         {odometerImageUri && startingOdometer.trim()
-                          ? 'Starting gauge & photo completed ✓'
-                          : 'Gauge photo & reading required'}
+                          ? t('start_odometer.starting_gauge_completed', 'Starting gauge & photo completed ✓')
+                          : t('start_odometer.gauge_photo_required_sub', 'Gauge photo & reading required')}
                       </Text>
                     </View>
                   </View>
@@ -523,7 +571,7 @@ export default function DriverOdometerScreen() {
                     activeOpacity={0.7}
                   >
                     <Ionicons name="flash" size={11} color="#ea580c" />
-                    <Text style={styles.demoBtnText}>Demo</Text>
+                    <Text style={styles.demoBtnText}>{t('start_odometer.demo_btn', 'Demo')}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -551,11 +599,11 @@ export default function DriverOdometerScreen() {
                         />
                         <View style={styles.attachedRibbon}>
                           <Ionicons name="checkmark-circle" size={13} color="#ffffff" />
-                          <Text style={styles.attachedRibbonText}>✓ PHOTO ATTACHED</Text>
+                          <Text style={styles.attachedRibbonText}>{t('start_odometer.photo_attached_ribbon', '✓ PHOTO ATTACHED')}</Text>
                         </View>
                         <View style={styles.retakeBtn}>
                           <Ionicons name="camera-reverse" size={12} color="#ffffff" />
-                          <Text style={styles.retakeBtnText}>Tap to Retake</Text>
+                          <Text style={styles.retakeBtnText}>{t('start_odometer.tap_to_retake', 'Tap to Retake')}</Text>
                         </View>
 
                         {/* GPS Stamp */}
@@ -572,8 +620,8 @@ export default function DriverOdometerScreen() {
                         <View style={styles.blankCameraCircle}>
                           <Ionicons name="camera" size={32} color="#0284c7" />
                         </View>
-                        <Text style={styles.blankUploadTitle}>Upload Starting Odometer Photo</Text>
-                        <Text style={styles.blankUploadSubtitle}>Tap to open camera & capture photo</Text>
+                        <Text style={styles.blankUploadTitle}>{t('start_odometer.upload_odometer_title', 'Upload Starting Odometer Photo')}</Text>
+                        <Text style={styles.blankUploadSubtitle}>{t('start_odometer.upload_odometer_sub', 'Tap to open camera & capture photo')}</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -587,7 +635,7 @@ export default function DriverOdometerScreen() {
                         resizeMode="cover"
                       />
                       <View style={styles.referenceOverlayBadge}>
-                        <Text style={styles.referenceOverlayBadgeText}>SAMPLE REFERENCE</Text>
+                        <Text style={styles.referenceOverlayBadgeText}>{t('start_odometer.sample_reference', 'SAMPLE REFERENCE')}</Text>
                       </View>
                     </View>
                   </View>
@@ -605,7 +653,7 @@ export default function DriverOdometerScreen() {
                           if (bookingId) setTripStartDraft(bookingId, { startingOdometer: val });
                         }}
                         keyboardType="decimal-pad"
-                        placeholder="Enter starting km (e.g. 42850 KM)"
+                        placeholder={t('start_odometer.km_placeholder', 'Enter starting km (e.g. 42850 KM)')}
                         placeholderTextColor="#94a3b8"
                         maxLength={10}
                       />
@@ -627,7 +675,7 @@ export default function DriverOdometerScreen() {
                     {ocrScanning ? (
                       <View style={styles.ocrLoadingRow}>
                         <ActivityIndicator size="small" color="#6366f1" style={{ marginRight: 6 }} />
-                        <Text style={styles.ocrLoadingText}>Auto-detecting odometer reading...</Text>
+                        <Text style={styles.ocrLoadingText}>{t('start_odometer.auto_detecting', 'Auto-detecting odometer reading...')}</Text>
                       </View>
                     ) : ocrResultText.status === 'success' ? (
                       <View style={styles.ocrSuccessRow}>
@@ -648,8 +696,8 @@ export default function DriverOdometerScreen() {
             <Ionicons name="information-circle" size={18} color="#0284c7" style={{ marginTop: 2, marginRight: 8 }} />
             <Text style={styles.instructionText}>
               {currentStep === 'selfie'
-                ? 'Capture driver cabin selfie from driving seat to proceed to odometer.'
-                : 'Capture vehicle starting odometer photo & confirm reading to proceed to customer OTP.'}
+                ? t('start_odometer.selfie_instruction', 'Capture driver cabin selfie from driving seat to proceed to odometer.')
+                : t('start_odometer.odometer_instruction', 'Capture vehicle starting odometer photo & confirm reading to proceed to customer OTP.')}
             </Text>
           </View>
 
@@ -678,13 +726,13 @@ export default function DriverOdometerScreen() {
             <Text style={styles.primaryBtnText}>
               {currentStep === 'selfie'
                 ? !driverSelfieUri
-                  ? 'Capture Driver Cabin Selfie'
-                  : 'PROCEED TO ODOMETER →'
+                  ? t('start_odometer.btn_capture_selfie', 'Capture Driver Cabin Selfie')
+                  : t('start_odometer.btn_proceed_to_odometer', 'PROCEED TO ODOMETER →')
                 : !odometerImageUri
-                ? 'Capture Starting Odometer Photo'
+                ? t('start_odometer.btn_capture_odometer', 'Capture Starting Odometer Photo')
                 : !startingOdometer.trim()
-                ? 'Enter Starting Odometer Reading'
-                : 'CONTINUE TO CUSTOMER OTP →'}
+                ? t('start_odometer.btn_enter_reading', 'Enter Starting Odometer Reading')
+                : t('start_odometer.btn_continue_to_otp', 'CONTINUE TO CUSTOMER OTP →')}
             </Text>
           </TouchableOpacity>
         </View>
