@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View, Text, Platform, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 interface TripFlowHeaderProps {
   currentStep: 1 | 2 | 3 | 4 | 5 | 6; // 1: Verify, 2: Pickup, 3: Odometer, 4: OTP, 5: On Trip, 6: Drop
@@ -10,17 +11,18 @@ interface TripFlowHeaderProps {
 }
 
 export function TripFlowHeader({ currentStep }: TripFlowHeaderProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   // With non-translucent Android status bar, top inset is already accounted for by the OS
   const topPad = Platform.OS === 'android' ? 6 : Math.max(insets.top, 6);
 
   const steps = [
-    { num: 1, label: 'Verify', icon: 'shield-checkmark' as const },
-    { num: 2, label: 'Pickup', icon: 'location-sharp' as const },
-    { num: 3, label: 'Odometer', icon: 'speedometer' as const },
-    { num: 4, label: 'OTP', icon: 'key' as const },
-    { num: 5, label: 'On Trip', icon: 'car-sport' as const },
-    { num: 6, label: 'Drop', icon: 'flag' as const },
+    { num: 1, label: t('flow.verify', { defaultValue: 'Verify' }), icon: 'shield-checkmark' as const },
+    { num: 2, label: t('flow.pickup', { defaultValue: 'Pickup' }), icon: 'location-sharp' as const },
+    { num: 3, label: t('flow.odometer', { defaultValue: 'Odometer' }), icon: 'speedometer' as const },
+    { num: 4, label: t('flow.otp', { defaultValue: 'OTP' }), icon: 'key' as const },
+    { num: 5, label: t('flow.on_trip', { defaultValue: 'On Trip' }), icon: 'car-sport' as const },
+    { num: 6, label: t('flow.drop', { defaultValue: 'Drop' }), icon: 'flag' as const },
   ];
 
   return (

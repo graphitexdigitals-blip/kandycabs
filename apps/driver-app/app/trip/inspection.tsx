@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import { locationTracker } from '../../lib/location-tracker';
 import { driverApiClient } from '../../lib/api';
@@ -47,6 +48,7 @@ const INSIDE_BACK_SAMPLE = { uri: INSIDE_BACK_SAMPLE_URI };
 const DRIVER_SELFIE_SAMPLE = { uri: DRIVER_SELFIE_SAMPLE_URI };
 
 export default function DriverVehicleInspectionScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
@@ -61,9 +63,9 @@ export default function DriverVehicleInspectionScreen() {
   const inspectionAngleConfigs = [
     {
       id: 0,
-      title: 'Driver Cabin Selfie',
-      shortTitle: 'Selfie',
-      desc: 'Front face selfie from driving seat required',
+      title: t('inspection.driver_cabin_selfie', { defaultValue: 'Driver Cabin Selfie' }),
+      shortTitle: t('inspection.short_selfie', { defaultValue: 'Selfie' }),
+      desc: t('inspection.driver_cabin_selfie_desc', { defaultValue: 'Front face selfie from driving seat required' }),
       icon: 'person-outline' as const,
       iconBg: '#eff6ff',
       iconColor: '#2563eb',
@@ -72,9 +74,9 @@ export default function DriverVehicleInspectionScreen() {
     },
     {
       id: 1,
-      title: 'Front Angle',
-      shortTitle: 'Front',
-      desc: 'Front bumper & number plate clearly visible',
+      title: t('inspection.front_angle', { defaultValue: 'Front Angle' }),
+      shortTitle: t('inspection.short_front', { defaultValue: 'Front' }),
+      desc: t('inspection.front_angle_desc', { defaultValue: 'Front bumper & number plate clearly visible' }),
       icon: 'car-outline' as const,
       iconBg: '#e0f2fe',
       iconColor: '#0284c7',
@@ -83,9 +85,9 @@ export default function DriverVehicleInspectionScreen() {
     },
     {
       id: 2,
-      title: 'Back / Rear Angle',
-      shortTitle: 'Rear',
-      desc: 'Rear bumper, tail lights & boot clearly visible',
+      title: t('inspection.rear_angle', { defaultValue: 'Back / Rear Angle' }),
+      shortTitle: t('inspection.short_rear', { defaultValue: 'Rear' }),
+      desc: t('inspection.rear_angle_desc', { defaultValue: 'Rear bumper, tail lights & boot clearly visible' }),
       icon: 'car-sport-outline' as const,
       iconBg: '#f3e8ff',
       iconColor: '#9333ea',
@@ -94,9 +96,9 @@ export default function DriverVehicleInspectionScreen() {
     },
     {
       id: 3,
-      title: 'Inside Front (Door Open)',
-      shortTitle: 'Front Door',
-      desc: 'Front door opened, dashboard, steering & front seats',
+      title: t('inspection.inside_front', { defaultValue: 'Inside Front (Door Open)' }),
+      shortTitle: t('inspection.short_front_door', { defaultValue: 'Front Door' }),
+      desc: t('inspection.inside_front_desc', { defaultValue: 'Front door opened, dashboard, steering & front seats' }),
       icon: 'car-outline' as const,
       iconBg: '#fef3c7',
       iconColor: '#d97706',
@@ -105,9 +107,9 @@ export default function DriverVehicleInspectionScreen() {
     },
     {
       id: 4,
-      title: 'Inside Back Seat (Door Open)',
-      shortTitle: 'Back Door',
-      desc: 'Back seat door opened, passenger seats & floor mats',
+      title: t('inspection.inside_back', { defaultValue: 'Inside Back Seat (Door Open)' }),
+      shortTitle: t('inspection.short_back_door', { defaultValue: 'Back Door' }),
+      desc: t('inspection.inside_back_desc', { defaultValue: 'Back seat door opened, passenger seats & floor mats' }),
       icon: 'people-outline' as const,
       iconBg: '#fce7f3',
       iconColor: '#db2777',
@@ -385,7 +387,9 @@ export default function DriverVehicleInspectionScreen() {
         <View style={styles.navPlaceholder} />
 
         <View style={styles.navTitleCenter}>
-          <Text style={styles.navTitle}>Verification</Text>
+          <Text style={styles.navTitle}>
+            {t('inspection.nav_title', { defaultValue: 'Verification' })}
+          </Text>
         </View>
 
         <TouchableOpacity
@@ -393,7 +397,9 @@ export default function DriverVehicleInspectionScreen() {
           onPress={handleFillDemoPhotos}
           activeOpacity={0.7}
         >
-          <Text style={styles.quickFillBtnText}>⚡ Demo</Text>
+          <Text style={styles.quickFillBtnText}>
+            {t('inspection.demo', { defaultValue: '⚡ Demo' })}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -415,7 +421,11 @@ export default function DriverVehicleInspectionScreen() {
                 <View style={{ flex: 1 }}>
                   <View style={styles.stepTagRow}>
                     <Text style={styles.stepTagText}>
-                      STEP {currentAngleIndex + 1} OF 5
+                      {t('inspection.step_tag', {
+                        defaultValue: `STEP ${currentAngleIndex + 1} OF 5`,
+                        current: currentAngleIndex + 1,
+                        total: 5,
+                      })}
                     </Text>
                     <View
                       style={[
@@ -430,7 +440,9 @@ export default function DriverVehicleInspectionScreen() {
                             : styles.badgeTextAmber
                         }
                       >
-                        {isCurrentAttached ? '✓ Photo Attached' : 'Required'}
+                        {isCurrentAttached
+                          ? t('inspection.photo_attached', { defaultValue: '✓ Photo Attached' })
+                          : t('inspection.required', { defaultValue: 'Required' })}
                       </Text>
                     </View>
                   </View>
@@ -460,11 +472,15 @@ export default function DriverVehicleInspectionScreen() {
                     />
                     <View style={styles.heroAttachedRibbon}>
                       <Ionicons name="checkmark-circle" size={15} color="#ffffff" />
-                      <Text style={styles.heroAttachedRibbonText}>✓ PHOTO ATTACHED</Text>
+                      <Text style={styles.heroAttachedRibbonText}>
+                        {t('inspection.photo_attached_ribbon', { defaultValue: '✓ PHOTO ATTACHED' })}
+                      </Text>
                     </View>
                     <View style={styles.heroRetakeOverlayBtn}>
                       <Ionicons name="camera-reverse" size={13} color="#ffffff" />
-                      <Text style={styles.heroRetakeOverlayText}>Tap to Retake</Text>
+                      <Text style={styles.heroRetakeOverlayText}>
+                        {t('inspection.tap_to_retake', { defaultValue: 'Tap to Retake' })}
+                      </Text>
                     </View>
                   </>
                 ) : (
@@ -476,11 +492,13 @@ export default function DriverVehicleInspectionScreen() {
                         color="#2563eb"
                       />
                     </View>
-                    <Text style={styles.blankUploadTitle}>Upload {currentAngle.title}</Text>
+                    <Text style={styles.blankUploadTitle}>
+                      {t('inspection.upload_prefix', { defaultValue: `Upload ${currentAngle.title}`, title: currentAngle.title })}
+                    </Text>
                     <Text style={styles.blankUploadSubtitle}>
                       {currentAngle.isFrontCamera
-                        ? 'Tap to open front camera & capture selfie'
-                        : 'Tap to open camera & capture photo'}
+                        ? t('inspection.tap_front_camera', { defaultValue: 'Tap to open front camera & capture selfie' })
+                        : t('inspection.tap_camera', { defaultValue: 'Tap to open camera & capture photo' })}
                     </Text>
                   </View>
                 )}
@@ -491,7 +509,7 @@ export default function DriverVehicleInspectionScreen() {
                 <View style={styles.referenceHeaderRow}>
                   <Ionicons name="eye-outline" size={13} color="#64748b" />
                   <Text style={styles.referenceHeaderTitle}>
-                    Reference Guide • {currentAngle.title}
+                    {t('inspection.reference_guide', { defaultValue: `Reference Guide • ${currentAngle.title}`, title: currentAngle.title })}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -505,7 +523,9 @@ export default function DriverVehicleInspectionScreen() {
                     resizeMode="cover"
                   />
                   <View style={styles.referenceOverlayBadge}>
-                    <Text style={styles.referenceOverlayBadgeText}>SAMPLE REFERENCE</Text>
+                    <Text style={styles.referenceOverlayBadgeText}>
+                      {t('inspection.sample_reference', { defaultValue: 'SAMPLE REFERENCE' })}
+                    </Text>
                   </View>
                 </TouchableOpacity>
               </View>
@@ -516,8 +536,12 @@ export default function DriverVehicleInspectionScreen() {
         {/* 5-Angle Thumbnail Strip for Quick Navigation */}
         <View style={styles.stripSection}>
           <View style={styles.stripHeaderRow}>
-            <Text style={styles.stripSectionTitle}>VERIFICATION REVIEW (5 STEPS)</Text>
-            <Text style={styles.stripSubTitle}>Tap any angle to jump</Text>
+            <Text style={styles.stripSectionTitle}>
+              {t('inspection.review_title', { defaultValue: 'VERIFICATION REVIEW (5 STEPS)' })}
+            </Text>
+            <Text style={styles.stripSubTitle}>
+              {t('inspection.tap_to_jump', { defaultValue: 'Tap any angle to jump' })}
+            </Text>
           </View>
           <ScrollView
             horizontal
@@ -599,7 +623,9 @@ export default function DriverVehicleInspectionScreen() {
               <View style={styles.ctaIconCircle}>
                 <Ionicons name="checkmark-sharp" size={15} color="#059669" />
               </View>
-              <Text style={styles.submitButtonText}>PROCEED TO PICKUP</Text>
+              <Text style={styles.submitButtonText}>
+                {t('inspection.proceed_to_pickup', { defaultValue: 'PROCEED TO PICKUP' })}
+              </Text>
               <Ionicons name="arrow-forward" size={17} color="#ffffff" />
             </>
           ) : !photos[currentAngleIndex] ? (
@@ -607,7 +633,10 @@ export default function DriverVehicleInspectionScreen() {
               <View style={styles.btnLeftGroup}>
                 <Ionicons name={inspectionAngleConfigs[currentAngleIndex].isFrontCamera ? 'person' : 'camera'} size={20} color="#0f172a" />
                 <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
-                  Capture {inspectionAngleConfigs[currentAngleIndex].title}
+                  {t('inspection.capture_btn', {
+                    defaultValue: `Capture ${inspectionAngleConfigs[currentAngleIndex].title}`,
+                    title: inspectionAngleConfigs[currentAngleIndex].title,
+                  })}
                 </Text>
               </View>
               <Ionicons name="arrow-forward" size={20} color="#0f172a" />
@@ -616,8 +645,14 @@ export default function DriverVehicleInspectionScreen() {
             <>
               <Text style={styles.submitButtonText}>
                 {currentAngleIndex < 4
-                  ? `NEXT: ${inspectionAngleConfigs[currentAngleIndex + 1].shortTitle.toUpperCase()}`
-                  : `PROCEED TO PICKUP (${attachedCount}/5)`}
+                  ? t('inspection.next_btn', {
+                      defaultValue: `NEXT: ${inspectionAngleConfigs[currentAngleIndex + 1].shortTitle.toUpperCase()}`,
+                      shortTitle: inspectionAngleConfigs[currentAngleIndex + 1].shortTitle.toUpperCase(),
+                    })
+                  : t('inspection.proceed_to_pickup_count', {
+                      defaultValue: `PROCEED TO PICKUP (${attachedCount}/5)`,
+                      attachedCount,
+                    })}
               </Text>
               <Ionicons name="arrow-forward" size={17} color="#ffffff" />
             </>

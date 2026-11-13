@@ -111,31 +111,34 @@ async function main() {
 
   // Patch resources.arsc to change @color/iconBackground from 0xFFFFFFFF to 0xFF012643
   const arscPath = path.join(root, 'scripts', 'resources.arsc');
-  const arscBuf = fs.readFileSync(arscPath);
-  // Verify offset 652996
-  const offset = 652996;
-  if (arscBuf[offset] === 0xFF && arscBuf[offset+1] === 0xFF && arscBuf[offset+2] === 0xFF && arscBuf[offset+3] === 0xFF) {
-    arscBuf[offset] = 0x43;     // Blue
-    arscBuf[offset+1] = 0x26;   // Green
-    arscBuf[offset+2] = 0x01;   // Red
-    arscBuf[offset+3] = 0xFF;   // Alpha
-    const patchedArscPath = path.join(tempDir, 'resources.arsc');
-    fs.writeFileSync(patchedArscPath, arscBuf);
-    console.log('Patched resources.arsc iconBackground to #012643 at offset', offset);
-    generatedList.push({ entry: 'resources.arsc', file: patchedArscPath });
-  } else {
-    console.warn('Warning: expected 0xFFFFFFFF at offset 652996 in resources.arsc not found!');
+  if (fs.existsSync(arscPath)) {
+    const arscBuf = fs.readFileSync(arscPath);
+    const offset = 652996;
+    if (arscBuf[offset] === 0xFF && arscBuf[offset+1] === 0xFF && arscBuf[offset+2] === 0xFF && arscBuf[offset+3] === 0xFF) {
+      arscBuf[offset] = 0x43;     // Blue
+      arscBuf[offset+1] = 0x26;   // Green
+      arscBuf[offset+2] = 0x01;   // Red
+      arscBuf[offset+3] = 0xFF;   // Alpha
+      const patchedArscPath = path.join(tempDir, 'resources.arsc');
+      fs.writeFileSync(patchedArscPath, arscBuf);
+      console.log('Patched resources.arsc iconBackground to #012643 at offset', offset);
+      generatedList.push({ entry: 'resources.arsc', file: patchedArscPath });
+    } else {
+      console.warn('Warning: expected 0xFFFFFFFF at offset 652996 in resources.arsc not found!');
+    }
   }
 
   // Patch AndroidManifest.xml versionCode from 14 to 15
   const manifestPath = path.join(root, 'scripts', 'AndroidManifest.xml');
-  const manifestBuf = fs.readFileSync(manifestPath);
-  if (manifestBuf.readUInt32LE(9912) === 14) {
-    manifestBuf.writeUInt32LE(15, 9912);
-    const patchedManifestPath = path.join(tempDir, 'AndroidManifest.xml');
-    fs.writeFileSync(patchedManifestPath, manifestBuf);
-    console.log('Bumped versionCode to 15 in AndroidManifest.xml');
-    generatedList.push({ entry: 'AndroidManifest.xml', file: patchedManifestPath });
+  if (fs.existsSync(manifestPath)) {
+    const manifestBuf = fs.readFileSync(manifestPath);
+    if (manifestBuf.readUInt32LE(9912) === 14) {
+      manifestBuf.writeUInt32LE(15, 9912);
+      const patchedManifestPath = path.join(tempDir, 'AndroidManifest.xml');
+      fs.writeFileSync(patchedManifestPath, manifestBuf);
+      console.log('Bumped versionCode to 15 in AndroidManifest.xml');
+      generatedList.push({ entry: 'AndroidManifest.xml', file: patchedManifestPath });
+    }
   }
 
   // Write mapping JSON as ARRAY to prevent case-insensitive key collisions in PowerShell
