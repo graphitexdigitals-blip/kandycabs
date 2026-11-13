@@ -372,6 +372,34 @@
     "next_btn": "अगला: {{shortTitle}}",
     "proceed_to_pickup": "पिकअप के लिए आगे बढ़ें",
     "proceed_to_pickup_count": "पिकअप के लिए आगे बढ़ें ({{attachedCount}}/5)"
+  },
+  "en_route": {
+    "customer_details": "ग्राहक विवरण",
+    "customer_default": "ग्राहक",
+    "customer_id": "ग्राहक आईडी: {{id}}",
+    "call_now": "अभी कॉल करें",
+    "customer_contact_title": "ग्राहक संपर्क",
+    "customer_contact_msg": "ग्राहक का संपर्क पिकअप पर पहुंचने पर उपलब्ध होगा।",
+    "pickup_location_label": "पिकअप स्थान:",
+    "trip_type_label": "ट्रिप का प्रकार:",
+    "open_navigation": "नेविगेशन खोलें",
+    "pickup_point_fallback": "पिकअप पॉइंट",
+    "pickup_location_fallback": "पिकअप स्थान",
+    "heading_msg_prefix": "",
+    "heading_msg_suffix": " की ओर बढ़ रहे हैं। ग्राहक के पिकअप स्थान पर पहुंचने पर दाईं ओर स्लाइड करें।",
+    "arrived_msg_prefix": "आप ",
+    "arrived_msg_suffix": " पहुंच गए हैं। ट्रिप शुरू करने और ओडोमीटर दर्ज करने के लिए दाईं ओर स्लाइड करें।",
+    "slide_arrived": "पिकअप पर पहुंचे - स्लाइड करें",
+    "starting_trip": "ट्रिप शुरू की जा रही है...",
+    "km": "किमी",
+    "trip_types": {
+      "oneway": "वन वे",
+      "round_trip": "राउंड ट्रिप",
+      "round": "राउंड ट्रिप",
+      "local": "लोकल",
+      "outstation": "आउटस्टेशन",
+      "airport": "एयरपोर्ट"
+    }
   }
 }
 

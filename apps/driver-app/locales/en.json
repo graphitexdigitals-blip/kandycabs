@@ -372,5 +372,33 @@
     "next_btn": "NEXT: {{shortTitle}}",
     "proceed_to_pickup": "PROCEED TO PICKUP",
     "proceed_to_pickup_count": "PROCEED TO PICKUP ({{attachedCount}}/5)"
+  },
+  "en_route": {
+    "customer_details": "Customer Details",
+    "customer_default": "Customer",
+    "customer_id": "Customer ID: {{id}}",
+    "call_now": "Call Now",
+    "customer_contact_title": "Customer Contact",
+    "customer_contact_msg": "Customer contact will be available upon arrival.",
+    "pickup_location_label": "Pickup Location:",
+    "trip_type_label": "Trip Type:",
+    "open_navigation": "Open Navigation",
+    "pickup_point_fallback": "Pickup Point",
+    "pickup_location_fallback": "Pickup Location",
+    "heading_msg_prefix": "Heading to",
+    "heading_msg_suffix": ". Slide right once arrived at customer pickup.",
+    "arrived_msg_prefix": "You have reached",
+    "arrived_msg_suffix": ". Slide right to start trip & record odometer.",
+    "slide_arrived": "SLIDE: ARRIVED AT PICKUP",
+    "starting_trip": "STARTING TRIP...",
+    "km": "km",
+    "trip_types": {
+      "oneway": "ONEWAY",
+      "round_trip": "ROUND TRIP",
+      "round": "ROUND TRIP",
+      "local": "LOCAL",
+      "outstation": "OUTSTATION",
+      "airport": "AIRPORT"
+    }
   }
 }

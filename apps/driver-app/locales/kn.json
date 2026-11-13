@@ -372,6 +372,34 @@
     "next_btn": "ಮುಂದಿನದು: {{shortTitle}}",
     "proceed_to_pickup": "ಪಿಕಪ್‌ಗೆ ಮುಂದುವರಿಯಿರಿ",
     "proceed_to_pickup_count": "ಪಿಕಪ್‌ಗೆ ಮುಂದುವರಿಯಿರಿ ({{attachedCount}}/5)"
+  },
+  "en_route": {
+    "customer_details": "ಗ್ರಾಹಕರ ವಿವರಗಳು",
+    "customer_default": "ಗ್ರಾಹಕರು",
+    "customer_id": "ಗ್ರಾಹಕರ ಐಡಿ: {{id}}",
+    "call_now": "ಈಗಲೇ ಕರೆ ಮಾಡಿ",
+    "customer_contact_title": "ಗ್ರಾಹಕರ ಸಂಪರ್ಕ",
+    "customer_contact_msg": "ಗ್ರಾಹಕರ ಸಂಪರ್ಕ ವಿವರ ಪಿಕಪ್ ಸ್ಥಳಕ್ಕೆ ತಲುಪಿದ ನಂತರ ಲಭ್ಯವಾಗುತ್ತದೆ.",
+    "pickup_location_label": "ಪಿಕಪ್ ಸ್ಥಳ:",
+    "trip_type_label": "ಟ್ರಿಪ್ ಪ್ರಕಾರ:",
+    "open_navigation": "ನ್ಯಾವಿಗೇಷನ್ ತೆರೆಯಿರಿ",
+    "pickup_point_fallback": "ಪಿಕಪ್ ಪಾಯಿಂಟ್",
+    "pickup_location_fallback": "ಪಿಕಪ್ ಸ್ಥಳ",
+    "heading_msg_prefix": "",
+    "heading_msg_suffix": " ಕಡೆಗೆ ಸಾಗುತ್ತಿದ್ದೀರಿ. ಗ್ರಾಹಕರ ಪಿಕಪ್ ಸ್ಥಳ ತಲುಪಿದ ನಂತರ ಬಲಕ್ಕೆ ಸ್ಲೈಡ್ ಮಾಡಿ.",
+    "arrived_msg_prefix": "ನೀವು ",
+    "arrived_msg_suffix": " ತಲುಪಿದ್ದೀರಿ. ಟ್ರಿಪ್ ಆರಂಭಿಸಲು ಮತ್ತು ಓಡೋಮೀಟರ್ ನಮೂದಿಸಲು ಬಲಕ್ಕೆ ಸ್ಲೈಡ್ ಮಾಡಿ.",
+    "slide_arrived": "ಪಿಕಪ್ ಸ್ಥಳ ತಲುಪಿದೆ - ಸ್ಲೈಡ್ ಮಾಡಿ",
+    "starting_trip": "ಟ್ರಿಪ್ ಆರಂಭಿಸಲಾಗುತ್ತಿದೆ...",
+    "km": "ಕಿ.ಮೀ",
+    "trip_types": {
+      "oneway": "ಒನ್ ವೇ",
+      "round_trip": "ರೌಂಡ್ ಟ್ರಿಪ್",
+      "round": "ರೌಂಡ್ ಟ್ರಿಪ್",
+      "local": "ಲೋಕಲ್",
+      "outstation": "ಔಟ್‌ಸ್ಟೇಷನ್",
+      "airport": "ಏರ್‌ಪೋರ್ಟ್"
+    }
   }
 }
 

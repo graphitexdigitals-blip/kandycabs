@@ -22,8 +22,10 @@ import { SlideToAccept } from '../../components/SlideToAccept';
 import { setTripPickupReached } from '../../lib/tripState';
 import { TripFlowHeader } from '../../components/TripFlowHeader';
 import { LinearGradient } from '../../components/SafeLinearGradient';
+import { useTranslation } from 'react-i18next';
 
 export default function DriverEnRouteScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
@@ -33,6 +35,12 @@ export default function DriverEnRouteScreen() {
   const [driverCoords, setDriverCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const [isSlidingReached, setIsSlidingReached] = useState(false);
+
+  const formatTripType = (type?: string) => {
+    if (!type) return t('en_route.trip_types.oneway', 'ONEWAY');
+    const key = type.toLowerCase().replace(/[- ]/g, '_');
+    return t(`en_route.trip_types.${key}`, type.toUpperCase());
+  };
 
   const fetchBooking = useCallback(async () => {
     try {
@@ -211,12 +219,15 @@ export default function DriverEnRouteScreen() {
                   <Ionicons name="person" size={20} color="#1d4ed8" />
                 </View>
                 <View style={styles.customerInfoCol}>
-                  <Text style={styles.customerTagText}>Customer Details</Text>
+                  <Text style={styles.customerTagText}>{t('en_route.customer_details', 'Customer Details')}</Text>
                   <Text style={styles.customerName} numberOfLines={1}>
-                    {booking.customer?.user?.fullName || 'Customer'}
+                    {booking.customer?.user?.fullName || t('en_route.customer_default', 'Customer')}
                   </Text>
                   <Text style={styles.customerIdText}>
-                    Customer ID: {booking?.humanReadableRef || booking?.bookingNumber || 'KC-2026-925966'}
+                    {t('en_route.customer_id', {
+                      id: booking?.humanReadableRef || booking?.bookingNumber || 'KC-2026-925966',
+                      defaultValue: `Customer ID: ${booking?.humanReadableRef || booking?.bookingNumber || 'KC-2026-925966'}`,
+                    })}
                   </Text>
                 </View>
               </View>
@@ -231,13 +242,16 @@ export default function DriverEnRouteScreen() {
                       if (phone) {
                         Linking.openURL(`tel:${phone}`);
                       } else {
-                        Alert.alert('Customer Contact', 'Customer contact will be available upon arrival.');
+                        Alert.alert(
+                          t('en_route.customer_contact_title', 'Customer Contact'),
+                          t('en_route.customer_contact_msg', 'Customer contact will be available upon arrival.')
+                        );
                       }
                     }}
                     activeOpacity={0.82}
                   >
                     <Ionicons name="call" size={16} color="#ea580c" />
-                    <Text style={styles.callNowPillText}>Call Now</Text>
+                    <Text style={styles.callNowPillText}>{t('en_route.call_now', 'Call Now')}</Text>
                   </TouchableOpacity>
                 );
               })()}
@@ -255,7 +269,7 @@ export default function DriverEnRouteScreen() {
               onPress={openNavigation}
               activeOpacity={0.7}
             >
-              <Text style={styles.detailLabelLeft}>Pickup Location:</Text>
+              <Text style={styles.detailLabelLeft}>{t('en_route.pickup_location_label', 'Pickup Location:')}</Text>
               <Text style={styles.detailValDark} numberOfLines={2}>{booking.pickupAddress}</Text>
             </TouchableOpacity>
 
@@ -264,10 +278,10 @@ export default function DriverEnRouteScreen() {
 
             {/* Trip Type Row */}
             <View style={styles.infoDetailRow}>
-              <Text style={styles.detailLabelLeft}>Trip Type:</Text>
+              <Text style={styles.detailLabelLeft}>{t('en_route.trip_type_label', 'Trip Type:')}</Text>
               <Text style={styles.detailValOrange}>
-                {booking.tripType?.toUpperCase() || 'ONEWAY'}
-                {booking.distanceKm ? ` (${booking.distanceKm} km)` : ''}
+                {formatTripType(booking.tripType)}
+                {booking.distanceKm ? ` (${booking.distanceKm} ${t('en_route.km', 'km')})` : ''}
               </Text>
             </View>
           </View>
@@ -307,7 +321,7 @@ export default function DriverEnRouteScreen() {
             <View style={styles.destinationTagPill}>
               <Ionicons name="airplane" size={12} color="#2563eb" style={{ marginRight: 4 }} />
               <Text style={styles.destinationTagText} numberOfLines={1}>
-                {booking.pickupAddress || 'Pickup Point'}
+                {booking.pickupAddress || t('en_route.pickup_point_fallback', 'Pickup Point')}
               </Text>
             </View>
 
@@ -318,7 +332,7 @@ export default function DriverEnRouteScreen() {
               activeOpacity={0.82}
             >
               <Ionicons name="navigate" size={13} color="#ffffff" style={{ marginRight: 5 }} />
-              <Text style={styles.floatingNavBtnText}>Open Navigation</Text>
+              <Text style={styles.floatingNavBtnText}>{t('en_route.open_navigation', 'Open Navigation')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -336,11 +350,15 @@ export default function DriverEnRouteScreen() {
           />
           {isArrived ? (
             <Text style={styles.arrivedNoticeText}>
-              You have reached <Text style={styles.highlightText}>{booking.pickupAddress || 'Pickup Location'}</Text>. Slide right to start trip & record odometer.
+              {t('en_route.arrived_msg_prefix', 'You have reached')}{t('en_route.arrived_msg_prefix') ? ' ' : ''}
+              <Text style={styles.highlightText}>{booking.pickupAddress || t('en_route.pickup_location_fallback', 'Pickup Location')}</Text>
+              {t('en_route.arrived_msg_suffix', '. Slide right to start trip & record odometer.')}
             </Text>
           ) : (
             <Text style={styles.arrivedInstructionsText}>
-              Heading to <Text style={styles.highlightText}>{booking.pickupAddress || 'Pickup Location'}</Text>. Slide right once arrived at customer pickup.
+              {t('en_route.heading_msg_prefix', 'Heading to')}{t('en_route.heading_msg_prefix') ? ' ' : ''}
+              <Text style={styles.highlightText}>{booking.pickupAddress || t('en_route.pickup_location_fallback', 'Pickup Location')}</Text>
+              {t('en_route.heading_msg_suffix', '. Slide right once arrived at customer pickup.')}
             </Text>
           )}
         </View>
@@ -348,8 +366,8 @@ export default function DriverEnRouteScreen() {
         <SlideToAccept
           onAccept={handleSlideReached}
           isAccepting={isSlidingReached}
-          title="SLIDE: ARRIVED AT PICKUP"
-          acceptingTitle="STARTING TRIP..."
+          title={t('en_route.slide_arrived', 'SLIDE: ARRIVED AT PICKUP')}
+          acceptingTitle={t('en_route.starting_trip', 'STARTING TRIP...')}
         />
       </View>
     </View>
