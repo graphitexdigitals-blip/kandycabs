@@ -1,4 +1,4 @@
-import 'fast-text-encoding';
+import '../polyfills';
 
 // Patch global Response to prevent whatwg-fetch RangeError on status 0
 if (typeof global !== 'undefined' && (global as any).Response) {

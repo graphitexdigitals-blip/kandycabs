@@ -1,2 +1,2 @@
-import 'fast-text-encoding';
+import './polyfills';
 import 'expo-router/entry';

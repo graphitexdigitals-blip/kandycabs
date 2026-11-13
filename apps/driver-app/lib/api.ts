@@ -1,4 +1,4 @@
-import 'fast-text-encoding';
+import '../polyfills';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { KandyApiClient, TokenStorage } from '@kandy-cabs/shared';

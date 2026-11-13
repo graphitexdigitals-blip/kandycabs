@@ -1,4 +1,4 @@
-import 'fast-text-encoding';
+import '../polyfills';
 import '@kandy-cabs/shared';
 import '../lib/i18n';
 import React, { useEffect } from 'react';

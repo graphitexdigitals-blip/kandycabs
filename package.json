@@ -17,7 +17,7 @@
     "db:migrate": "npm run db:migrate --workspace=@kandy-cabs/db",
     "db:seed": "npm run db:seed --workspace=@kandy-cabs/db",
     "db:studio": "npm run db:studio --workspace=@kandy-cabs/db",
-    "postinstall": "npm run postinstall --workspace=customer-app"
+    "postinstall": "npm run postinstall --workspace=customer-app && npm run postinstall --workspace=driver-app"
   },
   "devDependencies": {
     "react-native": "0.74.5",

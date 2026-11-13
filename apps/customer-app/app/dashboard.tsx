@@ -952,7 +952,7 @@ export default function CustomerDashboardScreen() {
           estimatedFare: finalQuote?.pricing?.totalFare || 1200,
           advanceAmount: finalQuote?.pricing?.advanceAmount || 240,
           balanceAmount: finalQuote?.pricing?.balanceAmount || 960,
-          passengerName: passengerNameInput.trim() || resolvedPassengerName || 'Valued Customer',
+          passengerName: passengerNameInput.trim() || userProfile?.fullName?.trim() || 'Valued Customer',
           passengerPhone: passengerPhoneInput.trim() || userProfile?.phone || '',
           idempotencyKey,
           razorpayOrderId: orderId,

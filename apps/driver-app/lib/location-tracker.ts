@@ -1,4 +1,4 @@
-import 'fast-text-encoding';
+import '../polyfills';
 import * as Location from 'expo-location';
 import { Linking, Platform, PermissionsAndroid } from 'react-native';
 import { driverApiClient } from './api';

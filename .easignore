@@ -1,0 +1,51 @@
+# EAS Build ignore file (overrides .gitignore for EAS uploads)
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing & coverage
+coverage/
+
+# Next.js & Turborepo
+.next/
+out/
+.turbo/
+
+# Build caches & temp files
+.expo/
+web-build/
+dist_bundle/
+apps/*/dist_bundle/
+apps/*/android/app/build/
+apps/*/android/.gradle/
+apps/*/android/app/.cxx/
+apps/*/android/build/
+apps/*/android/local.properties
+apps/*/ios/build/
+apps/*/ios/Pods/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Large binaries / unused archives
+*.apk
+*.aab
+scripts/archive/
+

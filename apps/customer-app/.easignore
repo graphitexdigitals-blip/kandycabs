@@ -1,0 +1,15 @@
+# EAS Build ignore file (overrides .gitignore for EAS uploads)
+
+node_modules/
+.expo/
+android/app/build/
+android/.gradle/
+android/app/.cxx/
+android/build/
+android/local.properties
+dist/
+dist_bundle/
+*.log
+*.apk
+*.aab
+

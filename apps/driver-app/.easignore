@@ -1,9 +1,14 @@
-# Ignore local platform build artifacts and caches when uploading to EAS Cloud
+# EAS Build ignore file (overrides .gitignore for EAS uploads)
+
+node_modules/
 .expo/
 android/app/build/
 android/.gradle/
 android/app/.cxx/
 android/build/
-node_modules/
+android/local.properties
 dist/
+dist_bundle/
 *.log
+*.apk
+*.aab
