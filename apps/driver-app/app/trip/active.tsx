@@ -470,14 +470,16 @@ export default function DriverTripActiveScreen() {
                 <Text
                   style={styles.breakdownPillText}
                   numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.8}
                 >
-                  Breakdown
+                  {t('active_trip.vehicle_breakdown', 'Breakdown')}
                 </Text>
                 <Ionicons name="chevron-forward" size={15} color="#be123c" />
               </View>
             </TouchableOpacity>
 
-            {/* Call KandyCabs Helpline Button */}
+            {/* KandyCabs Helpline Button */}
             <TouchableOpacity
               style={styles.callSupportPillButton}
               onPress={handleCallKandyCabs}
@@ -488,8 +490,10 @@ export default function DriverTripActiveScreen() {
                 <Text
                   style={styles.callSupportPillText}
                   numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.8}
                 >
-                  {t('active_trip.call_kandy_cabs', 'Call KandyCabs')}
+                  {t('active_trip.call_kandy_cabs', 'KandyCabs')}
                 </Text>
                 <Ionicons name="chevron-forward" size={15} color="#047857" />
               </View>
