@@ -116,7 +116,23 @@
     "recent_trip_history": "Recent Trip History",
     "recent_trip_history_sub": "{{count}} completed trips recorded. Switch to the 'My Trips' tab for full accounting.",
     "queued_accepted_trips": "Queued / Accepted Trips ({{count}})",
-    "next_in_queue_light": "Next In Queue"
+    "next_in_queue_light": "Next In Queue",
+    "customer_requirements": "CUSTOMER REQUIREMENTS",
+    "pickup_date_time_banner": "PICKUP DATE & TIME:",
+    "pickup_date_time_label": "Pickup Date & Time",
+    "waiting_approval_warning": "Waiting for approval! Hurry up, the trip is {{dayLabel}}!",
+    "warning_label": "Warning: ",
+    "trip_scheduled_today": "Pickup scheduled for Today, {{time}} — Be ready today!",
+    "decline_btn": "DECLINE",
+    "accept_ride_btn": "ACCEPT RIDE",
+    "accept_queued_btn": "ACCEPT (QUEUED)",
+    "today_tag": "TODAY",
+    "tomorrow_tag": "TOMORROW",
+    "today_cap": "Today",
+    "tomorrow_cap": "Tomorrow",
+    "day_today": "today ({{time}})",
+    "day_tomorrow": "tomorrow ({{time}})",
+    "day_on": "on {{date}} ({{time}})"
   },
   "trips": {
     "title": "My Trips & Earnings",
@@ -288,5 +304,25 @@
     "failed_complete": "Failed to complete trip",
     "auto_detected_km": "Auto-detected {{reading}} KM from odometer photo",
     "could_not_read_gauge": "Could not auto-read gauge numbers. Please check and type reading manually."
+  },
+  "trip_reqs": {
+    "immediate_pickup": "Immediate Pickup",
+    "now": "Now",
+    "traveller_one": "{{count}} Traveller",
+    "traveller_other": "{{count}} Travellers",
+    "no_luggage": "No Luggage",
+    "normal_luggage": "Normal Luggage",
+    "heavy_luggage": "Heavy / Extra Luggage",
+    "small_bags": "{{count}} Small",
+    "med_bags": "{{count}} Med",
+    "large_bags": "{{count}} Large",
+    "senior_citizen": "Senior Citizen (60+)",
+    "return_round_trip": "Return / Round Trip",
+    "roof_carrier": "Roof Carrier",
+    "pet_friendly": "Pet Friendly",
+    "baby_on_board": "Baby on Board",
+    "pregnancy_friendly": "Pregnancy Friendly",
+    "special_assistance": "Special Assistance",
+    "flight": "Flight {{flightNum}}"
   }
 }

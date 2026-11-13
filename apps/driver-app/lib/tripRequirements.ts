@@ -8,18 +8,21 @@ export interface RequirementPill {
   type?: 'default' | 'highlight' | 'warning' | 'info';
 }
 
-export function formatTripDateTime(dateStr?: string | null): {
+export function formatTripDateTime(dateStr?: string | null, t?: (key: string, options?: any) => string): {
   dateText: string;
   timeText: string;
   fullText: string;
   isToday: boolean;
   isTomorrow: boolean;
 } {
+  const tr = (k: string, d: string, opts?: any) => (t ? t(k, { defaultValue: d, ...opts }) : d);
   if (!dateStr) {
+    const imm = tr('trip_reqs.immediate_pickup', 'Immediate Pickup');
+    const now = tr('trip_reqs.now', 'Now');
     return {
-      dateText: 'Immediate Pickup',
-      timeText: 'Now',
-      fullText: 'Immediate Pickup',
+      dateText: imm,
+      timeText: now,
+      fullText: imm,
       isToday: true,
       isTomorrow: false,
     };
@@ -50,8 +53,9 @@ export function formatTripDateTime(dateStr?: string | null): {
   const timeFormatted = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   let datePrefix = dateFormatted;
-  if (isToday) datePrefix = `Today, ${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`;
-  else if (isTomorrow) datePrefix = `Tomorrow, ${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`;
+  const dayMonth = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  if (isToday) datePrefix = `${tr('dashboard.today_cap', 'Today')}, ${dayMonth}`;
+  else if (isTomorrow) datePrefix = `${tr('dashboard.tomorrow_cap', 'Tomorrow')}, ${dayMonth}`;
 
   return {
     dateText: datePrefix,
@@ -62,16 +66,21 @@ export function formatTripDateTime(dateStr?: string | null): {
   };
 }
 
-export function parseCustomerRequirements(booking: any): RequirementPill[] {
+export function parseCustomerRequirements(booking: any, t?: (key: string, options?: any) => string): RequirementPill[] {
   if (!booking) return [];
   const pills: RequirementPill[] = [];
+  const tr = (k: string, d: string, opts?: any) => (t ? t(k, { defaultValue: d, ...opts }) : d);
 
   // 1. Passengers / Travellers
   const pax = booking.passengers || booking.passengerCount;
   if (pax && Number(pax) > 0) {
+    const count = Number(pax);
+    const label = count === 1
+      ? tr('trip_reqs.traveller_one', `${count} Traveller`, { count })
+      : tr('trip_reqs.traveller_other', `${count} Travellers`, { count });
     pills.push({
       icon: 'people',
-      label: `${pax} ${Number(pax) === 1 ? 'Traveller' : 'Travellers'}`,
+      label,
       type: 'default',
     });
   }
@@ -81,16 +90,25 @@ export function parseCustomerRequirements(booking: any): RequirementPill[] {
   if (lug) {
     if (typeof lug === 'string' && lug.trim().length > 0) {
       const cleanLug = lug.replace(/^Luggage:\s*/i, '').trim();
+      let translatedLug = cleanLug;
+      const lower = cleanLug.toLowerCase();
+      if (lower === 'no luggage' || lower === '0 luggage') {
+        translatedLug = tr('trip_reqs.no_luggage', 'No Luggage');
+      } else if (lower === 'normal luggage') {
+        translatedLug = tr('trip_reqs.normal_luggage', 'Normal Luggage');
+      } else if (lower.includes('heavy') || lower.includes('extra luggage')) {
+        translatedLug = tr('trip_reqs.heavy_luggage', 'Heavy / Extra Luggage');
+      }
       pills.push({
         icon: 'briefcase',
-        label: cleanLug,
+        label: translatedLug,
         type: 'default',
       });
     } else if (typeof lug === 'object') {
       const parts: string[] = [];
-      if (lug.small) parts.push(`${lug.small} Small`);
-      if (lug.medium) parts.push(`${lug.medium} Med`);
-      if (lug.large) parts.push(`${lug.large} Large`);
+      if (lug.small) parts.push(tr('trip_reqs.small_bags', `${lug.small} Small`, { count: lug.small }));
+      if (lug.medium) parts.push(tr('trip_reqs.med_bags', `${lug.medium} Med`, { count: lug.medium }));
+      if (lug.large) parts.push(tr('trip_reqs.large_bags', `${lug.large} Large`, { count: lug.large }));
       if (parts.length > 0) {
         pills.push({
           icon: 'briefcase',
@@ -126,7 +144,7 @@ export function parseCustomerRequirements(booking: any): RequirementPill[] {
   ) {
     pills.push({
       icon: 'body',
-      label: 'Senior Citizen (60+)',
+      label: tr('trip_reqs.senior_citizen', 'Senior Citizen (60+)'),
       type: 'highlight',
     });
   }
@@ -142,7 +160,7 @@ export function parseCustomerRequirements(booking: any): RequirementPill[] {
   ) {
     pills.push({
       icon: 'repeat',
-      label: 'Return / Round Trip',
+      label: tr('trip_reqs.return_round_trip', 'Return / Round Trip'),
       type: 'info',
     });
   }
@@ -156,7 +174,7 @@ export function parseCustomerRequirements(booking: any): RequirementPill[] {
   ) {
     pills.push({
       icon: 'cube',
-      label: 'Roof Carrier',
+      label: tr('trip_reqs.roof_carrier', 'Roof Carrier'),
       type: 'default',
     });
   }
@@ -172,7 +190,7 @@ export function parseCustomerRequirements(booking: any): RequirementPill[] {
     const petType = booking.petType ? ` (${booking.petType})` : '';
     pills.push({
       icon: 'paw',
-      label: `Pet Friendly${petType}`,
+      label: `${tr('trip_reqs.pet_friendly', 'Pet Friendly')}${petType}`,
       type: 'warning',
     });
   }
@@ -181,7 +199,7 @@ export function parseCustomerRequirements(booking: any): RequirementPill[] {
   if (combinedText.includes('baby on board') || combinedText.includes('child safety')) {
     pills.push({
       icon: 'shield-checkmark',
-      label: 'Baby on Board',
+      label: tr('trip_reqs.baby_on_board', 'Baby on Board'),
       type: 'info',
     });
   }
@@ -190,7 +208,7 @@ export function parseCustomerRequirements(booking: any): RequirementPill[] {
   if (combinedText.includes('pregnancy')) {
     pills.push({
       icon: 'heart',
-      label: 'Pregnancy Friendly',
+      label: tr('trip_reqs.pregnancy_friendly', 'Pregnancy Friendly'),
       type: 'highlight',
     });
   }
@@ -199,7 +217,7 @@ export function parseCustomerRequirements(booking: any): RequirementPill[] {
   if (combinedText.includes('accessibility') || combinedText.includes('handicapped') || combinedText.includes('wheelchair')) {
     pills.push({
       icon: 'accessibility',
-      label: 'Special Assistance',
+      label: tr('trip_reqs.special_assistance', 'Special Assistance'),
       type: 'highlight',
     });
   }
@@ -208,15 +226,16 @@ export function parseCustomerRequirements(booking: any): RequirementPill[] {
   if (booking.flightNumber) {
     pills.push({
       icon: 'airplane',
-      label: `Flight ${booking.flightNumber}`,
+      label: tr('trip_reqs.flight', `Flight ${booking.flightNumber}`, { flightNum: booking.flightNumber }),
       type: 'info',
     });
   } else {
     const flightMatch = combinedText.match(/flight(?:\s*number)?:\s*([a-z0-9\-]+)/i);
     if (flightMatch && flightMatch[1]) {
+      const flightNum = flightMatch[1].toUpperCase();
       pills.push({
         icon: 'airplane',
-        label: `Flight ${flightMatch[1].toUpperCase()}`,
+        label: tr('trip_reqs.flight', `Flight ${flightNum}`, { flightNum }),
         type: 'info',
       });
     }

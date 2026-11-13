@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { SlideToAccept } from './SlideToAccept';
 import { parseViaStops } from '../app/dashboard';
 import {
@@ -22,6 +23,7 @@ export const BroadcastCard = memo(function BroadcastCard({
   onAccept,
   onDecline,
 }: BroadcastCardProps) {
+  const { t } = useTranslation();
   const b = dispatch.booking;
   if (!b) return null;
 
@@ -47,18 +49,24 @@ export const BroadcastCard = memo(function BroadcastCard({
       <View style={styles.tripDateBanner}>
         <View style={styles.tripDateBannerLeft}>
           <Ionicons name="calendar" size={13} color="#0284c7" />
-          <Text style={styles.tripDateBannerLabel}>PICKUP DATE & TIME:</Text>
+          <Text style={styles.tripDateBannerLabel}>
+            {t('dashboard.pickup_date_time_banner', { defaultValue: 'PICKUP DATE & TIME:' })}
+          </Text>
           <Text style={styles.tripDateBannerValue}>
-            {formatTripDateTime(b.scheduledAt).fullText}
+            {formatTripDateTime(b.scheduledAt, t).fullText}
           </Text>
         </View>
-        {formatTripDateTime(b.scheduledAt).isToday ? (
+        {formatTripDateTime(b.scheduledAt, t).isToday ? (
           <View style={styles.todayTagPill}>
-            <Text style={styles.todayTagText}>TODAY</Text>
+            <Text style={styles.todayTagText}>
+              {t('dashboard.today_tag', { defaultValue: 'TODAY' })}
+            </Text>
           </View>
-        ) : formatTripDateTime(b.scheduledAt).isTomorrow ? (
+        ) : formatTripDateTime(b.scheduledAt, t).isTomorrow ? (
           <View style={styles.tomorrowTagPill}>
-            <Text style={styles.tomorrowTagText}>TOMORROW</Text>
+            <Text style={styles.tomorrowTagText}>
+              {t('dashboard.tomorrow_tag', { defaultValue: 'TOMORROW' })}
+            </Text>
           </View>
         ) : null}
       </View>
@@ -107,7 +115,7 @@ export const BroadcastCard = memo(function BroadcastCard({
 
       {/* Customer Requirements & Preferences */}
       {(() => {
-        const reqs = parseCustomerRequirements(b);
+        const reqs = parseCustomerRequirements(b, t);
         const note = extractCustomerNotes(b);
         if (reqs.length === 0 && !note) return null;
 
@@ -115,7 +123,9 @@ export const BroadcastCard = memo(function BroadcastCard({
           <View style={styles.reqsSection}>
             <View style={styles.reqsHeaderRow}>
               <Ionicons name="options-outline" size={12} color="#64748b" />
-              <Text style={styles.reqsHeading}>CUSTOMER REQUIREMENTS</Text>
+              <Text style={styles.reqsHeading}>
+                {t('dashboard.customer_requirements', { defaultValue: 'CUSTOMER REQUIREMENTS' })}
+              </Text>
             </View>
             <View style={styles.reqsRow}>
               {reqs.map((r, rIdx) => (

@@ -1892,7 +1892,9 @@ export default function DriverDashboardScreen() {
                           <View style={styles.infoThreeCol}>
                             <View style={styles.infoColHeaderRow}>
                               <Ionicons name="calendar-outline" size={15} color="#0f294d" />
-                              <Text style={styles.infoColHeaderLabel} numberOfLines={1}>Pickup Date & Time</Text>
+                              <Text style={styles.infoColHeaderLabel} numberOfLines={1}>
+                                {t('dashboard.pickup_date_time_label', { defaultValue: 'Pickup Date & Time' })}
+                              </Text>
                             </View>
                             <Text style={styles.infoColValDark}>
                               {new Date(currentTrip.scheduledAt || currentTrip.createdAt).toLocaleDateString('en-IN', {
@@ -1957,15 +1959,20 @@ export default function DriverDashboardScreen() {
                           <View style={styles.timingNearWarningRow}>
                             <Ionicons name="warning" size={14} color="#dc2626" />
                             <Text style={styles.timingNearWarningText}>
-                              <Text style={{ fontWeight: '800', color: '#dc2626' }}>Warning: </Text>
-                              Pickup scheduled for Today, {pickupTimeLabel} — Be ready today!
+                              <Text style={{ fontWeight: '800', color: '#dc2626' }}>
+                                {t('dashboard.warning_label', { defaultValue: 'Warning: ' })}
+                              </Text>
+                              {t('dashboard.trip_scheduled_today', {
+                                defaultValue: `Pickup scheduled for Today, ${pickupTimeLabel} — Be ready today!`,
+                                time: pickupTimeLabel,
+                              })}
                             </Text>
                           </View>
                         )}
 
                         {/* Customer Requirements & Preferences Pills */}
                         {(() => {
-                          const reqs = parseCustomerRequirements(currentTrip);
+                          const reqs = parseCustomerRequirements(currentTrip, t);
                           const note = extractCustomerNotes(currentTrip);
                           if (reqs.length === 0 && !note) return null;
 
@@ -1973,7 +1980,9 @@ export default function DriverDashboardScreen() {
                             <View style={[styles.dispatchReqsSection, { marginTop: 12, marginHorizontal: 0 }]}>
                               <View style={styles.dispatchReqsHeaderRow}>
                                 <Ionicons name="options-outline" size={12} color="#64748b" />
-                                <Text style={styles.dispatchReqsHeading}>CUSTOMER REQUIREMENTS</Text>
+                                <Text style={styles.dispatchReqsHeading}>
+                                  {t('dashboard.customer_requirements', { defaultValue: 'CUSTOMER REQUIREMENTS' })}
+                                </Text>
                               </View>
                               <View style={styles.dispatchReqsRow}>
                                 {reqs.map((r, rIdx) => (
@@ -2299,15 +2308,20 @@ export default function DriverDashboardScreen() {
                           <View style={styles.timingNearWarningRow}>
                             <Ionicons name="warning" size={14} color="#dc2626" />
                             <Text style={styles.timingNearWarningText}>
-                              <Text style={{ fontWeight: '800', color: '#dc2626' }}>Warning: </Text>
-                              Pickup scheduled for Today, {pickupTimeStr} — Be ready today!
+                              <Text style={{ fontWeight: '800', color: '#dc2626' }}>
+                                {t('dashboard.warning_label', { defaultValue: 'Warning: ' })}
+                              </Text>
+                              {t('dashboard.trip_scheduled_today', {
+                                defaultValue: `Pickup scheduled for Today, ${pickupTimeStr} — Be ready today!`,
+                                time: pickupTimeStr,
+                              })}
                             </Text>
                           </View>
                         )}
 
                         {/* Customer Requirements & Preferences Pills */}
                         {(() => {
-                          const reqs = parseCustomerRequirements(upBooking);
+                          const reqs = parseCustomerRequirements(upBooking, t);
                           const note = extractCustomerNotes(upBooking);
                           if (reqs.length === 0 && !note) return null;
 
@@ -2315,7 +2329,9 @@ export default function DriverDashboardScreen() {
                             <View style={[styles.dispatchReqsSection, { marginTop: 10, marginHorizontal: 0 }]}>
                               <View style={styles.dispatchReqsHeaderRow}>
                                 <Ionicons name="options-outline" size={12} color="#64748b" />
-                                <Text style={styles.dispatchReqsHeading}>CUSTOMER REQUIREMENTS</Text>
+                                <Text style={styles.dispatchReqsHeading}>
+                                  {t('dashboard.customer_requirements', { defaultValue: 'CUSTOMER REQUIREMENTS' })}
+                                </Text>
                               </View>
                               <View style={styles.dispatchReqsRow}>
                                 {reqs.map((r, rIdx) => (
@@ -2475,18 +2491,24 @@ export default function DriverDashboardScreen() {
                       <View style={styles.tripDateBanner}>
                         <View style={styles.tripDateBannerLeft}>
                           <Ionicons name="calendar" size={14} color="#0284c7" />
-                          <Text style={styles.tripDateBannerLabel}>PICKUP DATE & TIME:</Text>
+                          <Text style={styles.tripDateBannerLabel}>
+                            {t('dashboard.pickup_date_time_banner', { defaultValue: 'PICKUP DATE & TIME:' })}
+                          </Text>
                           <Text style={styles.tripDateBannerValue}>
-                            {formatTripDateTime(b?.scheduledAt).fullText}
+                            {formatTripDateTime(b?.scheduledAt, t).fullText}
                           </Text>
                         </View>
-                        {formatTripDateTime(b?.scheduledAt).isToday ? (
+                        {formatTripDateTime(b?.scheduledAt, t).isToday ? (
                           <View style={styles.todayTagPill}>
-                            <Text style={styles.todayTagText}>TODAY</Text>
+                            <Text style={styles.todayTagText}>
+                              {t('dashboard.today_tag', { defaultValue: 'TODAY' })}
+                            </Text>
                           </View>
-                        ) : formatTripDateTime(b?.scheduledAt).isTomorrow ? (
+                        ) : formatTripDateTime(b?.scheduledAt, t).isTomorrow ? (
                           <View style={styles.tomorrowTagPill}>
-                            <Text style={styles.tomorrowTagText}>TOMORROW</Text>
+                            <Text style={styles.tomorrowTagText}>
+                              {t('dashboard.tomorrow_tag', { defaultValue: 'TOMORROW' })}
+                            </Text>
                           </View>
                         ) : null}
                       </View>
@@ -2528,7 +2550,7 @@ export default function DriverDashboardScreen() {
 
                       {/* Customer Requirements & Preferences Pills */}
                       {(() => {
-                        const reqs = parseCustomerRequirements(b);
+                        const reqs = parseCustomerRequirements(b, t);
                         const note = extractCustomerNotes(b);
                         if (reqs.length === 0 && !note) return null;
 
@@ -2536,7 +2558,9 @@ export default function DriverDashboardScreen() {
                           <View style={styles.dispatchReqsSection}>
                             <View style={styles.dispatchReqsHeaderRow}>
                               <Ionicons name="options-outline" size={12} color="#64748b" />
-                              <Text style={styles.dispatchReqsHeading}>CUSTOMER REQUIREMENTS</Text>
+                              <Text style={styles.dispatchReqsHeading}>
+                                {t('dashboard.customer_requirements', { defaultValue: 'CUSTOMER REQUIREMENTS' })}
+                              </Text>
                             </View>
                             <View style={styles.dispatchReqsRow}>
                               {reqs.map((r, rIdx) => (
@@ -2604,24 +2628,38 @@ export default function DriverDashboardScreen() {
 
                       {/* Waiting For Approval Warning (Same typography style, no bg, no border) */}
                       {!isAccepted && (() => {
-                        const tripTiming = formatTripDateTime(b?.scheduledAt);
+                        const tripTiming = formatTripDateTime(b?.scheduledAt, t);
                         const tripDayLabel = tripTiming.isToday
-                          ? `today (${tripTiming.timeText})`
+                          ? t('dashboard.day_today', { defaultValue: `today (${tripTiming.timeText})`, time: tripTiming.timeText })
                           : tripTiming.isTomorrow
-                          ? `tomorrow (${tripTiming.timeText})`
-                          : `on ${(() => {
-                              const d = b?.scheduledAt ? new Date(b.scheduledAt) : null;
-                              return d && !isNaN(d.getTime())
-                                ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
-                                : tripTiming.dateText;
-                            })()} (${tripTiming.timeText})`;
+                          ? t('dashboard.day_tomorrow', { defaultValue: `tomorrow (${tripTiming.timeText})`, time: tripTiming.timeText })
+                          : t('dashboard.day_on', {
+                              defaultValue: `on ${(() => {
+                                const d = b?.scheduledAt ? new Date(b.scheduledAt) : null;
+                                return d && !isNaN(d.getTime())
+                                  ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                                  : tripTiming.dateText;
+                              })()} (${tripTiming.timeText})`,
+                              date: (() => {
+                                const d = b?.scheduledAt ? new Date(b.scheduledAt) : null;
+                                return d && !isNaN(d.getTime())
+                                  ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                                  : tripTiming.dateText;
+                              })(),
+                              time: tripTiming.timeText,
+                            });
 
                         return (
                           <View style={[styles.timingNearWarningRow, { marginTop: 6, marginBottom: 4, marginHorizontal: 2 }]}>
                             <Ionicons name="warning" size={14} color="#dc2626" />
                             <Text style={styles.timingNearWarningText}>
-                              <Text style={{ fontWeight: '800', color: '#dc2626' }}>Warning: </Text>
-                              Waiting for approval! Hurry up, the trip is {tripDayLabel}!
+                              <Text style={{ fontWeight: '800', color: '#dc2626' }}>
+                                {t('dashboard.warning_label', { defaultValue: 'Warning: ' })}
+                              </Text>
+                              {t('dashboard.waiting_approval_warning', {
+                                defaultValue: `Waiting for approval! Hurry up, the trip is ${tripDayLabel}!`,
+                                dayLabel: tripDayLabel,
+                              })}
                             </Text>
                           </View>
                         );
@@ -2648,7 +2686,9 @@ export default function DriverDashboardScreen() {
                             activeOpacity={0.85}
                           >
                             <Ionicons name="arrow-forward-circle" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-                            <Text style={styles.verificationDispatchBtnText}>START TRIP</Text>
+                            <Text style={styles.verificationDispatchBtnText}>
+                              {t('dashboard.start_trip_caps', { defaultValue: 'START TRIP' })}
+                            </Text>
                           </TouchableOpacity>
                         </View>
                       ) : (
@@ -2664,7 +2704,9 @@ export default function DriverDashboardScreen() {
                             ) : (
                               <>
                                 <Ionicons name="close-circle-outline" size={17} color="#dc2626" style={{ marginRight: 4 }} />
-                                <Text style={styles.declineDispatchBtnText}>DECLINE</Text>
+                                <Text style={styles.declineDispatchBtnText}>
+                                  {t('dashboard.decline_btn', { defaultValue: 'DECLINE' })}
+                                </Text>
                               </>
                             )}
                           </TouchableOpacity>
@@ -2681,7 +2723,9 @@ export default function DriverDashboardScreen() {
                               <>
                                 <Ionicons name="checkmark-circle" size={17} color="#ffffff" style={{ marginRight: 4 }} />
                                 <Text style={styles.acceptDispatchBtnText}>
-                                  {currentTrip ? 'ACCEPT (QUEUED)' : 'ACCEPT RIDE'}
+                                  {currentTrip
+                                    ? t('dashboard.accept_queued_btn', { defaultValue: 'ACCEPT (QUEUED)' })
+                                    : t('dashboard.accept_ride_btn', { defaultValue: 'ACCEPT RIDE' })}
                                 </Text>
                               </>
                             )}

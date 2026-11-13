@@ -116,7 +116,23 @@
     "recent_trip_history": "ಇತ್ತೀಚಿನ ಟ್ರಿಪ್ ಇತಿಹಾಸ",
     "recent_trip_history_sub": "{{count}} ಪೂರ್ಣಗೊಂಡ ಟ್ರಿಪ್‌ಗಳು ದಾಖಲಾಗಿವೆ. ವಿವರಗಳಿಗೆ 'ನನ್ನ ಸವಾರಿಗಳು' ಟ್ಯಾಬ್ ನೋಡಿ.",
     "queued_accepted_trips": "ಸರದಿಯಲ್ಲಿರುವ / ಸ್ವೀಕರಿಸಿದ ಟ್ರಿಪ್‌ಗಳು ({{count}})",
-    "next_in_queue_light": "ಮುಂದಿನ ಸರದಿ"
+    "next_in_queue_light": "ಮುಂದಿನ ಸರದಿ",
+    "customer_requirements": "ಗ್ರಾಹಕರ ಅಗತ್ಯತೆಗಳು",
+    "pickup_date_time_banner": "ಪಿಕಪ್ ದಿನಾಂಕ & ಸಮಯ:",
+    "pickup_date_time_label": "ಪಿಕಪ್ ದಿನಾಂಕ & ಸಮಯ",
+    "waiting_approval_warning": "ಅನುಮೋದನೆಗಾಗಿ ಕಾಯಲಾಗುತ್ತಿದೆ! ಬೇಗನೆ ಸ್ವೀಕರಿಸಿ, ಟ್ರಿಪ್ {{dayLabel}} ಇದೆ!",
+    "warning_label": "ಎಚ್ಚರಿಕೆ: ",
+    "trip_scheduled_today": "ಇಂದು ಪಿಕಪ್ ನಿಗದಿಯಾಗಿದೆ, {{time}} — ಸಿದ್ಧರಾಗಿರಿ!",
+    "decline_btn": "ತಿರಸ್ಕರಿಸಿ",
+    "accept_ride_btn": "ರೈಡ್ ಸ್ವೀಕರಿಸಿ",
+    "accept_queued_btn": "ಸ್ವೀಕರಿಸಿ (ಕ್ಯೂನಲ್ಲಿದೆ)",
+    "today_tag": "ಇಂದು",
+    "tomorrow_tag": "ನಾಳೆ",
+    "today_cap": "ಇಂದು",
+    "tomorrow_cap": "ನಾಳೆ",
+    "day_today": "ಇಂದು ({{time}})",
+    "day_tomorrow": "ನಾಳೆ ({{time}})",
+    "day_on": "{{date}} ರಂದು ({{time}})"
   },
   "trips": {
     "title": "ನನ್ನ ಟ್ರಿಪ್‌ಗಳು ಮತ್ತು ಗಳಿಕೆಗಳು",
@@ -288,6 +304,26 @@
     "failed_complete": "ಟ್ರಿಪ್ ಪೂರ್ಣಗೊಳಿಸಲು ವಿಫಲವಾಗಿದೆ",
     "auto_detected_km": "ಓಡೋಮೀಟರ್ ಫೋಟೋದಿಂದ {{reading}} ಕಿ.ಮೀ ಸ್ವಯಂ ಪತ್ತೆಯಾಗಿದೆ",
     "could_not_read_gauge": "ಸಂಖ್ಯೆಗಳನ್ನು ಸ್ವಯಂ ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಹಸ್ತಚಾಲಿತವಾಗಿ ನಮೂದಿಸಿ."
+  },
+  "trip_reqs": {
+    "immediate_pickup": "ತಕ್ಷಣದ ಪಿಕಪ್",
+    "now": "ಈಗ",
+    "traveller_one": "{{count}} ಪ್ರಯಾಣಿಕ",
+    "traveller_other": "{{count}} ಪ್ರಯಾಣಿಕರು",
+    "no_luggage": "ಲಗೇಜ್ ಇಲ್ಲ",
+    "normal_luggage": "ಸಾಮಾನ್ಯ ಲಗೇಜ್",
+    "heavy_luggage": "ಹೆಚ್ಚುವರಿ ಲಗೇಜ್",
+    "small_bags": "{{count}} ಸಣ್ಣದು",
+    "med_bags": "{{count}} ಮಧ್ಯಮ",
+    "large_bags": "{{count}} ದೊಡ್ಡದು",
+    "senior_citizen": "ಹಿರಿಯ ನಾಗರಿಕರು (60+)",
+    "return_round_trip": "ರಿಟರ್ನ್ / ರೌಂಡ್ ಟ್ರಿಪ್",
+    "roof_carrier": "ರೂಫ್ ಕ್ಯಾರಿಯರ್",
+    "pet_friendly": "ಸಾಕುಪ್ರಾಣಿ ಸ್ನೇಹಿ",
+    "baby_on_board": "ಮಗು ಇದೆ",
+    "pregnancy_friendly": "ಗರ್ಭಿಣಿ ಸ್ನೇಹಿ",
+    "special_assistance": "ವಿಶೇಷ ನೆರವು",
+    "flight": "ಫ್ಲೈಟ್ {{flightNum}}"
   }
 }
 

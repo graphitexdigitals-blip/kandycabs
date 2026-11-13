@@ -116,7 +116,23 @@
     "recent_trip_history": "हाल का ट्रिप इतिहास",
     "recent_trip_history_sub": "{{count}} पूर्ण ट्रिप्स दर्ज हैं। संपूर्ण विवरण के लिए 'मेरी यात्राएं' टैब देखें।",
     "queued_accepted_trips": "कतारबद्ध / स्वीकृत ट्रिप्स ({{count}})",
-    "next_in_queue_light": "कतार में अगला"
+    "next_in_queue_light": "कतार में अगला",
+    "customer_requirements": "ग्राहक की आवश्यकताएं",
+    "pickup_date_time_banner": "पिकअप दिनांक और समय:",
+    "pickup_date_time_label": "पिकअप दिनांक और समय",
+    "waiting_approval_warning": "स्वीकृति की प्रतीक्षा है! जल्दी करें, यात्रा {{dayLabel}} है!",
+    "warning_label": "चेतावनी: ",
+    "trip_scheduled_today": "आज पिकअप निर्धारित है, {{time}} — तैयार रहें!",
+    "decline_btn": "अस्वीकार करें",
+    "accept_ride_btn": "राइड स्वीकार करें",
+    "accept_queued_btn": "स्वीकार करें (कतार में)",
+    "today_tag": "आज",
+    "tomorrow_tag": "कल",
+    "today_cap": "आज",
+    "tomorrow_cap": "कल",
+    "day_today": "आज ({{time}})",
+    "day_tomorrow": "कल ({{time}})",
+    "day_on": "{{date}} को ({{time}})"
   },
   "trips": {
     "title": "मेरी ट्रिप्स और कमाई",
@@ -288,6 +304,26 @@
     "failed_complete": "यात्रा समाप्त करने में विफल",
     "auto_detected_km": "ओडोमीटर फोटो से {{reading}} किमी स्वतः पहचाना गया",
     "could_not_read_gauge": "संख्याओं को स्वतः नहीं पढ़ा जा सका। कृपया जांचें और मैन्युअल रूप से दर्ज करें।"
+  },
+  "trip_reqs": {
+    "immediate_pickup": "तुरंत पिकअप",
+    "now": "अभी",
+    "traveller_one": "{{count}} यात्री",
+    "traveller_other": "{{count}} यात्री",
+    "no_luggage": "कोई सामान नहीं",
+    "normal_luggage": "सामान्य सामान",
+    "heavy_luggage": "अतिरिक्त सामान",
+    "small_bags": "{{count}} छोटा",
+    "med_bags": "{{count}} मध्यम",
+    "large_bags": "{{count}} बड़ा",
+    "senior_citizen": "वरिष्ठ नागरिक (60+)",
+    "return_round_trip": "राउंड ट्रिप / वापसी",
+    "roof_carrier": "रूफ कैरियर",
+    "pet_friendly": "पालतू अनुकूल",
+    "baby_on_board": "बच्चा सवार है",
+    "pregnancy_friendly": "गर्भवती अनुकूल",
+    "special_assistance": "विशेष सहायता",
+    "flight": "फ्लाइट {{flightNum}}"
   }
 }
 
