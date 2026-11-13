@@ -496,12 +496,6 @@ export default function MyBookingsScreen() {
                   }}
                   activeOpacity={0.7}
                 >
-                  <Ionicons
-                    name={item.icon as any}
-                    size={13}
-                    color={isActive ? '#ffffff' : '#64748b'}
-                    style={{ marginRight: 4 }}
-                  />
                   <Text
                     style={[
                       styles.filterTabText,

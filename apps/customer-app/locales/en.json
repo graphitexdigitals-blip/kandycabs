@@ -461,7 +461,7 @@
     "payableNowFull": "Payable Now (Full Amount):",
     "zeroBalanceToDriver": "Zero balance to driver",
     "restToDriverLater": "Rest ₹{{amount}} to driver later",
-    "applyPromoCoupon": "+ Apply Promo / Coupon Code",
+    "applyPromoCoupon": "+ Apply Coupon",
     "promoApplied": "Promo Applied: {{code}} (Edit)",
     "hidePromoCode": "Hide Promo Code",
     "tryCouponPlaceholder": "Try KANDY10",

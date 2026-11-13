@@ -1536,65 +1536,7 @@ export default function TripDetailsScreen() {
         )}
 
 
-        {/* SECTION: KANDY CABS ASSURED (IN SCROLLVIEW) */}
-        <View style={styles.trustSection}>
-          <View style={styles.trustSectionHeader}>
-            <View style={styles.trustHeaderLeft}>
-              <Ionicons name="shield-checkmark" size={16} color="#16a34a" />
-              <Text style={styles.trustCardTitle}>Kandy Cabs Assured</Text>
-            </View>
-            <View style={styles.trustBadge}>
-              <Ionicons name="checkmark-circle" size={10} color="#16a34a" />
-              <Text style={styles.trustBadgeText}>VERIFIED FLEET</Text>
-            </View>
-          </View>
 
-          {/* Row 1: Zero Cancellation + Free 15-Min Wait */}
-          <View style={styles.trustTilesRow}>
-            <View style={styles.trustTile}>
-              <View style={styles.trustTileIconBox}>
-                <Ionicons name="shield-checkmark-outline" size={19} color="#2563eb" />
-              </View>
-              <View style={styles.trustTileTextCol}>
-                <Text style={styles.trustTileTitle} numberOfLines={1}>Zero Cancellation</Text>
-                <Text style={styles.trustTileSub} numberOfLines={1}>100% refund before pickup</Text>
-              </View>
-            </View>
-
-            <View style={styles.trustTile}>
-              <View style={styles.trustTileIconBox}>
-                <Ionicons name="time-outline" size={19} color="#9333ea" />
-              </View>
-              <View style={styles.trustTileTextCol}>
-                <Text style={styles.trustTileTitle} numberOfLines={1}>Free 15-Min Wait</Text>
-                <Text style={styles.trustTileSub} numberOfLines={1}>No rush at doorstep / airport</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Row 2: Commercial Cabs + Transparent Fares */}
-          <View style={[styles.trustTilesRow, { marginTop: 8 }]}>
-            <View style={styles.trustTile}>
-              <View style={styles.trustTileIconBox}>
-                <Ionicons name="car-sport-outline" size={19} color="#16a34a" />
-              </View>
-              <View style={styles.trustTileTextCol}>
-                <Text style={styles.trustTileTitle} numberOfLines={1}>Commercial Cabs</Text>
-                <Text style={styles.trustTileSub} numberOfLines={1}>Clean AC & top chauffeurs</Text>
-              </View>
-            </View>
-
-            <View style={styles.trustTile}>
-              <View style={styles.trustTileIconBox}>
-                <Ionicons name="receipt-outline" size={19} color="rgb(240, 117, 15)" />
-              </View>
-              <View style={styles.trustTileTextCol}>
-                <Text style={styles.trustTileTitle} numberOfLines={1}>All-Inclusive Fares</Text>
-                <Text style={styles.trustTileSub} numberOfLines={1}>Tolls & GST transparent</Text>
-              </View>
-            </View>
-          </View>
-        </View>
       </ScrollView>
 
       {/* Pinned Bottom Action Bar (Clean Full-Width Next CTA) */}

@@ -646,8 +646,24 @@ export default function SelectCabScreen() {
   }, [selectedVehicleId, fleetList]);
 
   const sortedFleetList = useMemo(() => {
-    if (sortOrder === 'default') return fleetList;
-    return [...fleetList].sort((a, b) => {
+    let list = fleetList;
+    const isOneWay =
+      !tripType ||
+      tripType.toUpperCase() === 'ONEWAY' ||
+      tripType.toUpperCase() === 'ONE_WAY' ||
+      tripType.toUpperCase() === 'ONE-WAY';
+
+    if (isOneWay) {
+      list = list.filter(
+        (item) =>
+          item.id !== 'TEMPO_TRAVELER' &&
+          item.id !== 'TRAVELLER' &&
+          item.id !== 'URBANIA'
+      );
+    }
+
+    if (sortOrder === 'default') return list;
+    return [...list].sort((a, b) => {
       const isUrbaniaA = a.id === 'URBANIA';
       const isUrbaniaB = b.id === 'URBANIA';
       const rateA = isUrbaniaA ? selectedUrbaniaSeater.baseRatePerKm : a.ratePerKm;
@@ -656,7 +672,7 @@ export default function SelectCabScreen() {
       const fareB = Math.round(Math.max(b.minKm, estimatedKm) * rateB);
       return sortOrder === 'asc' ? fareA - fareB : fareB - fareA;
     });
-  }, [fleetList, sortOrder, estimatedKm, selectedUrbaniaSeater]);
+  }, [fleetList, sortOrder, estimatedKm, selectedUrbaniaSeater, tripType]);
 
   const onSelectCabItem = (item: FleetItem, openRequirements: boolean = false) => {
     const isTempoOrUrbania = item.id === 'TEMPO_TRAVELER' || item.id === 'TRAVELLER' || item.id === 'URBANIA';
@@ -915,6 +931,7 @@ export default function SelectCabScreen() {
             const isRecommended = item.id === 'TOYOTA_ETIOS' || item.badge?.toUpperCase().includes('RECOMMENDED');
             const isSelected = selectedVehicleId ? selectedVehicleId === item.id : isRecommended;
             const isUrbania = item.id === 'URBANIA';
+            const isTempoOrUrbania = item.id === 'TEMPO_TRAVELER' || item.id === 'TRAVELLER' || item.id === 'URBANIA' || Boolean(item.isContactOnly);
             const effectiveRatePerKm = isUrbania ? selectedUrbaniaSeater.baseRatePerKm : item.ratePerKm;
             const effectiveExtraKmRate = isUrbania ? selectedUrbaniaSeater.extraKmRate : item.ratePerKm;
             const effectiveSeats = isUrbania ? selectedUrbaniaSeater.seats : item.passengers;
@@ -1051,16 +1068,18 @@ export default function SelectCabScreen() {
 
                         {/* Right Column: Fare and Select / Contact Button */}
                         <View style={[styles.refActionCol, isSmallDevice && styles.refActionColSmall]}>
-                          <Text
-                            style={[styles.refPriceText, isSmallDevice && styles.refPriceTextSmall]}
-                            numberOfLines={1}
-                            adjustsFontSizeToFit={true}
-                            minimumFontScale={0.8}
-                          >
-                            ₹ {totalFare.toLocaleString('en-IN')}
-                          </Text>
+                          {!isTempoOrUrbania && (
+                            <Text
+                              style={[styles.refPriceText, isSmallDevice && styles.refPriceTextSmall]}
+                              numberOfLines={1}
+                              adjustsFontSizeToFit={true}
+                              minimumFontScale={0.8}
+                            >
+                              ₹ {totalFare.toLocaleString('en-IN')}
+                            </Text>
+                          )}
 
-                          {item.isContactOnly || item.id === 'TEMPO_TRAVELER' || item.id === 'TRAVELLER' || item.id === 'URBANIA' ? (
+                          {isTempoOrUrbania ? (
                             <TouchableOpacity
                               style={[
                                 styles.refSelectBtn,
@@ -1270,7 +1289,7 @@ export default function SelectCabScreen() {
                             </View>
                           </View>
                           <Text style={styles.seaterPickerSubText} numberOfLines={1}>
-                            {selectedUrbaniaSeater.wheelbaseName.split('(')[0].trim()} • ₹{selectedUrbaniaSeater.baseRatePerKm}/km • {selectedUrbaniaSeater.luggageBags} Bags
+                            {selectedUrbaniaSeater.wheelbaseName.split('(')[0].trim()} • {selectedUrbaniaSeater.luggageBags} Bags
                           </Text>
                         </View>
 
@@ -1399,7 +1418,7 @@ export default function SelectCabScreen() {
                       )}
                     </View>
 
-                    {calculationBreakdown ? (
+                    {calculationBreakdown && !isTempoOrUrbania ? (
                       <View style={{ backgroundColor: '#fff7ed', paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6, marginBottom: 8 }}>
                         <Text style={{ fontSize: 11, color: '#c2410c', fontWeight: '600' }}>
                           Rate breakdown: {calculationBreakdown}
@@ -1484,8 +1503,7 @@ export default function SelectCabScreen() {
                     </View>
 
                     <View style={styles.seaterOptionRight}>
-                      <Text style={styles.seaterOptionRate}>₹{opt.baseRatePerKm}/km</Text>
-                      <Text style={styles.seaterOptionTotal}>Est: ₹{optTotalFare.toLocaleString('en-IN')}</Text>
+                      <Text style={[styles.seaterOptionRate, { color: 'rgb(240, 117, 15)', fontSize: 11.5, fontWeight: '700' }]}>On Request</Text>
                       {isSelected ? (
                         <Ionicons name="checkmark-circle" size={22} color="rgb(240, 117, 15)" style={{ marginTop: 4 }} />
                       ) : (
@@ -1537,8 +1555,7 @@ export default function SelectCabScreen() {
                     </View>
 
                     <View style={styles.seaterOptionRight}>
-                      <Text style={styles.seaterOptionRate}>₹{opt.baseRatePerKm}/km</Text>
-                      <Text style={styles.seaterOptionTotal}>Est: ₹{optTotalFare.toLocaleString('en-IN')}</Text>
+                      <Text style={[styles.seaterOptionRate, { color: 'rgb(240, 117, 15)', fontSize: 11.5, fontWeight: '700' }]}>On Request</Text>
                       {isSelected ? (
                         <Ionicons name="checkmark-circle" size={22} color="rgb(240, 117, 15)" style={{ marginTop: 4 }} />
                       ) : (
@@ -1590,8 +1607,7 @@ export default function SelectCabScreen() {
                     </View>
 
                     <View style={styles.seaterOptionRight}>
-                      <Text style={styles.seaterOptionRate}>₹{opt.baseRatePerKm}/km</Text>
-                      <Text style={styles.seaterOptionTotal}>Est: ₹{optTotalFare.toLocaleString('en-IN')}</Text>
+                      <Text style={[styles.seaterOptionRate, { color: 'rgb(240, 117, 15)', fontSize: 11.5, fontWeight: '700' }]}>On Request</Text>
                       {isSelected ? (
                         <Ionicons name="checkmark-circle" size={22} color="rgb(240, 117, 15)" style={{ marginTop: 4 }} />
                       ) : (

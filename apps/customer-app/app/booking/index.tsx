@@ -2841,31 +2841,21 @@ export default function BookingFunnelScreen() {
                     activeOpacity={0.7}
                     onPress={() => setShowCouponInput((prev) => !prev)}
                   >
-                    <View style={styles.promoCodeIconBox}>
-                      <Ionicons
-                        name={couponApplied ? "checkmark-circle" : "pricetag-outline"}
-                        size={13}
-                        color={couponApplied ? "#16a34a" : "#1d4ed8"}
-                      />
-                    </View>
                     <Text
                       style={[
                         styles.promoCodeToggleText,
                         couponApplied && styles.promoCodeToggleTextApplied,
                       ]}
                       numberOfLines={1}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.85}
                     >
                       {couponApplied
                         ? t('bookingReview.promoApplied', { code: couponCode, defaultValue: `Promo Applied: ${couponCode} (Edit)` })
                         : showCouponInput
                         ? t('bookingReview.hidePromoCode', { defaultValue: 'Hide Promo Code' })
-                        : t('bookingReview.applyPromoCoupon', { defaultValue: '+ Apply Promo / Coupon Code' })}
+                        : t('bookingReview.applyPromoCoupon', { defaultValue: '+ Apply Coupon' })}
                     </Text>
-                    <Ionicons
-                      name={showCouponInput ? "chevron-up" : "chevron-forward"}
-                      size={13}
-                      color={couponApplied ? "#16a34a" : "#1d4ed8"}
-                    />
                   </TouchableOpacity>
 
                   {showCouponInput && (
@@ -5486,14 +5476,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   promoCodeToggleBtn: {
-    marginTop: 8,
+    marginTop: 6,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-    borderRadius: 8,
-    paddingHorizontal: 10,
+    borderWidth: 1.5,
+    borderColor: '#93c5fd',
+    borderRadius: 10,
+    paddingHorizontal: 12,
     paddingVertical: 7,
     alignSelf: 'stretch',
   },
@@ -5502,7 +5493,7 @@ const styles = StyleSheet.create({
     borderColor: '#86efac',
   },
   promoCodeToggleBtnActive: {
-    borderColor: '#93c5fd',
+    borderColor: '#60a5fa',
     backgroundColor: '#ebf5ff',
   },
   promoCodeIconBox: {
@@ -5511,13 +5502,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   promoCodeToggleText: {
-    fontSize: 10.5,
+    fontSize: 13.5,
     color: '#1d4ed8',
-    fontWeight: '700',
-    flex: 1,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 0.2,
   },
   promoCodeToggleTextApplied: {
     color: '#15803d',
+    fontWeight: '800',
   },
   couponInputContainer: {
     marginTop: 6,

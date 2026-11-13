@@ -213,7 +213,7 @@ const VEHICLE_TYPES = [
     category: VehicleCategory.TEMPO_TRAVELER,
     name: 'Tempo Traveller',
     models: 'Force 3350 AC (12+1)',
-    rate: '₹26/km',
+    rate: 'On Request',
     capacity: '12-14 Pax',
     luggage: 'Roof Carrier',
     badge: 'Group Tour',
@@ -1159,6 +1159,9 @@ export default function CustomerDashboardScreen() {
                     onPress={() => {
                       setSelectedTripType(item.type);
                       setQuoteResult(null);
+                      if (item.type === TripType.ONEWAY && selectedCategory === VehicleCategory.TEMPO_TRAVELER) {
+                        setSelectedCategory(VehicleCategory.SEDAN);
+                      }
                     }}
                   >
                     <Text
@@ -1345,7 +1348,9 @@ export default function CustomerDashboardScreen() {
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>🚗 VEHICLE TYPE</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.vehicleCardsRow}>
-                  {VEHICLE_TYPES.map((v) => {
+                  {VEHICLE_TYPES.filter(
+                    (v) => selectedTripType !== TripType.ONEWAY || v.category !== VehicleCategory.TEMPO_TRAVELER
+                  ).map((v) => {
                     const isSelected = selectedCategory === v.category;
                     return (
                       <TouchableOpacity
