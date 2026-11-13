@@ -873,8 +873,12 @@ export default function DriverTripCompleteScreen() {
                       ) : (
                         <>
                           <Ionicons name="checkmark-circle-outline" size={20} color="#ffffff" />
-                          <Text style={styles.confirmPaymentBtnText}>
-                            {t('complete_trip.confirm_qr_payment', 'Confirm QR Payment Received')}
+                          <Text
+                            style={styles.confirmPaymentBtnText}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                          >
+                            {t('complete_trip.confirm_qr_payment', 'Confirm Payment')}
                           </Text>
                         </>
                       )}
@@ -923,8 +927,12 @@ export default function DriverTripCompleteScreen() {
                       ) : (
                         <>
                           <Ionicons name="hand-right-outline" size={20} color="#ffffff" />
-                          <Text style={styles.confirmPaymentBtnText}>
-                            {t('complete_trip.confirm_cash_collected', 'Confirm Cash Collected')}
+                          <Text
+                            style={styles.confirmPaymentBtnText}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                          >
+                            {t('complete_trip.confirm_cash_collected', 'Confirm Cash')}
                           </Text>
                         </>
                       )}
