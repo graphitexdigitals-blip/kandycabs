@@ -137,7 +137,21 @@
     "starting_trip": "STARTING TRIP...",
     "manage_active_trip": "MANAGE ACTIVE TRIP",
     "slide_to_accept_ride": "Slide to Accept Ride →",
-    "accepting": "Accepting..."
+    "accepting": "Accepting...",
+    "card_profile": "Profile",
+    "card_profile_sub": "Personal Details",
+    "card_vehicle": "My Vehicle",
+    "card_vehicle_sub": "Fleet & Cabs",
+    "card_kyc": "KYC",
+    "card_kyc_sub": "Documents & Verify",
+    "card_trips": "My Trips",
+    "card_trips_sub": "History & Earnings",
+    "card_notifications": "Notifications",
+    "card_notifications_sub": "Alerts & Updates",
+    "card_support": "Help & Support",
+    "card_support_sub": "24/7 Helpline",
+    "card_terms": "Terms & Conditions",
+    "card_terms_sub": "Policies & Safety"
   },
   "trips": {
     "title": "My Trips & Earnings",

@@ -137,7 +137,21 @@
     "starting_trip": "ಟ್ರಿಪ್ ಆರಂಭಿಸಲಾಗುತ್ತಿದೆ...",
     "manage_active_trip": "ಸಕ್ರಿಯ ಟ್ರಿಪ್ ನಿರ್ವಹಿಸಿ",
     "slide_to_accept_ride": "ರೈಡ್ ಸ್ವೀಕರಿಸಲು ಸ್ಲೈಡ್ ಮಾಡಿ →",
-    "accepting": "ಸ್ವೀಕರಿಸಲಾಗುತ್ತಿದೆ..."
+    "accepting": "ಸ್ವೀಕರಿಸಲಾಗುತ್ತಿದೆ...",
+    "card_profile": "ಪ್ರೊಫೈಲ್",
+    "card_profile_sub": "ವೈಯಕ್ತಿಕ ವಿವರಗಳು",
+    "card_vehicle": "ನನ್ನ ವಾಹನ",
+    "card_vehicle_sub": "ಫ್ಲೀಟ್ & ಕ್ಯಾಬ್‌ಗಳು",
+    "card_kyc": "ಕೆವೈಸಿ",
+    "card_kyc_sub": "ದಾಖಲೆಗಳು & ಪರಿಶೀಲನೆ",
+    "card_trips": "ನನ್ನ ಟ್ರಿಪ್‌ಗಳು",
+    "card_trips_sub": "ಇತಿಹಾಸ & ಗಳಿಕೆ",
+    "card_notifications": "ಅಧಿಸೂಚನೆಗಳು",
+    "card_notifications_sub": "ಎಚ್ಚರಿಕೆಗಳು & ಅಪ್‌ಡೇಟ್",
+    "card_support": "ಸಹಾಯ & ಬೆಂಬಲ",
+    "card_support_sub": "24/7 ಸಹಾಯವಾಣಿ",
+    "card_terms": "ನಿಯಮಗಳು & ಷರತ್ತುಗಳು",
+    "card_terms_sub": "ನೀತಿಗಳು & ಸುರಕ್ಷತೆ"
   },
   "trips": {
     "title": "ನನ್ನ ಟ್ರಿಪ್‌ಗಳು ಮತ್ತು ಗಳಿಕೆಗಳು",

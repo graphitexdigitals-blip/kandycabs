@@ -137,7 +137,21 @@
     "starting_trip": "ट्रिप शुरू की जा रही है...",
     "manage_active_trip": "सक्रिय ट्रिप प्रबंधित करें",
     "slide_to_accept_ride": "राइड स्वीकार करने के लिए स्लाइड करें →",
-    "accepting": "स्वीकार किया जा रहा है..."
+    "accepting": "स्वीकार किया जा रहा है...",
+    "card_profile": "प्रोफ़ाइल",
+    "card_profile_sub": "व्यक्तिगत विवरण",
+    "card_vehicle": "मेरा वाहन",
+    "card_vehicle_sub": "बेड़े और कैब",
+    "card_kyc": "केवाईसी",
+    "card_kyc_sub": "दस्तावेज़ और सत्यापन",
+    "card_trips": "मेरी यात्राएं",
+    "card_trips_sub": "इतिहास और कमाई",
+    "card_notifications": "सूचनाएं",
+    "card_notifications_sub": "अलर्ट और अपडेट",
+    "card_support": "सहायता और समर्थन",
+    "card_support_sub": "24/7 हेल्पलाइन",
+    "card_terms": "नियम और शर्तें",
+    "card_terms_sub": "नीतियां और सुरक्षा"
   },
   "trips": {
     "title": "मेरी ट्रिप्स और कमाई",

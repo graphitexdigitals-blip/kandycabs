@@ -2753,8 +2753,12 @@ export default function DriverDashboardScreen() {
                     <Ionicons name="person" size={20} color="#0f2744" />
                   </View>
                   <View style={styles.dashboardCardTextBox}>
-                    <Text style={styles.dashboardCardTitle} numberOfLines={1}>Profile</Text>
-                    <Text style={styles.dashboardCardSub} numberOfLines={1}>Personal Details</Text>
+                    <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_profile', 'Profile')}
+                    </Text>
+                    <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_profile_sub', 'Personal Details')}
+                    </Text>
                   </View>
                 </TouchableOpacity>
 
@@ -2768,8 +2772,12 @@ export default function DriverDashboardScreen() {
                     <Ionicons name="car" size={20} color="#0f2744" />
                   </View>
                   <View style={styles.dashboardCardTextBox}>
-                    <Text style={styles.dashboardCardTitle} numberOfLines={1}>My Vehicle</Text>
-                    <Text style={styles.dashboardCardSub} numberOfLines={1}>Fleet & Cabs</Text>
+                    <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_vehicle', 'My Vehicle')}
+                    </Text>
+                    <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_vehicle_sub', 'Fleet & Cabs')}
+                    </Text>
                   </View>
                   {hasVehiclePendingDocs && (
                     <View style={styles.dashboardCardAlertBadge}>
@@ -2788,8 +2796,12 @@ export default function DriverDashboardScreen() {
                     <Ionicons name="document-text" size={20} color="#0f2744" />
                   </View>
                   <View style={styles.dashboardCardTextBox}>
-                    <Text style={styles.dashboardCardTitle} numberOfLines={1}>KYC</Text>
-                    <Text style={styles.dashboardCardSub} numberOfLines={1}>Documents & Verify</Text>
+                    <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_kyc', 'KYC')}
+                    </Text>
+                    <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_kyc_sub', 'Documents & Verify')}
+                    </Text>
                   </View>
                   {hasKycPendingDocs && (
                     <View style={styles.dashboardCardAlertBadge}>
@@ -2808,8 +2820,12 @@ export default function DriverDashboardScreen() {
                     <Ionicons name="receipt" size={20} color="#0f2744" />
                   </View>
                   <View style={styles.dashboardCardTextBox}>
-                    <Text style={styles.dashboardCardTitle} numberOfLines={1}>My Trips</Text>
-                    <Text style={styles.dashboardCardSub} numberOfLines={1}>History & Earnings</Text>
+                    <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_trips', 'My Trips')}
+                    </Text>
+                    <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_trips_sub', 'History & Earnings')}
+                    </Text>
                   </View>
                 </TouchableOpacity>
 
@@ -2823,8 +2839,12 @@ export default function DriverDashboardScreen() {
                     <Ionicons name="notifications" size={20} color="#0f2744" />
                   </View>
                   <View style={styles.dashboardCardTextBox}>
-                    <Text style={styles.dashboardCardTitle} numberOfLines={2}>Notifications</Text>
-                    <Text style={styles.dashboardCardSub} numberOfLines={1}>Alerts & Updates</Text>
+                    <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_notifications', 'Notifications')}
+                    </Text>
+                    <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_notifications_sub', 'Alerts & Updates')}
+                    </Text>
                   </View>
                   {unreadUpdatesCount > 0 && (
                     <View style={styles.dashboardCardNotifBadge}>
@@ -2845,8 +2865,12 @@ export default function DriverDashboardScreen() {
                     <Ionicons name="headset" size={20} color="#0f2744" />
                   </View>
                   <View style={styles.dashboardCardTextBox}>
-                    <Text style={styles.dashboardCardTitle} numberOfLines={2}>Help & Support</Text>
-                    <Text style={styles.dashboardCardSub} numberOfLines={1}>24/7 Helpline</Text>
+                    <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_support', 'Help & Support')}
+                    </Text>
+                    <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_support_sub', '24/7 Helpline')}
+                    </Text>
                   </View>
                 </TouchableOpacity>
 
@@ -2860,8 +2884,12 @@ export default function DriverDashboardScreen() {
                     <Ionicons name="shield-checkmark" size={20} color="#0f2744" />
                   </View>
                   <View style={styles.dashboardCardTextBox}>
-                    <Text style={styles.dashboardCardTitle} numberOfLines={1}>Terms & Conditions</Text>
-                    <Text style={styles.dashboardCardSub} numberOfLines={1}>Policies & Safety</Text>
+                    <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_terms', 'Terms & Conditions')}
+                    </Text>
+                    <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_terms_sub', 'Policies & Safety')}
+                    </Text>
                   </View>
                 </TouchableOpacity>
               </View>
