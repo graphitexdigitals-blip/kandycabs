@@ -109,20 +109,20 @@ export default function NotificationsScreen() {
       const b = d?.booking || {};
       const tripTiming = formatTripDateTime(b?.scheduledAt);
       const tripDayLabel = tripTiming.isToday
-        ? `today (${tripTiming.timeText})`
+        ? t('notifications_screen.today_time', { time: tripTiming.timeText, defaultValue: `today (${tripTiming.timeText})` })
         : tripTiming.isTomorrow
-        ? `tomorrow (${tripTiming.timeText})`
-        : `on ${tripTiming.dateText} (${tripTiming.timeText})`;
+        ? t('notifications_screen.tomorrow_time', { time: tripTiming.timeText, defaultValue: `tomorrow (${tripTiming.timeText})` })
+        : t('notifications_screen.on_date_time', { date: tripTiming.dateText, time: tripTiming.timeText, defaultValue: `on ${tripTiming.dateText} (${tripTiming.timeText})` });
 
       list.push({
         id: `dispatch-${d.id}`,
         type: 'DISPATCH',
-        title: `⚠️ Ride Waiting for Approval • ${b.humanReadableRef || 'New Ride'}`,
-        message: `Waiting for approval! Hurry up, the trip is ${tripDayLabel}!`,
-        subMessage: `${b.pickupAddress || 'Pickup Location'} ➔ ${b.dropAddress || 'Destination'}${b.distanceKm ? ' • ' + b.distanceKm + ' km' : ''}`,
+        title: t('notifications_screen.dispatch_waiting_title', { ref: b.humanReadableRef || 'New Ride', defaultValue: `⚠️ Ride Waiting for Approval • ${b.humanReadableRef || 'New Ride'}` }),
+        message: t('notifications_screen.dispatch_waiting_msg', { dayLabel: tripDayLabel, defaultValue: `Waiting for approval! Hurry up, the trip is ${tripDayLabel}!` }),
+        subMessage: `${b.pickupAddress || t('notifications_screen.pickup_loc', 'Pickup Location')} ➔ ${b.dropAddress || t('notifications_screen.drop_loc', 'Destination')}${b.distanceKm ? ' • ' + b.distanceKm + ' km' : ''}`,
         timestamp: d.broadcastAt || d.createdAt || new Date().toISOString(),
         isRead: readIds.has(`dispatch-${d.id}`),
-        actionText: 'View & Accept',
+        actionText: t('notifications_screen.view_and_accept', 'View & Accept'),
         payload: { dispatchId: d.id, bookingId: b.id },
       });
     });
@@ -139,15 +139,15 @@ export default function NotificationsScreen() {
         id: `trip-active-${activeBooking.id}`,
         type: 'TRIP',
         title: isTripInProcess
-          ? `Active Trip in Progress • ${activeBooking.humanReadableRef || ''}`
-          : `⚠️ Trip Today: Be Ready • ${activeBooking.humanReadableRef || ''}`,
+          ? t('notifications_screen.active_trip_title', { ref: activeBooking.humanReadableRef || '', defaultValue: `Active Trip in Progress • ${activeBooking.humanReadableRef || ''}` })
+          : t('notifications_screen.trip_today_title', { ref: activeBooking.humanReadableRef || '', defaultValue: `⚠️ Trip Today: Be Ready • ${activeBooking.humanReadableRef || ''}` }),
         message: isTripInProcess
-          ? `${activeBooking.pickupAddress || 'Pickup'} ➔ ${activeBooking.dropAddress || 'Destination'}`
-          : `Pickup scheduled for Today (${timeStr}) — Please be ready for departure!`,
-        subMessage: `Status: ${activeBooking.status || 'ON_ROUTE'}${activeBooking.customer?.user?.fullName ? ' • Passenger: ' + activeBooking.customer.user.fullName : ''}`,
+          ? `${activeBooking.pickupAddress || t('notifications_screen.pickup_loc', 'Pickup')} ➔ ${activeBooking.dropAddress || t('notifications_screen.drop_loc', 'Destination')}`
+          : t('notifications_screen.pickup_today_msg', { time: timeStr, defaultValue: `Pickup scheduled for Today (${timeStr}) — Please be ready for departure!` }),
+        subMessage: `Status: ${activeBooking.status || 'ON_ROUTE'}${activeBooking.customer?.user?.fullName ? ' • ' + t('notifications_screen.passenger', 'Passenger') + ': ' + activeBooking.customer.user.fullName : ''}`,
         timestamp: activeBooking.updatedAt || activeBooking.createdAt || new Date().toISOString(),
         isRead: readIds.has(`trip-active-${activeBooking.id}`),
-        actionText: isTripInProcess ? 'Open Trip' : 'Start Trip',
+        actionText: isTripInProcess ? t('notifications_screen.open_trip', 'Open Trip') : t('notifications_screen.start_trip', 'Start Trip'),
         payload: { bookingId: activeBooking.id },
       });
     }
@@ -157,24 +157,24 @@ export default function NotificationsScreen() {
       const tripTiming = formatTripDateTime(ub.scheduledAt);
       const timeStr = tripTiming.timeText || (ub.scheduledAt ? new Date(ub.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : 'Scheduled');
       const dayLabel = tripTiming.isToday
-        ? `today (${timeStr})`
+        ? t('notifications_screen.today_time', { time: timeStr, defaultValue: `today (${timeStr})` })
         : tripTiming.isTomorrow
-        ? `tomorrow (${timeStr})`
+        ? t('notifications_screen.tomorrow_time', { time: timeStr, defaultValue: `tomorrow (${timeStr})` })
         : `${tripTiming.dateText} (${timeStr})`;
 
       list.push({
         id: `trip-upcoming-${ub.id}`,
         type: 'TRIP',
         title: tripTiming.isToday
-          ? `⚠️ Upcoming Trip Today • ${ub.humanReadableRef || ''}`
-          : `Confirmed Upcoming Booking • ${ub.humanReadableRef || ''}`,
+          ? t('notifications_screen.upcoming_trip_today_title', { ref: ub.humanReadableRef || '', defaultValue: `⚠️ Upcoming Trip Today • ${ub.humanReadableRef || ''}` })
+          : t('notifications_screen.confirmed_upcoming_title', { ref: ub.humanReadableRef || '', defaultValue: `Confirmed Upcoming Booking • ${ub.humanReadableRef || ''}` }),
         message: tripTiming.isToday
-          ? `Pickup scheduled for Today (${timeStr}) — Be ready today!`
-          : `Pickup scheduled for ${dayLabel}`,
-        subMessage: `${ub.pickupAddress || 'Pickup location'}`,
+          ? t('notifications_screen.pickup_scheduled_today_msg', { time: timeStr, defaultValue: `Pickup scheduled for Today (${timeStr}) — Be ready today!` })
+          : t('notifications_screen.pickup_scheduled_msg', { dayLabel: dayLabel, defaultValue: `Pickup scheduled for ${dayLabel}` }),
+        subMessage: `${ub.pickupAddress || t('notifications_screen.pickup_loc', 'Pickup location')}`,
         timestamp: ub.createdAt || new Date().toISOString(),
         isRead: readIds.has(`trip-upcoming-${ub.id}`),
-        actionText: 'Trip Details',
+        actionText: t('notifications_screen.trip_details', 'Trip Details'),
         payload: { bookingId: ub.id },
       });
     });
@@ -188,21 +188,21 @@ export default function NotificationsScreen() {
         id: kycNotifId,
         type: 'KYC',
         title: isRejected
-          ? 'KYC Verification Rejected by Admin'
+          ? t('notifications_screen.kyc_rejected_title', 'KYC Verification Rejected by Admin')
           : isApproved
-          ? 'Driver Profile Verified & Active'
-          : 'Profile Under Review by Admin',
+          ? t('notifications_screen.driver_verified_title', 'Driver Profile Verified & Active')
+          : t('notifications_screen.profile_review_title', 'Profile Under Review by Admin'),
         message: isRejected
-          ? `Reason from Admin: ${driver.rejectionReason || 'Please fix and re-upload required documents'}`
+          ? t('notifications_screen.reason_from_admin', { reason: driver.rejectionReason || t('notifications_screen.rejection_fallback_reason', 'Please fix and re-upload required documents'), defaultValue: `Reason from Admin: ${driver.rejectionReason || 'Please fix and re-upload required documents'}` })
           : isApproved
-          ? 'Your driver documents are approved. You are ready to accept rides from Admin.'
-          : 'Your driver profile is currently under review by Admin.',
+          ? t('notifications_screen.driver_verified_msg', 'Your driver documents are approved. You are ready to accept rides from Admin.')
+          : t('notifications_screen.profile_under_review_msg', 'Your driver profile is currently under review by Admin.'),
         subMessage: isRejected
-          ? 'Action required: Tap to update details and re-submit'
-          : `License: ${driver.licenseNumber || 'Active'} • Vehicle: ${driver?.vehicle?.plateNumber || 'KA-01-SD-2002'}`,
+          ? t('notifications_screen.action_required_sub', 'Action required: Tap to update details and re-submit')
+          : t('notifications_screen.license_vehicle_sub', { license: driver.licenseNumber || 'Active', vehicle: driver?.vehicle?.plateNumber || 'KA-01-SD-2002', defaultValue: `License: ${driver.licenseNumber || 'Active'} • Vehicle: ${driver?.vehicle?.plateNumber || 'KA-01-SD-2002'}` }),
         timestamp: new Date().toISOString(),
         isRead: readIds.has(kycNotifId),
-        actionText: isApproved ? undefined : isRejected ? 'Fix Documents' : 'View Documents',
+        actionText: isApproved ? undefined : isRejected ? t('notifications_screen.fix_documents', 'Fix Documents') : t('notifications_screen.view_documents', 'View Documents'),
       });
 
       // 4b. Auto Expiring Documents Notifications (Active until updated with a renewed date)
@@ -216,14 +216,16 @@ export default function NotificationsScreen() {
         list.push({
           id: notifId,
           type: 'KYC',
-          title: isExp ? `🚨 Document Expired: ${ed.docName}` : `⚠️ Document Expiring Soon: ${ed.docName}`,
+          title: isExp
+            ? t('notifications_screen.doc_expired_title', { name: ed.docName, defaultValue: `🚨 Document Expired: ${ed.docName}` })
+            : t('notifications_screen.doc_expiring_soon_title', { name: ed.docName, defaultValue: `⚠️ Document Expiring Soon: ${ed.docName}` }),
           message: isExp
-            ? `Your ${ed.docName} expired on ${ed.expiryDateFormatted}. Commercial vehicle compliance requires an active document. Please upload the renewed copy immediately.`
-            : `Your ${ed.docName} expires on ${ed.expiryDateFormatted} (${ed.label}). Please upload the renewed copy before it expires to avoid dispatch suspension.`,
-          subMessage: `Document: ${ed.docName}${ed.docNumber ? ' • No: ' + ed.docNumber : ''}`,
+            ? t('notifications_screen.doc_expired_msg', { name: ed.docName, date: ed.expiryDateFormatted, defaultValue: `Your ${ed.docName} expired on ${ed.expiryDateFormatted}. Commercial vehicle compliance requires an active document. Please upload the renewed copy immediately.` })
+            : t('notifications_screen.doc_expiring_soon_msg', { name: ed.docName, date: ed.expiryDateFormatted, label: ed.label, defaultValue: `Your ${ed.docName} expires on ${ed.expiryDateFormatted} (${ed.label}). Please upload the renewed copy before it expires to avoid dispatch suspension.` }),
+          subMessage: t('notifications_screen.doc_sub', { name: ed.docName, defaultValue: `Document: ${ed.docName}` }) + (ed.docNumber ? ' • No: ' + ed.docNumber : ''),
           timestamp: new Date().toISOString(),
           isRead: readIds.has(notifId),
-          actionText: 'Update Now',
+          actionText: t('notifications_screen.update_now', 'Update Now'),
           payload: { isExpiry: true, route: '/documents' },
         });
       });
@@ -233,16 +235,18 @@ export default function NotificationsScreen() {
     list.push({
       id: `duty-status-${onlineStatus ? 'online' : 'offline'}`,
       type: 'DUTY',
-      title: onlineStatus ? 'ONLINE: Currently ON-DUTY' : 'OFFLINE: Currently OFF-DUTY',
+      title: onlineStatus
+        ? t('notifications_screen.online_title', 'ONLINE: Currently ON-DUTY')
+        : t('notifications_screen.offline_title', 'OFFLINE: Currently OFF-DUTY'),
       message: onlineStatus
-        ? 'Direct Admin dispatches and radar broadcasts are active for your vehicle.'
-        : 'Go On-Duty from the Home screen whenever you are ready to receive ride assignments.',
+        ? t('notifications_screen.online_msg', 'Direct Admin dispatches and radar broadcasts are active for your vehicle.')
+        : t('notifications_screen.offline_msg', 'Go On-Duty from the Home screen whenever you are ready to receive ride assignments.'),
       timestamp: new Date().toISOString(),
       isRead: readIds.has(`duty-status-${onlineStatus ? 'online' : 'offline'}`),
     });
 
     return list;
-  }, [dispatches, activeBooking, upcomingBookings, driver, onlineStatus, readIds]);
+  }, [dispatches, activeBooking, upcomingBookings, driver, onlineStatus, readIds, t]);
 
   const filteredNotifications = useMemo(() => {
     if (selectedFilter === 'ALL') return notifications;
@@ -309,17 +313,17 @@ export default function NotificationsScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Notifications</Text>
+          <Text style={styles.headerTitle}>{t('notifications_screen.title', 'Notifications')}</Text>
           {unreadCount > 0 && (
             <View style={styles.unreadCountBadge}>
-              <Text style={styles.unreadCountText}>{unreadCount} new</Text>
+              <Text style={styles.unreadCountText}>{t('notifications_screen.new_count', { count: unreadCount, defaultValue: `${unreadCount} new` })}</Text>
             </View>
           )}
         </View>
 
         {unreadCount > 0 ? (
           <TouchableOpacity onPress={handleMarkAllRead} style={styles.markReadButton} activeOpacity={0.7}>
-            <Text style={styles.markReadText}>Mark Read</Text>
+            <Text style={styles.markReadText}>{t('notifications_screen.mark_read', 'Mark Read')}</Text>
           </TouchableOpacity>
         ) : (
           <View style={{ width: 60 }} />
@@ -331,10 +335,10 @@ export default function NotificationsScreen() {
         {(['ALL', 'DISPATCH', 'TRIP', 'SYSTEM'] as const).map((tab) => {
           const isActive = selectedFilter === tab;
           const labels = {
-            ALL: 'All',
-            DISPATCH: `Dispatches (${dispatches.length})`,
-            TRIP: 'Rides',
-            SYSTEM: 'System',
+            ALL: t('notifications_screen.filter_all', 'All'),
+            DISPATCH: t('notifications_screen.filter_dispatches', { count: dispatches.length, defaultValue: `Dispatches (${dispatches.length})` }),
+            TRIP: t('notifications_screen.filter_rides', 'Rides'),
+            SYSTEM: t('notifications_screen.filter_system', 'System'),
           };
           return (
             <TouchableOpacity
@@ -355,7 +359,7 @@ export default function NotificationsScreen() {
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ea580c" />
-          <Text style={styles.loadingText}>Loading notifications...</Text>
+          <Text style={styles.loadingText}>{t('notifications_screen.loading', 'Loading notifications...')}</Text>
         </View>
       ) : (
         <ScrollView
@@ -368,9 +372,9 @@ export default function NotificationsScreen() {
               <View style={styles.emptyIconCircle}>
                 <Ionicons name="notifications-off-outline" size={44} color="#94a3b8" />
               </View>
-              <Text style={styles.emptyTitle}>All Caught Up!</Text>
+              <Text style={styles.emptyTitle}>{t('notifications_screen.empty_title', 'All Caught Up!')}</Text>
               <Text style={styles.emptySubtitle}>
-                No new notifications or trip updates at this moment.
+                {t('notifications_screen.empty_sub', 'No new notifications or trip updates at this moment.')}
               </Text>
             </View>
           ) : (
