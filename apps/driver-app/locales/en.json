@@ -132,7 +132,12 @@
     "tomorrow_cap": "Tomorrow",
     "day_today": "today ({{time}})",
     "day_tomorrow": "tomorrow ({{time}})",
-    "day_on": "on {{date}} ({{time}})"
+    "day_on": "on {{date}} ({{time}})",
+    "slide_to_start_trip": "SLIDE TO START TRIP",
+    "starting_trip": "STARTING TRIP...",
+    "manage_active_trip": "MANAGE ACTIVE TRIP",
+    "slide_to_accept_ride": "Slide to Accept Ride →",
+    "accepting": "Accepting..."
   },
   "trips": {
     "title": "My Trips & Earnings",

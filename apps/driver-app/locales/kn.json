@@ -132,7 +132,12 @@
     "tomorrow_cap": "ನಾಳೆ",
     "day_today": "ಇಂದು ({{time}})",
     "day_tomorrow": "ನಾಳೆ ({{time}})",
-    "day_on": "{{date}} ರಂದು ({{time}})"
+    "day_on": "{{date}} ರಂದು ({{time}})",
+    "slide_to_start_trip": "ಟ್ರಿಪ್ ಆರಂಭಿಸಲು ಸ್ಲೈಡ್ ಮಾಡಿ",
+    "starting_trip": "ಟ್ರಿಪ್ ಆರಂಭಿಸಲಾಗುತ್ತಿದೆ...",
+    "manage_active_trip": "ಸಕ್ರಿಯ ಟ್ರಿಪ್ ನಿರ್ವಹಿಸಿ",
+    "slide_to_accept_ride": "ರೈಡ್ ಸ್ವೀಕರಿಸಲು ಸ್ಲೈಡ್ ಮಾಡಿ →",
+    "accepting": "ಸ್ವೀಕರಿಸಲಾಗುತ್ತಿದೆ..."
   },
   "trips": {
     "title": "ನನ್ನ ಟ್ರಿಪ್‌ಗಳು ಮತ್ತು ಗಳಿಕೆಗಳು",

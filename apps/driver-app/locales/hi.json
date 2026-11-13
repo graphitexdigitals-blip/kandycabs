@@ -132,7 +132,12 @@
     "tomorrow_cap": "कल",
     "day_today": "आज ({{time}})",
     "day_tomorrow": "कल ({{time}})",
-    "day_on": "{{date}} को ({{time}})"
+    "day_on": "{{date}} को ({{time}})",
+    "slide_to_start_trip": "ट्रिप शुरू करने के लिए स्लाइड करें",
+    "starting_trip": "ट्रिप शुरू की जा रही है...",
+    "manage_active_trip": "सक्रिय ट्रिप प्रबंधित करें",
+    "slide_to_accept_ride": "राइड स्वीकार करने के लिए स्लाइड करें →",
+    "accepting": "स्वीकार किया जा रहा है..."
   },
   "trips": {
     "title": "मेरी ट्रिप्स और कमाई",

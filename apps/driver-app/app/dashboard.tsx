@@ -2090,7 +2090,9 @@ export default function DriverDashboardScreen() {
                                   ) : (
                                     <>
                                       <Ionicons name="navigate-circle" size={20} color="#ffffff" style={{ marginRight: 8 }} />
-                                      <Text style={styles.manageActiveTripBtnText}>MANAGE ACTIVE TRIP</Text>
+                                      <Text style={styles.manageActiveTripBtnText}>
+                                        {t('dashboard.manage_active_trip', { defaultValue: 'MANAGE ACTIVE TRIP' })}
+                                      </Text>
                                       <Ionicons name="arrow-forward" size={18} color="#ffffff" style={{ marginLeft: 6 }} />
                                     </>
                                   )}
@@ -2099,8 +2101,8 @@ export default function DriverDashboardScreen() {
                                 <SlideToAccept
                                   onAccept={onSlideStartTrip}
                                   isAccepting={isStartingTrip}
-                                  title="SLIDE TO START TRIP"
-                                  acceptingTitle="STARTING TRIP..."
+                                  title={t('dashboard.slide_to_start_trip', { defaultValue: 'SLIDE TO START TRIP' })}
+                                  acceptingTitle={t('dashboard.starting_trip', { defaultValue: 'STARTING TRIP...' })}
                                 />
                               )}
                             </View>
