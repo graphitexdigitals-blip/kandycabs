@@ -63,6 +63,9 @@ export function TripFlowHeader({ currentStep }: TripFlowHeaderProps) {
                     isPending && styles.labelPending,
                   ]}
                   numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.7}
+                  maxFontSizeMultiplier={1.05}
                 >
                   {step.label}
                 </Text>
@@ -90,7 +93,7 @@ export function TripFlowHeader({ currentStep }: TripFlowHeaderProps) {
 const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: '#ffffff',
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     paddingBottom: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
@@ -104,11 +107,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 2,
+    paddingHorizontal: 0,
   },
   stepNode: {
     alignItems: 'center',
-    width: 44,
+    width: 52,
   },
   stepCircle: {
     width: 25,
@@ -150,9 +153,11 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
   },
   stepLabel: {
-    fontSize: 9.5,
+    fontSize: 8.5,
     fontWeight: '700',
-    letterSpacing: 0,
+    letterSpacing: -0.2,
+    textAlign: 'center',
+    width: 52,
   },
   labelCompleted: {
     color: '#0f172a',
@@ -171,7 +176,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 14,
-    paddingHorizontal: 1,
+    paddingHorizontal: 0,
   },
   line: {
     width: '100%',
