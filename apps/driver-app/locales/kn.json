@@ -643,7 +643,7 @@
   "notifications_screen": {
     "title": "ಅಧಿಸೂಚನೆಗಳು",
     "new_count": "{{count}} ಹೊಸದು",
-    "mark_read": "ಓದಲಾಗಿದೆ ಎಂದು ಗುರುತಿಸಿ",
+    "mark_read": "ಓದಲಾಗಿದೆ",
     "filter_all": "ಎಲ್ಲವೂ",
     "filter_dispatches": "ಡಿಸ್ಪ್ಯಾಚ್‌ಗಳು ({{count}})",
     "filter_rides": "ರೈಡ್‌ಗಳು",

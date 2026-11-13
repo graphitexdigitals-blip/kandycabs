@@ -323,7 +323,7 @@ export default function NotificationsScreen() {
 
         {unreadCount > 0 ? (
           <TouchableOpacity onPress={handleMarkAllRead} style={styles.markReadButton} activeOpacity={0.7}>
-            <Text style={styles.markReadText}>{t('notifications_screen.mark_read', 'Mark Read')}</Text>
+            <Text style={styles.markReadText} numberOfLines={1}>{t('notifications_screen.mark_read', 'Mark Read')}</Text>
           </TouchableOpacity>
         ) : (
           <View style={{ width: 60 }} />

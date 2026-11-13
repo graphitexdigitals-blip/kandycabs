@@ -643,7 +643,7 @@
   "notifications_screen": {
     "title": "सूचनाएं",
     "new_count": "{{count}} नई",
-    "mark_read": "पढ़ा हुआ मार्क करें",
+    "mark_read": "पढ़ा गया",
     "filter_all": "सभी",
     "filter_dispatches": "डिस्पैच ({{count}})",
     "filter_rides": "राइड्स",
