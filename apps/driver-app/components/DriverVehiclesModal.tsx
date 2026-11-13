@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 export interface VehicleData {
   id?: string;
@@ -58,6 +59,7 @@ export function DriverVehiclesModal({
   onOpenDocuments,
 }: DriverVehiclesModalProps) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -92,7 +94,7 @@ export function DriverVehiclesModal({
   const handleSaveForm = async () => {
     const cleanPlate = formPlate.trim().toUpperCase();
     if (!cleanPlate) {
-      Alert.alert('Missing Number Plate', 'Please enter your vehicle license plate number.');
+      Alert.alert(t('vehicles.missing_plate_title', 'Missing Number Plate'), t('vehicles.missing_plate_msg', 'Please enter your vehicle license plate number.'));
       return;
     }
 
@@ -122,9 +124,14 @@ export function DriverVehiclesModal({
       await onSaveVehicles(updatedList);
       setIsFormOpen(false);
       setEditingIndex(null);
-      Alert.alert('Success', editingIndex !== null ? 'Vehicle updated successfully.' : 'New vehicle added to your fleet.');
+      Alert.alert(
+        t('vehicles.success_title', 'Success'),
+        editingIndex !== null
+          ? t('vehicles.updated_msg', 'Vehicle updated successfully.')
+          : t('vehicles.added_msg', 'New vehicle added to your fleet.')
+      );
     } catch (err: any) {
-      Alert.alert('Save Failed', err.message || 'Could not save vehicle details.');
+      Alert.alert(t('vehicles.save_failed', 'Save Failed'), err.message || 'Could not save vehicle details.');
     } finally {
       setSaving(false);
     }
@@ -132,7 +139,10 @@ export function DriverVehiclesModal({
 
   const handleDeleteVehicle = (index: number) => {
     if (vehicles.length <= 1) {
-      Alert.alert('Cannot Remove', 'You must have at least one active vehicle registered in your fleet.');
+      Alert.alert(
+        t('vehicles.cannot_remove_title', 'Cannot Remove'),
+        t('vehicles.cannot_remove_msg', 'You must have at least one active vehicle registered in your fleet.')
+      );
       return;
     }
 
@@ -140,21 +150,25 @@ export function DriverVehiclesModal({
     const plate = target?.plateNumber || `Vehicle #${index + 1}`;
 
     Alert.alert(
-      'Remove Vehicle',
-      `Are you sure you want to remove ${plate} (${target?.model || 'Cab'}) from your registered fleet?`,
+      t('vehicles.remove_vehicle_title', 'Remove Vehicle'),
+      t('vehicles.remove_vehicle_msg', {
+        plate,
+        model: target?.model || 'Cab',
+        defaultValue: `Are you sure you want to remove ${plate} (${target?.model || 'Cab'}) from your registered fleet?`,
+      }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('vehicles.cancel', 'Cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('vehicles.delete_btn', 'Delete'),
           style: 'destructive',
           onPress: async () => {
             setSaving(true);
             try {
               const updatedList = vehicles.filter((_, i) => i !== index);
               await onSaveVehicles(updatedList);
-              Alert.alert('Deleted', 'Vehicle removed from your fleet.');
+              Alert.alert(t('vehicles.deleted_title', 'Deleted'), t('vehicles.deleted_msg', 'Vehicle removed from your fleet.'));
             } catch (err: any) {
-              Alert.alert('Error', err.message || 'Could not remove vehicle.');
+              Alert.alert(t('vehicles.error_title', 'Error'), err.message || 'Could not remove vehicle.');
             } finally {
               setSaving(false);
             }
@@ -162,6 +176,25 @@ export function DriverVehiclesModal({
         },
       ]
     );
+  };
+
+  const getCategoryLabel = (catId?: string) => {
+    const c = (catId || '').toUpperCase();
+    if (c === 'SEDAN') return t('vehicles.categories.sedan', 'Sedan');
+    if (c === 'SUV') return t('vehicles.categories.suv', 'SUV');
+    if (c === 'INNOVA') return t('vehicles.categories.innova', 'Innova Crysta');
+    if (c === 'HATCHBACK') return t('vehicles.categories.hatchback', 'Hatchback');
+    if (c === 'TRAVELLER') return t('vehicles.categories.traveller', 'Tempo Traveller');
+    return catId || t('vehicles.categories.sedan', 'Sedan');
+  };
+
+  const getFuelLabel = (fuel?: string) => {
+    const f = (fuel || '').toUpperCase();
+    if (f === 'DIESEL') return t('vehicles.fuel.diesel', 'DIESEL');
+    if (f === 'PETROL') return t('vehicles.fuel.petrol', 'PETROL');
+    if (f === 'CNG') return t('vehicles.fuel.cng', 'CNG');
+    if (f === 'ELECTRIC') return t('vehicles.fuel.electric', 'ELECTRIC');
+    return fuel || 'DIESEL';
   };
 
   const getFleetImage = (category?: string) => {
@@ -183,15 +216,17 @@ export function DriverVehiclesModal({
           </TouchableOpacity>
 
           <View style={styles.headerTitleBox}>
-            <Text style={styles.headerTitle}>My Vehicles</Text>
+            <Text style={styles.headerTitle}>{t('vehicles.title', 'My Vehicles')}</Text>
             <Text style={styles.headerSub}>
-              {vehicles.length} {vehicles.length === 1 ? 'Registered Cab' : 'Registered Cabs'} in Fleet
+              {vehicles.length === 1
+                ? t('vehicles.fleet_count_one', { count: vehicles.length, defaultValue: '1 Registered Cab in Fleet' })
+                : t('vehicles.fleet_count_other', { count: vehicles.length, defaultValue: `${vehicles.length} Registered Cabs in Fleet` })}
             </Text>
           </View>
 
           <TouchableOpacity style={styles.headerAddBtn} onPress={openAddForm} activeOpacity={0.8}>
             <Ionicons name="add" size={17} color="#ffffff" style={{ marginRight: 2 }} />
-            <Text style={styles.headerAddBtnText}>Add Cab</Text>
+            <Text style={styles.headerAddBtnText}>{t('vehicles.add_cab', 'Add Cab')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -204,22 +239,22 @@ export function DriverVehiclesModal({
           {vehicles.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="car-outline" size={54} color="#94a3b8" style={{ marginBottom: 12 }} />
-              <Text style={styles.emptyTitle}>No Vehicles Registered</Text>
+              <Text style={styles.emptyTitle}>{t('vehicles.no_vehicles_title', 'No Vehicles Registered')}</Text>
               <Text style={styles.emptySub}>
-                Add your commercial cab details to start receiving trip dispatches from Kandy Cabs.
+                {t('vehicles.no_vehicles_sub', 'Add your commercial cab details to start receiving trip dispatches from Kandy Cabs.')}
               </Text>
               <TouchableOpacity style={styles.emptyAddBtn} onPress={openAddForm} activeOpacity={0.85}>
                 <Ionicons name="add-circle" size={18} color="#ffffff" style={{ marginRight: 6 }} />
-                <Text style={styles.emptyAddBtnText}>+ Add First Vehicle</Text>
+                <Text style={styles.emptyAddBtnText}>{t('vehicles.add_first_vehicle', '+ Add First Vehicle')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
             vehicles.map((veh, idx) => {
               const plate = (veh.plateNumber || 'KA-01-XX-0000').toUpperCase();
-              const model = veh.model || 'Commercial Cab';
-              const category = veh.category ? veh.category.charAt(0).toUpperCase() + veh.category.slice(1).toLowerCase() : 'Sedan';
-              const fuel = veh.fuelType || 'DIESEL';
-              const seats = veh.seatCount ? `${veh.seatCount} Seats` : '4 Seats';
+              const model = veh.model || t('vehicles.commercial_cab', 'Commercial Cab');
+              const category = getCategoryLabel(veh.category);
+              const fuel = getFuelLabel(veh.fuelType);
+              const seats = t('vehicles.seats_count', { count: veh.seatCount ? String(veh.seatCount).replace(/\D/g, '') || '4' : '4' });
 
               return (
                 <View key={veh.id || idx} style={styles.vehicleCard}>
@@ -236,7 +271,7 @@ export function DriverVehiclesModal({
                         activeOpacity={0.7}
                       >
                         <Ionicons name="pencil" size={14} color="#0f2744" />
-                        <Text style={styles.actionBtnEditText}>Edit</Text>
+                        <Text style={styles.actionBtnEditText}>{t('vehicles.edit', 'Edit')}</Text>
                       </TouchableOpacity>
 
                       {vehicles.length > 1 && (
@@ -305,7 +340,9 @@ export function DriverVehiclesModal({
                             styles.specBadgeText,
                             { color: isAllAttached ? '#166534' : '#dc2626', fontWeight: '700' }
                           ]}>
-                            {isAllAttached ? 'Verified (6/6)' : `Pending (${docsAttachedCount}/6)`}
+                            {isAllAttached
+                              ? t('vehicles.verified_badge', { count: 6, defaultValue: 'Verified (6/6)' })
+                              : t('vehicles.pending_badge', { count: docsAttachedCount, defaultValue: `Pending (${docsAttachedCount}/6)` })}
                           </Text>
                         </View>
                       );
@@ -336,7 +373,7 @@ export function DriverVehiclesModal({
                         }}
                         activeOpacity={0.75}
                       >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                           <Ionicons
                             name={isAllAttached ? "checkmark-circle" : "alert-circle-outline"}
                             size={15}
@@ -347,12 +384,14 @@ export function DriverVehiclesModal({
                               styles.docUploadRowText,
                               isAllAttached ? styles.docUploadRowTextAttached : styles.docUploadRowTextMissing,
                             ]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
                           >
                             {isAllAttached
-                              ? 'All Vehicle Documents Attached (6/6)'
+                              ? t('vehicles.all_docs_attached', 'All Vehicle Documents Attached (6/6)')
                               : docsAttachedCount > 0
-                                ? `Vehicle Documents Pending (${docsAttachedCount}/6 Attached)`
-                                : 'Vehicle Documents: Not Attached (Upload Now)'}
+                                ? t('vehicles.docs_pending', { count: docsAttachedCount, defaultValue: `Vehicle Documents Pending (${docsAttachedCount}/6 Attached)` })
+                                : t('vehicles.docs_not_attached', 'Vehicle Documents: Not Attached (Upload Now)')}
                           </Text>
                         </View>
                         <Ionicons
@@ -380,8 +419,12 @@ export function DriverVehiclesModal({
             >
               <View style={styles.formModalHeader}>
                 <View>
-                  <Text style={styles.formModalTitle}>{editingIndex !== null ? 'Edit Vehicle Details' : 'Add New Vehicle'}</Text>
-                  <Text style={styles.formModalSub}>Assign commercial vehicle to your driver fleet</Text>
+                  <Text style={styles.formModalTitle}>
+                    {editingIndex !== null ? t('vehicles.edit_modal_title', 'Edit Vehicle Details') : t('vehicles.add_modal_title', 'Add New Vehicle')}
+                  </Text>
+                  <Text style={styles.formModalSub}>
+                    {t('vehicles.modal_subtitle', 'Assign commercial vehicle to your driver fleet')}
+                  </Text>
                 </View>
                 <TouchableOpacity onPress={() => setIsFormOpen(false)} style={styles.formModalCloseBtn}>
                   <Ionicons name="close" size={20} color="#64748b" />
@@ -390,7 +433,7 @@ export function DriverVehiclesModal({
 
               <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 480 }}>
                 {/* 1. Category Selection */}
-                <Text style={styles.inputLabel}>Vehicle Category</Text>
+                <Text style={styles.inputLabel}>{t('vehicles.category_label', 'Vehicle Category')}</Text>
                 <View style={styles.categoryPickerRow}>
                   {CATEGORY_OPTIONS.map((cat) => {
                     const isSelected = formCategory === cat.id;
@@ -409,7 +452,7 @@ export function DriverVehiclesModal({
                       >
                         <Image source={cat.img} style={styles.catOptionImg} resizeMode="contain" />
                         <Text style={[styles.catOptionText, isSelected && styles.catOptionTextSelected]}>
-                          {cat.label}
+                          {getCategoryLabel(cat.id)}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -417,34 +460,34 @@ export function DriverVehiclesModal({
                 </View>
 
                 {/* 2. Model & Make */}
-                <Text style={styles.inputLabel}>Car Model / Make</Text>
+                <Text style={styles.inputLabel}>{t('vehicles.model_label', 'Car Model / Make')}</Text>
                 <View style={styles.inputContainer}>
                   <Ionicons name="car-outline" size={18} color="#64748b" style={{ marginRight: 8 }} />
                   <TextInput
                     style={styles.formInput}
                     value={formModel}
                     onChangeText={setFormModel}
-                    placeholder="e.g. Maruti Suzuki Dzire"
+                    placeholder={t('vehicles.model_placeholder', 'e.g. Maruti Suzuki Dzire')}
                     placeholderTextColor="#94a3b8"
                   />
                 </View>
 
                 {/* 3. Plate Number */}
-                <Text style={styles.inputLabel}>Vehicle Number Plate</Text>
+                <Text style={styles.inputLabel}>{t('vehicles.plate_label', 'Vehicle Number Plate')}</Text>
                 <View style={styles.inputContainer}>
                   <Ionicons name="card-outline" size={18} color="#64748b" style={{ marginRight: 8 }} />
                   <TextInput
                     style={[styles.formInput, { textTransform: 'uppercase', fontWeight: '700' }]}
                     value={formPlate}
                     onChangeText={setFormPlate}
-                    placeholder="e.g. KA 01 MJ 2023"
+                    placeholder={t('vehicles.plate_placeholder', 'e.g. KA 01 MJ 2023')}
                     placeholderTextColor="#94a3b8"
                     autoCapitalize="characters"
                   />
                 </View>
 
                 {/* 4. Fuel Type */}
-                <Text style={styles.inputLabel}>Fuel / Emission</Text>
+                <Text style={styles.inputLabel}>{t('vehicles.fuel_label', 'Fuel / Emission')}</Text>
                 <View style={styles.fuelPickerRow}>
                   {FUEL_OPTIONS.map((fuel) => {
                     const isSelected = formFuel === fuel;
@@ -456,7 +499,7 @@ export function DriverVehiclesModal({
                         activeOpacity={0.8}
                       >
                         <Text style={[styles.fuelOptionText, isSelected && styles.fuelOptionTextSelected]}>
-                          {fuel}
+                          {getFuelLabel(fuel)}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -464,7 +507,7 @@ export function DriverVehiclesModal({
                 </View>
 
                 {/* 5. Passenger Seats */}
-                <Text style={styles.inputLabel}>Passenger Seating Capacity</Text>
+                <Text style={styles.inputLabel}>{t('vehicles.seats_label', 'Passenger Seating Capacity')}</Text>
                 <View style={styles.seatsPickerRow}>
                   {['4', '6', '7', '12'].map((seats) => {
                     const isSelected = formSeats === seats;
@@ -476,7 +519,7 @@ export function DriverVehiclesModal({
                         activeOpacity={0.8}
                       >
                         <Text style={[styles.seatOptionText, isSelected && styles.seatOptionTextSelected]}>
-                          {seats} Seats
+                          {t('vehicles.seats_count', { count: seats })}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -490,7 +533,7 @@ export function DriverVehiclesModal({
                     onPress={() => setIsFormOpen(false)}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.formCancelBtnText}>Cancel</Text>
+                    <Text style={styles.formCancelBtnText}>{t('vehicles.cancel', 'Cancel')}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -503,7 +546,7 @@ export function DriverVehiclesModal({
                       <ActivityIndicator size="small" color="#ffffff" />
                     ) : (
                       <Text style={styles.formSaveBtnText}>
-                        {editingIndex !== null ? 'Save Changes' : '+ Add to Fleet'}
+                        {editingIndex !== null ? t('vehicles.save_vehicle', 'Save Changes') : `+ ${t('vehicles.add_cab', 'Add Cab')}`}
                       </Text>
                     )}
                   </TouchableOpacity>
