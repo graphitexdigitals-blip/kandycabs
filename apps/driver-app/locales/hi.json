@@ -64,7 +64,16 @@
     "choose_language": "अपनी पसंदीदा भाषा चुनें",
     "english": "English",
     "kannada": "ಕನ್ನಡ",
-    "hindi": "हिन्दी"
+    "hindi": "हिन्दी",
+    "my_profile": "मेरी प्रोफ़ाइल",
+    "my_vehicle": "मेरा वाहन",
+    "documents_and_kyc": "दस्तावेज़ और केवाईसी",
+    "payment": "भुगतान",
+    "notifications": "सूचनाएं",
+    "help_and_support": "सहायता और समर्थन",
+    "terms_and_conditions": "नियम और शर्तें",
+    "logout": "लॉग आउट",
+    "app_version": "कैंडी कैब्स ड्राइवर ऐप v1.0.0"
   },
   "dashboard": {
     "active_trip": "सक्रिय ट्रिप",

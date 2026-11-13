@@ -64,7 +64,16 @@
     "choose_language": "ನಿಮ್ಮ ಆದ್ಯತೆಯ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ",
     "english": "English",
     "kannada": "ಕನ್ನಡ",
-    "hindi": "हिन्दी"
+    "hindi": "हिन्दी",
+    "my_profile": "ನನ್ನ ಪ್ರೊಫೈಲ್",
+    "my_vehicle": "ನನ್ನ ವಾಹನ",
+    "documents_and_kyc": "ದಾಖಲೆಗಳು ಮತ್ತು ಕೆವೈಸಿ",
+    "payment": "ಪಾವತಿ",
+    "notifications": "ಅಧಿಸೂಚನೆಗಳು",
+    "help_and_support": "ಸಹಾಯ ಮತ್ತು ಬೆಂಬಲ",
+    "terms_and_conditions": "ನಿಯಮಗಳು ಮತ್ತು ಷರತ್ತುಗಳು",
+    "logout": "ಲಾಗ್‌ಔಟ್",
+    "app_version": "ಕ್ಯಾಂಡಿ ಕ್ಯಾಬ್ಸ್ ಚಾಲಕರ ಆ್ಯಪ್ v1.0.0"
   },
   "dashboard": {
     "active_trip": "ಸಕ್ರಿಯ ಟ್ರಿಪ್",

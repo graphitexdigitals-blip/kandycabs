@@ -3227,7 +3227,7 @@ export default function DriverDashboardScreen() {
                 </View>
                 <View style={styles.profileHeroRatingPill}>
                   <Ionicons name="star" size={11} color="#f59e0b" style={{ marginRight: 3 }} />
-                  <Text style={styles.profileHeroRatingText}>4.9 Rating</Text>
+                  <Text style={styles.profileHeroRatingText}>{t('profile.rating', '4.9 Rating')}</Text>
                 </View>
               </View>
 
@@ -3250,7 +3250,9 @@ export default function DriverDashboardScreen() {
                   <Ionicons name="person" size={22} color="#0f2744" />
                 </View>
                 <View style={styles.profileSectionTextBox}>
-                  <Text style={styles.profileSectionTitle}>My Profile</Text>
+                  <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('profile.my_profile', 'My Profile')}
+                  </Text>
                 </View>
               </TouchableOpacity>
 
@@ -3265,7 +3267,9 @@ export default function DriverDashboardScreen() {
                 </View>
                 <View style={styles.profileSectionTextBox}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.profileSectionTitle}>My Vehicle</Text>
+                    <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('profile.my_vehicle', 'My Vehicle')}
+                    </Text>
                     {hasVehiclePendingDocs && (
                       <Ionicons name="alert-circle" size={17} color="#dc2626" />
                     )}
@@ -3284,7 +3288,9 @@ export default function DriverDashboardScreen() {
                 </View>
                 <View style={styles.profileSectionTextBox}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.profileSectionTitle}>Documents and KYC</Text>
+                    <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('profile.documents_and_kyc', 'Documents and KYC')}
+                    </Text>
                     {hasKycPendingDocs && (
                       <Ionicons name="alert-circle" size={17} color="#dc2626" />
                     )}
@@ -3302,7 +3308,9 @@ export default function DriverDashboardScreen() {
                   <Ionicons name="wallet" size={22} color="#0f2744" />
                 </View>
                 <View style={styles.profileSectionTextBox}>
-                  <Text style={styles.profileSectionTitle}>Payment</Text>
+                  <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('profile.payment', 'Payment')}
+                  </Text>
                 </View>
               </TouchableOpacity>
 
@@ -3316,7 +3324,9 @@ export default function DriverDashboardScreen() {
                   <Ionicons name="notifications" size={22} color="#0f2744" />
                 </View>
                 <View style={styles.profileSectionTextBox}>
-                  <Text style={styles.profileSectionTitle}>Notifications</Text>
+                  <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('profile.notifications', 'Notifications')}
+                  </Text>
                 </View>
               </TouchableOpacity>
 
@@ -3330,7 +3340,9 @@ export default function DriverDashboardScreen() {
                   <Ionicons name="headset" size={22} color="#0f2744" />
                 </View>
                 <View style={styles.profileSectionTextBox}>
-                  <Text style={styles.profileSectionTitle}>Help and Support</Text>
+                  <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('profile.help_and_support', 'Help and Support')}
+                  </Text>
                 </View>
               </TouchableOpacity>
 
@@ -3344,7 +3356,9 @@ export default function DriverDashboardScreen() {
                   <Ionicons name="shield-checkmark" size={22} color="#0f2744" />
                 </View>
                 <View style={styles.profileSectionTextBox}>
-                  <Text style={styles.profileSectionTitle}>Terms and Conditions</Text>
+                  <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('profile.terms_and_conditions', 'Terms and Conditions')}
+                  </Text>
                 </View>
               </TouchableOpacity>
 
@@ -3358,7 +3372,9 @@ export default function DriverDashboardScreen() {
                   <Ionicons name="globe" size={22} color="#0f2744" />
                 </View>
                 <View style={styles.profileSectionTextBox}>
-                  <Text style={styles.profileSectionTitle}>App Language</Text>
+                  <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('profile.app_language', 'App Language')}
+                  </Text>
                 </View>
               </TouchableOpacity>
 
@@ -3372,7 +3388,9 @@ export default function DriverDashboardScreen() {
                   <Ionicons name="log-out" size={22} color="#dc2626" />
                 </View>
                 <View style={styles.profileSectionTextBox}>
-                  <Text style={[styles.profileSectionTitle, { color: '#dc2626' }]}>Logout</Text>
+                  <Text style={[styles.profileSectionTitle, { color: '#dc2626' }]} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('profile.logout', 'Logout')}
+                  </Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -3403,7 +3421,7 @@ export default function DriverDashboardScreen() {
               onClose={() => setIsLangModalOpen(false)}
             />
 
-            <Text style={styles.versionTextDark}>Kandy Cabs Driver App v1.0.0</Text>
+            <Text style={styles.versionTextDark}>{t('profile.app_version', 'Kandy Cabs Driver App v1.0.0')}</Text>
           </View>
         )}
       </ScrollView>

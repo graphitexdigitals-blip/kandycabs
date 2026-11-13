@@ -64,7 +64,16 @@
     "choose_language": "Choose your preferred language",
     "english": "English",
     "kannada": "ಕನ್ನಡ (Kannada)",
-    "hindi": "हिन्दी (Hindi)"
+    "hindi": "हिन्दी (Hindi)",
+    "my_profile": "My Profile",
+    "my_vehicle": "My Vehicle",
+    "documents_and_kyc": "Documents and KYC",
+    "payment": "Payment",
+    "notifications": "Notifications",
+    "help_and_support": "Help and Support",
+    "terms_and_conditions": "Terms and Conditions",
+    "logout": "Logout",
+    "app_version": "Kandy Cabs Driver App v1.0.0"
   },
   "dashboard": {
     "active_trip": "Active Trip",
