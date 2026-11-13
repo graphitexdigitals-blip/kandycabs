@@ -218,16 +218,20 @@ export default function PayoutDetailsScreen() {
                   size={18}
                   color={payoutMethod === 'BANK' ? '#162232' : '#64748b'}
                 />
-                <View style={{ marginLeft: 8 }}>
+                <View style={{ marginLeft: 8, flex: 1 }}>
                   <Text
                     style={[
                       styles.methodTabTitle,
                       payoutMethod === 'BANK' && styles.methodTabTitleActive,
                     ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
                   >
-                    {t('payout.tab_bank_title', 'Option 1: Bank Transfer')}
+                    {t('payout.tab_bank_title', 'Bank Transfer')}
                   </Text>
-                  <Text style={styles.methodTabSub}>{t('payout.tab_bank_sub', 'NEFT / IMPS Direct')}</Text>
+                  <Text style={styles.methodTabSub} numberOfLines={1}>
+                    {t('payout.tab_bank_sub', 'NEFT / IMPS')}
+                  </Text>
                 </View>
               </TouchableOpacity>
 
@@ -244,16 +248,20 @@ export default function PayoutDetailsScreen() {
                   size={18}
                   color={payoutMethod === 'UPI' ? '#162232' : '#64748b'}
                 />
-                <View style={{ marginLeft: 8 }}>
+                <View style={{ marginLeft: 8, flex: 1 }}>
                   <Text
                     style={[
                       styles.methodTabTitle,
                       payoutMethod === 'UPI' && styles.methodTabTitleActive,
                     ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
                   >
-                    {t('payout.tab_upi_title', 'Option 2: UPI Transfer')}
+                    {t('payout.tab_upi_title', 'UPI Transfer')}
                   </Text>
-                  <Text style={styles.methodTabSub}>{t('payout.tab_upi_sub', 'Instant UPI / VPA')}</Text>
+                  <Text style={styles.methodTabSub} numberOfLines={1}>
+                    {t('payout.tab_upi_sub', 'Instant UPI')}
+                  </Text>
                 </View>
               </TouchableOpacity>
             </View>
