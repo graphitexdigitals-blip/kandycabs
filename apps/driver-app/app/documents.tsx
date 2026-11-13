@@ -22,6 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from '../components/SafeLinearGradient';
 import { driverApiClient } from '../lib/api';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 type VehicleCategoryType = 'HATCHBACK' | 'SEDAN' | 'SUV' | 'SUV_PREMIUM' | 'TEMPO_TRAVELER';
 type FuelTypeVal = 'DIESEL' | 'PETROL' | 'CNG';
@@ -259,6 +260,7 @@ export interface VehicleItem {
 
 export default function DriverDocumentsUploadScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const searchParams = useLocalSearchParams<{ vehicleIndex?: string; addNewVehicle?: string; fromVehicle?: string }>();
   const isVehicleOnlyMode = Boolean(
     (searchParams?.vehicleIndex !== undefined && searchParams?.vehicleIndex !== '') ||
@@ -1354,9 +1356,11 @@ export default function DriverDocumentsUploadScreen() {
           </TouchableOpacity>
 
           <View style={styles.cleanTopBarTitleBox}>
-            <Text style={styles.cleanTopBarTitle}>Documents and KYC</Text>
+            <Text style={styles.cleanTopBarTitle}>{t('kyc_docs.title', 'Documents and KYC')}</Text>
             <Text style={styles.cleanTopBarSubtitle}>
-              {isVehicleOnlyMode ? 'Commercial vehicle specifications & permits' : 'Upload vehicle & driver KYC documents'}
+              {isVehicleOnlyMode
+                ? t('kyc_docs.subtitle_vehicle', 'Commercial vehicle specifications & permits')
+                : t('kyc_docs.subtitle_all', 'Upload vehicle & driver KYC documents')}
             </Text>
           </View>
 
@@ -1366,7 +1370,7 @@ export default function DriverDocumentsUploadScreen() {
             activeOpacity={0.7}
           >
             <Ionicons name="flash" size={11} color="rgb(240, 117, 15)" />
-            <Text style={styles.demoPillText}>Demo</Text>
+            <Text style={styles.demoPillText}>{t('kyc_docs.demo_btn', 'Demo')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -1378,8 +1382,8 @@ export default function DriverDocumentsUploadScreen() {
             <Ionicons name="shield-checkmark" size={16} color="#ffffff" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.securityBannerTitle}>Your information is safe and secure</Text>
-            <Text style={styles.securityBannerSub}>We keep your data protected.</Text>
+            <Text style={styles.securityBannerTitle}>{t('kyc_docs.safe_secure_title', 'Your information is safe and secure')}</Text>
+            <Text style={styles.securityBannerSub}>{t('kyc_docs.safe_secure_sub', 'We keep your data protected.')}</Text>
           </View>
         </View>
 
@@ -1394,9 +1398,9 @@ export default function DriverDocumentsUploadScreen() {
                 <Ionicons name="alert" size={20} color="#ffffff" />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.rejectionTitle}>KYC Verification Rejected</Text>
+                <Text style={styles.rejectionTitle}>{t('kyc_docs.rejection_title', 'KYC Verification Rejected')}</Text>
                 <Text style={styles.rejectionSubtitle}>
-                  All documents you submitted did not meet our guidelines.
+                  {t('kyc_docs.rejection_sub', 'All documents you submitted did not meet our guidelines.')}
                 </Text>
               </View>
             </View>
@@ -1405,7 +1409,7 @@ export default function DriverDocumentsUploadScreen() {
             <View style={styles.rejectionReasonBox}>
               <View style={styles.rejectionReasonHeaderRow}>
                 <Ionicons name="document-text" size={16} color="#c90016" style={{ marginRight: 6 }} />
-                <Text style={styles.rejectionReasonLabel}>Admin Reason / Feedback:</Text>
+                <Text style={styles.rejectionReasonLabel}>{t('kyc_docs.admin_reason_label', 'Admin Reason / Feedback:')}</Text>
               </View>
               <View style={styles.rejectionReasonPill}>
                 <Text style={styles.rejectionReasonText}>
@@ -1418,7 +1422,7 @@ export default function DriverDocumentsUploadScreen() {
             <View style={styles.rejectionFooterRow}>
               <Ionicons name="bulb-outline" size={18} color="#dc2626" style={{ marginRight: 8, marginTop: 1 }} />
               <Text style={styles.rejectionFooterText}>
-                Please update the required information or upload correct documents as per the guidelines.
+                {t('kyc_docs.rejection_tip', 'Please update the required information or upload correct documents as per the guidelines.')}
               </Text>
             </View>
           </View>
@@ -1431,14 +1435,17 @@ export default function DriverDocumentsUploadScreen() {
           <View style={styles.stepCardWhite}>
             <View style={styles.step3HeaderBetween}>
               <View style={{ flex: 1, paddingRight: 6 }}>
-                <Text style={styles.stepTitleText}>Driver Identity & KYC Documents</Text>
-                <Text style={styles.stepSubtitleTextMini}>Driving Licence, Aadhaar Card & PAN Card verification.</Text>
+                <Text style={styles.stepTitleText}>{t('kyc_docs.driver_identity_title', 'Driver Identity & KYC Documents')}</Text>
+                <Text style={styles.stepSubtitleTextMini}>{t('kyc_docs.driver_identity_sub', 'Driving Licence, Aadhaar Card & PAN Card verification.')}</Text>
               </View>
 
               <View style={styles.verificationBadgeBlue}>
                 <Ionicons name="person" size={12} color="#1d4ed8" style={{ marginRight: 4 }} />
                 <Text style={styles.verificationBadgeBlueText}>
-                  {[licenseDocUrl, aadhaarDocUrl, panDocUrl].filter(Boolean).length}/3 Uploaded
+                  {t('kyc_docs.driver_uploaded_count', {
+                    count: [licenseDocUrl, aadhaarDocUrl, panDocUrl].filter(Boolean).length,
+                    defaultValue: `${[licenseDocUrl, aadhaarDocUrl, panDocUrl].filter(Boolean).length}/3 Uploaded`
+                  })}
                 </Text>
               </View>
             </View>
@@ -1446,9 +1453,9 @@ export default function DriverDocumentsUploadScreen() {
             {/* Driver KYC Row: DL, Aadhaar, PAN */}
             <View style={styles.docsRowGrid}>
               {[
-                { target: 'license' as const, title: 'Driving License', icon: 'card' as const, url: licenseDocUrl },
-                { target: 'aadhaar' as const, title: 'Aadhaar Card', icon: 'finger-print' as const, url: aadhaarDocUrl },
-                { target: 'pan' as const, title: 'PAN Card', icon: 'id-card-outline' as const, url: panDocUrl },
+                { target: 'license' as const, title: t('kyc_docs.driving_license', 'Driving License'), icon: 'card' as const, url: licenseDocUrl },
+                { target: 'aadhaar' as const, title: t('kyc_docs.aadhaar_card', 'Aadhaar Card'), icon: 'finger-print' as const, url: aadhaarDocUrl },
+                { target: 'pan' as const, title: t('kyc_docs.pan_card', 'PAN Card'), icon: 'id-card-outline' as const, url: panDocUrl },
               ].map((item) => (
                 <TouchableOpacity
                   key={item.target}
@@ -1466,7 +1473,7 @@ export default function DriverDocumentsUploadScreen() {
                     {docDates[item.target]?.validTo ? (
                       <View style={styles.cardExpPill}>
                         <Text style={styles.cardExpPillText} numberOfLines={1}>
-                          Exp: {docDates[item.target]?.validTo}
+                          {t('kyc_docs.exp_date', { date: docDates[item.target]?.validTo, defaultValue: `Exp: ${docDates[item.target]?.validTo}` })}
                         </Text>
                       </View>
                     ) : null}
@@ -1474,13 +1481,13 @@ export default function DriverDocumentsUploadScreen() {
                   {item.url ? (
                     <View style={styles.docCardUploadedBtn}>
                       <Ionicons name="checkmark-circle" size={11} color="#16a34a" />
-                      <Text style={styles.docCardUploadedText}>Uploaded</Text>
+                      <Text style={styles.docCardUploadedText}>{t('kyc_docs.uploaded', 'Uploaded')}</Text>
                       <Ionicons name="chevron-forward" size={10} color="#16a34a" style={{ marginLeft: 2 }} />
                     </View>
                   ) : (
                     <View style={styles.docCardUploadBtn}>
                       <Ionicons name="cloud-upload-outline" size={12} color="#dc2626" />
-                      <Text style={styles.docCardUploadText}>Upload</Text>
+                      <Text style={styles.docCardUploadText}>{t('kyc_docs.upload', 'Upload')}</Text>
                       <Ionicons name="chevron-forward" size={10} color="#dc2626" style={{ marginLeft: 2 }} />
                     </View>
                   )}
@@ -1512,7 +1519,9 @@ export default function DriverDocumentsUploadScreen() {
               {/* Header Label */}
               <View style={styles.fleetHeaderRow}>
                 <Text style={styles.fleetHeaderTitle}>
-                  {vehiclesList.length > 1 ? `REGISTERED FLEET (${vehiclesList.length})` : 'VEHICLE FLEET'}
+                  {vehiclesList.length > 1
+                    ? t('kyc_docs.registered_fleet_title', { count: vehiclesList.length, defaultValue: `REGISTERED FLEET (${vehiclesList.length})` })
+                    : t('kyc_docs.vehicle_fleet_title', 'VEHICLE FLEET')}
                 </Text>
               </View>
 
@@ -1624,7 +1633,7 @@ export default function DriverDocumentsUploadScreen() {
                               </Text>
                               {isSelected && (
                                 <View style={styles.fleetActiveTag}>
-                                  <Text style={styles.fleetActiveTagText}>Active</Text>
+                                  <Text style={styles.fleetActiveTagText}>{t('kyc_docs.active', 'Active')}</Text>
                                 </View>
                               )}
                             </View>
@@ -1677,9 +1686,13 @@ export default function DriverDocumentsUploadScreen() {
         <View style={styles.stepCardWhite}>
           <View style={styles.step3HeaderBetween}>
             <View style={{ flex: 1, paddingRight: 6 }}>
-              <Text style={styles.stepTitleText}>Vehicle Documents & Permits</Text>
+              <Text style={styles.stepTitleText}>{t('kyc_docs.vehicle_docs_title', 'Vehicle Documents & Permits')}</Text>
               <Text style={styles.stepSubtitleTextMini}>
-                Uploading for: {plateNumber || carModel || `Vehicle ${activeVehicleIndex + 1}`} ({category || 'Sedan'})
+                {t('kyc_docs.uploading_for', {
+                  plate: plateNumber || carModel || `Vehicle ${activeVehicleIndex + 1}`,
+                  category: category || 'Sedan',
+                  defaultValue: `Uploading for: ${plateNumber || carModel || `Vehicle ${activeVehicleIndex + 1}`} (${category || 'Sedan'})`
+                })}
               </Text>
             </View>
 
@@ -1703,7 +1716,10 @@ export default function DriverDocumentsUploadScreen() {
                     styles.verificationBadgeBlueText,
                     { color: isAllDone ? '#166534' : '#dc2626' }
                   ]}>
-                    {uploadedCount}/6 Uploaded
+                    {t('kyc_docs.vehicle_uploaded_count', {
+                      count: uploadedCount,
+                      defaultValue: `${uploadedCount}/6 Uploaded`
+                    })}
                   </Text>
                 </View>
               );
@@ -1715,9 +1731,9 @@ export default function DriverDocumentsUploadScreen() {
           {/* Row 1: RC Certificate, Insurance, Fitness Certificate */}
           <View style={styles.docsRowGrid}>
             {[
-              { target: 'rc' as const, title: 'RC Certificate', icon: 'rc-book' as const, url: rcDocUrl },
-              { target: 'insurance' as const, title: 'Vehicle Insurance', icon: 'insurance-car' as const, url: insuranceDocUrl },
-              { target: 'fitness' as const, title: 'Fitness Certificate', icon: 'speedometer-outline' as const, url: fitnessDocUrl },
+              { target: 'rc' as const, title: t('kyc_docs.rc_certificate', 'RC Certificate'), icon: 'rc-book' as const, url: rcDocUrl },
+              { target: 'insurance' as const, title: t('kyc_docs.vehicle_insurance', 'Vehicle Insurance'), icon: 'insurance-car' as const, url: insuranceDocUrl },
+              { target: 'fitness' as const, title: t('kyc_docs.fitness_certificate', 'Fitness Certificate'), icon: 'speedometer-outline' as const, url: fitnessDocUrl },
             ].map((item) => (
               <TouchableOpacity
                 key={item.target}
@@ -1749,7 +1765,7 @@ export default function DriverDocumentsUploadScreen() {
                   {docDates[item.target]?.validTo ? (
                     <View style={styles.cardExpPill}>
                       <Text style={styles.cardExpPillText} numberOfLines={1}>
-                        Exp: {docDates[item.target]?.validTo}
+                        {t('kyc_docs.exp_date', { date: docDates[item.target]?.validTo, defaultValue: `Exp: ${docDates[item.target]?.validTo}` })}
                       </Text>
                     </View>
                   ) : null}
@@ -1757,13 +1773,13 @@ export default function DriverDocumentsUploadScreen() {
                 {item.url ? (
                   <View style={styles.docCardUploadedBtn}>
                     <Ionicons name="checkmark-circle" size={11} color="#16a34a" />
-                    <Text style={styles.docCardUploadedText}>Uploaded</Text>
+                    <Text style={styles.docCardUploadedText}>{t('kyc_docs.uploaded', 'Uploaded')}</Text>
                     <Ionicons name="chevron-forward" size={10} color="#16a34a" style={{ marginLeft: 2 }} />
                   </View>
                 ) : (
                   <View style={styles.docCardUploadBtn}>
                     <Ionicons name="cloud-upload-outline" size={12} color="#dc2626" />
-                    <Text style={styles.docCardUploadText}>Upload</Text>
+                    <Text style={styles.docCardUploadText}>{t('kyc_docs.upload', 'Upload')}</Text>
                     <Ionicons name="chevron-forward" size={10} color="#dc2626" style={{ marginLeft: 2 }} />
                   </View>
                 )}
@@ -1774,9 +1790,9 @@ export default function DriverDocumentsUploadScreen() {
           {/* Row 2: Road Tax, Permit, PUC Certificate */}
           <View style={[styles.docsRowGrid, { marginTop: 10 }]}>
             {[
-              { target: 'tax' as const, title: 'Road Tax', icon: 'tax-paid' as const, url: taxDocUrl },
-              { target: 'permit' as const, title: 'Permit', icon: 'newspaper-outline' as const, url: permitDocUrl },
-              { target: 'puc' as const, title: 'PUC Emission\nCertificate', icon: 'puc-emission' as const, url: pucDocUrl },
+              { target: 'tax' as const, title: t('kyc_docs.road_tax', 'Road Tax'), icon: 'tax-paid' as const, url: taxDocUrl },
+              { target: 'permit' as const, title: t('kyc_docs.permit', 'Permit'), icon: 'newspaper-outline' as const, url: permitDocUrl },
+              { target: 'puc' as const, title: t('kyc_docs.puc_certificate', 'PUC Emission Certificate'), icon: 'puc-emission' as const, url: pucDocUrl },
             ].map((item) => (
               <TouchableOpacity
                 key={item.target}
@@ -1808,7 +1824,7 @@ export default function DriverDocumentsUploadScreen() {
                   {docDates[item.target]?.validTo ? (
                     <View style={styles.cardExpPill}>
                       <Text style={styles.cardExpPillText} numberOfLines={1}>
-                        Exp: {docDates[item.target]?.validTo}
+                        {t('kyc_docs.exp_date', { date: docDates[item.target]?.validTo, defaultValue: `Exp: ${docDates[item.target]?.validTo}` })}
                       </Text>
                     </View>
                   ) : null}
@@ -1816,13 +1832,13 @@ export default function DriverDocumentsUploadScreen() {
                 {item.url ? (
                   <View style={styles.docCardUploadedBtn}>
                     <Ionicons name="checkmark-circle" size={11} color="#16a34a" />
-                    <Text style={styles.docCardUploadedText}>Uploaded</Text>
+                    <Text style={styles.docCardUploadedText}>{t('kyc_docs.uploaded', 'Uploaded')}</Text>
                     <Ionicons name="chevron-forward" size={10} color="#16a34a" style={{ marginLeft: 2 }} />
                   </View>
                 ) : (
                   <View style={styles.docCardUploadBtn}>
                     <Ionicons name="cloud-upload-outline" size={12} color="#dc2626" />
-                    <Text style={styles.docCardUploadText}>Upload</Text>
+                    <Text style={styles.docCardUploadText}>{t('kyc_docs.upload', 'Upload')}</Text>
                     <Ionicons name="chevron-forward" size={10} color="#dc2626" style={{ marginLeft: 2 }} />
                   </View>
                 )}
@@ -1844,14 +1860,14 @@ export default function DriverDocumentsUploadScreen() {
             <ActivityIndicator color="#ffffff" size="small" />
           ) : (
             <Text style={styles.submitButtonText}>
-              {isVehicleOnlyMode ? 'Save Vehicle Documents' : 'Save & Submit'}
+              {isVehicleOnlyMode ? t('kyc_docs.save_vehicle_docs', 'Save Vehicle Documents') : t('kyc_docs.save_and_submit', 'Save & Submit')}
             </Text>
           )}
         </TouchableOpacity>
 
         {/* Footer Note */}
         <Text style={styles.footerNoteText}>
-          ⓘ Once submitted, your details will be reviewed by the admin panel.
+          {t('kyc_docs.review_footer_note', 'ⓘ Once submitted, your details will be reviewed by the admin panel.')}
         </Text>
 
         <View style={{ height: 28 }} />
