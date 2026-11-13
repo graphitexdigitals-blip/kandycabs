@@ -15,12 +15,14 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { driverApiClient } from '../lib/api';
 
 type PayoutMethodType = 'BANK' | 'UPI';
 
 export default function PayoutDetailsScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -97,29 +99,29 @@ export default function PayoutDetailsScreen() {
     // Validation
     if (payoutMethod === 'BANK') {
       if (!bankAccountHolderName.trim()) {
-        Alert.alert('Required Field', 'Please enter the Bank Account Holder Name as registered in bank records.');
+        Alert.alert(t('payout.alert_required_field', 'Required Field'), t('payout.alert_enter_holder_name', 'Please enter the Bank Account Holder Name as registered in bank records.'));
         return;
       }
       if (!bankAccountNumber.trim()) {
-        Alert.alert('Required Field', 'Please enter your Bank Account Number.');
+        Alert.alert(t('payout.alert_required_field', 'Required Field'), t('payout.alert_enter_acc_number', 'Please enter your Bank Account Number.'));
         return;
       }
       if (confirmAccountNumber.trim() && bankAccountNumber.trim() !== confirmAccountNumber.trim()) {
-        Alert.alert('Account Number Mismatch', 'Account Number and Confirm Account Number do not match.');
+        Alert.alert(t('payout.alert_mismatch_title', 'Account Number Mismatch'), t('payout.alert_mismatch_msg', 'Account Number and Confirm Account Number do not match.'));
         return;
       }
       if (!bankIfsc.trim() || bankIfsc.trim().length < 8) {
-        Alert.alert('Required Field', 'Please enter a valid 11-character Bank IFSC Code (e.g. SBIN0001234).');
+        Alert.alert(t('payout.alert_required_field', 'Required Field'), t('payout.alert_valid_ifsc', 'Please enter a valid 11-character Bank IFSC Code (e.g. SBIN0001234).'));
         return;
       }
     } else {
       // UPI validation
       if (!upiFullName.trim()) {
-        Alert.alert('Required Field', "Please enter Driver's Full Name as registered with UPI.");
+        Alert.alert(t('payout.alert_required_field', 'Required Field'), t('payout.alert_enter_upi_name', "Please enter Driver's Full Name as registered with UPI."));
         return;
       }
       if (!payoutUpiId.trim() || !payoutUpiId.includes('@')) {
-        Alert.alert('Required Field', 'Please enter a valid UPI ID (e.g. driver@oksbi or phone@upi).');
+        Alert.alert(t('payout.alert_required_field', 'Required Field'), t('payout.alert_valid_upi', 'Please enter a valid UPI ID (e.g. driver@oksbi or phone@upi).'));
         return;
       }
     }
@@ -145,8 +147,8 @@ export default function PayoutDetailsScreen() {
       if (res && res.success) {
         setPayoutStatus('PENDING');
         Alert.alert(
-          '✓ Saved Successfully',
-          'Your payout details have been recorded and submitted for admin verification. Weekly trip settlements will be routed to this account.',
+          t('payout.alert_saved_title', '✓ Saved Successfully'),
+          t('payout.alert_saved_msg', 'Your payout details have been recorded and submitted for admin verification. Weekly trip settlements will be routed to this account.'),
           [
             {
               text: 'OK',
@@ -180,10 +182,10 @@ export default function PayoutDetailsScreen() {
             activeOpacity={0.7}
           >
             <Ionicons name="arrow-back" size={20} color="#0f172a" />
-            <Text style={styles.backButtonText}>Profile</Text>
+            <Text style={styles.backButtonText}>{t('payout.back_profile', 'Profile')}</Text>
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Settlement & Bank</Text>
+          <Text style={styles.headerTitle}>{t('payout.title', 'Settlement & Bank')}</Text>
 
           <View style={{ width: 68 }} />
         </View>
@@ -191,7 +193,7 @@ export default function PayoutDetailsScreen() {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#162232" />
-            <Text style={styles.loadingText}>Loading Settlement Details...</Text>
+            <Text style={styles.loadingText}>{t('payout.loading', 'Loading Settlement Details...')}</Text>
           </View>
         ) : (
           <ScrollView
@@ -223,9 +225,9 @@ export default function PayoutDetailsScreen() {
                       payoutMethod === 'BANK' && styles.methodTabTitleActive,
                     ]}
                   >
-                    Option 1: Bank Transfer
+                    {t('payout.tab_bank_title', 'Option 1: Bank Transfer')}
                   </Text>
-                  <Text style={styles.methodTabSub}>NEFT / IMPS Direct</Text>
+                  <Text style={styles.methodTabSub}>{t('payout.tab_bank_sub', 'NEFT / IMPS Direct')}</Text>
                 </View>
               </TouchableOpacity>
 
@@ -249,9 +251,9 @@ export default function PayoutDetailsScreen() {
                       payoutMethod === 'UPI' && styles.methodTabTitleActive,
                     ]}
                   >
-                    Option 2: UPI Transfer
+                    {t('payout.tab_upi_title', 'Option 2: UPI Transfer')}
                   </Text>
-                  <Text style={styles.methodTabSub}>Instant UPI / VPA</Text>
+                  <Text style={styles.methodTabSub}>{t('payout.tab_upi_sub', 'Instant UPI / VPA')}</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -260,35 +262,35 @@ export default function PayoutDetailsScreen() {
             {payoutMethod === 'BANK' && (
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>🏦 Bank Account Information</Text>
+                  <Text style={styles.sectionTitle}>{t('payout.bank_section_title', '🏦 Bank Account Information')}</Text>
                 </View>
 
                 {/* Account Holder Name */}
                 <View style={styles.inputGroup}>
                   <View style={styles.labelRow}>
-                    <Text style={styles.label}>Account Holder Name</Text>
-                    <Text style={styles.requiredTag}>* Required</Text>
+                    <Text style={styles.label}>{t('payout.acc_holder_name', 'Account Holder Name')}</Text>
+                    <Text style={styles.requiredTag}>{t('payout.required_tag', '* Required')}</Text>
                   </View>
                   <TextInput
                     style={styles.textInput}
-                    placeholder="e.g. Ramesh Kumar (as on Passbook)"
+                    placeholder={t('payout.acc_holder_placeholder', 'e.g. Ramesh Kumar (as on Passbook)')}
                     placeholderTextColor="#94a3b8"
                     value={bankAccountHolderName}
                     onChangeText={setBankAccountHolderName}
                     autoCapitalize="words"
                   />
-                  <Text style={styles.helperText}>Name as it appears in bank account records</Text>
+                  <Text style={styles.helperText}>{t('payout.acc_holder_helper', 'Name as it appears in bank account records')}</Text>
                 </View>
 
                 {/* Bank Account Number */}
                 <View style={styles.inputGroup}>
                   <View style={styles.labelRow}>
-                    <Text style={styles.label}>Bank Account Number</Text>
-                    <Text style={styles.requiredTag}>* Required</Text>
+                    <Text style={styles.label}>{t('payout.acc_number', 'Bank Account Number')}</Text>
+                    <Text style={styles.requiredTag}>{t('payout.required_tag', '* Required')}</Text>
                   </View>
                   <TextInput
                     style={[styles.textInput, styles.fontMono]}
-                    placeholder="e.g. 50100428912345"
+                    placeholder={t('payout.acc_number_placeholder', 'e.g. 50100428912345')}
                     placeholderTextColor="#94a3b8"
                     value={bankAccountNumber}
                     onChangeText={setBankAccountNumber}
@@ -299,12 +301,12 @@ export default function PayoutDetailsScreen() {
                 {/* Confirm Account Number */}
                 <View style={styles.inputGroup}>
                   <View style={styles.labelRow}>
-                    <Text style={styles.label}>Confirm Account Number</Text>
-                    <Text style={styles.requiredTag}>* Required</Text>
+                    <Text style={styles.label}>{t('payout.confirm_acc_number', 'Confirm Account Number')}</Text>
+                    <Text style={styles.requiredTag}>{t('payout.required_tag', '* Required')}</Text>
                   </View>
                   <TextInput
                     style={[styles.textInput, styles.fontMono]}
-                    placeholder="Re-enter account number"
+                    placeholder={t('payout.confirm_acc_placeholder', 'Re-enter account number')}
                     placeholderTextColor="#94a3b8"
                     value={confirmAccountNumber}
                     onChangeText={setConfirmAccountNumber}
@@ -315,30 +317,30 @@ export default function PayoutDetailsScreen() {
                 {/* IFSC Code */}
                 <View style={styles.inputGroup}>
                   <View style={styles.labelRow}>
-                    <Text style={styles.label}>Bank IFSC Code</Text>
-                    <Text style={styles.requiredTag}>* Required</Text>
+                    <Text style={styles.label}>{t('payout.ifsc_code', 'Bank IFSC Code')}</Text>
+                    <Text style={styles.requiredTag}>{t('payout.required_tag', '* Required')}</Text>
                   </View>
                   <TextInput
                     style={[styles.textInput, styles.fontMono, { textTransform: 'uppercase' }]}
-                    placeholder="e.g. HDFC0001234 / SBIN0001234"
+                    placeholder={t('payout.ifsc_placeholder', 'e.g. HDFC0001234 / SBIN0001234')}
                     placeholderTextColor="#94a3b8"
                     value={bankIfsc}
                     onChangeText={(val) => setBankIfsc(val.toUpperCase())}
                     maxLength={11}
                     autoCapitalize="characters"
                   />
-                  <Text style={styles.helperText}>11-digit alphanumeric code printed on cheque or passbook</Text>
+                  <Text style={styles.helperText}>{t('payout.ifsc_helper', '11-digit alphanumeric code printed on cheque or passbook')}</Text>
                 </View>
 
                 {/* Bank Name */}
                 <View style={styles.inputGroup}>
                   <View style={styles.labelRow}>
-                    <Text style={styles.label}>Bank Name</Text>
-                    <Text style={styles.optionalTag}>Useful for display</Text>
+                    <Text style={styles.label}>{t('payout.bank_name', 'Bank Name')}</Text>
+                    <Text style={styles.optionalTag}>{t('payout.useful_for_display', 'Useful for display')}</Text>
                   </View>
                   <TextInput
                     style={styles.textInput}
-                    placeholder="e.g. HDFC Bank / State Bank of India / ICICI"
+                    placeholder={t('payout.bank_name_placeholder', 'e.g. HDFC Bank / State Bank of India / ICICI')}
                     placeholderTextColor="#94a3b8"
                     value={bankName}
                     onChangeText={setBankName}
@@ -351,49 +353,49 @@ export default function PayoutDetailsScreen() {
             {payoutMethod === 'UPI' && (
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>⚡ UPI Transfer Information</Text>
+                  <Text style={styles.sectionTitle}>{t('payout.upi_section_title', '⚡ UPI Transfer Information')}</Text>
                 </View>
 
                 <View style={styles.upiNoteBox}>
                   <Ionicons name="information-circle-outline" size={18} color="#162232" />
                   <Text style={styles.upiNoteText}>
-                    You don't need a bank account number when receiving payouts through UPI.
+                    {t('payout.upi_note', "You don't need a bank account number when receiving payouts through UPI.")}
                   </Text>
                 </View>
 
                 {/* Driver's Full Name */}
                 <View style={styles.inputGroup}>
                   <View style={styles.labelRow}>
-                    <Text style={styles.label}>Driver's Full Name</Text>
-                    <Text style={styles.requiredTag}>* Required</Text>
+                    <Text style={styles.label}>{t('payout.driver_fullname', "Driver's Full Name")}</Text>
+                    <Text style={styles.requiredTag}>{t('payout.required_tag', '* Required')}</Text>
                   </View>
                   <TextInput
                     style={styles.textInput}
-                    placeholder="e.g. Ramesh Kumar"
+                    placeholder={t('payout.driver_fullname_placeholder', 'e.g. Ramesh Kumar')}
                     placeholderTextColor="#94a3b8"
                     value={upiFullName}
                     onChangeText={setUpiFullName}
                     autoCapitalize="words"
                   />
-                  <Text style={styles.helperText}>Name as registered with your UPI VPA handle</Text>
+                  <Text style={styles.helperText}>{t('payout.driver_fullname_helper', 'Name as registered with your UPI VPA handle')}</Text>
                 </View>
 
                 {/* UPI ID */}
                 <View style={styles.inputGroup}>
                   <View style={styles.labelRow}>
-                    <Text style={styles.label}>UPI ID (VPA)</Text>
-                    <Text style={styles.requiredTag}>* Required</Text>
+                    <Text style={styles.label}>{t('payout.upi_id', 'UPI ID (VPA)')}</Text>
+                    <Text style={styles.requiredTag}>{t('payout.required_tag', '* Required')}</Text>
                   </View>
                   <TextInput
                     style={[styles.textInput, styles.fontMono]}
-                    placeholder="e.g. driver@oksbi / 9876543210@paytm"
+                    placeholder={t('payout.upi_id_placeholder', 'e.g. driver@oksbi / 9876543210@paytm')}
                     placeholderTextColor="#94a3b8"
                     value={payoutUpiId}
                     onChangeText={(val) => setPayoutUpiId(val.trim().toLowerCase())}
                     autoCapitalize="none"
                     keyboardType="email-address"
                   />
-                  <Text style={styles.helperText}>Must contain @ (e.g. @okaxis, @okhdfcbank, @ybl, @paytm)</Text>
+                  <Text style={styles.helperText}>{t('payout.upi_id_helper', 'Must contain @ (e.g. @okaxis, @okhdfcbank, @ybl, @paytm)')}</Text>
                 </View>
               </View>
             )}
@@ -401,19 +403,19 @@ export default function PayoutDetailsScreen() {
             {/* CONTACT DETAILS (Optional for Payout Contact) */}
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>📞 Payout Contact Details</Text>
-                <Text style={styles.optionalTag}>Optional for SMS / Email Receipts</Text>
+                <Text style={styles.sectionTitle}>{t('payout.contact_section_title', '📞 Payout Contact Details')}</Text>
+                <Text style={styles.optionalTag}>{t('payout.contact_header_tag', 'Optional for SMS / Email Receipts')}</Text>
               </View>
 
               {/* Mobile Number */}
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
-                  <Text style={styles.label}>Mobile Number</Text>
-                  <Text style={styles.optionalTag}>Optional for payout contact</Text>
+                  <Text style={styles.label}>{t('payout.mobile_number', 'Mobile Number')}</Text>
+                  <Text style={styles.optionalTag}>{t('payout.optional_tag', 'Optional for payout contact')}</Text>
                 </View>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="e.g. 9876543210"
+                  placeholder={t('payout.mobile_placeholder', 'e.g. 9876543210')}
                   placeholderTextColor="#94a3b8"
                   value={payoutPhone}
                   onChangeText={setPayoutPhone}
@@ -424,12 +426,12 @@ export default function PayoutDetailsScreen() {
               {/* Email Address */}
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
-                  <Text style={styles.label}>Email Address</Text>
-                  <Text style={styles.optionalTag}>Optional for payout contact</Text>
+                  <Text style={styles.label}>{t('payout.email_address', 'Email Address')}</Text>
+                  <Text style={styles.optionalTag}>{t('payout.optional_tag', 'Optional for payout contact')}</Text>
                 </View>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="e.g. driver@kandycabs.in"
+                  placeholder={t('payout.email_placeholder', 'e.g. driver@kandycabs.in')}
                   placeholderTextColor="#94a3b8"
                   value={payoutEmail}
                   onChangeText={setPayoutEmail}
@@ -449,12 +451,12 @@ export default function PayoutDetailsScreen() {
                 />
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={styles.statusTitle}>
-                    {payoutStatus === 'VERIFIED' ? 'Payout Account Verified' : 'Verification Under Review'}
+                    {payoutStatus === 'VERIFIED' ? t('payout.status_verified_title', 'Payout Account Verified') : t('payout.status_review_title', 'Verification Under Review')}
                   </Text>
                   <Text style={styles.statusSub}>
                     {payoutStatus === 'VERIFIED'
-                      ? 'Your settlement details are verified by Kandy Cabs operations team.'
-                      : 'New or updated payout details are validated before processing bulk payouts.'}
+                      ? t('payout.status_verified_sub', 'Your settlement details are verified by Kandy Cabs operations team.')
+                      : t('payout.status_review_sub', 'New or updated payout details are validated before processing bulk payouts.')}
                   </Text>
                 </View>
               </View>
@@ -472,7 +474,7 @@ export default function PayoutDetailsScreen() {
               ) : (
                 <>
                   <Ionicons name="checkmark-done" size={20} color="#ffffff" />
-                  <Text style={styles.saveButtonText}>SAVE & SUBMIT PAYOUT DETAILS</Text>
+                  <Text style={styles.saveButtonText}>{t('payout.save_button', 'SAVE & SUBMIT PAYOUT DETAILS')}</Text>
                 </>
               )}
             </TouchableOpacity>
