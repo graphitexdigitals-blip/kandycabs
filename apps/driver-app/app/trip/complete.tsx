@@ -219,7 +219,10 @@ export default function DriverTripCompleteScreen() {
         finalOdometer: '42990',
       });
     }
-    Alert.alert('⚡ Demo Odometer Loaded', 'Final odometer photo and 42,990 KM loaded!');
+    Alert.alert(
+      t('complete_trip.demo_loaded_title', '⚡ Demo Odometer Loaded'),
+      t('complete_trip.demo_loaded_msg', 'Final odometer photo and 42,990 KM loaded!')
+    );
   };
 
   const isOdometerComplete = Boolean(odometerImageUri && finalOdometer.trim());
@@ -330,10 +333,10 @@ export default function DriverTripCompleteScreen() {
           paymentMethod: method,
         });
       } else {
-        setPaymentError(res.message || 'Failed to complete trip. Please try again.');
+        setPaymentError(res.message || t('complete_trip.failed_complete', 'Failed to complete trip. Please try again.'));
       }
     } catch (err: any) {
-      setPaymentError(err.message || 'Failed to complete trip. Please check your network and retry.');
+      setPaymentError(err.message || t('complete_trip.network_retry_error', 'Failed to complete trip. Please check your network and retry.'));
     } finally {
       setLoading(false);
     }
@@ -376,7 +379,9 @@ export default function DriverTripCompleteScreen() {
                   {t('trip_flow.final_odometer', 'Final Odometer Reading')} *
                 </Text>
                 <Text style={styles.odoHeaderSubtitle}>
-                  {isOdometerComplete ? 'Final gauge & photo completed ✓' : 'Gauge photo & reading required'}
+                  {isOdometerComplete
+                    ? t('complete_trip.final_gauge_completed', 'Final gauge & photo completed ✓')
+                    : t('complete_trip.gauge_photo_required_sub', 'Gauge photo & reading required')}
                 </Text>
               </View>
             </View>
@@ -387,7 +392,7 @@ export default function DriverTripCompleteScreen() {
               activeOpacity={0.7}
             >
               <Ionicons name="flash" size={11} color="#ea580c" />
-              <Text style={styles.odoDemoBtnText}>Demo</Text>
+              <Text style={styles.odoDemoBtnText}>{t('start_odometer.demo_btn', 'Demo')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -415,11 +420,11 @@ export default function DriverTripCompleteScreen() {
                   />
                   <View style={styles.attachedRibbon}>
                     <Ionicons name="checkmark-circle" size={13} color="#ffffff" />
-                    <Text style={styles.attachedRibbonText}>✓ PHOTO ATTACHED</Text>
+                    <Text style={styles.attachedRibbonText}>{t('inspection.photo_attached_ribbon', '✓ PHOTO ATTACHED')}</Text>
                   </View>
                   <View style={styles.retakeBtn}>
                     <Ionicons name="camera-reverse" size={12} color="#ffffff" />
-                    <Text style={styles.retakeBtnText}>Tap to Retake</Text>
+                    <Text style={styles.retakeBtnText}>{t('inspection.tap_to_retake', 'Tap to Retake')}</Text>
                   </View>
 
                   {/* GPS Stamp */}
@@ -438,8 +443,8 @@ export default function DriverTripCompleteScreen() {
                   <View style={styles.blankCameraCircle}>
                     <Ionicons name="camera" size={32} color="#0284c7" />
                   </View>
-                  <Text style={styles.blankUploadTitle}>Upload Final Odometer Photo</Text>
-                  <Text style={styles.blankUploadSubtitle}>Tap to open camera & capture photo</Text>
+                  <Text style={styles.blankUploadTitle}>{t('complete_trip.upload_final_odometer', 'Upload Final Odometer Photo')}</Text>
+                  <Text style={styles.blankUploadSubtitle}>{t('inspection.tap_camera', 'Tap to open camera & capture photo')}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -453,7 +458,7 @@ export default function DriverTripCompleteScreen() {
                   resizeMode="cover"
                 />
                 <View style={styles.referenceOverlayBadge}>
-                  <Text style={styles.referenceOverlayBadgeText}>SAMPLE REFERENCE</Text>
+                  <Text style={styles.referenceOverlayBadgeText}>{t('inspection.sample_reference', 'SAMPLE REFERENCE')}</Text>
                 </View>
               </View>
             </View>
@@ -472,7 +477,7 @@ export default function DriverTripCompleteScreen() {
                     if (id) setTripCompletionDraft(id, { finalOdometer: val });
                   }}
                   keyboardType="decimal-pad"
-                  placeholder="Enter final km (e.g. 45310 KM)"
+                  placeholder={t('complete_trip.enter_final_km_placeholder', 'Enter final km (e.g. 45310 KM)')}
                   placeholderTextColor="#94a3b8"
                   maxLength={10}
                 />
@@ -495,7 +500,7 @@ export default function DriverTripCompleteScreen() {
               {ocrScanning ? (
                 <View style={styles.odoOcrLoadingRow}>
                   <ActivityIndicator size="small" color="#6366f1" style={{ marginRight: 6 }} />
-                  <Text style={styles.odoOcrLoadingText}>Auto-detecting odometer reading...</Text>
+                  <Text style={styles.odoOcrLoadingText}>{t('complete_trip.auto_detecting', 'Auto-detecting odometer reading...')}</Text>
                 </View>
               ) : ocrResultText.status === 'success' ? (
                 <View style={styles.odoOcrSuccessRow}>
@@ -589,7 +594,7 @@ export default function DriverTripCompleteScreen() {
             <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
                 <Ionicons name="calculator" size={16} color="#0f172a" />
-                <Text style={styles.chargeLabel}>Total Extra</Text>
+                <Text style={styles.chargeLabel}>{t('complete_trip.total_extra', 'Total Extra')}</Text>
               </View>
               <View style={styles.totalExtraDisplayBox}>
                 <Text style={styles.totalExtraAmount}>
@@ -625,7 +630,7 @@ export default function DriverTripCompleteScreen() {
               ) : (
                 <View style={styles.centerBtnRow}>
                   <Text style={[styles.yellowPrimaryButtonText, styles.yellowPrimaryButtonTextReady]} numberOfLines={1}>
-                    End Trip
+                    {t('complete_trip.end_trip', 'End Trip')}
                   </Text>
                   <Ionicons name="arrow-forward" size={19} color="#ffffff" style={{ marginLeft: 8 }} />
                 </View>
@@ -669,26 +674,26 @@ export default function DriverTripCompleteScreen() {
                   <Ionicons name="checkmark-circle" size={72} color="#16a34a" />
                 </View>
 
-                <Text style={styles.successMainTitle}>Trip Completed!</Text>
+                <Text style={styles.successMainTitle}>{t('complete_trip.trip_completed', 'Trip Completed!')}</Text>
                 <Text style={styles.successSubtitle}>
-                  Booking #{booking?.humanReadableRef || 'TRIP'}
+                  {t('complete_trip.booking_prefix', 'Booking #')}{booking?.humanReadableRef || 'TRIP'}
                 </Text>
 
                 <View style={styles.receiptCard}>
                   <View style={styles.receiptRow}>
-                    <Text style={styles.receiptLabel}>Total Distance</Text>
+                    <Text style={styles.receiptLabel}>{t('complete_trip.total_distance', 'Total Distance')}</Text>
                     <Text style={styles.receiptValue}>{successData?.distance} KM</Text>
                   </View>
                   <View style={styles.receiptDivider} />
                   <View style={styles.receiptRow}>
-                    <Text style={styles.receiptLabel}>Remaining Payment</Text>
+                    <Text style={styles.receiptLabel}>{t('complete_trip.remaining_payment', 'Remaining Payment')}</Text>
                     <Text style={[styles.receiptValue, { color: '#16a34a', fontWeight: '800' }]}>
                       ₹{successData?.totalAmount}
                     </Text>
                   </View>
                   <View style={styles.receiptDivider} />
                   <View style={styles.receiptRow}>
-                    <Text style={styles.receiptLabel}>Payment Method</Text>
+                    <Text style={styles.receiptLabel}>{t('complete_trip.payment_method', 'Payment Method')}</Text>
                     <View style={styles.methodBadge}>
                       {successData?.paymentMethod === 'UPI_QR' ? (
                         <Ionicons
@@ -704,7 +709,9 @@ export default function DriverTripCompleteScreen() {
                         />
                       )}
                       <Text style={styles.methodBadgeText}>
-                        {successData?.paymentMethod === 'UPI_QR' ? 'Admin UPI QR' : 'Cash Collected'}
+                        {successData?.paymentMethod === 'UPI_QR'
+                          ? t('complete_trip.admin_upi_qr', 'Admin UPI QR')
+                          : t('complete_trip.cash_collected', 'Cash Collected')}
                       </Text>
                     </View>
                   </View>
@@ -715,7 +722,7 @@ export default function DriverTripCompleteScreen() {
                   onPress={() => router.replace('/dashboard')}
                   activeOpacity={0.88}
                 >
-                  <Text style={styles.dashboardReturnBtnText}>Back to Dashboard</Text>
+                  <Text style={styles.dashboardReturnBtnText}>{t('complete_trip.back_to_dashboard', 'Back to Dashboard')}</Text>
                   <Ionicons name="arrow-forward" size={18} color="#ffffff" />
                 </TouchableOpacity>
               </View>
@@ -728,7 +735,7 @@ export default function DriverTripCompleteScreen() {
                 {/* Modal Header */}
                 <View style={styles.modalHeaderRow}>
                   <View style={styles.modalHeaderTitleRow}>
-                    <Text style={styles.modalTitle}>Remaining Payment</Text>
+                    <Text style={styles.modalTitle}>{t('complete_trip.remaining_payment', 'Remaining Payment')}</Text>
                     <View style={styles.bookingRefPill}>
                       <Text style={styles.bookingRefPillText}>#{booking?.humanReadableRef || 'TRIP'}</Text>
                     </View>
@@ -750,7 +757,7 @@ export default function DriverTripCompleteScreen() {
                 ) : null}
 
                 {/* Payment Option Selector Tabs */}
-                <Text style={styles.sectionHeaderTitle}>SELECT PAYMENT METHOD</Text>
+                <Text style={styles.sectionHeaderTitle}>{t('complete_trip.select_payment_method', 'SELECT PAYMENT METHOD')}</Text>
                 <View style={styles.paymentTabsRow}>
                   <TouchableOpacity
                     style={[
@@ -771,7 +778,7 @@ export default function DriverTripCompleteScreen() {
                         selectedPaymentMethod === 'UPI_QR' ? styles.paymentTabTextActive : null,
                       ]}
                     >
-                      Admin UPI QR
+                      {t('complete_trip.admin_upi_qr', 'Admin UPI QR')}
                     </Text>
                   </TouchableOpacity>
 
@@ -797,7 +804,7 @@ export default function DriverTripCompleteScreen() {
                         selectedPaymentMethod === 'CASH' ? styles.paymentTabTextActive : null,
                       ]}
                     >
-                      Cash Collected
+                      {t('complete_trip.cash_collected', 'Cash Collected')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -805,7 +812,7 @@ export default function DriverTripCompleteScreen() {
                 {/* TAB 1: ADMIN UPI QR CODE */}
                 {selectedPaymentMethod === 'UPI_QR' ? (
                   <View style={styles.qrContentCard}>
-                    <Text style={styles.qrHeaderTitle}>Scan & Pay to Admin</Text>
+                    <Text style={styles.qrHeaderTitle}>{t('complete_trip.scan_and_pay_admin', 'Scan & Pay to Admin')}</Text>
 
                     {/* QR Code Container */}
                     <View style={styles.qrCodeWrapper}>
@@ -815,7 +822,9 @@ export default function DriverTripCompleteScreen() {
                         resizeMode="contain"
                       />
                       <View style={styles.qrAmountTag}>
-                        <Text style={styles.qrAmountTagText}>Amount: ₹{totalRemainingAmount}</Text>
+                        <Text style={styles.qrAmountTagText}>
+                          {t('complete_trip.amount_val', { amount: totalRemainingAmount, defaultValue: `Amount: ₹${totalRemainingAmount}` })}
+                        </Text>
                       </View>
                     </View>
 
@@ -825,13 +834,13 @@ export default function DriverTripCompleteScreen() {
                       <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>PhonePe</Text></View>
                       <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>Paytm</Text></View>
                       <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>BHIM</Text></View>
-                      <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>Any UPI</Text></View>
+                      <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>{t('complete_trip.any_upi', 'Any UPI')}</Text></View>
                     </View>
 
                     {/* Admin UPI ID Box */}
                     <View style={styles.upiIdCard}>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.upiIdLabel}>ADMIN UPI ID</Text>
+                        <Text style={styles.upiIdLabel}>{t('complete_trip.admin_upi_id_label', 'ADMIN UPI ID')}</Text>
                         <Text style={styles.upiIdText} selectable>{adminUpiId}</Text>
                       </View>
                       <TouchableOpacity
@@ -847,7 +856,7 @@ export default function DriverTripCompleteScreen() {
                           color={copiedUpi ? '#16a34a' : '#2563eb'}
                         />
                         <Text style={[styles.copyBtnText, copiedUpi && { color: '#16a34a' }]}>
-                          {copiedUpi ? 'Verified' : 'Verify ID'}
+                          {copiedUpi ? t('complete_trip.verified', 'Verified') : t('complete_trip.verify_id', 'Verify ID')}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -865,7 +874,7 @@ export default function DriverTripCompleteScreen() {
                         <>
                           <Ionicons name="checkmark-circle-outline" size={20} color="#ffffff" />
                           <Text style={styles.confirmPaymentBtnText}>
-                            Confirm QR Payment Received
+                            {t('complete_trip.confirm_qr_payment', 'Confirm QR Payment Received')}
                           </Text>
                         </>
                       )}
@@ -882,20 +891,22 @@ export default function DriverTripCompleteScreen() {
                       />
                     </View>
 
-                    <Text style={styles.cashHeaderTitle}>Cash Collection by Driver</Text>
+                    <Text style={styles.cashHeaderTitle}>{t('complete_trip.cash_collection_by_driver', 'Cash Collection by Driver')}</Text>
                     <Text style={styles.cashAmountDisplay}>₹{totalRemainingAmount}</Text>
 
                     <View style={styles.cashInstructionsBox}>
                       <View style={styles.bulletRow}>
                         <Ionicons name="checkbox-outline" size={18} color="#16a34a" style={{ marginTop: 2 }} />
                         <Text style={styles.bulletText}>
-                          Collect <Text style={{ fontWeight: '800', color: '#0f172a' }}>₹{totalRemainingAmount}</Text> in physical cash directly from the passenger.
+                          {t('complete_trip.collect_cash_prefix', 'Collect ')}
+                          <Text style={{ fontWeight: '800', color: '#0f172a' }}>₹{totalRemainingAmount}</Text>
+                          {t('complete_trip.collect_cash_suffix', ' in physical cash directly from the passenger.')}
                         </Text>
                       </View>
                       <View style={styles.bulletRow}>
                         <Ionicons name="shield-checkmark-outline" size={18} color="#2563eb" style={{ marginTop: 2 }} />
                         <Text style={styles.bulletText}>
-                          This cash will be recorded against your driver account and settled in your weekly payout statement.
+                          {t('complete_trip.cash_settlement_note', 'This cash will be recorded against your driver account and settled in your weekly payout statement.')}
                         </Text>
                       </View>
                     </View>
@@ -913,7 +924,7 @@ export default function DriverTripCompleteScreen() {
                         <>
                           <Ionicons name="hand-right-outline" size={20} color="#ffffff" />
                           <Text style={styles.confirmPaymentBtnText}>
-                            Confirm Cash Collected
+                            {t('complete_trip.confirm_cash_collected', 'Confirm Cash Collected')}
                           </Text>
                         </>
                       )}
