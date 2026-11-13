@@ -555,8 +555,11 @@ export default function DriverTripStartScreen() {
 
   const handleVerifyOtp = async () => {
     if (pickupOtp.length < 4) {
-      setError('Please enter all 4 digits of customer pickup OTP.');
-      Alert.alert('Incomplete OTP', 'Please enter all 4 digits of customer pickup OTP.');
+      setError(t('otp_screen.incomplete_otp_msg', 'Please enter all 4 digits of customer pickup OTP.'));
+      Alert.alert(
+        t('otp_screen.incomplete_otp_title', 'Incomplete OTP'),
+        t('otp_screen.incomplete_otp_msg', 'Please enter all 4 digits of customer pickup OTP.')
+      );
       return;
     }
     setError('');
@@ -575,11 +578,17 @@ export default function DriverTripStartScreen() {
           await setVerifiedPickupOtp(bookingId, pickupOtp.trim());
         }
         Keyboard.dismiss();
-        Alert.alert('OTP Verified', 'Customer pickup OTP verified successfully!');
+        Alert.alert(
+          t('otp_screen.otp_verified_title', 'OTP Verified'),
+          t('otp_screen.otp_verified_msg', 'Customer pickup OTP verified successfully!')
+        );
       } else {
         setIsOtpVerified(false);
-        setError(res.message || 'Incorrect pickup OTP. Please verify with customer.');
-        Alert.alert('Invalid OTP', res.message || 'The OTP entered is incorrect. Please recheck with customer.');
+        setError(res.message || t('otp_screen.invalid_otp_msg', 'The OTP entered is incorrect. Please recheck with customer.'));
+        Alert.alert(
+          t('otp_screen.invalid_otp_title', 'Invalid OTP'),
+          res.message || t('otp_screen.invalid_otp_msg', 'The OTP entered is incorrect. Please recheck with customer.')
+        );
       }
     } catch (err: any) {
       setIsOtpVerified(false);
@@ -709,12 +718,12 @@ export default function DriverTripStartScreen() {
   const handleRequestAdminOverride = async () => {
     if (overrideRequested) {
       Alert.alert(
-        'Cancel Admin Request',
-        'Would you like to cancel the pending admin verification request and enter OTP instead?',
+        t('otp_screen.cancel_admin_title', 'Cancel Admin Request'),
+        t('otp_screen.cancel_admin_msg', 'Would you like to cancel the pending admin verification request and enter OTP instead?'),
         [
-          { text: 'Keep Waiting', style: 'cancel' },
+          { text: t('otp_screen.keep_waiting', 'Keep Waiting'), style: 'cancel' },
           {
-            text: 'Undo / Cancel Request',
+            text: t('otp_screen.undo_cancel', 'Undo / Cancel Request'),
             style: 'destructive',
             onPress: () => {
               setOverrideRequested(false);
@@ -726,12 +735,12 @@ export default function DriverTripStartScreen() {
     }
 
     Alert.alert(
-      'Customer OTP Help',
-      'If the customer cannot receive their OTP (dead battery, phone off, or network issue), dispatch admin can verify and authorize this ride.',
+      t('otp_screen.admin_help_title', 'Customer OTP Help'),
+      t('otp_screen.admin_help_msg', 'If the customer cannot receive their OTP (dead battery, phone off, or network issue), dispatch admin can verify and authorize this ride.'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel', 'Cancel'), style: 'cancel' },
         {
-          text: 'Request Admin Help',
+          text: t('otp_screen.request_admin_help', 'Request Admin Help'),
           onPress: async () => {
             setOverrideRequesting(true);
             try {
@@ -745,8 +754,8 @@ export default function DriverTripStartScreen() {
 
               setOverrideRequested(true);
               Alert.alert(
-                'Admin Help Requested',
-                'Admin dispatch has been notified. You can wait for approval or tap again to cancel if customer finds their OTP.'
+                t('otp_screen.admin_help_requested_title', 'Admin Help Requested'),
+                t('otp_screen.admin_help_requested_msg', 'Admin dispatch has been notified. You can wait for approval or tap again to cancel if customer finds their OTP.')
               );
             } catch (err: any) {
               Alert.alert('Error', err.message || 'Failed to request override');
@@ -1014,12 +1023,15 @@ export default function DriverTripStartScreen() {
                       <Ionicons name="person" size={20} color="#1d4ed8" />
                     </View>
                     <View style={styles.customerInfoCol}>
-                      <Text style={styles.customerTagText}>Customer Details</Text>
+                      <Text style={styles.customerTagText}>{t('otp_screen.customer_details', 'Customer Details')}</Text>
                       <Text style={styles.customerName} numberOfLines={1}>
-                        {booking.customer?.user?.fullName || 'Customer'}
+                        {booking.customer?.user?.fullName || t('otp_screen.customer_default', 'Customer')}
                       </Text>
                       <Text style={styles.customerIdText}>
-                        Customer ID: {booking?.humanReadableRef || booking?.bookingNumber || 'KC-2026-925966'}
+                        {t('otp_screen.customer_id', {
+                          id: booking?.humanReadableRef || booking?.bookingNumber || 'KC-2026-925966',
+                          defaultValue: `Customer ID: ${booking?.humanReadableRef || booking?.bookingNumber || 'KC-2026-925966'}`,
+                        })}
                       </Text>
                     </View>
                   </View>
@@ -1034,13 +1046,16 @@ export default function DriverTripStartScreen() {
                           if (phone) {
                             Linking.openURL(`tel:${phone}`);
                           } else {
-                            Alert.alert('Customer Contact', 'Customer contact will be available upon arrival.');
+                            Alert.alert(
+                              t('otp_screen.customer_contact_title', 'Customer Contact'),
+                              t('otp_screen.customer_contact_msg', 'Customer contact will be available upon arrival.')
+                            );
                           }
                         }}
                         activeOpacity={0.82}
                       >
                         <Ionicons name="call" size={14} color="#ea580c" />
-                        <Text style={styles.callNowPillText}>Call Now</Text>
+                        <Text style={styles.callNowPillText}>{t('otp_screen.call_now', 'Call Now')}</Text>
                       </TouchableOpacity>
                     );
                   })()}
@@ -1060,8 +1075,8 @@ export default function DriverTripStartScreen() {
                           setTripStartDraft(bookingId, { isCustomerBoarded: true });
                         }
                       }}
-                      title="SLIDE RIGHT (CUSTOMER BOARDED)"
-                      acceptingTitle="CUSTOMER BOARDED"
+                      title={t('otp_screen.slide_customer_boarded', 'SLIDE RIGHT (CUSTOMER BOARDED)')}
+                      acceptingTitle={t('otp_screen.customer_boarded_accepting', 'CUSTOMER BOARDED')}
                     />
                   </View>
                 ) : (
@@ -1075,7 +1090,7 @@ export default function DriverTripStartScreen() {
                       <Ionicons name="checkmark-sharp" size={20} color="#059669" />
                     </View>
                     <View style={styles.boardedCompletedTextCol}>
-                      <Text style={styles.boardedCompletedTitle}>CUSTOMER BOARDED ✓</Text>
+                      <Text style={styles.boardedCompletedTitle}>{t('otp_screen.customer_boarded_completed', 'CUSTOMER BOARDED ✓')}</Text>
                     </View>
                     <View style={{ width: 44 }} />
                   </LinearGradient>
@@ -1103,7 +1118,7 @@ export default function DriverTripStartScreen() {
                   <View style={styles.otpLockNoticeBanner}>
                     <Ionicons name="lock-closed" size={14} color="#d97706" />
                     <Text style={styles.otpLockNoticeText}>
-                      Slide the green bar above to confirm customer boarding to enter OTP
+                      {t('otp_screen.slide_boarded_notice', 'Slide the green bar above to confirm customer boarding to enter OTP')}
                     </Text>
                   </View>
                 )}
@@ -1118,12 +1133,12 @@ export default function DriverTripStartScreen() {
                   </View>
                   <View style={styles.cardHeaderTextCol}>
                     <Text style={[styles.otpHeaderTitle, !isCustomerBoarded && { color: '#64748b' }]}>
-                      Customer Pickup OTP <Text style={styles.requiredAsterisk}>*</Text>
+                      {t('otp_screen.customer_pickup_otp', 'Customer Pickup OTP')} <Text style={styles.requiredAsterisk}>*</Text>
                     </Text>
                     <Text style={styles.otpHeaderSubtitle}>
                       {isCustomerBoarded
-                        ? 'Enter the OTP shared by the customer'
-                        : 'Locked until customer boards'}
+                        ? t('otp_screen.enter_otp_sub', 'Enter the OTP shared by the customer')
+                        : t('otp_screen.locked_sub', 'Locked until customer boards')}
                     </Text>
                   </View>
                 </View>
@@ -1190,7 +1205,7 @@ export default function DriverTripStartScreen() {
                     ) : isOtpVerified ? (
                       <View style={styles.verifyOtpContentRow}>
                         <Ionicons name="checkmark-circle" size={17} color="#10b981" />
-                        <Text style={styles.verifyOtpTextVerified}>Verified</Text>
+                        <Text style={styles.verifyOtpTextVerified}>{t('otp_screen.verified_btn', 'Verified')}</Text>
                       </View>
                     ) : (
                       <View style={styles.verifyOtpContentRow}>
@@ -1205,7 +1220,7 @@ export default function DriverTripStartScreen() {
                             (!isCustomerBoarded || pickupOtp.length < 4) && { color: '#94a3b8' },
                           ]}
                         >
-                          Verify
+                          {t('otp_screen.verify_btn', 'Verify')}
                         </Text>
                       </View>
                     )}
@@ -1232,10 +1247,10 @@ export default function DriverTripStartScreen() {
                     />
                     <Text style={styles.otpHelpText}>
                       {overrideRequesting
-                        ? 'Requesting Help...'
+                        ? t('otp_screen.requesting_help', 'Requesting Help...')
                         : overrideRequested
-                        ? 'Help Requested from Admin'
-                        : 'No OTP? Ask Admin Help'}
+                        ? t('otp_screen.help_requested', 'Help Requested from Admin')
+                        : t('otp_screen.no_otp_help', 'No OTP? Ask Admin Help')}
                     </Text>
                   </View>
                   <Ionicons
@@ -1305,8 +1320,8 @@ export default function DriverTripStartScreen() {
             onPress={async () => {
               if (!isCustomerBoarded) {
                 Alert.alert(
-                  'Customer Boarding Required',
-                  'Please slide the green bar on top to confirm customer boarded before continuing.'
+                  t('otp_screen.customer_boarding_required_title', 'Customer Boarding Required'),
+                  t('otp_screen.customer_boarding_required_msg', 'Please slide the green bar on top to confirm customer boarded before continuing.')
                 );
                 return;
               }
@@ -1315,10 +1330,10 @@ export default function DriverTripStartScreen() {
               const activeAdminAuth = isAdminAuthorizedRef.current || isAdminAuthorized;
 
               if (!activeAdminAuth && !activeVerified && activeOtp.length < 4) {
-                setError('Please enter the 4-digit pickup OTP from the customer');
+                setError(t('otp_screen.incomplete_otp_msg', 'Please enter the 4-digit pickup OTP from the customer'));
                 Alert.alert(
-                  'Customer OTP Required',
-                  'Please enter and verify the 4-digit pickup OTP shared by the customer before continuing to trip.'
+                  t('otp_screen.customer_otp_required_title', 'Customer OTP Required'),
+                  t('otp_screen.customer_otp_required_msg', 'Please enter and verify the 4-digit pickup OTP shared by the customer before continuing to trip.')
                 );
                 return;
               }
@@ -1337,7 +1352,7 @@ export default function DriverTripStartScreen() {
                     (isOtpVerified || isAdminAuthorized) && styles.continueTripBtnTextReady,
                   ]}
                 >
-                  Continue to Trip
+                  {t('otp_screen.continue_to_trip', 'Continue to Trip')}
                 </Text>
                 <Ionicons
                   name="arrow-forward"
