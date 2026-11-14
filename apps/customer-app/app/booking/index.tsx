@@ -26,7 +26,7 @@ import { AuthModal } from '../../components/AuthModal';
 import BookingFlowHeader from '../../components/BookingFlowHeader';
 import { customerApiClient, customerTokenStorage } from '../../lib/api';
 import { termsAgreementState } from '../../lib/terms-agreement';
-import { VehicleCategory, TripType, FuelType } from '@kandy-cabs/shared';
+import { VehicleCategory, TripType, FuelType, createSafeScheduledIso, parseSafeIsoDate } from '@kandy-cabs/shared';
 
 const { width } = Dimensions.get('window');
 
@@ -372,8 +372,16 @@ export default function BookingFunnelScreen() {
   const customMinKm = Number(params.minKm) || vehicleInfo.minKm;
   const customVehicleName = (params.selectedVehicleName as string) || vehicleInfo.name;
 
+  const fixedFareParam = Number(params.fixedFare) || 0;
+  const airportRouteName = (params.airportRouteName as string) || '';
+  const isNightChargeApplicable = params.isNightChargeApplicable === 'true';
+  const nightChargeAmount = Number(params.nightChargeAmount) || 0;
+
   // Pricing Calculation
   const baseEstimatedFare = useMemo(() => {
+    if (fixedFareParam > 0) {
+      return fixedFareParam;
+    }
     if (customThreshold > 0 && estimatedKm > customThreshold) {
       const basePart = customThreshold * customRatePerKm;
       const extraPart = (estimatedKm - customThreshold) * customExtraKmRate;
@@ -381,7 +389,7 @@ export default function BookingFunnelScreen() {
     }
     const billableKm = Math.max(customMinKm, estimatedKm);
     return Math.round(billableKm * customRatePerKm);
-  }, [customMinKm, customRatePerKm, customExtraKmRate, customThreshold, estimatedKm]);
+  }, [fixedFareParam, customMinKm, customRatePerKm, customExtraKmRate, customThreshold, estimatedKm]);
 
   // Auth & User Profile State
   const [user, setUser] = useState<any | null>(null);
@@ -1146,7 +1154,7 @@ export default function BookingFunnelScreen() {
       return `${day} ${month} ${year} (${weekday})`;
     }
     try {
-      const d = new Date(pickupDate);
+      const d = parseSafeIsoDate(pickupDate);
       if (!isNaN(d.getTime())) {
         const day = d.getDate();
         const month = d.toLocaleDateString('en-US', { month: 'short' });
@@ -1564,7 +1572,8 @@ export default function BookingFunnelScreen() {
   const petLabel = selectedPetType === 'cat' ? 'Cat' : selectedPetType === 'bird' ? 'Bird' : 'Dog';
 
   // Calculate final totals
-  const subtotal = Math.max(0, baseEstimatedFare + petFee - couponDiscount);
+  const nightFee = isNightChargeApplicable ? (nightChargeAmount || 250) : 0;
+  const subtotal = Math.max(0, baseEstimatedFare + petFee + nightFee - couponDiscount);
   const gstAmount = Math.round(subtotal * 0.05);
   const totalFare = subtotal + gstAmount;
   const advanceAmount = Math.round(totalFare * 0.30);
@@ -1622,42 +1631,7 @@ export default function BookingFunnelScreen() {
     setSubmitting(true);
     try {
       const idempotencyKey = `idemp_app_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-      let scheduledAt = new Date().toISOString();
-      if (pickupDate && pickupDate !== 'Today') {
-        try {
-          const d = new Date(pickupDate);
-          if (!isNaN(d.getTime())) {
-            let hours = 9;
-            let minutes = 0;
-            if (pickupTime) {
-              const timeParts = pickupTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-              if (timeParts) {
-                hours = parseInt(timeParts[1], 10);
-                minutes = parseInt(timeParts[2], 10);
-                const ampm = timeParts[3]?.toUpperCase();
-                if (ampm === 'PM' && hours < 12) hours += 12;
-                if (ampm === 'AM' && hours === 12) hours = 0;
-              }
-            }
-            d.setHours(hours, minutes, 0, 0);
-            scheduledAt = d.toISOString();
-          }
-        } catch (_) {}
-      } else if (pickupTime) {
-        try {
-          const d = new Date();
-          const timeParts = pickupTime.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-          if (timeParts) {
-            let hours = parseInt(timeParts[1], 10);
-            let minutes = parseInt(timeParts[2], 10);
-            const ampm = timeParts[3]?.toUpperCase();
-            if (ampm === 'PM' && hours < 12) hours += 12;
-            if (ampm === 'AM' && hours === 12) hours = 0;
-            d.setHours(hours, minutes, 0, 0);
-            scheduledAt = d.toISOString();
-          }
-        } catch (_) {}
-      }
+      const scheduledAt = createSafeScheduledIso(pickupDate, pickupTime);
 
       const res = await customerApiClient.fetch('/api/customer/bookings', {
         method: 'POST',
@@ -2755,7 +2729,9 @@ export default function BookingFunnelScreen() {
 
                   <View style={styles.fareLineItem}>
                     <Text style={styles.fareLineLabel}>
-                      {t('bookingReview.distanceFare', { km: Math.max(vehicleInfo.minKm, estimatedKm), defaultValue: `Distance Fare (${Math.max(vehicleInfo.minKm, estimatedKm)} km)` })}
+                      {airportRouteName
+                        ? airportRouteName
+                        : t('bookingReview.distanceFare', { km: Math.max(vehicleInfo.minKm, estimatedKm), defaultValue: `Distance Fare (${Math.max(vehicleInfo.minKm, estimatedKm)} km)` })}
                     </Text>
                     <Text style={styles.fareLineVal}>₹ {baseEstimatedFare.toLocaleString('en-IN')}</Text>
                   </View>
@@ -2769,6 +2745,20 @@ export default function BookingFunnelScreen() {
                     <Text style={styles.fareLineLabel}>{t('bookingReview.tollAndStateTax', { defaultValue: 'Toll & State Tax' })}</Text>
                     <Text style={[styles.fareLineVal, { color: '#16a34a' }]}>{t('bookingReview.included', { defaultValue: 'Included' })}</Text>
                   </View>
+
+                  {isNightChargeApplicable && (
+                    <View style={styles.fareLineItem}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, flex: 1, marginRight: 4 }}>
+                        <Ionicons name="moon" size={11} color="#6366f1" />
+                        <Text style={[styles.fareLineLabel, { color: '#4f46e5', fontWeight: '700' }]}>
+                          Night Surcharge (22:00 – 06:00)
+                        </Text>
+                      </View>
+                      <Text style={[styles.fareLineVal, { color: '#4f46e5', fontWeight: '800', flexShrink: 0 }]}>
+                        +₹{nightFee.toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                  )}
 
                   {isPetFriendly && (
                     <View style={styles.fareLineItem}>
@@ -3014,12 +3004,14 @@ export default function BookingFunnelScreen() {
                         {t('bookingReview.tollAndParking', { defaultValue: 'Toll & Parking' })}
                       </Text>
                     </View>
-                    <View style={styles.bulletItem}>
-                      <Ionicons name="close" size={13} color="#dc2626" style={styles.bulletIcon} />
-                      <Text style={styles.bulletText} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
-                        {t('bookingReview.nightAllowance', { defaultValue: 'Night Allowance' })}
-                      </Text>
-                    </View>
+                    {!isNightChargeApplicable && (
+                      <View style={styles.bulletItem}>
+                        <Ionicons name="close" size={13} color="#dc2626" style={styles.bulletIcon} />
+                        <Text style={styles.bulletText} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
+                          {t('bookingReview.nightAllowance', { defaultValue: 'Night Allowance' })}
+                        </Text>
+                      </View>
+                    )}
                     <View style={styles.bulletItem}>
                       <Ionicons name="close" size={13} color="#dc2626" style={styles.bulletIcon} />
                       <Text style={styles.bulletText} numberOfLines={2} adjustsFontSizeToFit={true} minimumFontScale={0.82}>
@@ -3174,7 +3166,7 @@ export default function BookingFunnelScreen() {
                         {t('bookingConfirmation.scheduledDateLabel', { defaultValue: 'Scheduled Date:' })}
                       </Text>
                       <Text style={styles.confirmedValue} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
-                        {pickupDate} {t('bookingConfirmation.at', { defaultValue: 'at' })} {pickupTime}
+                        {displayPickupDate} {t('bookingConfirmation.at', { defaultValue: 'at' })} {pickupTime}
                       </Text>
                     </View>
                     <View style={styles.confirmedRow}>

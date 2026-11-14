@@ -25,7 +25,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { driverApiClient } from '../lib/api';
 import { locationTracker, LocationState } from '../lib/location-tracker';
 import { driverRealtimeClient } from '../lib/realtime-client';
-import { BookingStatus } from '@kandy-cabs/shared';
+import { BookingStatus, parseSafeIsoDate } from '@kandy-cabs/shared';
 import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES, changeAppLanguage } from '../lib/i18n';
 import { SlideToAccept } from '../components/SlideToAccept';
@@ -41,6 +41,7 @@ import {
   subscribeTripState,
   isTripVerificationCompletedSync,
   isTripVerificationCompleted,
+  setTripVerificationCompleted,
   isTripPickupReachedSync,
 } from '../lib/tripState';
 import { getExpiringDocuments } from '../lib/documentExpiry';
@@ -86,6 +87,12 @@ export function parseViaStops(booking: any): string[] {
   }
   return [];
 }
+
+const parseSafeDate = (val?: string | Date | null): Date | null => {
+  if (!val) return null;
+  const d = parseSafeIsoDate(val);
+  return isNaN(d.getTime()) ? null : d;
+};
 
 export default function DriverDashboardScreen() {
   const router = useRouter();
@@ -828,9 +835,21 @@ export default function DriverDashboardScreen() {
       );
     });
 
-    const unsubTrip = driverRealtimeClient.on('TRIP_STATUS', () => {
+    const unsubTrip = driverRealtimeClient.on('TRIP_STATUS', (payload: any) => {
+      // 0ms instant optimistic sync on phone release broadcast
+      if (payload && payload.bookingId && typeof payload.customerPhoneReleased === 'boolean') {
+        setActiveBooking((prev: any) => {
+          if (prev && prev.id === payload.bookingId) {
+            return {
+              ...prev,
+              customerPhoneReleased: payload.customerPhoneReleased,
+            };
+          }
+          return prev;
+        });
+      }
       // Coalesce rapid trip status updates
-      triggerDebouncedFetch(600);
+      triggerDebouncedFetch(250);
       if (tripsLoadedRef.current) {
         fetchTripsData(true);
       }
@@ -1765,7 +1784,7 @@ export default function DriverDashboardScreen() {
                     currentTrip.status === 'TRIP_STARTED' ||
                     currentTrip.status === 'IN_PROGRESS';
 
-                  const tripDate = new Date(currentTrip.scheduledAt || currentTrip.createdAt);
+                  const tripDate = parseSafeDate(currentTrip.scheduledAt || currentTrip.createdAt) || new Date();
                   const now = new Date();
                   const isToday =
                     tripDate.getDate() === now.getDate() &&
@@ -1780,6 +1799,21 @@ export default function DriverDashboardScreen() {
                       (now.getTime() >= tripDate.getTime() && now.getTime() - tripDate.getTime() < 48 * 60 * 60 * 1000) ||
                       diffMinutes <= 240);
                   const pickupTimeLabel = tripDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  const pickupDateLabel = tripDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                  const isPhoneReleased = (() => {
+                    // 1. Explicit admin manual release
+                    if (Boolean(currentTrip.customerPhoneReleased)) return true;
+                    // 2. Already active on trip
+                    if (['TRIP_STARTED', 'ON_TRIP', 'COMPLETED'].includes(currentTrip.status)) return true;
+                    // 3. Auto-release if pickup time is within 5 hours of pickup (or pickup time has arrived)
+                    if (!currentTrip.scheduledAt) return false;
+                    const d = parseSafeDate(currentTrip.scheduledAt);
+                    if (!d || isNaN(d.getTime())) return false;
+                    const now = new Date();
+                    const diffHours = (d.getTime() - now.getTime()) / (1000 * 60 * 60);
+                    return diffHours <= 5 && diffHours >= -4;
+                  })();
 
                   return (
                     <View style={styles.tripCardContent}>
@@ -1793,6 +1827,10 @@ export default function DriverDashboardScreen() {
                             style={
                               isTripInProcess
                                 ? styles.onTripBadge
+                                : currentTrip.status === 'DRIVER_EN_ROUTE'
+                                ? styles.onRouteBadgeWarning
+                                : !isToday
+                                ? { backgroundColor: '#f1f5f9', borderColor: '#cbd5e1', borderWidth: 1, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4, flexDirection: 'row', alignItems: 'center' }
                                 : isTimingNear
                                 ? styles.onRouteBadgeWarning
                                 : styles.onRouteBadge
@@ -1802,6 +1840,10 @@ export default function DriverDashboardScreen() {
                               style={
                                 isTripInProcess
                                   ? styles.onTripDot
+                                  : currentTrip.status === 'DRIVER_EN_ROUTE'
+                                  ? styles.onRouteDotWarning
+                                  : !isToday
+                                  ? { width: 6, height: 6, borderRadius: 3, backgroundColor: '#64748b', marginRight: 5 }
                                   : isTimingNear
                                   ? styles.onRouteDotWarning
                                   : styles.onRouteDot
@@ -1811,12 +1853,24 @@ export default function DriverDashboardScreen() {
                               style={
                                 isTripInProcess
                                   ? styles.onTripBadgeText
+                                  : currentTrip.status === 'DRIVER_EN_ROUTE'
+                                  ? styles.onRouteBadgeTextWarning
+                                  : !isToday
+                                  ? { fontSize: 11, fontWeight: '700', color: '#475569' }
                                   : isTimingNear
                                   ? styles.onRouteBadgeTextWarning
                                   : styles.onRouteBadgeText
                               }
                             >
-                              {isTripInProcess ? 'ON TRIP' : 'ON ROUTE'}
+                              {isTripInProcess
+                                ? 'ON TRIP'
+                                : currentTrip.status === 'DRIVER_EN_ROUTE'
+                                ? 'ON ROUTE'
+                                : !isToday
+                                ? 'SCHEDULED'
+                                : isTimingNear
+                                ? 'PICKUP SOON'
+                                : 'ASSIGNED'}
                             </Text>
                           </View>
                         </View>
@@ -1897,14 +1951,14 @@ export default function DriverDashboardScreen() {
                               </Text>
                             </View>
                             <Text style={styles.infoColValDark}>
-                              {new Date(currentTrip.scheduledAt || currentTrip.createdAt).toLocaleDateString('en-IN', {
+                              {tripDate.toLocaleDateString('en-IN', {
                                 day: 'numeric',
                                 month: 'short',
                                 year: 'numeric',
                               })},
                             </Text>
                             <Text style={styles.infoColValDark}>
-                              {new Date(currentTrip.scheduledAt || currentTrip.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {tripDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </Text>
                           </View>
 
@@ -1918,20 +1972,13 @@ export default function DriverDashboardScreen() {
                               <Text style={styles.infoColHeaderLabel} numberOfLines={1}>Customer</Text>
                             </View>
                             <Text style={styles.infoColValDark} numberOfLines={1}>
-                              {currentTrip.customer?.user?.fullName || 'manish'}
+                              {currentTrip.customer?.user?.fullName || 'Customer'}
                             </Text>
-                            <Text style={styles.infoColSubPhone}>
-                              {(() => {
-                                const isPhoneReleased =
-                                  Boolean(currentTrip.customerPhoneReleased) ||
-                                  (currentTrip.scheduledAt &&
-                                    new Date(currentTrip.scheduledAt).getTime() - Date.now() <= 5 * 60 * 60 * 1000);
-
-                                return isPhoneReleased && currentTrip.customer?.user?.phone
-                                  ? currentTrip.customer.user.phone
-                                  : 'Phone Protected';
-                              })()}
-                            </Text>
+                            {isPhoneReleased && currentTrip.customer?.user?.phone ? (
+                              <Text style={styles.infoColSubPhone}>
+                                {currentTrip.customer.user.phone}
+                              </Text>
+                            ) : null}
                           </View>
 
                           {/* Vertical Slash/Divider 2 */}
@@ -1953,22 +2000,6 @@ export default function DriverDashboardScreen() {
                             </Text>
                           </View>
                         </View>
-
-                        {/* Timing Near Warning (No bg, no border, typography text only) */}
-                        {isTimingNear && (
-                          <View style={styles.timingNearWarningRow}>
-                            <Ionicons name="warning" size={14} color="#dc2626" />
-                            <Text style={styles.timingNearWarningText}>
-                              <Text style={{ fontWeight: '800', color: '#dc2626' }}>
-                                {t('dashboard.warning_label', { defaultValue: 'Warning: ' })}
-                              </Text>
-                              {t('dashboard.trip_scheduled_today', {
-                                defaultValue: `Pickup scheduled for Today, ${pickupTimeLabel} — Be ready today!`,
-                                time: pickupTimeLabel,
-                              })}
-                            </Text>
-                          </View>
-                        )}
 
                         {/* Customer Requirements & Preferences Pills */}
                         {(() => {
@@ -2063,9 +2094,19 @@ export default function DriverDashboardScreen() {
                                   body: JSON.stringify({ bookingId: currentTrip.id }),
                                 }).catch(() => {});
                                 locationTracker.startActiveTripTracking(currentTrip.id);
-                                if (isTripVerificationCompletedSync(currentTrip.id) && isTripPickupReachedSync(currentTrip.id)) {
+                                const hasPhotos = Array.isArray(currentTrip.vehicleInspectionPhotos) && currentTrip.vehicleInspectionPhotos.filter(Boolean).length >= 4;
+                                const isVerified = (await isTripVerificationCompleted(currentTrip.id)) ||
+                                  isTripVerificationCompletedSync(currentTrip.id) ||
+                                  hasPhotos ||
+                                  ['EN_ROUTE', 'ARRIVED', 'ON_TRIP', 'COMPLETED'].includes(currentTrip.status);
+
+                                if (isVerified) {
+                                  await setTripVerificationCompleted(currentTrip.id, true);
+                                }
+
+                                if (isVerified && (isTripPickupReachedSync(currentTrip.id) || ['ARRIVED', 'ON_TRIP', 'COMPLETED'].includes(currentTrip.status))) {
                                   router.push({ pathname: '/trip/odometer', params: { bookingId: currentTrip.id } });
-                                } else if (isTripVerificationCompletedSync(currentTrip.id)) {
+                                } else if (isVerified) {
                                   router.push({ pathname: '/trip/en-route', params: { bookingId: currentTrip.id } });
                                 } else {
                                   router.push({ pathname: '/trip/inspection', params: { bookingId: currentTrip.id } });
@@ -2075,6 +2116,10 @@ export default function DriverDashboardScreen() {
                               setIsStartingTrip(false);
                             }
                           };
+
+                          if (!isTripInProcess && !isPhoneReleased) {
+                            return null;
+                          }
 
                           return (
                             <View style={{ width: '100%', marginTop: 8 }}>
@@ -2101,7 +2146,7 @@ export default function DriverDashboardScreen() {
                                 <SlideToAccept
                                   onAccept={onSlideStartTrip}
                                   isAccepting={isStartingTrip}
-                                  title={t('dashboard.slide_to_start_trip', { defaultValue: 'SLIDE TO START TRIP' })}
+                                  title={t('dashboard.slide_to_start_trip', { defaultValue: 'START TRIP' })}
                                   acceptingTitle={t('dashboard.starting_trip', { defaultValue: 'STARTING TRIP...' })}
                                 />
                               )}
@@ -2112,21 +2157,43 @@ export default function DriverDashboardScreen() {
                         {/* 3 Quick Action Buttons */}
                         <View style={styles.quickActionsRow}>
                           <TouchableOpacity
-                            style={styles.quickActionPill}
-                            onPress={() => Linking.openURL(`tel:${currentTrip.customer?.user?.phone || '9342759612'}`)}
+                            style={[styles.quickActionPill, !isPhoneReleased && styles.quickActionPillLocked]}
+                            onPress={() => {
+                              if (!isPhoneReleased) {
+                                Alert.alert(
+                                  'Phone Protected',
+                                  'Customer contact details will auto-release 5 hours before scheduled pickup, or once released by Admin.'
+                                );
+                                return;
+                              }
+                              Linking.openURL(`tel:${currentTrip.customer?.user?.phone || '9342759612'}`);
+                            }}
                             activeOpacity={0.8}
                           >
-                            <Ionicons name="call" size={14} color="#0f172a" />
-                            <Text style={styles.quickActionText}>{t('dashboard.call_customer')}</Text>
+                            <Ionicons name={isPhoneReleased ? "call" : "lock-closed"} size={14} color={isPhoneReleased ? "#0f172a" : "#94a3b8"} />
+                            <Text style={[styles.quickActionText, !isPhoneReleased && styles.quickActionTextLocked]}>
+                              {isPhoneReleased ? t('dashboard.call_customer') : 'Phone Locked'}
+                            </Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
-                            style={styles.quickActionPill}
-                            onPress={() => Linking.openURL(`sms:${currentTrip.customer?.user?.phone || '9342759612'}`)}
+                            style={[styles.quickActionPill, !isPhoneReleased && styles.quickActionPillLocked]}
+                            onPress={() => {
+                              if (!isPhoneReleased) {
+                                Alert.alert(
+                                  'Phone Protected',
+                                  'Customer contact details will auto-release 5 hours before scheduled pickup, or once released by Admin.'
+                                );
+                                return;
+                              }
+                              Linking.openURL(`sms:${currentTrip.customer?.user?.phone || '9342759612'}`);
+                            }}
                             activeOpacity={0.8}
                           >
-                            <Ionicons name="chatbox" size={14} color="#0f172a" />
-                            <Text style={styles.quickActionText}>{t('dashboard.message')}</Text>
+                            <Ionicons name={isPhoneReleased ? "chatbox" : "lock-closed"} size={14} color={isPhoneReleased ? "#0f172a" : "#94a3b8"} />
+                            <Text style={[styles.quickActionText, !isPhoneReleased && styles.quickActionTextLocked]}>
+                              {isPhoneReleased ? t('dashboard.message') : 'Message Locked'}
+                            </Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -2165,29 +2232,30 @@ export default function DriverDashboardScreen() {
                     </Text>
                   </View>
                   <View style={styles.queuedBadgeLight}>
-                    <Ionicons name="time" size={11} color="#2563eb" />
+                    <Ionicons name="lock-closed" size={11} color="#2563eb" />
                     <Text style={styles.queuedBadgeTextLight}>{t('dashboard.next_in_queue_light')}</Text>
                   </View>
                 </View>
 
                 <View style={styles.separateQueuedCardBody}>
                   {sortTripsByDateTimeAscending(upcomingBookings).map((upBooking) => {
-                    const pickupDateStr = upBooking.scheduledAt
-                      ? new Date(upBooking.scheduledAt).toLocaleDateString('en-GB', {
+                    const upDateObj = upBooking.scheduledAt ? parseSafeDate(upBooking.scheduledAt) : null;
+                    const pickupDateStr = upDateObj
+                      ? upDateObj.toLocaleDateString('en-GB', {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric',
                         })
                       : '--';
-                    const pickupTimeStr = upBooking.scheduledAt
-                      ? new Date(upBooking.scheduledAt).toLocaleTimeString('en-US', {
+                    const pickupTimeStr = upDateObj
+                      ? upDateObj.toLocaleTimeString('en-US', {
                           hour: 'numeric',
                           minute: '2-digit',
                           hour12: true,
                         })
                       : '--';
 
-                    const upDate = upBooking.scheduledAt ? new Date(upBooking.scheduledAt) : new Date();
+                    const upDate = upDateObj || new Date();
                     const isUpToday =
                       upDate.getDate() === now.getDate() &&
                       upDate.getMonth() === now.getMonth() &&
@@ -2280,11 +2348,23 @@ export default function DriverDashboardScreen() {
                             <Text style={styles.infoColMainText} numberOfLines={1}>
                               {upBooking.customer?.user?.fullName || 'Customer'}
                             </Text>
-                            <Text style={styles.infoColSubPhone}>
-                              {upBooking.customerPhoneReleased
-                                ? upBooking.customer?.user?.phone || 'Released'
-                                : 'Phone on Pickup'}
-                            </Text>
+                            {(() => {
+                              const isUpReleased = (() => {
+                                if (Boolean(upBooking.customerPhoneReleased)) return true;
+                                if (['TRIP_STARTED', 'ON_TRIP', 'COMPLETED'].includes(upBooking.status)) return true;
+                                if (!upBooking.scheduledAt) return false;
+                                const d = parseSafeDate(upBooking.scheduledAt);
+                                if (!d || isNaN(d.getTime())) return false;
+                                const now = new Date();
+                                const diffHours = (d.getTime() - now.getTime()) / (1000 * 60 * 60);
+                                return diffHours <= 5 && diffHours >= -4;
+                              })();
+                              return isUpReleased && upBooking.customer?.user?.phone ? (
+                                <Text style={styles.infoColSubPhone}>
+                                  {upBooking.customer.user.phone}
+                                </Text>
+                              ) : null;
+                            })()}
                           </View>
 
                           <View style={styles.infoColDivider} />
@@ -2304,22 +2384,6 @@ export default function DriverDashboardScreen() {
                             </Text>
                           </View>
                         </View>
-
-                        {/* Timing Near Warning for Queued Trip */}
-                        {isUpPendingOrToday && (
-                          <View style={styles.timingNearWarningRow}>
-                            <Ionicons name="warning" size={14} color="#dc2626" />
-                            <Text style={styles.timingNearWarningText}>
-                              <Text style={{ fontWeight: '800', color: '#dc2626' }}>
-                                {t('dashboard.warning_label', { defaultValue: 'Warning: ' })}
-                              </Text>
-                              {t('dashboard.trip_scheduled_today', {
-                                defaultValue: `Pickup scheduled for Today, ${pickupTimeStr} — Be ready today!`,
-                                time: pickupTimeStr,
-                              })}
-                            </Text>
-                          </View>
-                        )}
 
                         {/* Customer Requirements & Preferences Pills */}
                         {(() => {
@@ -2379,26 +2443,10 @@ export default function DriverDashboardScreen() {
                           );
                         })()}
 
-                        {/* Action Buttons: Locked Start Button + Trip Details + Verification */}
+                        {/* Action Buttons: Pickup Route & Trip Details */}
                         <View style={{ marginTop: 12, flexDirection: 'row', gap: 8 }}>
                           <TouchableOpacity
-                            style={[styles.lockedUpcomingStartBtn, { flex: 1.2 }]}
-                            onPress={() => {
-                              Alert.alert(
-                                'Active Trip Ongoing 🚗',
-                                'This trip is in your queue. You will be able to start it as soon as your current active trip is completed.'
-                              );
-                            }}
-                            activeOpacity={0.8}
-                          >
-                            <Ionicons name="lock-closed" size={14} color="#64748b" />
-                            <Text style={styles.lockedUpcomingStartText}>
-                              QUEUED
-                            </Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            style={[styles.creamViewRouteBtn, { flex: 1.4, paddingVertical: 11, backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }]}
+                            style={[styles.creamViewRouteBtn, { flex: 1, paddingVertical: 11, backgroundColor: '#2563eb', borderColor: '#2563eb' }]}
                             onPress={() => {
                               router.push({
                                 pathname: '/trip/en-route',
@@ -2407,8 +2455,8 @@ export default function DriverDashboardScreen() {
                             }}
                             activeOpacity={0.85}
                           >
-                            <Ionicons name="location-sharp" size={14} color="#1d63ed" style={{ marginRight: 4 }} />
-                            <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#1d63ed' }}>PICKUP ROUTE</Text>
+                            <Ionicons name="location-sharp" size={14} color="#ffffff" style={{ marginRight: 4 }} />
+                            <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#ffffff' }}>PICKUP ROUTE</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -2628,45 +2676,6 @@ export default function DriverDashboardScreen() {
                         </Text>
                       </View>
 
-                      {/* Waiting For Approval Warning (Same typography style, no bg, no border) */}
-                      {!isAccepted && (() => {
-                        const tripTiming = formatTripDateTime(b?.scheduledAt, t);
-                        const tripDayLabel = tripTiming.isToday
-                          ? t('dashboard.day_today', { defaultValue: `today (${tripTiming.timeText})`, time: tripTiming.timeText })
-                          : tripTiming.isTomorrow
-                          ? t('dashboard.day_tomorrow', { defaultValue: `tomorrow (${tripTiming.timeText})`, time: tripTiming.timeText })
-                          : t('dashboard.day_on', {
-                              defaultValue: `on ${(() => {
-                                const d = b?.scheduledAt ? new Date(b.scheduledAt) : null;
-                                return d && !isNaN(d.getTime())
-                                  ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
-                                  : tripTiming.dateText;
-                              })()} (${tripTiming.timeText})`,
-                              date: (() => {
-                                const d = b?.scheduledAt ? new Date(b.scheduledAt) : null;
-                                return d && !isNaN(d.getTime())
-                                  ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
-                                  : tripTiming.dateText;
-                              })(),
-                              time: tripTiming.timeText,
-                            });
-
-                        return (
-                          <View style={[styles.timingNearWarningRow, { marginTop: 6, marginBottom: 4, marginHorizontal: 2 }]}>
-                            <Ionicons name="warning" size={14} color="#dc2626" />
-                            <Text style={styles.timingNearWarningText}>
-                              <Text style={{ fontWeight: '800', color: '#dc2626' }}>
-                                {t('dashboard.warning_label', { defaultValue: 'Warning: ' })}
-                              </Text>
-                              {t('dashboard.waiting_approval_warning', {
-                                defaultValue: `Waiting for approval! Hurry up, the trip is ${tripDayLabel}!`,
-                                dayLabel: tripDayLabel,
-                              })}
-                            </Text>
-                          </View>
-                        );
-                      })()}
-
                       {/* Decline (Left) & Accept (Right) Action Buttons Row */}
                       {isAccepted ? (
                         <View style={styles.dispatchActionRow}>
@@ -2679,7 +2688,10 @@ export default function DriverDashboardScreen() {
                                 acceptedDispatches[d.bookingId] ||
                                 b?.id ||
                                 d.bookingId;
-                              const isVerified = isTripVerificationCompletedSync(targetBId);
+                              const isVerified =
+                                isTripVerificationCompletedSync(targetBId) ||
+                                (Array.isArray(b?.vehicleInspectionPhotos) && b.vehicleInspectionPhotos.filter(Boolean).length >= 4) ||
+                                ['EN_ROUTE', 'ARRIVED', 'ON_TRIP', 'COMPLETED'].includes(b?.status);
                               router.push({
                                 pathname: isVerified ? '/trip/en-route' : '/trip/inspection',
                                 params: { bookingId: targetBId },
@@ -2702,10 +2714,10 @@ export default function DriverDashboardScreen() {
                             activeOpacity={0.8}
                           >
                             {decliningId === d.id ? (
-                              <ActivityIndicator size="small" color="#dc2626" />
+                              <ActivityIndicator size="small" color="#ffffff" />
                             ) : (
                               <>
-                                <Ionicons name="close-circle-outline" size={17} color="#dc2626" style={{ marginRight: 4 }} />
+                                <Ionicons name="close-circle-outline" size={17} color="#ffffff" style={{ marginRight: 4 }} />
                                 <Text style={styles.declineDispatchBtnText}>
                                   {t('dashboard.decline_btn', { defaultValue: 'DECLINE' })}
                                 </Text>
@@ -3027,6 +3039,7 @@ export default function DriverDashboardScreen() {
               filteredTrips.map((trip) => {
                 const isSettled = trip.driverPaymentStatus === 'PAID';
                 const isCompleted = trip.status === 'TRIP_COMPLETED';
+                const isCancelled = trip.status === 'CANCELLED';
                 const vendorCost = Math.round(
                   Number(trip.driverPayeeAmount || 0) > 0
                     ? Number(trip.driverPayeeAmount)
@@ -3047,18 +3060,33 @@ export default function DriverDashboardScreen() {
                         </Text>
                       </View>
                       <View style={styles.tripStatusBadgeGroup}>
-                        <View style={[styles.tripBadgePill, isCompleted ? styles.badgeGreen : styles.badgeAmber]}>
-                          <Text style={isCompleted ? styles.badgeTextGreen : styles.badgeTextAmber}>
+                        <View style={[styles.tripBadgePill, isCompleted ? styles.badgeGreen : isCancelled ? styles.badgeRose : styles.badgeAmber]}>
+                          <Text style={isCompleted ? styles.badgeTextGreen : isCancelled ? styles.badgeTextRose : styles.badgeTextAmber}>
                             {trip.status.replace(/_/g, ' ')}
                           </Text>
                         </View>
-                        <View style={[styles.settledBadgePill, isSettled ? styles.badgeGreen : styles.badgeAmber]}>
-                          <Text style={isSettled ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                            {isSettled ? t('trips.paid') : t('trips.not_paid')}
-                          </Text>
-                        </View>
+                        {!isCancelled && (
+                          <View style={[styles.settledBadgePill, isSettled ? styles.badgeGreen : styles.badgeAmber]}>
+                            <Text style={isSettled ? styles.badgeTextGreen : styles.badgeTextAmber}>
+                              {isSettled ? t('trips.paid') : t('trips.not_paid')}
+                            </Text>
+                          </View>
+                        )}
                       </View>
                     </View>
+
+                    {isCancelled && (
+                      <View style={{ marginTop: 8, padding: 8, backgroundColor: '#fef2f2', borderRadius: 8, borderWidth: 1, borderColor: '#fecaca' }}>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#b91c1c' }}>
+                          Trip Cancelled • Customer Cancellation Fee: ₹{trip.cancellationCharge ?? 0}
+                        </Text>
+                        {trip.cancellationReason ? (
+                          <Text style={{ fontSize: 10, color: '#7f1d1d', marginTop: 2 }}>
+                            Reason: {trip.cancellationReason}
+                          </Text>
+                        ) : null}
+                      </View>
+                    )}
 
                     <View style={styles.tripCardRoute}>
                       <Text style={styles.tripRouteLine} numberOfLines={1}>
@@ -4267,10 +4295,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#fef3c7',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
   },
   onRouteDot: {
     width: 7,
@@ -4288,10 +4312,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#fee2e2',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
   },
   onRouteDotWarning: {
     width: 7,
@@ -4323,12 +4343,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#dcfce7',
-    borderWidth: 1,
-    borderColor: '#86efac',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
   },
   onTripDot: {
     width: 7,
@@ -4771,6 +4785,44 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0f172a',
   },
+  quickActionPillLocked: {
+    backgroundColor: '#f8fafc',
+    borderColor: '#e2e8f0',
+    opacity: 0.85,
+  },
+  quickActionTextLocked: {
+    color: '#94a3b8',
+  },
+  tripStartLockedCard: {
+    backgroundColor: '#fffbeb',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 4,
+  },
+  tripStartLockedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  tripStartLockedTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#b45309',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  tripStartLockedSubtitle: {
+    fontSize: 11,
+    color: '#92400e',
+    textAlign: 'center',
+    lineHeight: 15,
+  },
   emptyCardInner: {
     paddingVertical: 32,
     alignItems: 'center',
@@ -4844,15 +4896,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#dcfce7',
-    borderWidth: 1,
-    borderColor: '#86efac',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
   },
   availableQueueBadgeText: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '800',
     color: '#15803d',
   },
@@ -4894,15 +4940,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 12,
   },
   queuedBadgeTextLight: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '800',
     color: '#2563eb',
   },
@@ -5390,8 +5430,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     borderWidth: 1.5,
-    borderColor: '#fca5a5',
-    backgroundColor: '#fff1f2',
+    borderColor: '#dc2626',
+    backgroundColor: '#dc2626',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -5399,7 +5439,7 @@ const styles = StyleSheet.create({
   declineDispatchBtnText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#dc2626',
+    color: '#ffffff',
     letterSpacing: 0.5,
   },
   acceptDispatchBtn: {
@@ -5720,6 +5760,9 @@ const styles = StyleSheet.create({
   badgeAmber: {
     backgroundColor: '#fef3c7',
   },
+  badgeRose: {
+    backgroundColor: '#fee2e2',
+  },
   badgeTextGreen: {
     fontSize: 11,
     fontWeight: '800',
@@ -5729,6 +5772,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: '#b45309',
+  },
+  badgeTextRose: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#b91c1c',
   },
   tripCardRoute: {
     backgroundColor: '#f8fafc',

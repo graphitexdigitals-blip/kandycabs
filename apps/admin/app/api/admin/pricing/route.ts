@@ -19,27 +19,41 @@ export async function GET(req: NextRequest) {
       orderBy: [{ category: 'asc' }, { tripType: 'asc' }],
     });
 
-    // If table is completely empty, seed standard rules
-    if (rules.length === 0 && (!category || category === 'ALL') && (!tripType || tripType === 'ALL')) {
-      const defaultRules: any[] = [];
-      const categories = [
-        VehicleCategory.HATCHBACK,
-        VehicleCategory.SEDAN,
-        VehicleCategory.SUV,
-        VehicleCategory.SUV_PREMIUM,
-        VehicleCategory.TEMPO_TRAVELER,
-      ];
-      const tripTypes = [
-        TripType.ONEWAY,
-        TripType.ROUND,
-        TripType.AIRPORT,
-        TripType.LOCAL,
-        TripType.PACKAGE,
-      ];
-      const fuelTypes = [FuelType.DIESEL, FuelType.PETROL, FuelType.CNG];
+    const allRegisteredCategories = [
+      VehicleCategory.HATCHBACK,
+      VehicleCategory.SWIFT_DZIRE,
+      VehicleCategory.TOYOTA_ETIOS,
+      VehicleCategory.SUV_ERTIGA,
+      VehicleCategory.SUV_CARENS,
+      VehicleCategory.SUV_INNOVA,
+      VehicleCategory.SUV_CRYSTA,
+      VehicleCategory.TEMPO_TRAVELER,
+      VehicleCategory.URBANIA,
+      VehicleCategory.SEDAN,
+      VehicleCategory.SUV,
+      VehicleCategory.SUV_PREMIUM,
+    ];
+    const tripTypes = [
+      TripType.ONEWAY,
+      TripType.ROUND,
+      TripType.AIRPORT,
+      TripType.LOCAL,
+      TripType.PACKAGE,
+    ];
+    const fuelTypes = [FuelType.DIESEL, FuelType.PETROL, FuelType.CNG];
 
-      for (const cat of categories) {
-        const conf = VEHICLE_RATES[cat];
+    // Check if any registered categories are missing from the table
+    const existingCats = await prisma.pricingRule.findMany({
+      select: { category: true },
+      distinct: ['category'],
+    });
+    const existingCatSet = new Set(existingCats.map((c) => c.category));
+    const missingCats = allRegisteredCategories.filter((cat) => !existingCatSet.has(cat));
+
+    if (missingCats.length > 0) {
+      const defaultRules: any[] = [];
+      for (const cat of missingCats) {
+        const conf = VEHICLE_RATES[cat] || VEHICLE_RATES[VehicleCategory.SEDAN];
         for (const tt of tripTypes) {
           for (const ft of fuelTypes) {
             defaultRules.push({

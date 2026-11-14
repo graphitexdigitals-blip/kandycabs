@@ -231,7 +231,11 @@ export default function CustomerDashboardPage() {
 
   const formatScheduledDate = (dateStr: string) => {
     try {
-      const d = new Date(dateStr);
+      let str = typeof dateStr === 'string' ? dateStr : String(dateStr);
+      str = str.replace(/^00(\d{2})/, (_, yy) => `20${yy}`);
+      str = str.replace(/^(\d{1,3})-/, (_, y) => `${String(Number(y) < 100 ? 2000 + Number(y) : Number(y)).padStart(4, '0')}-`);
+      const d = new Date(str);
+      if (d.getFullYear() < 100) d.setFullYear(2000 + d.getFullYear());
       const day = d.getDate().toString().padStart(2, '0');
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const month = months[d.getMonth()];
@@ -611,7 +615,7 @@ export default function CustomerDashboardPage() {
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2.5 border-b border-slate-100">
                         <div>
                           <p className="text-xs text-slate-400">
-                            Scheduled for: <strong className="text-slate-700">{new Date(booking.scheduledAt).toLocaleString()}</strong>
+                            Scheduled for: <strong className="text-slate-700">{formatScheduledDate(booking.scheduledAt)}</strong>
                           </p>
                         </div>
 

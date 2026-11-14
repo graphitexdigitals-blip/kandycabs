@@ -21,6 +21,7 @@ import { locationTracker } from '../../lib/location-tracker';
 import { driverApiClient } from '../../lib/api';
 import {
   setTripVerificationCompleted,
+  isTripVerificationCompleted,
   setVerifiedSelfie,
   getVerifiedSelfie,
   setTripStartDraft,
@@ -59,7 +60,7 @@ export default function DriverVehicleInspectionScreen() {
   const [saving, setSaving] = useState(false);
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
 
-  // 5 Verification Steps: Driver Cabin Selfie first, followed by 4 Vehicle Angles (Side profile removed)
+  // 4 Verification Steps: Driver Cabin Selfie first, followed by Front Angle, Front Door & Back Door (Rear angle removed)
   const inspectionAngleConfigs = [
     {
       id: 0,
@@ -85,17 +86,6 @@ export default function DriverVehicleInspectionScreen() {
     },
     {
       id: 2,
-      title: t('inspection.rear_angle', { defaultValue: 'Back / Rear Angle' }),
-      shortTitle: t('inspection.short_rear', { defaultValue: 'Rear' }),
-      desc: t('inspection.rear_angle_desc', { defaultValue: 'Rear bumper, tail lights & boot clearly visible' }),
-      icon: 'car-sport-outline' as const,
-      iconBg: '#f3e8ff',
-      iconColor: '#9333ea',
-      sampleSource: REAR_SAMPLE,
-      isFrontCamera: false,
-    },
-    {
-      id: 3,
       title: t('inspection.inside_front', { defaultValue: 'Inside Front (Door Open)' }),
       shortTitle: t('inspection.short_front_door', { defaultValue: 'Front Door' }),
       desc: t('inspection.inside_front_desc', { defaultValue: 'Front door opened, dashboard, steering & front seats' }),
@@ -106,7 +96,7 @@ export default function DriverVehicleInspectionScreen() {
       isFrontCamera: false,
     },
     {
-      id: 4,
+      id: 3,
       title: t('inspection.inside_back', { defaultValue: 'Inside Back Seat (Door Open)' }),
       shortTitle: t('inspection.short_back_door', { defaultValue: 'Back Door' }),
       desc: t('inspection.inside_back_desc', { defaultValue: 'Back seat door opened, passenger seats & floor mats' }),
@@ -118,7 +108,7 @@ export default function DriverVehicleInspectionScreen() {
     },
   ];
 
-  const [photos, setPhotos] = useState<(string | null)[]>([null, null, null, null, null]);
+  const [photos, setPhotos] = useState<(string | null)[]>([null, null, null, null]);
   const [currentAngleIndex, setCurrentAngleIndex] = useState(0);
 
   // Live GPS
@@ -138,35 +128,59 @@ export default function DriverVehicleInspectionScreen() {
         const b = res.activeBooking;
         if (b) {
           setBooking(b);
-          let initialPhotos: (string | null)[] = [null, null, null, null, null];
-          if (Array.isArray(b.vehicleInspectionPhotos) && b.vehicleInspectionPhotos.length === 5) {
+          let initialPhotos: (string | null)[] = [null, null, null, null];
+          if (Array.isArray(b.vehicleInspectionPhotos) && b.vehicleInspectionPhotos.length === 4) {
             initialPhotos = [
               b.vehicleInspectionPhotos[0] || null, // 0: Driver Cabin Selfie
               b.vehicleInspectionPhotos[1] || null, // 1: Front
-              b.vehicleInspectionPhotos[2] || null, // 2: Rear
-              b.vehicleInspectionPhotos[3] || null, // 3: Front Door
-              b.vehicleInspectionPhotos[4] || null, // 4: Back Door
+              b.vehicleInspectionPhotos[2] || null, // 2: Front Door
+              b.vehicleInspectionPhotos[3] || null, // 3: Back Door
             ];
-          } else if (Array.isArray(b.vehicleInspectionPhotos) && b.vehicleInspectionPhotos.length === 4) {
+          } else if (Array.isArray(b.vehicleInspectionPhotos) && b.vehicleInspectionPhotos.length === 5) {
+            // Legacy 5-photo array had rear at [2]: map to [0: Selfie, 1: Front, 3: Front Door, 4: Back Door]
             initialPhotos = [
-              null, // 0: Driver Cabin Selfie
-              b.vehicleInspectionPhotos[0] || null, // 1: Front
-              b.vehicleInspectionPhotos[1] || null, // 2: Rear
-              b.vehicleInspectionPhotos[2] || null, // 3: Front Door
-              b.vehicleInspectionPhotos[3] || null, // 4: Back Door
+              b.vehicleInspectionPhotos[0] || null, // 0: Driver Cabin Selfie
+              b.vehicleInspectionPhotos[1] || null, // 1: Front
+              b.vehicleInspectionPhotos[3] || null, // 2: Front Door
+              b.vehicleInspectionPhotos[4] || null, // 3: Back Door
             ];
           }
 
-          // Check if driver selfie is already attached or drafted
+          // Check if photos are already attached or drafted
           const targetId = b.id || bookingId;
           if (targetId) {
             const draft = getTripStartDraft(targetId);
             if (draft?.driverSelfieUri) {
               initialPhotos[0] = draft.driverSelfieUri;
             }
+            if (draft?.inspectionPhotos && Array.isArray(draft.inspectionPhotos)) {
+              draft.inspectionPhotos.forEach((p, idx) => {
+                if (p && !initialPhotos[idx] && idx < 4) initialPhotos[idx] = p;
+              });
+            }
             const savedSelfie = await getVerifiedSelfie(targetId);
             if (savedSelfie?.uri) {
               initialPhotos[0] = savedSelfie.uri;
+            }
+
+            // If verification was already saved or all 4 photos are already uploaded/saved, DO NOT make driver upload again!
+            const isVerified = (await isTripVerificationCompleted(targetId)) ||
+              (Array.isArray(b.vehicleInspectionPhotos) && b.vehicleInspectionPhotos.filter(Boolean).length >= 4) ||
+              initialPhotos.filter(Boolean).length === 4 ||
+              ['EN_ROUTE', 'ARRIVED', 'ON_TRIP', 'COMPLETED'].includes(b.status);
+
+            if (isVerified) {
+              await setTripVerificationCompleted(targetId, true);
+              setTripStartDraft(targetId, {
+                inspectionPhotos: initialPhotos,
+                driverSelfieUri: initialPhotos[0],
+              });
+              // Automatically advance forward to pickup / en-route
+              router.replace({
+                pathname: '/trip/en-route',
+                params: { bookingId: targetId },
+              });
+              return;
             }
           }
 
@@ -182,20 +196,23 @@ export default function DriverVehicleInspectionScreen() {
     } finally {
       setLoading(false);
     }
-  }, [bookingId]);
+  }, [bookingId, router]);
 
   useEffect(() => {
     fetchBooking();
   }, [fetchBooking]);
 
   const applyCapturedPhoto = (index: number, dataUri: string) => {
+    const bId = bookingId || booking?.id;
     setPhotos((prev) => {
       const next = [...prev];
       next[index] = dataUri;
+      if (bId) {
+        setTripStartDraft(bId, { inspectionPhotos: next });
+      }
       return next;
     });
 
-    const bId = bookingId || booking?.id;
     if (index === 0 && bId) {
       const latest = locationTracker.getCurrentCoordinates();
       let locStamp = null;
@@ -280,7 +297,6 @@ export default function DriverVehicleInspectionScreen() {
     setPhotos([
       'demo_selfie',
       'demo_front',
-      'demo_rear',
       'demo_inside_front',
       'demo_inside_back',
     ]);
@@ -289,19 +305,19 @@ export default function DriverVehicleInspectionScreen() {
       setVerifiedSelfie(bId, 'demo_selfie');
       setTripStartDraft(bId, { driverSelfieUri: 'demo_selfie' });
     }
-    setCurrentAngleIndex(4);
-    Alert.alert('Demo Evidence Loaded', 'Driver Cabin Selfie and 4 vehicle inspection angles loaded!');
+    setCurrentAngleIndex(3);
+    Alert.alert('Demo Evidence Loaded', 'Driver Cabin Selfie and 3 vehicle inspection angles loaded!');
   };
 
   const attachedCount = photos.filter(Boolean).length;
-  const isAllAttached = attachedCount === 5;
+  const isAllAttached = attachedCount === inspectionAngleConfigs.length;
 
   const handleBottomBarPress = () => {
     if (isAllAttached) {
       handleSaveInspection();
     } else if (!photos[currentAngleIndex]) {
       handleCameraCapture(currentAngleIndex);
-    } else if (currentAngleIndex < 4) {
+    } else if (currentAngleIndex < inspectionAngleConfigs.length - 1) {
       setCurrentAngleIndex(currentAngleIndex + 1);
     } else {
       const firstMissing = photos.findIndex((p) => !p);
@@ -317,7 +333,7 @@ export default function DriverVehicleInspectionScreen() {
     if (!isAllAttached) {
       Alert.alert(
         'Missing Photos',
-        `Please attach driver cabin selfie and 4 vehicle inspection photos before proceeding (${attachedCount}/5 attached).`,
+        `Please attach driver cabin selfie and 3 vehicle inspection photos before proceeding (${attachedCount}/${inspectionAngleConfigs.length} attached).`,
         [
           { text: 'OK' },
           { text: '⚡ Use Demo Photos', onPress: handleFillDemoPhotos },
@@ -334,21 +350,25 @@ export default function DriverVehicleInspectionScreen() {
 
     setSaving(true);
     try {
-      const res = await driverApiClient.fetch('/api/driver/trip/inspection', {
+      // Save verification in storage and draft immediately so it is permanently preserved
+      await setTripVerificationCompleted(bId, true);
+      setTripStartDraft(bId, {
+        driverSelfieUri: photos[0],
+        inspectionPhotos: photos,
+      });
+      if (photos[0]) {
+        setVerifiedSelfie(bId, photos[0]);
+      }
+
+      await driverApiClient.fetch('/api/driver/trip/inspection', {
         method: 'POST',
         body: JSON.stringify({
           bookingId: bId,
-          vehicleInspectionPhotos: photos, // All 5 verification photos: [0: Selfie, 1: Front, 2: Rear, 3: Front Door, 4: Back Door]
+          vehicleInspectionPhotos: photos, // 4 verification photos: [0: Selfie, 1: Front, 2: Front Door, 3: Back Door]
           driverSelfie: photos[0],
         }),
-      });
+      }).catch((e) => console.warn('Vehicle inspection sync:', e));
 
-      if (photos[0]) {
-        setVerifiedSelfie(bId, photos[0]);
-        setTripStartDraft(bId, { driverSelfieUri: photos[0] });
-      }
-
-      await setTripVerificationCompleted(bId, true);
       // Navigate to Step 2: Pickup Page
       router.replace({
         pathname: '/trip/en-route',
@@ -422,9 +442,9 @@ export default function DriverVehicleInspectionScreen() {
                   <View style={styles.stepTagRow}>
                     <Text style={styles.stepTagText}>
                       {t('inspection.step_tag', {
-                        defaultValue: `STEP ${currentAngleIndex + 1} OF 5`,
+                        defaultValue: `STEP ${currentAngleIndex + 1} OF ${inspectionAngleConfigs.length}`,
                         current: currentAngleIndex + 1,
-                        total: 5,
+                        total: inspectionAngleConfigs.length,
                       })}
                     </Text>
                     <View
@@ -537,7 +557,7 @@ export default function DriverVehicleInspectionScreen() {
         <View style={styles.stripSection}>
           <View style={styles.stripHeaderRow}>
             <Text style={styles.stripSectionTitle}>
-              {t('inspection.review_title', { defaultValue: 'VERIFICATION REVIEW (5 STEPS)' })}
+              {t('inspection.review_title', { defaultValue: `VERIFICATION REVIEW (${inspectionAngleConfigs.length} STEPS)` })}
             </Text>
             <Text style={styles.stripSubTitle}>
               {t('inspection.tap_to_jump', { defaultValue: 'Tap any angle to jump' })}

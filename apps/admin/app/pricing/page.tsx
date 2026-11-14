@@ -2,7 +2,20 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { AdminNavbar } from '@/components/AdminNavbar';
-import { VehicleCategory, TripType, FuelType } from '@kandy-cabs/shared';
+import {
+  VehicleCategory,
+  TripType,
+  FuelType,
+  DEFAULT_AIRPORT_ROUTES,
+  DEFAULT_AIRPORT_FIXED_FARES,
+  DEFAULT_NIGHT_CHARGE_SETTINGS,
+  DEFAULT_CANCELLATION_CONFIG,
+  CancellationRatesConfig,
+  ALL_FLEET_CATEGORIES_FOR_CANCELLATION,
+  AirportRouteRate,
+  AirportRatesConfig,
+  NightChargeSettings,
+} from '@kandy-cabs/shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,10 +135,26 @@ const FUEL_TYPES_LIST = [
   },
 ];
 
+const FLEET_CATEGORIES_LIST = [
+  { id: 'ALL', label: 'All Fleets' },
+  { id: 'HATCHBACK', label: 'Compact' },
+  { id: 'SWIFT_DZIRE', label: 'Swift Dzire' },
+  { id: 'TOYOTA_ETIOS', label: 'Toyota Etios' },
+  { id: 'SUV_ERTIGA', label: 'SUV - Ertiga' },
+  { id: 'SUV_CARENS', label: 'SUV - Kia Carens' },
+  { id: 'SUV_INNOVA', label: 'SUV - Toyota Innova' },
+  { id: 'SUV_CRYSTA', label: 'SUV - Innova Crysta' },
+  { id: 'TEMPO_TRAVELER', label: 'Tempo Traveller' },
+  { id: 'URBANIA', label: 'Force Urbania' },
+  { id: 'SEDAN', label: 'Generic Sedan' },
+  { id: 'SUV', label: 'Generic SUV' },
+  { id: 'SUV_PREMIUM', label: 'Generic Premium' },
+];
+
 const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.ReactNode; bg: string; border: string }> = {
   [VehicleCategory.HATCHBACK]: {
-    name: 'Hatchback',
-    sample: 'WagonR, Swift, Tiago',
+    name: 'Sedan – Compact',
+    sample: 'Toyota Glanza, WagonR, Tiago, Celerio',
     icon: (
       <svg className="w-6 h-6 text-amber-600" viewBox="0 0 24 24" fill="currentColor">
         <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
@@ -134,9 +163,9 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
     bg: 'bg-[#f5faff]',
     border: 'border-slate-200',
   },
-  [VehicleCategory.SEDAN]: {
-    name: 'Sedan',
-    sample: 'Dzire, Etios, Amaze',
+  SWIFT_DZIRE: {
+    name: 'Sedan – Swift Dzire',
+    sample: 'Maruti Suzuki Dzire (4+1, Diesel)',
     icon: (
       <svg className="w-6 h-6 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
         <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
@@ -145,9 +174,20 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
     bg: 'bg-[#f5faff]',
     border: 'border-slate-200',
   },
-  [VehicleCategory.SUV]: {
-    name: 'SUV (6+1)',
-    sample: 'Ertiga, Triber, Carens',
+  TOYOTA_ETIOS: {
+    name: 'Sedan – Toyota Etios',
+    sample: 'Toyota Etios (4+1, Diesel with Boot)',
+    icon: (
+      <svg className="w-6 h-6 text-indigo-600" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
+      </svg>
+    ),
+    bg: 'bg-[#f5faff]',
+    border: 'border-slate-200',
+  },
+  SUV_ERTIGA: {
+    name: 'SUV – Ertiga',
+    sample: 'Maruti Suzuki Ertiga (6+1, CNG / Petrol)',
     icon: (
       <svg className="w-6 h-6 text-emerald-600" viewBox="0 0 24 24" fill="currentColor">
         <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
@@ -156,12 +196,34 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
     bg: 'bg-[#f5faff]',
     border: 'border-slate-200',
   },
-  [VehicleCategory.SUV_PREMIUM]: {
-    name: 'Premium SUV',
-    sample: 'Innova Crysta, Safari',
+  SUV_CARENS: {
+    name: 'SUV – Kia Carens',
+    sample: 'Kia Carens Diesel Luxury (6+1)',
     icon: (
-      <svg className="w-6 h-6 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
+      <svg className="w-6 h-6 text-teal-600" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
+      </svg>
+    ),
+    bg: 'bg-[#f5faff]',
+    border: 'border-slate-200',
+  },
+  SUV_INNOVA: {
+    name: 'SUV – Toyota Innova',
+    sample: 'Toyota Innova Diesel (6+1 / 7+1)',
+    icon: (
+      <svg className="w-6 h-6 text-cyan-600" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
+      </svg>
+    ),
+    bg: 'bg-[#f5faff]',
+    border: 'border-slate-200',
+  },
+  SUV_CRYSTA: {
+    name: 'SUV – Innova Crysta',
+    sample: 'Toyota Innova Crysta Diesel Luxury (6+1 / 7+1)',
+    icon: (
+      <svg className="w-6 h-6 text-purple-600" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
       </svg>
     ),
     bg: 'bg-[#f5faff]',
@@ -169,7 +231,7 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
   },
   [VehicleCategory.TEMPO_TRAVELER]: {
     name: 'Tempo Traveller',
-    sample: 'Force Traveller 12-16 Seater',
+    sample: 'Force Traveller 12-17 Seater AC Luxury',
     icon: (
       <svg className="w-6 h-6 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M8 6v6" />
@@ -197,6 +259,39 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
     bg: 'bg-[#f5faff]',
     border: 'border-slate-200',
   },
+  [VehicleCategory.SEDAN]: {
+    name: 'Generic Sedan',
+    sample: 'Dzire, Etios, Amaze (Legacy)',
+    icon: (
+      <svg className="w-6 h-6 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
+      </svg>
+    ),
+    bg: 'bg-[#f5faff]',
+    border: 'border-slate-200',
+  },
+  [VehicleCategory.SUV]: {
+    name: 'Generic SUV (6+1)',
+    sample: 'Ertiga, Triber, Carens (Legacy)',
+    icon: (
+      <svg className="w-6 h-6 text-emerald-600" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" />
+      </svg>
+    ),
+    bg: 'bg-[#f5faff]',
+    border: 'border-slate-200',
+  },
+  [VehicleCategory.SUV_PREMIUM]: {
+    name: 'Generic Premium SUV',
+    sample: 'Innova Crysta, Safari (Legacy)',
+    icon: (
+      <svg className="w-6 h-6 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14" />
+      </svg>
+    ),
+    bg: 'bg-[#f5faff]',
+    border: 'border-slate-200',
+  },
 };
 
 export default function AdminPricingPage() {
@@ -204,10 +299,29 @@ export default function AdminPricingPage() {
   const [loading, setLoading] = useState(true);
   const [activeTripType, setActiveTripType] = useState<string>('ONEWAY');
   const [activeFuelType, setActiveFuelType] = useState<string>('ALL');
+  const [activeFleetCategory, setActiveFleetCategory] = useState<string>('ALL');
+  const [hideLegacy, setHideLegacy] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingRule, setEditingRule] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+
+  // Night Charges Settings State
+  const [nightSettings, setNightSettings] = useState<NightChargeSettings>(DEFAULT_NIGHT_CHARGE_SETTINGS);
+  const [savingNightSettings, setSavingNightSettings] = useState(false);
+
+  // Airport Transfer City Routes & Default Rates State
+  const [airportConfig, setAirportConfig] = useState<AirportRatesConfig>({
+    routes: DEFAULT_AIRPORT_ROUTES,
+    defaultFixedFares: DEFAULT_AIRPORT_FIXED_FARES,
+  });
+  const [savingAirportConfig, setSavingAirportConfig] = useState(false);
+  const [showAddRouteModal, setShowAddRouteModal] = useState(false);
+  const [newRouteForm, setNewRouteForm] = useState({
+    name: '',
+    fromCity: '',
+    toCity: '',
+  });
 
   const [testDistanceKm, setTestDistanceKm] = useState<number>(250);
   const [seaterRates, setSeaterRates] = useState<Array<{
@@ -238,6 +352,38 @@ export default function AdminPricingPage() {
   });
   const [savingPetRates, setSavingPetRates] = useState(false);
 
+  // Cancellation Charges by Fleet State
+  const [cancellationConfig, setCancellationConfig] = useState<CancellationRatesConfig>(DEFAULT_CANCELLATION_CONFIG);
+  const [savingCancellation, setSavingCancellation] = useState(false);
+
+  const fetchNightSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/settings/night-charges');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.settings) {
+          setNightSettings(data.settings);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load night charge settings:', err);
+    }
+  }, []);
+
+  const fetchAirportRates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/settings/airport-rates');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.config) {
+          setAirportConfig(data.config);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load airport rates:', err);
+    }
+  }, []);
+
   const fetchPetRates = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/settings/pet-rates');
@@ -256,9 +402,177 @@ export default function AdminPricingPage() {
     }
   }, []);
 
+  const fetchCancellationRates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/settings/cancellation-rates');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.config) {
+          setCancellationConfig(data.config);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load cancellation rates:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchPetRates();
-  }, [fetchPetRates]);
+    fetchNightSettings();
+    fetchAirportRates();
+    fetchCancellationRates();
+  }, [fetchPetRates, fetchNightSettings, fetchAirportRates, fetchCancellationRates]);
+
+  const handleSaveCancellation = async () => {
+    setSavingCancellation(true);
+    try {
+      const res = await fetch('/api/admin/settings/cancellation-rates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cancellationConfig),
+      });
+      if (res.ok) {
+        setSuccessToast('Saved Cancellation Charges for All Fleets!');
+        setTimeout(() => setSuccessToast(null), 3500);
+      } else {
+        alert('Failed to save cancellation rates');
+      }
+    } catch (err) {
+      console.error('Error saving cancellation rates:', err);
+      alert('Error saving cancellation rates');
+    } finally {
+      setSavingCancellation(false);
+    }
+  };
+
+  const handleSaveNightSettings = async () => {
+    setSavingNightSettings(true);
+    try {
+      const res = await fetch('/api/admin/settings/night-charges', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nightSettings),
+      });
+      if (res.ok) {
+        setSuccessToast('Saved Night Charges Settings by Transfer Type!');
+        setTimeout(() => setSuccessToast(null), 3500);
+      } else {
+        alert('Failed to save night charge settings');
+      }
+    } catch (err) {
+      console.error('Error saving night charge settings:', err);
+      alert('Error saving night charge settings');
+    } finally {
+      setSavingNightSettings(false);
+    }
+  };
+
+  const handleSaveAirportRates = async () => {
+    setSavingAirportConfig(true);
+    try {
+      const res = await fetch('/api/admin/settings/airport-rates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(airportConfig),
+      });
+      if (res.ok) {
+        setSuccessToast('Saved Airport Transfer City Rates & Default Fixed Rates!');
+        setTimeout(() => setSuccessToast(null), 3500);
+      } else {
+        alert('Failed to save airport transfer rates');
+      }
+    } catch (err) {
+      console.error('Error saving airport rates:', err);
+      alert('Error saving airport rates');
+    } finally {
+      setSavingAirportConfig(false);
+    }
+  };
+
+  const handleToggleNightTripType = (tripType: string) => {
+    setNightSettings((prev) => {
+      const exists = prev.applicableTripTypes.includes(tripType);
+      const nextTypes = exists
+        ? prev.applicableTripTypes.filter((t) => t !== tripType)
+        : [...prev.applicableTripTypes, tripType];
+      return {
+        ...prev,
+        applicableTripTypes: nextTypes,
+      };
+    });
+  };
+
+  const handleUpdateAirportDefaultFare = (category: string, fare: number) => {
+    setAirportConfig((prev) => ({
+      ...prev,
+      defaultFixedFares: {
+        ...prev.defaultFixedFares,
+        [category]: fare,
+      },
+    }));
+  };
+
+  const handleUpdateAirportRouteFare = (routeId: string, category: string, fare: number) => {
+    setAirportConfig((prev) => ({
+      ...prev,
+      routes: prev.routes.map((r) =>
+        r.id === routeId
+          ? {
+              ...r,
+              fixedFares: {
+                ...r.fixedFares,
+                [category]: fare,
+              },
+            }
+          : r
+      ),
+    }));
+  };
+
+  const handleDeleteAirportRoute = (routeId: string) => {
+    if (!window.confirm('Are you sure you want to delete this airport city route?')) return;
+    setAirportConfig((prev) => ({
+      ...prev,
+      routes: prev.routes.filter((r) => r.id !== routeId),
+    }));
+  };
+
+  const handleAddNewAirportRoute = () => {
+    if (!newRouteForm.name.trim() || !newRouteForm.fromCity.trim() || !newRouteForm.toCity.trim()) {
+      alert('Please enter Route Name, From City, and To City');
+      return;
+    }
+    const id = `route_${Date.now()}`;
+
+    const newRoute: AirportRouteRate = {
+      id,
+      name: newRouteForm.name.trim(),
+      fromCity: newRouteForm.fromCity.trim(),
+      toCity: newRouteForm.toCity.trim(),
+      fixedFares: {
+        HATCHBACK: 4800,
+        SWIFT_DZIRE: 5200,
+        TOYOTA_ETIOS: 5600,
+        SUV_ERTIGA: 6600,
+        SUV_CARENS: 7400,
+        SUV_INNOVA: 8200,
+        SUV_CRYSTA: 9200,
+        TEMPO_TRAVELER: 12500,
+        URBANIA: 15000,
+      },
+    };
+
+    setAirportConfig((prev) => ({
+      ...prev,
+      routes: [...prev.routes, newRoute],
+    }));
+    setShowAddRouteModal(false);
+    setNewRouteForm({
+      name: '',
+      fromCity: '',
+      toCity: '',
+    });
+  };
 
   const handleSavePetRates = async () => {
     setSavingPetRates(true);
@@ -324,8 +638,14 @@ export default function AdminPricingPage() {
     fetchRules();
   }, [fetchRules]);
 
-  // Filter rules by Fuel Type & Search
+  // Filter rules by Fleet Category, Fuel Type & Search
   const filteredRules = rules.filter((r) => {
+    if (hideLegacy && activeFleetCategory === 'ALL' && ['SEDAN', 'SUV', 'SUV_PREMIUM'].includes(r.category)) {
+      return false;
+    }
+    if (activeFleetCategory !== 'ALL' && r.category !== activeFleetCategory) {
+      return false;
+    }
     if (activeFuelType !== 'ALL' && r.fuelType !== activeFuelType) {
       return false;
     }
@@ -465,37 +785,370 @@ export default function AdminPricingPage() {
           </div>
         </div>
 
-        {/* 2. Fuel Type Filter Bar & Search */}
-        <div className="bg-white border border-slate-200 rounded-xl p-2 sm:p-3 flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center justify-between shadow-xs">
-          <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
-            <span className="text-xs font-bold text-slate-500 mr-1 sm:mr-2">Fuel Type:</span>
-            {FUEL_TYPES_LIST.map((ft) => {
-              const isSelected = activeFuelType === ft.id;
+        {/* 2. Fuel Type & Fleet Filter Bar & Search */}
+        <div className="space-y-2">
+          <div className="bg-white border border-slate-200 rounded-xl p-2 sm:p-3 flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center justify-between shadow-xs">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
+              <span className="text-xs font-bold text-slate-500 mr-1 sm:mr-2">Fuel Type:</span>
+              {FUEL_TYPES_LIST.map((ft) => {
+                const isSelected = activeFuelType === ft.id;
+                return (
+                  <button
+                    key={ft.id}
+                    onClick={() => setActiveFuelType(ft.id)}
+                    className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition cursor-pointer ${
+                      isSelected
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    <span>{ft.icon}</span>
+                    <span>{ft.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="w-full sm:w-64">
+              <input
+                type="text"
+                placeholder="Search category or fuel..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Fleet Category Filter Pills */}
+          <div className="bg-white border border-slate-200 rounded-xl p-2 sm:p-2.5 flex items-center justify-between gap-2 overflow-x-auto shadow-xs">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              <span className="text-xs font-bold text-slate-500 mr-1 shrink-0">Fleet:</span>
+              {FLEET_CATEGORIES_LIST.map((fc) => {
+                const isSelected = activeFleetCategory === fc.id;
+                return (
+                  <button
+                    key={fc.id}
+                    onClick={() => setActiveFleetCategory(fc.id)}
+                    className={`px-2.5 py-1 rounded-lg text-[11.5px] font-bold whitespace-nowrap transition cursor-pointer ${
+                      isSelected
+                        ? 'bg-amber-500 text-slate-950 shadow-xs'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    {fc.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <label className="flex items-center gap-1.5 pl-3 border-l border-slate-200 cursor-pointer select-none shrink-0">
+              <input
+                type="checkbox"
+                checked={hideLegacy}
+                onChange={(e) => setHideLegacy(e.target.checked)}
+                className="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-400"
+              />
+              <span className="text-[11px] font-bold text-slate-600">Hide Legacy Generics</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Night Charges by Transfer Type Card */}
+        <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-xs space-y-3.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-slate-900">
+                  Night Charges by Transfer Type
+                </h3>
+                <p className="text-[11px] sm:text-xs text-slate-500">
+                  Select which transfer types apply night surcharge (22:00 to 06:00).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={nightSettings.enabled}
+                  onChange={(e) => setNightSettings((prev) => ({ ...prev, enabled: e.target.checked }))}
+                  className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                />
+                <span className="text-xs font-black text-slate-800">
+                  {nightSettings.enabled ? 'Night Charges Enabled' : 'Disabled'}
+                </span>
+              </label>
+
+              <button
+                type="button"
+                onClick={handleSaveNightSettings}
+                disabled={savingNightSettings}
+                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-xs transition flex items-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-50"
+              >
+                {savingNightSettings ? 'Saving...' : 'Save Night Charge Settings'}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+            {[
+              { id: 'ONEWAY', label: 'One-Way Drops', desc: 'Point-to-point drop' },
+              { id: 'ROUND', label: 'Round Trips', desc: 'Outstation returns' },
+              { id: 'AIRPORT', label: 'Airport Transfers', desc: 'Airport pick / drop' },
+              { id: 'LOCAL', label: 'Local Rentals', desc: 'Hourly packages' },
+              { id: 'PACKAGE', label: 'Tour Packages', desc: 'Sightseeing tours' },
+            ].map((tt) => {
+              const isChecked = nightSettings.applicableTripTypes.includes(tt.id);
               return (
-                <button
-                  key={ft.id}
-                  onClick={() => setActiveFuelType(ft.id)}
-                  className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition ${
-                    isSelected
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                <div
+                  key={tt.id}
+                  onClick={() => handleToggleNightTripType(tt.id)}
+                  className={`p-2.5 rounded-xl border transition cursor-pointer select-none flex flex-col justify-between ${
+                    isChecked
+                      ? 'bg-indigo-50/70 border-indigo-300 ring-1 ring-indigo-400'
+                      : 'bg-slate-50 border-slate-200 opacity-60 hover:opacity-100'
                   }`}
                 >
-                  <span>{ft.icon}</span>
-                  <span>{ft.label}</span>
-                </button>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-black text-slate-900">{tt.label}</span>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {}}
+                      className="w-3.5 h-3.5 text-indigo-600 rounded border-slate-300 pointer-events-none"
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-500">{tt.desc}</span>
+                  <span className={`text-[10px] font-bold mt-2 ${isChecked ? 'text-indigo-700' : 'text-slate-400'}`}>
+                    {isChecked ? 'Night Charge Active' : 'No Night Charge'}
+                  </span>
+                </div>
               );
             })}
           </div>
+        </div>
 
-          <div className="w-full sm:w-64">
-            <input
-              type="text"
-              placeholder="Search category or fuel..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
-            />
+        {/* Cancellation Charges by Fleet Card */}
+        <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-slate-900">
+                  Cancellation Policy & Charges by Fleet
+                </h3>
+                <p className="text-[11px] sm:text-xs text-slate-500">
+                  Policy: Free cancellation up to {cancellationConfig.windowHours} hours before pickup. Within {cancellationConfig.windowHours} hours of pickup, cancellation charges apply per fleet.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <a
+                href="/cancellation"
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition inline-flex items-center gap-1 shrink-0 border border-slate-200"
+              >
+                Trip-Wise Rules & Options →
+              </a>
+              <button
+                type="button"
+                disabled={savingCancellation}
+                onClick={handleSaveCancellation}
+                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0 shadow-xs"
+              >
+                {savingCancellation ? 'Saving...' : 'Save Cancellation Rates'}
+              </button>
+            </div>
+          </div>
+
+          {/* Cancellation Window Setting */}
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-xs font-black text-slate-800">Cancellation Window (Hours Before Pickup)</span>
+              <p className="text-[11px] text-slate-500">If cancelled within this many hours of scheduled pickup time, cancellation fee is charged. Free cancellation if cancelled earlier.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                max="24"
+                value={cancellationConfig.windowHours}
+                onChange={(e) => setCancellationConfig((prev) => ({ ...prev, windowHours: Math.max(1, parseInt(e.target.value) || 3) }))}
+                className="w-20 px-2.5 py-1 text-xs font-bold text-center border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-rose-500"
+              />
+              <span className="text-xs font-semibold text-slate-600">Hours</span>
+            </div>
+          </div>
+
+          {/* Group 1: Compact & Sedans (Default ₹500) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                Compact & Sedans (Default ₹500)
+              </span>
+              <span className="text-[10px] font-semibold text-slate-500">Compact, Dzire, Etios, Sedan</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              {ALL_FLEET_CATEGORIES_FOR_CANCELLATION.filter((f) => f.group === 'COMPACT_SEDAN').map((fleet) => {
+                const currentFee = cancellationConfig.rates[fleet.category] ?? fleet.defaultRate;
+                return (
+                  <div key={fleet.category} className="p-3 bg-white border border-slate-200 rounded-xl flex flex-col justify-between hover:border-slate-300 transition shadow-2xs">
+                    <div>
+                      <span className="text-xs font-black text-slate-800 line-clamp-1">{fleet.name}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{fleet.category}</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
+                      <span className="text-[11px] font-bold text-slate-500">Fee (₹):</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-slate-400">₹</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="50"
+                          value={currentFee}
+                          onChange={(e) => {
+                            const val = Math.max(0, parseInt(e.target.value) || 0);
+                            setCancellationConfig((prev) => ({
+                              ...prev,
+                              rates: { ...prev.rates, [fleet.category]: val },
+                            }));
+                          }}
+                          className="w-24 px-2 py-1 text-xs font-black text-right border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-rose-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Group 2: Rest All Fleets (Default ₹1000) */}
+          <div className="space-y-2 pt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                Rest All Fleets (Default ₹1,000)
+              </span>
+              <span className="text-[10px] font-semibold text-slate-500">SUVs, Innova, Crysta, Tempo Traveller, Urbania</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              {ALL_FLEET_CATEGORIES_FOR_CANCELLATION.filter((f) => f.group === 'REST_FLEETS').map((fleet) => {
+                const currentFee = cancellationConfig.rates[fleet.category] ?? fleet.defaultRate;
+                return (
+                  <div key={fleet.category} className="p-3 bg-white border border-slate-200 rounded-xl flex flex-col justify-between hover:border-slate-300 transition shadow-2xs">
+                    <div>
+                      <span className="text-xs font-black text-slate-800 line-clamp-1">{fleet.name}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{fleet.category}</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
+                      <span className="text-[11px] font-bold text-slate-500">Fee (₹):</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-slate-400">₹</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="50"
+                          value={currentFee}
+                          onChange={(e) => {
+                            const val = Math.max(0, parseInt(e.target.value) || 0);
+                            setCancellationConfig((prev) => ({
+                              ...prev,
+                              rates: { ...prev.rates, [fleet.category]: val },
+                            }));
+                          }}
+                          className="w-24 px-2 py-1 text-xs font-black text-right border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-rose-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Airport Transfer Pricing Policy Card */}
+        <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
+                </svg>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-black text-slate-900">
+                    Airport Transfer Pricing Policy
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    ⚡ 100% As Per KM Rate
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-slate-500">
+                  Fixed pricing is disabled. All airport transfers are billed dynamically as per KM rate using each fleet's Base Rate / KM, Extra KM Rate, and distance thresholds.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTripType('AIRPORT');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs transition flex items-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <span>Edit Airport KM Tariffs</span>
+                <span>➔</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5 sm:p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <span className="text-xl">✈️</span>
+              <div className="space-y-1">
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-950 block">
+                  Per-KM Tariff Billing Active For All Airport Transfers
+                </span>
+                <p className="text-[11.5px] text-emerald-800 leading-relaxed">
+                  Every airport trip is calculated strictly per kilometer based on the <strong>Base Rate / KM</strong>, <strong>Extra KM Rate</strong>, and <strong>Extra KM Threshold</strong> configured in the Pricing Rules tariff table. No fixed route prices apply.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 border-t border-emerald-200/80">
+              <div className="bg-white/90 p-2.5 rounded-lg border border-emerald-200 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Standard Rate / KM</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">Distance (KM) × Base Rate/KM</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block">Fleet minimum KM applies</span>
+              </div>
+              <div className="bg-white/90 p-2.5 rounded-lg border border-emerald-200 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Extra KM Threshold</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">Configurable in Tariff Table</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block">Extra KM rate applied beyond limit</span>
+              </div>
+              <div className="bg-white/90 p-2.5 rounded-lg border border-emerald-200 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Long Distance Trips</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">Driver Allowance if &gt; 200 km</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block">Standard intercity driver support</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1516,6 +2169,77 @@ export default function AdminPricingPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add New Airport Route Modal */}
+      {showAddRouteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h3 className="text-sm font-black text-slate-900">Add Airport City Route</h3>
+              <button
+                type="button"
+                onClick={() => setShowAddRouteModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Route Display Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Mangalore Airport ↔ Bangalore"
+                  value={newRouteForm.name}
+                  onChange={(e) => setNewRouteForm({ ...newRouteForm, name: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:bg-white focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 block mb-1">From City (e.g. Mangalore)</label>
+                  <input
+                    type="text"
+                    placeholder="Mangalore"
+                    value={newRouteForm.fromCity}
+                    onChange={(e) => setNewRouteForm({ ...newRouteForm, fromCity: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:bg-white focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 block mb-1">To City (e.g. Bangalore)</label>
+                  <input
+                    type="text"
+                    placeholder="Bangalore"
+                    value={newRouteForm.toCity}
+                    onChange={(e) => setNewRouteForm({ ...newRouteForm, toCity: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:bg-white focus:ring-2 focus:ring-sky-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowAddRouteModal(false)}
+                className="px-3.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddNewAirportRoute}
+                className="px-4 py-1.5 text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white rounded-lg shadow-xs cursor-pointer"
+              >
+                Create Route
+              </button>
+            </div>
           </div>
         </div>
       )}

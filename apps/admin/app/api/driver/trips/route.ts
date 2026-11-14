@@ -35,6 +35,9 @@ export async function GET(req: NextRequest) {
           },
         },
         vehicle: true,
+        tripEvents: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
@@ -132,15 +135,38 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      const isCustomerPhoneReleased = Boolean(b.customerPhoneReleased) || (() => {
+        if (['TRIP_STARTED', 'ON_TRIP', 'COMPLETED'].includes(b.status)) return true;
+        if (!b.scheduledAt) return false;
+        const d = new Date(b.scheduledAt);
+        if (isNaN(d.getTime())) return false;
+        if (d.getFullYear() < 100) d.setFullYear(2000 + d.getFullYear());
+        const now = new Date();
+        const isSameDay =
+          d.getDate() === now.getDate() &&
+          d.getMonth() === now.getMonth() &&
+          d.getFullYear() === now.getFullYear();
+        if (!isSameDay) return false;
+        const diffHours = (d.getTime() - now.getTime()) / (1000 * 60 * 60);
+        return diffHours <= 5 && diffHours >= -4;
+      })();
+
+      const cancelEvent = b.tripEvents?.find((e: any) => e.type === 'BOOKING_CANCELLED');
+      let cancellationCharge = 0;
+      let cancellationReason: string | null = null;
+      if (cancelEvent?.payloadJson) {
+        const rawJson = typeof cancelEvent.payloadJson === 'string'
+          ? JSON.parse(cancelEvent.payloadJson)
+          : cancelEvent.payloadJson;
+        cancellationCharge = Number(rawJson.cancellationCharge ?? 0);
+        cancellationReason = rawJson.reason || 'Cancelled';
+      }
+
       return {
         id: b.id,
         humanReadableRef: b.humanReadableRef,
         customerName: b.customer?.user?.fullName || 'Customer',
-        customerPhone:
-          b.customerPhoneReleased ||
-          (b.scheduledAt && new Date(b.scheduledAt).getTime() - Date.now() <= 5 * 60 * 60 * 1000)
-            ? b.customer?.user?.phone
-            : null,
+        customerPhone: isCustomerPhoneReleased ? b.customer?.user?.phone : null,
         tripType: b.tripType,
         pickupAddress: b.pickupAddress,
         dropAddress: b.dropAddress,
@@ -155,6 +181,8 @@ export async function GET(req: NextRequest) {
         totalEarnings: totalEarnedForTrip,
         driverPaymentStatus: b.driverPaymentStatus || 'PENDING',
         status: b.status,
+        cancellationCharge,
+        cancellationReason,
         createdAt: b.createdAt.toISOString(),
         monthKey: `${tripDate.getFullYear()}-${String(tripDate.getMonth() + 1).padStart(2, '0')}`,
       };

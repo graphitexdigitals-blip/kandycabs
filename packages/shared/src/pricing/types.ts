@@ -24,6 +24,9 @@ export interface DynamicRateOverrides {
   extraKmThreshold?: number;
   driverAllowance?: number;
   nightCharge?: number;
+  nightChargeEnabled?: boolean;
+  applicableNightTripTypes?: (TripType | string)[];
+  fixedRouteFare?: number;
   gstRatePercent?: number;
   nightWindowStartHour?: number;
   nightWindowEndHour?: number;
@@ -52,6 +55,11 @@ export interface PricingCalculationInput {
   overrides?: DynamicRateOverrides;
   hasPet?: boolean;
   petFee?: number;
+  applicableNightTripTypes?: (TripType | string)[];
+  fixedRouteFare?: number;
+  pickupAddress?: string;
+  dropAddress?: string;
+  airportCityRates?: any;
 }
 
 export interface PricingBreakdown {

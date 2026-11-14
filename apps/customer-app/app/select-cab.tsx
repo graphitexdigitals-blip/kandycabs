@@ -18,6 +18,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import {
+  DEFAULT_AIRPORT_ROUTES,
+  DEFAULT_AIRPORT_FIXED_FARES,
+  DEFAULT_NIGHT_CHARGE_SETTINGS,
+  getAirportFareForVehicle,
+  matchAirportRoute,
+  AirportRouteRate,
+  AirportRatesConfig,
+  NightChargeSettings,
+  parseSafeIsoDate,
+} from '@kandy-cabs/shared';
 import { AuthModal } from '../components/AuthModal';
 import BookingFlowHeader from '../components/BookingFlowHeader';
 import { safeNavigate } from '../lib/safeNav';
@@ -432,35 +443,15 @@ const getDisplayBadge = (badge: string) => {
 };
 
 const formatSummaryDate = (dateStr: string) => {
-  if (!dateStr) return 'Select Date';
-  if (
-    dateStr.includes('Jan') ||
-    dateStr.includes('Feb') ||
-    dateStr.includes('Mar') ||
-    dateStr.includes('Apr') ||
-    dateStr.includes('May') ||
-    dateStr.includes('Jun') ||
-    dateStr.includes('Jul') ||
-    dateStr.includes('Aug') ||
-    dateStr.includes('Sep') ||
-    dateStr.includes('Oct') ||
-    dateStr.includes('Nov') ||
-    dateStr.includes('Dec')
-  ) {
-    return dateStr;
-  }
-  const parts = dateStr.split('-');
-  if (parts.length === 3) {
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const year = parseInt(parts[2], 10);
-    const d = new Date(year, month, day);
+  if (!dateStr || dateStr === 'Today') return 'Today';
+  try {
+    const d = parseSafeIsoDate(dateStr);
     if (!isNaN(d.getTime())) {
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      return `${day} ${monthNames[month]} ${year} (${dayNames[d.getDay()]})`;
+      return `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()} (${dayNames[d.getDay()]})`;
     }
-  }
+  } catch {}
   return dateStr;
 };
 
@@ -532,6 +523,13 @@ export default function SelectCabScreen() {
   const [selectedFuels, setSelectedFuels] = useState<Record<string, string>>({});
   const [fleetList, setFleetList] = useState<FleetItem[]>(DEFAULT_FLEET_DATA);
 
+  // Live Airport Routes & Night Charges Settings from Admin
+  const [airportConfig, setAirportConfig] = useState<AirportRatesConfig>({
+    routes: DEFAULT_AIRPORT_ROUTES,
+    defaultFixedFares: DEFAULT_AIRPORT_FIXED_FARES,
+  });
+  const [nightSettings, setNightSettings] = useState<NightChargeSettings>(DEFAULT_NIGHT_CHARGE_SETTINGS);
+
   const toggleCarrier = (id: string) => {
     setSelectedCarriers((prev) => ({
       ...prev,
@@ -553,7 +551,31 @@ export default function SelectCabScreen() {
     return URBANIA_SEATER_OPTIONS.find((s) => s.id === selectedUrbaniaSeaterId) || URBANIA_SEATER_OPTIONS[2];
   }, [selectedUrbaniaSeaterId]);
 
-  // Fetch live fleet specs from Admin Backend
+  // Check if pickup time falls in night charge window (22:00 to 06:00)
+  const isNightTime = useMemo(() => {
+    const timeStr = typeof pickupTime === 'string' ? pickupTime : '';
+    if (!timeStr) return false;
+    let hour = 12;
+    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+    if (match) {
+      let h = parseInt(match[1], 10);
+      const meridiem = match[3]?.toUpperCase();
+      if (meridiem === 'PM' && h < 12) h += 12;
+      if (meridiem === 'AM' && h === 12) h = 0;
+      hour = h;
+    } else {
+      const parts = timeStr.split(':');
+      if (parts[0]) hour = parseInt(parts[0], 10);
+    }
+    return hour >= 22 || hour < 6;
+  }, [pickupTime]);
+
+  const isNightTripTypeEligible = useMemo(() => {
+    if (!nightSettings.enabled) return false;
+    return nightSettings.applicableTripTypes.includes(tripType);
+  }, [nightSettings, tripType]);
+
+  // Fetch live fleet specs, airport routes, and night charge settings from Admin Backend
   const loadLiveFleets = React.useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/fleets?t=${Date.now()}`);
@@ -593,17 +615,44 @@ export default function SelectCabScreen() {
     }
   }, []);
 
+  const loadLivePricingSettings = React.useCallback(async () => {
+    try {
+      const [airportRes, nightRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/settings/airport-rates?t=${Date.now()}`).catch(() => null),
+        fetch(`${API_BASE_URL}/api/settings/night-charges?t=${Date.now()}`).catch(() => null),
+      ]);
+      if (airportRes && airportRes.ok) {
+        const data = await airportRes.json();
+        if (data && data.success && data.config) {
+          setAirportConfig(data.config);
+        }
+      }
+      if (nightRes && nightRes.ok) {
+        const data = await nightRes.json();
+        if (data && data.success && data.settings) {
+          setNightSettings(data.settings);
+        }
+      }
+    } catch (err) {
+      console.log('Using default airport/night pricing settings:', err);
+    }
+  }, []);
+
   useEffect(() => {
     loadLiveFleets();
+    loadLivePricingSettings();
     trackAppEvent('VIEW_RATES', {
       tripType,
       pickup: typeof pickup === 'string' ? pickup : '',
       drop: typeof drop === 'string' ? drop : '',
     });
-    // Poll every 4 seconds to instantly reflect any Admin Panel changes
-    const interval = setInterval(loadLiveFleets, 4000);
+    // Poll every 5 seconds to instantly reflect any Admin Panel changes
+    const interval = setInterval(() => {
+      loadLiveFleets();
+      loadLivePricingSettings();
+    }, 5000);
     return () => clearInterval(interval);
-  }, [loadLiveFleets]);
+  }, [loadLiveFleets, loadLivePricingSettings]);
 
   // Distance estimate across all waypoints
   const estimatedKm = useMemo(() => {
@@ -706,6 +755,11 @@ export default function SelectCabScreen() {
       ? 'Sedan Class (Large Dedicated Boot Trunk - No Roof Carrier)'
       : item.carrierCapacityText || item.carrierExcludedCars || item.carrierExcludedReason || '';
 
+    let fixedAirportFare = 0;
+    let airportRouteName = '';
+
+    const nightChargeAddon = (isNightTime && isNightTripTypeEligible) ? 250 : 0;
+
     safeNavigate(() => {
       router.push({
         pathname: '/booking',
@@ -720,6 +774,10 @@ export default function SelectCabScreen() {
           date: pickupDate,
           time: pickupTime,
           tripType,
+          fixedFare: fixedAirportFare > 0 ? String(fixedAirportFare) : '',
+          airportRouteName: airportRouteName,
+          isNightChargeApplicable: nightChargeAddon > 0 ? 'true' : 'false',
+          nightChargeAmount: nightChargeAddon > 0 ? '250' : '0',
           flightNumber: (params.flightNumber as string) || '',
           airportDirection: (params.airportDirection as string) || '',
           localHours: String(localHours),
@@ -942,7 +1000,21 @@ export default function SelectCabScreen() {
             let totalFare: number;
             let calculationBreakdown = '';
 
-            if (isBeyondThreshold && selectedUrbaniaSeater.extraKmThreshold) {
+            if (tripType === 'AIRPORT') {
+              if (isBeyondThreshold && selectedUrbaniaSeater.extraKmThreshold) {
+                const threshold = selectedUrbaniaSeater.extraKmThreshold;
+                const baseFare = threshold * effectiveRatePerKm;
+                const extraKm = estimatedKm - threshold;
+                const extraFare = extraKm * effectiveExtraKmRate;
+                totalFare = Math.round(baseFare + extraFare);
+                calculationBreakdown = `₹${baseFare.toLocaleString('en-IN')} (first ${threshold} km) + ₹${extraFare.toLocaleString('en-IN')} (${extraKm} extra km @ ₹${effectiveExtraKmRate}/km)`;
+              } else {
+                const minAirportKm = item.minKm || 35;
+                const billableKm = Math.max(minAirportKm, estimatedKm);
+                totalFare = Math.round(billableKm * effectiveRatePerKm);
+                calculationBreakdown = `${billableKm} km @ ₹${effectiveRatePerKm}/km`;
+              }
+            } else if (isBeyondThreshold && selectedUrbaniaSeater.extraKmThreshold) {
               const threshold = selectedUrbaniaSeater.extraKmThreshold;
               const baseFare = threshold * effectiveRatePerKm;
               const extraKm = estimatedKm - threshold;
@@ -953,6 +1025,13 @@ export default function SelectCabScreen() {
               totalFare = Math.round(
                 Math.max(item.minKm, estimatedKm) * effectiveRatePerKm
               );
+            }
+
+            // Night Surcharge if applicable for this trip type and time
+            const nightChargeAddon = (isNightTime && isNightTripTypeEligible) ? 250 : 0;
+            if (nightChargeAddon > 0) {
+              totalFare += nightChargeAddon;
+              calculationBreakdown += ` + ₹250 (Night Charge)`;
             }
 
             const seatsLabel = item.id === 'TEMPO_TRAVELER'

@@ -22,6 +22,7 @@ import { SlideToAccept } from '../../components/SlideToAccept';
 import { setTripPickupReached } from '../../lib/tripState';
 import { TripFlowHeader } from '../../components/TripFlowHeader';
 import { LinearGradient } from '../../components/SafeLinearGradient';
+import { formatTripDateTime } from '../../lib/tripRequirements';
 import { useTranslation } from 'react-i18next';
 
 export default function DriverEnRouteScreen() {
@@ -234,12 +235,36 @@ export default function DriverEnRouteScreen() {
 
               {/* Call Now Pill Button */}
               {(() => {
-                const phone = booking.customer?.user?.phone || booking.customerPhone || booking.phone;
+                const isPhoneReleased = Boolean(booking.customerPhoneReleased) || (() => {
+                  if (['TRIP_STARTED', 'ON_TRIP', 'COMPLETED'].includes(booking.status)) return true;
+                  if (!booking.scheduledAt) return false;
+                  const d = new Date(booking.scheduledAt);
+                  if (isNaN(d.getTime())) return false;
+                  if (d.getFullYear() < 100) d.setFullYear(2000 + d.getFullYear());
+                  const now = new Date();
+                  const isSameDay =
+                    d.getDate() === now.getDate() &&
+                    d.getMonth() === now.getMonth() &&
+                    d.getFullYear() === now.getFullYear();
+                  if (!isSameDay) return false;
+                  const diffHours = (d.getTime() - now.getTime()) / (1000 * 60 * 60);
+                  return diffHours <= 5 && diffHours >= -4;
+                })();
+
+                const phone = isPhoneReleased
+                  ? (booking.customer?.user?.phone || booking.customerPhone || booking.phone)
+                  : null;
+
                 return (
                   <TouchableOpacity
-                    style={styles.callNowPill}
+                    style={[styles.callNowPill, !isPhoneReleased && { opacity: 0.8, backgroundColor: '#f1f5f9' }]}
                     onPress={() => {
-                      if (phone) {
+                      if (!isPhoneReleased) {
+                        Alert.alert(
+                          'Phone Protected',
+                          'Customer phone is protected and will unlock 5 hours before scheduled pickup, or when authorized by Admin.'
+                        );
+                      } else if (phone) {
                         Linking.openURL(`tel:${phone}`);
                       } else {
                         Alert.alert(
@@ -250,8 +275,10 @@ export default function DriverEnRouteScreen() {
                     }}
                     activeOpacity={0.82}
                   >
-                    <Ionicons name="call" size={16} color="#ea580c" />
-                    <Text style={styles.callNowPillText}>{t('en_route.call_now', 'Call Now')}</Text>
+                    <Ionicons name={isPhoneReleased ? "call" : "lock-closed"} size={16} color={isPhoneReleased ? "#ea580c" : "#64748b"} />
+                    <Text style={[styles.callNowPillText, !isPhoneReleased && { color: '#64748b' }]}>
+                      {isPhoneReleased ? t('en_route.call_now', 'Call Now') : 'Locked'}
+                    </Text>
                   </TouchableOpacity>
                 );
               })()}
@@ -272,6 +299,17 @@ export default function DriverEnRouteScreen() {
               <Text style={styles.detailLabelLeft}>{t('en_route.pickup_location_label', 'Pickup Location:')}</Text>
               <Text style={styles.detailValDark} numberOfLines={2}>{booking.pickupAddress}</Text>
             </TouchableOpacity>
+
+            {/* Line Separator between rows */}
+            <View style={styles.divider} />
+
+            {/* Pickup Timing Row */}
+            <View style={styles.infoDetailRow}>
+              <Text style={styles.detailLabelLeft}>{t('en_route.pickup_timing_label', 'Pickup Timing:')}</Text>
+              <Text style={styles.detailValDark}>
+                {formatTripDateTime(booking?.scheduledAt, t).fullText}
+              </Text>
+            </View>
 
             {/* Line Separator between rows */}
             <View style={styles.divider} />
@@ -338,35 +376,12 @@ export default function DriverEnRouteScreen() {
         </View>
       </ScrollView>
 
-      {/* Bottom Action: SLIDE TO VERIFY VEHICLE */}
+      {/* Bottom Action: ARRIVED AT PICKUP */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        {/* Clear Instructions Banner */}
-        <View style={isArrived ? styles.arrivedNoticeBox : styles.arrivedInstructionsBox}>
-          <Ionicons
-            name={isArrived ? 'checkmark-circle' : 'information-circle'}
-            size={18}
-            color={isArrived ? '#059669' : '#0284c7'}
-            style={{ marginTop: 2, marginRight: 8 }}
-          />
-          {isArrived ? (
-            <Text style={styles.arrivedNoticeText}>
-              {t('en_route.arrived_msg_prefix', 'You have reached')}{t('en_route.arrived_msg_prefix') ? ' ' : ''}
-              <Text style={styles.highlightText}>{booking.pickupAddress || t('en_route.pickup_location_fallback', 'Pickup Location')}</Text>
-              {t('en_route.arrived_msg_suffix', '. Slide right to start trip & record odometer.')}
-            </Text>
-          ) : (
-            <Text style={styles.arrivedInstructionsText}>
-              {t('en_route.heading_msg_prefix', 'Heading to')}{t('en_route.heading_msg_prefix') ? ' ' : ''}
-              <Text style={styles.highlightText}>{booking.pickupAddress || t('en_route.pickup_location_fallback', 'Pickup Location')}</Text>
-              {t('en_route.heading_msg_suffix', '. Slide right once arrived at customer pickup.')}
-            </Text>
-          )}
-        </View>
-
         <SlideToAccept
           onAccept={handleSlideReached}
           isAccepting={isSlidingReached}
-          title={t('en_route.slide_arrived', 'SLIDE: ARRIVED AT PICKUP')}
+          title={t('en_route.slide_arrived', 'ARRIVED AT PICKUP')}
           acceptingTitle={t('en_route.starting_trip', 'STARTING TRIP...')}
         />
       </View>

@@ -1063,38 +1063,21 @@ export default function DriverTripStartScreen() {
               </LinearGradient>
             )}
 
-            {/* Customer Boarded Slider (Slide Right to unlock OTP) */}
-            {!isAdminAuthorized && (
+            {/* Customer Boarded Slider (Slide Right to unlock OTP) - Hidden once slided */}
+            {!isAdminAuthorized && !isCustomerBoarded && (
               <View style={styles.boardedSection}>
-                {!isCustomerBoarded ? (
-                  <View style={styles.boardedSliderBox}>
-                    <SlideToAccept
-                      onAccept={() => {
-                        setIsCustomerBoarded(true);
-                        if (bookingId) {
-                          setTripStartDraft(bookingId, { isCustomerBoarded: true });
-                        }
-                      }}
-                      title={t('otp_screen.slide_customer_boarded', 'SLIDE RIGHT (CUSTOMER BOARDED)')}
-                      acceptingTitle={t('otp_screen.customer_boarded_accepting', 'CUSTOMER BOARDED')}
-                    />
-                  </View>
-                ) : (
-                  <LinearGradient
-                    colors={['#059669', '#10b981']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.boardedCompletedBar}
-                  >
-                    <View style={styles.boardedCompletedKnob}>
-                      <Ionicons name="checkmark-sharp" size={20} color="#059669" />
-                    </View>
-                    <View style={styles.boardedCompletedTextCol}>
-                      <Text style={styles.boardedCompletedTitle}>{t('otp_screen.customer_boarded_completed', 'CUSTOMER BOARDED ✓')}</Text>
-                    </View>
-                    <View style={{ width: 44 }} />
-                  </LinearGradient>
-                )}
+                <View style={styles.boardedSliderBox}>
+                  <SlideToAccept
+                    onAccept={() => {
+                      setIsCustomerBoarded(true);
+                      if (bookingId) {
+                        setTripStartDraft(bookingId, { isCustomerBoarded: true });
+                      }
+                    }}
+                    title={t('otp_screen.slide_customer_boarded', 'CUSTOMER BOARDED')}
+                    acceptingTitle={t('otp_screen.customer_boarded_accepting', 'CUSTOMER BOARDED')}
+                  />
+                </View>
               </View>
             )}
 

@@ -48,6 +48,25 @@ const formatTimeOfDay = (date: Date = new Date()) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+const getOrdinal = (n: number) => {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
+
+const formatSessionDuration = (totalSecs: number) => {
+  const hrs = Math.floor(totalSecs / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  if (hrs > 0) {
+    return `${hrs}h ${mins}m ${secs}s`;
+  }
+  if (mins > 0) {
+    return `${mins}m ${secs}s`;
+  }
+  return `${secs}s`;
+};
+
 export default function DriverTripActiveScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -190,6 +209,7 @@ export default function DriverTripActiveScreen() {
   const [totalAccumulatedSeconds, setTotalAccumulatedSeconds] = useState(0);
   const [activeRunningStartedAt, setActiveRunningStartedAt] = useState<number | null>(null);
   const [displaySeconds, setDisplaySeconds] = useState(0);
+  const [currentSessionSeconds, setCurrentSessionSeconds] = useState(0);
   const [currentSessionStartTime, setCurrentSessionStartTime] = useState<string | null>(null);
   const [waitingSessions, setWaitingSessions] = useState<WaitingSession[]>([]);
 
@@ -207,9 +227,12 @@ export default function DriverTripActiveScreen() {
       setWaitingSessions(saved.sessions || []);
 
       let initialSecs = saved.totalAccumulatedSeconds;
+      let sessionSecs = 0;
       if (saved.isWaitingActive && !saved.isWaitingPaused && saved.activeRunningStartedAt) {
-        initialSecs += Math.max(0, Math.floor((Date.now() - saved.activeRunningStartedAt) / 1000));
+        sessionSecs = Math.max(0, Math.floor((Date.now() - saved.activeRunningStartedAt) / 1000));
+        initialSecs += sessionSecs;
       }
+      setCurrentSessionSeconds(sessionSecs);
       setDisplaySeconds(initialSecs);
     }
   }, [bookingId, booking?.id]);
@@ -219,12 +242,15 @@ export default function DriverTripActiveScreen() {
     let interval: any = null;
     if (isWaitingActive && !isWaitingPaused && activeRunningStartedAt) {
       const calcSecs = () => {
-        const elapsed = Math.max(0, Math.floor((Date.now() - activeRunningStartedAt) / 1000));
-        setDisplaySeconds(totalAccumulatedSeconds + elapsed);
+        const now = Date.now();
+        const sessionElapsed = Math.max(0, Math.floor((now - activeRunningStartedAt) / 1000));
+        setCurrentSessionSeconds(sessionElapsed);
+        setDisplaySeconds(totalAccumulatedSeconds + sessionElapsed);
       };
       calcSecs();
       interval = setInterval(calcSecs, 1000);
     } else if (isWaitingPaused || !isWaitingActive) {
+      setCurrentSessionSeconds(0);
       setDisplaySeconds(totalAccumulatedSeconds);
     }
     return () => {
@@ -239,6 +265,7 @@ export default function DriverTripActiveScreen() {
     setIsWaitingPaused(false);
     setActiveRunningStartedAt(now);
     setCurrentSessionStartTime(timeStr);
+    setCurrentSessionSeconds(0);
 
     const id = bookingId || booking?.id;
     if (id) {
@@ -248,6 +275,18 @@ export default function DriverTripActiveScreen() {
         activeRunningStartedAt: now,
         currentSessionStartTime: timeStr,
       });
+      driverApiClient.fetch('/api/driver/trip/waiting', {
+        method: 'POST',
+        body: JSON.stringify({
+          bookingId: id,
+          action: 'START',
+          isWaitingActive: true,
+          isWaitingPaused: false,
+          currentSessionStartTime: timeStr,
+          totalAccumulatedSeconds,
+          sessions: waitingSessions,
+        }),
+      }).catch(() => {});
     }
   };
 
@@ -271,6 +310,17 @@ export default function DriverTripActiveScreen() {
         totalAccumulatedSeconds: newTotal,
         activeRunningStartedAt: null,
       });
+      driverApiClient.fetch('/api/driver/trip/waiting', {
+        method: 'POST',
+        body: JSON.stringify({
+          bookingId: id,
+          action: 'PAUSE',
+          isWaitingActive: true,
+          isWaitingPaused: true,
+          totalAccumulatedSeconds: newTotal,
+          sessions: waitingSessions,
+        }),
+      }).catch(() => {});
     }
   };
 
@@ -286,32 +336,45 @@ export default function DriverTripActiveScreen() {
         isWaitingPaused: false,
         activeRunningStartedAt: now,
       });
+      driverApiClient.fetch('/api/driver/trip/waiting', {
+        method: 'POST',
+        body: JSON.stringify({
+          bookingId: id,
+          action: 'START',
+          isWaitingActive: true,
+          isWaitingPaused: false,
+          totalAccumulatedSeconds,
+          sessions: waitingSessions,
+        }),
+      }).catch(() => {});
     }
   };
 
   const handleStopWaiting = () => {
+    const sessionNum = waitingSessions.length + 1;
+    const sessionLabel = `${getOrdinal(sessionNum)} Waiting`;
     Alert.alert(
-      'Finish Waiting Session?',
-      'Do you want to stop and record the customer waiting time for this session?',
+      `Stop ${sessionLabel}?`,
+      `Do you want to stop and record the customer waiting time for ${sessionLabel.toLowerCase()}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Finish & Record',
+          text: 'Stop & Record',
           style: 'default',
           onPress: () => {
             const now = Date.now();
-            let additionalSecs = 0;
+            let sessionSecs = 0;
             if (activeRunningStartedAt && !isWaitingPaused) {
-              additionalSecs = Math.max(0, Math.floor((now - activeRunningStartedAt) / 1000));
+              sessionSecs = Math.max(0, Math.floor((now - activeRunningStartedAt) / 1000));
             }
-            const finalTotal = totalAccumulatedSeconds + additionalSecs;
+            const finalTotal = totalAccumulatedSeconds + sessionSecs;
             const stopTimeStr = formatTimeOfDay(new Date(now));
 
             const newSession: WaitingSession = {
               id: String(Date.now()),
               startedAt: currentSessionStartTime || stopTimeStr,
               stoppedAt: stopTimeStr,
-              durationSeconds: finalTotal,
+              durationSeconds: sessionSecs,
             };
 
             const updatedSessions = [...waitingSessions, newSession];
@@ -319,6 +382,8 @@ export default function DriverTripActiveScreen() {
             setIsWaitingActive(false);
             setIsWaitingPaused(false);
             setActiveRunningStartedAt(null);
+            setCurrentSessionStartTime(null);
+            setCurrentSessionSeconds(0);
             setTotalAccumulatedSeconds(finalTotal);
             setDisplaySeconds(finalTotal);
             setWaitingSessions(updatedSessions);
@@ -329,6 +394,7 @@ export default function DriverTripActiveScreen() {
                 isWaitingActive: false,
                 isWaitingPaused: false,
                 activeRunningStartedAt: null,
+                currentSessionStartTime: null,
                 totalAccumulatedSeconds: finalTotal,
                 sessions: updatedSessions,
               });
@@ -337,6 +403,10 @@ export default function DriverTripActiveScreen() {
                 method: 'POST',
                 body: JSON.stringify({
                   bookingId: id,
+                  action: 'STOP_RECORD',
+                  isWaitingActive: false,
+                  isWaitingPaused: false,
+                  totalAccumulatedSeconds: finalTotal,
                   durationSeconds: finalTotal,
                   waitingMinutes: Math.round(finalTotal / 60),
                   sessions: updatedSessions,
@@ -354,11 +424,11 @@ export default function DriverTripActiveScreen() {
   const handleResetWaiting = () => {
     Alert.alert(
       'Reset Waiting Timer?',
-      'Are you sure you want to clear the waiting timer and recorded timings?',
+      'Are you sure you want to clear all waiting sessions and reset the timer?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Reset',
+          text: 'Reset All',
           style: 'destructive',
           onPress: () => {
             setIsWaitingActive(false);
@@ -366,11 +436,24 @@ export default function DriverTripActiveScreen() {
             setTotalAccumulatedSeconds(0);
             setActiveRunningStartedAt(null);
             setDisplaySeconds(0);
+            setCurrentSessionSeconds(0);
             setCurrentSessionStartTime(null);
             setWaitingSessions([]);
             const id = bookingId || booking?.id;
             if (id) {
               clearTripWaitingState(id);
+              driverApiClient.fetch('/api/driver/trip/waiting', {
+                method: 'POST',
+                body: JSON.stringify({
+                  bookingId: id,
+                  action: 'RESET',
+                  isWaitingActive: false,
+                  isWaitingPaused: false,
+                  totalAccumulatedSeconds: 0,
+                  waitingMinutes: 0,
+                  sessions: [],
+                }),
+              }).catch(() => {});
             }
           },
         },
@@ -500,85 +583,137 @@ export default function DriverTripActiveScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Customer Waiting Timer Section - Stays compact single row, live timer in description */}
+          {/* Customer Waiting Timer Section */}
           <View style={styles.waitingSectionWrapper}>
-            <View style={styles.waitingCardCompact}>
-              <View style={styles.waitingTriggerLeft}>
-                <Ionicons
-                  name={
-                    isWaitingActive
-                      ? 'time'
-                      : totalAccumulatedSeconds > 0
-                      ? 'checkmark-circle-outline'
-                      : 'time-outline'
-                  }
-                  size={24}
-                  color={
-                    isWaitingActive
-                      ? '#2563eb'
-                      : totalAccumulatedSeconds > 0
-                      ? '#059669'
-                      : '#d97706'
-                  }
-                  style={styles.waitingIconPlain}
-                />
-                <View style={styles.waitingTriggerTexts}>
-                  <Text style={styles.waitingTriggerTitle}>
-                    {isWaitingActive
-                      ? 'Waiting in Progress'
-                      : totalAccumulatedSeconds > 0
-                      ? 'Waiting Recorded'
-                      : 'Waiting'}
-                  </Text>
-                  {(isWaitingActive || totalAccumulatedSeconds > 0) && (
-                    <Text style={styles.waitingTimerBig}>
-                      {formatTimerDisplay(isWaitingActive ? displaySeconds : totalAccumulatedSeconds)}
+            <View
+              style={[
+                styles.waitingCardCompact,
+                isWaitingActive && styles.waitingCardActiveBorder,
+                waitingSessions.length > 0 && !isWaitingActive && styles.waitingCardRecordedBorder,
+              ]}
+            >
+              {/* Header row: Status / Timer / Action Button */}
+              <View style={styles.waitingHeaderRow}>
+                <View style={styles.waitingTriggerLeft}>
+                  <Ionicons
+                    name={
+                      isWaitingActive
+                        ? 'time'
+                        : waitingSessions.length > 0
+                        ? 'checkmark-circle'
+                        : 'time-outline'
+                    }
+                    size={22}
+                    color={
+                      isWaitingActive
+                        ? '#2563eb'
+                        : waitingSessions.length > 0
+                        ? '#059669'
+                        : '#d97706'
+                    }
+                    style={styles.waitingIconPlain}
+                  />
+                  <View style={styles.waitingTriggerTexts}>
+                    <Text
+                      style={[
+                        styles.waitingTriggerTitle,
+                        isWaitingActive && { color: '#1d4ed8' },
+                        waitingSessions.length > 0 && !isWaitingActive && { color: '#047857' },
+                      ]}
+                    >
+                      {isWaitingActive
+                        ? `${getOrdinal(waitingSessions.length + 1)} Waiting in Progress`
+                        : waitingSessions.length > 0
+                        ? `Waiting Recorded (${waitingSessions.length})`
+                        : 'Customer Waiting'}
                     </Text>
+                    {isWaitingActive ? (
+                      <View style={styles.waitingLiveTimerRow}>
+                        <Text style={styles.waitingTimerBig}>
+                          {formatTimerDisplay(currentSessionSeconds)}
+                        </Text>
+                        {totalAccumulatedSeconds > 0 && (
+                          <Text style={styles.waitingTotalSubTimer}>
+                            (Total: {formatTimerDisplay(displaySeconds)})
+                          </Text>
+                        )}
+                      </View>
+                    ) : totalAccumulatedSeconds > 0 ? (
+                      <Text style={styles.waitingTotalBadgeText}>
+                        Total: {formatTimerDisplay(totalAccumulatedSeconds)}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+
+                {/* Actions on right */}
+                <View style={styles.waitingActionsRight}>
+                  {isWaitingActive ? (
+                    <TouchableOpacity
+                      style={styles.waitingStopBtnCompact}
+                      onPress={handleStopWaiting}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="stop" size={13} color="#ffffff" style={{ marginRight: 4 }} />
+                      <Text style={styles.waitingStopBtnTextCompact}>Stop</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <>
+                      <TouchableOpacity
+                        style={styles.waitingStartBtnCompact}
+                        onPress={handleStartWaiting}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="play" size={13} color="#ffffff" style={{ marginRight: 4 }} />
+                        <Text style={styles.waitingStartBtnTextCompact}>
+                          {waitingSessions.length === 0
+                            ? 'Start'
+                            : `Start ${getOrdinal(waitingSessions.length + 1)}`}
+                        </Text>
+                      </TouchableOpacity>
+                      {waitingSessions.length > 0 && (
+                        <TouchableOpacity
+                          style={styles.waitingResetBtnCompact}
+                          onPress={handleResetWaiting}
+                          activeOpacity={0.8}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Ionicons name="refresh" size={13} color="#64748b" />
+                        </TouchableOpacity>
+                      )}
+                    </>
                   )}
                 </View>
               </View>
 
-              {/* Actions on right */}
-              <View style={styles.waitingActionsRight}>
-                {isWaitingActive ? (
-                  <TouchableOpacity
-                    style={styles.waitingStopBtnCompact}
-                    onPress={handleStopWaiting}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="stop" size={13} color="#ffffff" style={{ marginRight: 4 }} />
-                    <Text style={styles.waitingStopBtnTextCompact}>Stop</Text>
-                  </TouchableOpacity>
-                ) : totalAccumulatedSeconds === 0 ? (
-                  <TouchableOpacity
-                    style={styles.waitingStartBtnCompact}
-                    onPress={handleStartWaiting}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="play" size={13} color="#ffffff" style={{ marginRight: 4 }} />
-                    <Text style={styles.waitingStartBtnTextCompact}>Start</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <>
-                    <TouchableOpacity
-                      style={styles.waitingStartBtnCompact}
-                      onPress={handleStartWaiting}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="play" size={13} color="#ffffff" style={{ marginRight: 3 }} />
-                      <Text style={styles.waitingStartBtnTextCompact}>Start</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.waitingResetBtnCompact}
-                      onPress={handleResetWaiting}
-                      activeOpacity={0.8}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                    >
-                      <Ionicons name="refresh" size={13} color="#64748b" />
-                    </TouchableOpacity>
-                  </>
-                )}
-              </View>
+              {/* Recorded Sessions Breakdown (shows 1st waiting, 2nd waiting, etc.) */}
+              {waitingSessions.length > 0 && (
+                <View style={styles.waitingSessionsListWrap}>
+                  {waitingSessions.map((s, idx) => (
+                    <View key={s.id || String(idx)} style={styles.waitingSessionItemRow}>
+                      <View style={styles.waitingSessionOrdinalBadge}>
+                        <Text style={styles.waitingSessionOrdinalText}>
+                          {getOrdinal(idx + 1)} Waiting
+                        </Text>
+                      </View>
+                      <View style={styles.waitingSessionTimesCol}>
+                        <View style={styles.waitingTimePillGroup}>
+                          <Text style={styles.waitingTimeLabel}>Start: </Text>
+                          <Text style={styles.waitingTimeValue}>{s.startedAt}</Text>
+                          <Text style={styles.waitingTimeArrow}>  ➔  </Text>
+                          <Text style={styles.waitingTimeLabel}>Stop: </Text>
+                          <Text style={styles.waitingTimeValue}>{s.stoppedAt || '—'}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.waitingSessionDurationWrap}>
+                        <Text style={styles.waitingSessionDurationText}>
+                          {formatSessionDuration(s.durationSeconds)}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -645,17 +780,6 @@ export default function DriverTripActiveScreen() {
 
       {/* Pinned Bottom Complete CTA Bar */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        {/* Clean Guidance Banner with Green Accent & Divider - borderless */}
-        <View style={styles.destinationGuidanceRow}>
-          <View style={styles.guidanceIconCircleGreen}>
-            <Ionicons name="information" size={16} color="#ffffff" />
-          </View>
-          <View style={styles.guidanceDividerV} />
-          <Text style={styles.destinationGuidanceText}>
-            {t('active_trip.drive_towards')} <Text style={styles.highlightBlack}>{booking.dropAddress || 'Destination'}</Text>. {t('active_trip.after_reaching')} <Text style={styles.highlightGreenInline}>{t('active_trip.reached_destination_btn')}</Text> {t('active_trip.below')}
-          </Text>
-        </View>
-
         <TouchableOpacity
           style={styles.completeButtonWrap}
           onPress={handleProceedToComplete}
@@ -1123,9 +1247,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   waitingCardCompact: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     paddingVertical: 11,
     paddingHorizontal: 14,
     borderRadius: 18,
@@ -1137,6 +1259,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 5,
     elevation: 2,
+  },
+  waitingCardActiveBorder: {
+    borderColor: '#93c5fd',
+    backgroundColor: '#eff6ff',
+  },
+  waitingCardRecordedBorder: {
+    borderColor: '#a7f3d0',
+    backgroundColor: '#ffffff',
+  },
+  waitingHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
   },
   waitingTriggerLeft: {
     flexDirection: 'row',
@@ -1160,12 +1296,28 @@ const styles = StyleSheet.create({
     color: '#92400e',
     letterSpacing: -0.2,
   },
+  waitingLiveTimerRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+  },
   waitingTimerBig: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '900',
     color: '#000000',
     fontVariant: ['tabular-nums'],
     letterSpacing: 0.5,
+  },
+  waitingTotalSubTimer: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  waitingTotalBadgeText: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0f172a',
+    fontVariant: ['tabular-nums'],
   },
   waitingTriggerSub: {
     fontSize: 11,
@@ -1253,6 +1405,82 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#cbd5e1',
+  },
+  waitingActiveSessionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#dbeafe',
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    marginTop: 8,
+    gap: 6,
+  },
+  waitingActivePulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#2563eb',
+  },
+  waitingActiveBannerText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#1e40af',
+  },
+  waitingSessionsListWrap: {
+    marginTop: 8,
+  },
+  waitingSessionItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  waitingSessionOrdinalBadge: {
+    backgroundColor: '#e0f2fe',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginRight: 6,
+  },
+  waitingSessionOrdinalText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#0369a1',
+  },
+  waitingSessionTimesCol: {
+    flex: 1,
+  },
+  waitingTimePillGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  waitingTimeLabel: {
+    fontSize: 10.5,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  waitingTimeValue: {
+    fontSize: 11,
+    color: '#0f172a',
+    fontWeight: '700',
+  },
+  waitingTimeArrow: {
+    fontSize: 10.5,
+    color: '#94a3b8',
+    marginHorizontal: 2,
+  },
+  waitingSessionDurationWrap: {
+    paddingLeft: 6,
+  },
+  waitingSessionDurationText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#0f172a',
   },
   metaCard: {
     backgroundColor: '#ffffff',

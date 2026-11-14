@@ -22,7 +22,13 @@ import { useTranslation } from 'react-i18next';
 import { customerApiClient, customerTokenStorage, formatDisplayPhone } from '../lib/api';
 import { customerRealtimeTracker } from '../lib/realtime-client';
 import { reviewManager } from '../lib/reviewManager';
-import { BookingStatus, TripType } from '@kandy-cabs/shared';
+import {
+  BookingStatus,
+  TripType,
+  parseSafeIsoDate,
+  evaluateCancellationCharge,
+  getCancellationFeeForCategory,
+} from '@kandy-cabs/shared';
 import { TaxInvoiceModal } from '../components/TaxInvoiceModal';
 import { CustomerBottomDock } from '../components/CustomerBottomDock';
 import { AuthModal } from '../components/AuthModal';
@@ -318,14 +324,48 @@ export default function MyBookingsScreen() {
     };
   }, [loadData]);
 
-  const handleCancelBooking = (bookingId: string, ref: string) => {
+  const handleCancelBooking = (booking: any) => {
+    const bookingId = booking.id;
+    const ref = booking.humanReadableRef;
+    const category = booking.vehicle?.category || booking.category || 'SEDAN';
+    const evalResult = evaluateCancellationCharge(booking.scheduledAt, category, new Date(), {}, booking.tripType);
+
+    const isWithin3h = evalResult.isWithinWindow;
+    const fee = evalResult.applicableFeeIfCancelled;
+    const chargeEnabled = evalResult.chargeEnabled;
+    const advancePaid = Number(booking.advanceAmount || 0);
+
+    const isFeeApplicable = chargeEnabled && isWithin3h;
+    const cancellationFee = isFeeApplicable ? fee : 0;
+    const estimatedRefund = Math.max(0, advancePaid - cancellationFee);
+
+    const timeText = evalResult.hoursUntilPickup > 0
+      ? `(${evalResult.hoursUntilPickup}h left)`
+      : ``;
+
+    const title = isFeeApplicable ? 'Cancellation Fee Notice' : t('myBookings.cancelConfirmTitle', { defaultValue: 'Cancel Ride' });
+    const message = isFeeApplicable
+      ? `⚠️ This trip is scheduled within ${evalResult.windowHours} hours ${timeText}.\n\n` +
+        `• Advance Paid: ₹${advancePaid.toFixed(2)}\n` +
+        `• Cancellation Charge: ₹${cancellationFee.toFixed(2)} (${category})\n` +
+        `• Excess Refund to Account: ₹${estimatedRefund.toFixed(2)}\n\n` +
+        `According to policy, a cancellation fee of ₹${cancellationFee} will be deducted from your advance payment and the remaining excess amount of ₹${estimatedRefund.toFixed(2)} will be refunded.\n\n` +
+        `Are you sure you want to proceed?`
+      : `Free cancellation applies for this booking.\n\n` +
+        `• Advance Paid: ₹${advancePaid.toFixed(2)}\n` +
+        `• Cancellation Charge: ₹0.00\n` +
+        `• Refund to Account: ₹${advancePaid.toFixed(2)} (100% Full Refund)\n\n` +
+        `Are you sure you want to cancel booking Ref: ${ref}?`;
+
+    const cancelBtnText = isFeeApplicable ? `Cancel (₹${fee} Fee)` : t('myBookings.yesCancel', { defaultValue: 'Yes, Cancel Ride' });
+
     Alert.alert(
-      t('myBookings.cancelConfirmTitle', { defaultValue: 'Cancel Ride' }),
-      `${t('myBookings.cancelConfirmMsg', { defaultValue: 'Are you sure you want to cancel booking Ref:' })} ${ref}?`,
+      title,
+      message,
       [
         { text: t('myBookings.keepBooking', { defaultValue: 'No, Keep Booking' }), style: 'cancel' },
         {
-          text: t('myBookings.yesCancel', { defaultValue: 'Yes, Cancel Ride' }),
+          text: cancelBtnText,
           style: 'destructive',
           onPress: async () => {
             setCancellingId(bookingId);
@@ -335,7 +375,13 @@ export default function MyBookingsScreen() {
                 body: JSON.stringify({ bookingId, reason: 'Customer cancelled from mobile app' }),
               });
               if (res.success) {
-                Alert.alert('Booking Cancelled', `Ride ${ref} has been cancelled.`);
+                const adv = Number(res.advancePaid ?? advancePaid);
+                const chg = Number(res.cancellationCharge ?? 0);
+                const refAmt = Number(res.refundAmount ?? 0);
+                const chargeMsg = chg > 0
+                  ? `• Advance Paid: ₹${adv.toFixed(2)}\n• Cancellation Fee Deducted: ₹${chg.toFixed(2)}\n• Excess Amount to be Refunded: ₹${refAmt.toFixed(2)}`
+                  : `Free cancellation applied.\n• Full Refund Amount: ₹${refAmt.toFixed(2)}`;
+                Alert.alert('Booking Cancelled', `Ride ${ref} has been cancelled successfully.\n\n${chargeMsg}\n\nExcess amount will be refunded. Your tax invoice has been updated with refund details.`);
                 loadData();
               } else {
                 Alert.alert('Notice', res.message || 'Cannot cancel booking at this time.');
@@ -596,7 +642,7 @@ export default function MyBookingsScreen() {
                           <Text style={styles.scheduledText} numberOfLines={1}>
                             {t('myBookings.scheduled', { defaultValue: 'Scheduled:' })}{' '}
                             <Text style={styles.scheduledBold}>
-                              {new Date(booking.scheduledAt).toLocaleString([], {
+                              {parseSafeIsoDate(booking.scheduledAt).toLocaleString([], {
                                 month: 'short',
                                 day: 'numeric',
                                 year: 'numeric',
@@ -773,9 +819,9 @@ export default function MyBookingsScreen() {
                     {driver ? (
                       <View style={styles.driverSection}>
                         <View style={styles.driverCarCircle}>
-                          <Ionicons name="car" size={22} color="#0284c7" />
+                          <Ionicons name="person" size={20} color="#64748b" />
                         </View>
-                        <View style={{ flex: 1, marginLeft: 12 }}>
+                        <View style={{ flex: 1, marginLeft: 8 }}>
                           <Text style={styles.driverBoxSubtitle}>{t('myBookings.driverAndVehicle', { defaultValue: 'DRIVER & VEHICLE' })}</Text>
                           <Text style={styles.driverName}>
                             {driver.user?.fullName || t('myBookings.assignedDriver', { defaultValue: 'Assigned Driver' })}
@@ -805,12 +851,39 @@ export default function MyBookingsScreen() {
                     ) : (
                       <View style={styles.unassignedRow}>
                         <View style={styles.driverUserCircle}>
-                          <Ionicons name="person" size={18} color="#64748b" />
+                          <Ionicons name="person" size={20} color="#64748b" />
                         </View>
-                        <View style={{ flex: 1, marginLeft: 12 }}>
+                        <View style={{ flex: 1, marginLeft: 8 }}>
                           <Text style={styles.unassignedTitle}>{t('myBookings.driverAndVehicle', { defaultValue: 'DRIVER & VEHICLE' })}</Text>
                         </View>
                         <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+                      </View>
+                    )}
+
+                    {/* Cancellation Details Banner */}
+                    {booking.status === BookingStatus.CANCELLED && (
+                      <View style={styles.cancellationBannerBox}>
+                        <View style={styles.cancellationBannerHeader}>
+                          <Ionicons name="close-circle" size={16} color="#dc2626" style={{ marginRight: 6 }} />
+                          <Text style={styles.cancellationBannerTitle}>Ride Cancelled</Text>
+                          <View style={styles.cancellationFeeBadge}>
+                            <Text style={styles.cancellationFeeBadgeText}>
+                              {booking.cancellationDetails?.cancellationCharge && booking.cancellationDetails.cancellationCharge > 0
+                                ? `Cancellation Fee: ₹${booking.cancellationDetails.cancellationCharge}`
+                                : 'Free Cancellation (₹0)'}
+                            </Text>
+                          </View>
+                        </View>
+                        {booking.cancellationDetails?.refundAmount !== undefined && booking.cancellationDetails.refundAmount > 0 ? (
+                          <Text style={styles.cancellationBannerRefundText}>
+                            Refund of ₹{Number(booking.cancellationDetails.refundAmount).toFixed(2)} initiated to source account.
+                          </Text>
+                        ) : null}
+                        {booking.cancellationDetails?.reason ? (
+                          <Text style={styles.cancellationBannerReasonText} numberOfLines={2}>
+                            Reason: {booking.cancellationDetails.reason}
+                          </Text>
+                        ) : null}
                       </View>
                     )}
 
@@ -939,10 +1012,10 @@ export default function MyBookingsScreen() {
                         booking.status !== BookingStatus.TRIP_STARTED && (
                           <TouchableOpacity
                             style={styles.cancelBtn}
-                            onPress={() => handleCancelBooking(booking.id, booking.humanReadableRef)}
+                            onPress={() => handleCancelBooking(booking)}
                             disabled={cancellingId === booking.id}
                           >
-                            <Ionicons name="close-circle" size={15} color="#dc2626" />
+                            <Ionicons name="close-circle" size={15} color="#ffffff" />
                             <Text style={styles.cancelBtnText} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
                               {cancellingId === booking.id ? t('myBookings.cancelling', { defaultValue: 'Cancelling...' }) : t('myBookings.cancelRide', { defaultValue: 'Cancel Ride' })}
                             </Text>
@@ -1498,18 +1571,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   driverCarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#e0f2fe',
     alignItems: 'center',
     justifyContent: 'center',
   },
   driverUserCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1578,9 +1643,9 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   tripRatedCard: {
-    backgroundColor: '#fffdf2',
-    borderWidth: 1,
-    borderColor: '#fef3c7',
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -1625,19 +1690,19 @@ const styles = StyleSheet.create({
   ratedVerticalDivider: {
     width: 1,
     height: 30,
-    backgroundColor: '#fde68a',
+    backgroundColor: '#e2e8f0',
     marginHorizontal: 12,
   },
   ratedCommentRow: {
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#fef3c7',
+    borderTopColor: '#f1f5f9',
   },
   ratedCommentText: {
     fontSize: 11.5,
     fontStyle: 'italic',
-    color: '#78350f',
+    color: '#64748b',
   },
   cardActionsRow: {
     flexDirection: 'row',
@@ -1693,21 +1758,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#dc2626',
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
     gap: 4,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   cancelBtnText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#dc2626',
+    color: '#ffffff',
   },
   guestContainer: {
     alignItems: 'center',
@@ -1846,5 +1911,49 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '800',
+  },
+  cancellationBannerBox: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  cancellationBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cancellationBannerTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#991b1b',
+    flex: 1,
+  },
+  cancellationFeeBadge: {
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  cancellationFeeBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#b91c1c',
+  },
+  cancellationBannerRefundText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#15803d',
+    marginTop: 4,
+  },
+  cancellationBannerReasonText: {
+    fontSize: 10.5,
+    color: '#7f1d1d',
+    marginTop: 2,
   },
 });

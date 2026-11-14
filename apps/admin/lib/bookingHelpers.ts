@@ -1,6 +1,7 @@
 /**
  * Helper utilities for parsing booking details, intermediate stops, carrier, and customer notes in the Admin Panel.
  */
+import { parseSafeIsoDate } from '@kandy-cabs/shared';
 
 export interface BookingDetailsMetadata {
   intermediateStops: string[];
@@ -338,26 +339,43 @@ export function getTripVerificationPhotos(booking: any): {
     }
   }
 
-  // If remaining has 4 items or less, they map to: Front, Rear, Front Door, Back Door
-  const frontUrl = remainingPhotos[0] || null;
-  const rearUrl = remainingPhotos[1] || null;
-  const frontDoorUrl = remainingPhotos[2] || null;
-  const backDoorUrl = remainingPhotos[3] || null;
+  // If remaining has 3 items, they map to: Front, Front Door, Back Door (rear removed)
+  // If remaining has 4 items, legacy mapping: Front, Rear, Front Door, Back Door
+  let frontUrl: string | null = null;
+  let rearUrl: string | null = null;
+  let frontDoorUrl: string | null = null;
+  let backDoorUrl: string | null = null;
+
+  if (remainingPhotos.length === 3) {
+    frontUrl = remainingPhotos[0] || null;
+    frontDoorUrl = remainingPhotos[1] || null;
+    backDoorUrl = remainingPhotos[2] || null;
+  } else if (remainingPhotos.length >= 4) {
+    frontUrl = remainingPhotos[0] || null;
+    rearUrl = remainingPhotos[1] || null;
+    frontDoorUrl = remainingPhotos[2] || null;
+    backDoorUrl = remainingPhotos[3] || null;
+  } else {
+    frontUrl = remainingPhotos[0] || null;
+    frontDoorUrl = remainingPhotos[1] || null;
+    backDoorUrl = remainingPhotos[2] || null;
+  }
 
   const items: TripVerificationPhotoItem[] = [
     { key: 'selfie', label: 'Driver Cabin Selfie', sub: 'Driver Seat & Face', url: selfieUrl, idx: 0 },
     { key: 'front', label: 'Front Angle', sub: 'Front Bumper & Plate', url: frontUrl, idx: 1 },
-    { key: 'rear', label: 'Rear Angle', sub: 'Rear Boot & Tail Lights', url: rearUrl, idx: 2 },
-    { key: 'front_door', label: 'Front Door', sub: 'Inside Front & Steering', url: frontDoorUrl, idx: 3 },
-    { key: 'back_door', label: 'Back Door', sub: 'Inside Back Seats', url: backDoorUrl, idx: 4 },
+    ...(rearUrl ? [{ key: 'rear' as const, label: 'Rear Angle', sub: 'Rear Boot & Tail Lights', url: rearUrl, idx: 2 }] : []),
+    { key: 'front_door', label: 'Front Door', sub: 'Inside Front & Steering', url: frontDoorUrl, idx: rearUrl ? 3 : 2 },
+    { key: 'back_door', label: 'Back Door', sub: 'Inside Back Seats', url: backDoorUrl, idx: rearUrl ? 4 : 3 },
   ];
 
   const uploadedCount = items.filter((i) => Boolean(i.url)).length;
+  const totalCount = rearUrl ? 5 : 4;
 
   return {
     photos: items,
     uploadedCount,
-    totalCount: 5,
+    totalCount,
   };
 }
 
@@ -379,6 +397,15 @@ export interface TripTimingsSummary {
   photosTime: string | null;
   arrivedPickupTime: string | null;
   waitingMinutes: number;
+  totalAccumulatedSeconds?: number;
+  isWaitingActive?: boolean;
+  waitingSessions?: Array<{
+    id: string;
+    label?: string;
+    startedAt: string;
+    stoppedAt?: string;
+    durationSeconds: number;
+  }>;
   waitingTimeWindow: string | null;
   startedTime: string | null;
   completedTime: string | null;
@@ -405,6 +432,39 @@ export function formatDateShort(isoOrDate: string | Date | null | undefined): st
     return d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
   } catch {
     return null;
+  }
+}
+
+export function formatPickupDateTime(isoOrDate: string | Date | null | undefined): {
+  dateStr: string;
+  timeStr: string;
+  fullStr: string;
+} {
+  if (!isoOrDate) {
+    return { dateStr: '--', timeStr: '--', fullStr: '--' };
+  }
+  try {
+    const d = parseSafeIsoDate(isoOrDate);
+    if (!d || isNaN(d.getTime())) return { dateStr: '--', timeStr: '--', fullStr: '--' };
+
+    const dateStr = d.toLocaleDateString('en-IN', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+    const timeStr = d.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+    return {
+      dateStr,
+      timeStr,
+      fullStr: `${dateStr} at ${timeStr}`,
+    };
+  } catch {
+    return { dateStr: '--', timeStr: '--', fullStr: '--' };
   }
 }
 
@@ -481,13 +541,25 @@ export function getTripTimingMilestones(booking: any): TripTimingsSummary {
   const completeEvt = getEvent('TRIP_COMPLETED');
   const completePayload = getPayload(completeEvt);
 
+  const isWaitingActive = !!waitPayload?.isWaitingActive;
+  const rawWaitSessions = waitPayload?.waitingSessions || waitPayload?.sessions || completePayload?.waitingSessions || [];
+  const waitingSessions = Array.isArray(rawWaitSessions) ? rawWaitSessions : [];
+  const totalWaitSecs =
+    typeof waitPayload?.totalAccumulatedSeconds === 'number'
+      ? waitPayload.totalAccumulatedSeconds
+      : typeof waitPayload?.durationSeconds === 'number'
+      ? waitPayload.durationSeconds
+      : typeof completePayload?.waitingDurationSeconds === 'number'
+      ? completePayload.waitingDurationSeconds
+      : 0;
+
   let recordedWaitMins = 0;
   if (typeof waitPayload?.waitingMinutes === 'number' && waitPayload.waitingMinutes > 0) {
     recordedWaitMins = waitPayload.waitingMinutes;
   } else if (typeof completePayload?.waitingMinutes === 'number' && completePayload.waitingMinutes > 0) {
     recordedWaitMins = completePayload.waitingMinutes;
-  } else if (typeof waitPayload?.durationSeconds === 'number' && waitPayload.durationSeconds > 0) {
-    recordedWaitMins = Math.round(waitPayload.durationSeconds / 60);
+  } else if (totalWaitSecs > 0) {
+    recordedWaitMins = Math.round(totalWaitSecs / 60);
   } else if (rawArrivedIso && rawStartedIso) {
     const arrMs = new Date(rawArrivedIso).getTime();
     const strMs = new Date(rawStartedIso).getTime();
@@ -500,8 +572,18 @@ export function getTripTimingMilestones(booking: any): TripTimingsSummary {
   }
 
   let waitTimeWindow: string | null = null;
-  if (waitPayload?.startedAt && waitPayload?.stoppedAt) {
+  if (waitPayload?.waitTimeWindow) {
+    waitTimeWindow = waitPayload.waitTimeWindow;
+  } else if (waitPayload?.startedAt && waitPayload?.stoppedAt) {
     waitTimeWindow = `${waitPayload.startedAt} – ${waitPayload.stoppedAt}`;
+  } else if (waitingSessions.length > 0) {
+    const s0 = waitingSessions[0]?.startedAt;
+    const sLast = waitingSessions[waitingSessions.length - 1]?.stoppedAt;
+    if (s0 && sLast) {
+      waitTimeWindow = `${s0} – ${sLast}`;
+    } else if (s0) {
+      waitTimeWindow = `From ${s0}`;
+    }
   } else if (rawArrivedIso && rawStartedIso && recordedWaitMins > 0) {
     const aTime = formatTimeAmPm(rawArrivedIso);
     const sTime = formatTimeAmPm(rawStartedIso);
@@ -543,13 +625,13 @@ export function getTripTimingMilestones(booking: any): TripTimingsSummary {
     {
       id: 'photos_verified',
       label: 'Vehicle Photos Verified',
-      sub: `${photosCount || 5} Photos Verified & Attached`,
+      sub: `${photosCount || 4} Photos Verified & Attached`,
       icon: '',
       timeStr: formatTimeAmPm(rawPhotosIso),
       dateStr: formatDateShort(rawPhotosIso),
       rawIso: rawPhotosIso,
       status: rawPhotosIso || hasPhotos ? 'COMPLETED' : 'PENDING',
-      extraInfo: photosCount > 0 ? `${photosCount} of 5 Photos` : 'Pending Upload',
+      extraInfo: photosCount > 0 ? `${photosCount} of ${photosCount === 5 ? 5 : 4} Photos` : 'Pending Upload',
       badgeColor: 'border-emerald-200 bg-emerald-50 text-emerald-800',
     },
     {
@@ -567,25 +649,35 @@ export function getTripTimingMilestones(booking: any): TripTimingsSummary {
     {
       id: 'customer_waiting',
       label: 'Customer Waiting Time',
-      sub: waitTimeWindow ? `Window: ${waitTimeWindow}` : 'Boarding & Pickup Window',
+      sub: waitTimeWindow ? `Window: ${waitTimeWindow}` : isWaitingActive ? 'Waiting In Progress' : 'Boarding & Pickup Window',
       icon: '',
       timeStr:
-        recordedWaitMins > 0
+        isWaitingActive
+          ? totalWaitSecs > 0 ? `${Math.round(totalWaitSecs / 60)}m (Active)` : 'Waiting...'
+          : recordedWaitMins > 0
           ? `${recordedWaitMins} Mins`
+          : totalWaitSecs > 0
+          ? `${totalWaitSecs}s`
           : rawArrivedIso && !rawStartedIso
           ? 'Waiting...'
           : '0 Mins',
-      dateStr: formatDateShort(rawArrivedIso || rawStartedIso),
+      dateStr: formatDateShort(rawArrivedIso || rawStartedIso || waitEvt?.createdAt),
       rawIso: rawArrivedIso,
-      status: recordedWaitMins > 0 ? 'COMPLETED' : rawArrivedIso && !rawStartedIso ? 'IN_PROGRESS' : 'PENDING',
+      status: isWaitingActive ? 'IN_PROGRESS' : (recordedWaitMins > 0 || totalWaitSecs > 0) ? 'COMPLETED' : rawArrivedIso && !rawStartedIso ? 'IN_PROGRESS' : 'PENDING',
       extraInfo:
-        recordedWaitMins > 0
+        isWaitingActive
+          ? 'Driver waiting for customer now'
+          : waitingSessions.length > 0
+          ? `${waitingSessions.length} session${waitingSessions.length > 1 ? 's' : ''} recorded`
+          : recordedWaitMins > 0
           ? `${recordedWaitMins} mins waited`
           : rawArrivedIso && !rawStartedIso
           ? 'Driver waiting for customer'
           : 'No wait time recorded',
       badgeColor:
-        recordedWaitMins > 0
+        isWaitingActive
+          ? 'border-amber-300 bg-amber-100 text-amber-950 font-bold'
+          : (recordedWaitMins > 0 || totalWaitSecs > 0)
           ? 'border-amber-200 bg-amber-50 text-amber-900'
           : 'border-slate-200 bg-slate-50 text-slate-600',
     },
@@ -629,6 +721,9 @@ export function getTripTimingMilestones(booking: any): TripTimingsSummary {
     photosTime: formatTimeAmPm(rawPhotosIso),
     arrivedPickupTime: formatTimeAmPm(rawArrivedIso),
     waitingMinutes: recordedWaitMins,
+    totalAccumulatedSeconds: totalWaitSecs,
+    isWaitingActive,
+    waitingSessions,
     waitingTimeWindow: waitTimeWindow,
     startedTime: formatTimeAmPm(rawStartedIso),
     completedTime: formatTimeAmPm(rawCompletedIso),

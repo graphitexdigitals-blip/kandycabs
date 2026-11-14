@@ -1047,9 +1047,9 @@ export default function HomeScreen() {
 
     const activePickup = pickupLocation;
     const activeDrop = dropLocation;
-    const activeDate = pickupDateDisplay || formatDateDisplay(pickupDate);
+    const activeDate = pickupDate;
     const activeTime = pickupTime;
-    const activeReturnDate = returnDateDisplay || (returnDate ? formatDateDisplay(returnDate) : undefined);
+    const activeReturnDate = returnDate || undefined;
 
     safeNavigate(() => {
       router.push({
@@ -1158,7 +1158,7 @@ export default function HomeScreen() {
     const day = String(today.getDate()).padStart(2, '0');
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const year = today.getFullYear();
-    const defaultDate = `${day}-${month}-${year}`;
+    const defaultDate = `${year}-${month}-${day}`;
 
     safeNavigate(() => {
       router.push({
@@ -2016,8 +2016,8 @@ export default function HomeScreen() {
         visible={isDateModalOpen}
         onClose={() => setIsDateModalOpen(false)}
         onSelect={(dateKey, displayFormatted) => {
-          setPickupDate(displayFormatted);
-          setPickupDateDisplay(displayFormatted);
+          setPickupDate(dateKey);
+          setPickupDateDisplay(formatDateDisplay(dateKey));
           setIsDateModalOpen(false);
 
           if (!pickupTime) {
@@ -2037,8 +2037,8 @@ export default function HomeScreen() {
         visible={isReturnDateModalOpen}
         onClose={() => setIsReturnDateModalOpen(false)}
         onSelect={(dateKey, displayFormatted) => {
-          setReturnDate(displayFormatted);
-          setReturnDateDisplay(displayFormatted);
+          setReturnDate(dateKey);
+          setReturnDateDisplay(formatDateDisplay(dateKey));
           setIsReturnDateModalOpen(false);
         }}
         currentDate={returnDate}

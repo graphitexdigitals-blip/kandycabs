@@ -9,6 +9,7 @@ import {
   PaymentType,
   PaymentStatus,
   BookingStatus,
+  parseSafeIsoDate,
 } from '@kandy-cabs/shared';
 import { calculateRouteDistance } from '@/lib/distance';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
@@ -164,6 +165,43 @@ export async function POST(req: NextRequest) {
     const petType = body.petType ? String(body.petType).toLowerCase() : 'dog';
     const petFee = hasPet ? (Number(body.petFee) || 500) : 0;
 
+    // Fetch dynamic pricing rule & system settings for night charge & airport rates
+    const [dbRule, nightSettingRow, airportRatesRow] = await Promise.all([
+      prisma.pricingRule.findFirst({
+        where: { category, tripType, fuelType, isActive: true },
+      }).catch(() => null),
+      prisma.systemSetting.findUnique({
+        where: { key: 'night_charge_settings' },
+      }).catch(() => null),
+      prisma.systemSetting.findUnique({
+        where: { key: 'airport_city_rates' },
+      }).catch(() => null),
+    ]);
+
+    const nightSettings = nightSettingRow?.value as any;
+    const airportRates = airportRatesRow?.value as any;
+
+    const overrides: any = dbRule
+      ? {
+          ratePerKm: Number(dbRule.baseRatePerKm),
+          extraKmRate: Number(dbRule.extraKmRate),
+          extraKmThreshold: dbRule.extraKmThreshold ? Number(dbRule.extraKmThreshold) : undefined,
+          driverAllowance: Number(dbRule.driverAllowance),
+          nightCharge: Number(dbRule.nightCharge),
+          nightChargeEnabled: nightSettings ? Boolean(nightSettings.enabled) : true,
+          applicableNightTripTypes: nightSettings?.applicableTripTypes,
+          gstRatePercent: Number(dbRule.gstRatePercent),
+          nightWindowStartHour: dbRule.nightWindowStartHour,
+          nightWindowEndHour: dbRule.nightWindowEndHour,
+          localPackage4hrBase: dbRule.localPackage4hrBase ? Number(dbRule.localPackage4hrBase) : undefined,
+          localPackage4hrKm: dbRule.localPackage4hrKm ? Number(dbRule.localPackage4hrKm) : undefined,
+          localPackage8hrBase: dbRule.localPackage8hrBase ? Number(dbRule.localPackage8hrBase) : undefined,
+          localPackage8hrKm: dbRule.localPackage8hrKm ? Number(dbRule.localPackage8hrKm) : undefined,
+          localPackage12hrBase: dbRule.localPackage12hrBase ? Number(dbRule.localPackage12hrBase) : undefined,
+          localPackage12hrKm: dbRule.localPackage12hrKm ? Number(dbRule.localPackage12hrKm) : undefined,
+        }
+      : undefined;
+
     const pricing = calculateFare({
       category,
       fuelType,
@@ -175,6 +213,10 @@ export async function POST(req: NextRequest) {
       couponCode,
       hasPet,
       petFee,
+      overrides,
+      pickupAddress,
+      dropAddress,
+      airportCityRates: airportRates,
     });
 
     const isPayOnDrop = paymentMode === 'PAY_ON_DROP' || paymentMode === 'CASH';
@@ -201,7 +243,7 @@ export async function POST(req: NextRequest) {
           dropAddress,
           dropLat,
           dropLng,
-          scheduledAt: new Date(scheduledAt),
+          scheduledAt: parseSafeIsoDate(scheduledAt),
           distanceKm: pricing.billableDistanceKm,
           estimatedFare: pricing.totalFare,
           advanceAmount: advanceAmount,

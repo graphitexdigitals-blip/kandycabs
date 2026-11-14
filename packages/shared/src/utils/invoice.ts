@@ -5,6 +5,8 @@ export const KANDY_LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA
  * Matches the official Kandy Cabs Tax Invoice standard (Inland Impala, Mangaluru / GSTIN: 29AIEPR4688P1Z4)
  */
 
+import { evaluateCancellationCharge } from '../pricing/cancellationPolicy';
+
 export interface KandyInvoiceCompany {
   name: string;
   tagline: string;
@@ -59,6 +61,19 @@ export interface KandyInvoiceFinancials {
   balanceStatus: string;
 }
 
+export interface KandyInvoiceCancellation {
+  isCancelled: boolean;
+  cancelledBy?: string;
+  reason?: string;
+  cancellationCharge: number;
+  advancePaid: number;
+  refundAmount: number;
+  refundStatus: string;
+  cancelledAt?: string;
+  isWithinWindow?: boolean;
+  hoursUntilPickup?: number;
+}
+
 export interface KandyInvoiceData {
   invoiceNumber: string;
   invoiceDate: string;
@@ -66,6 +81,8 @@ export interface KandyInvoiceData {
   placeOfSupply: string;
   supplyType: string;
   bookingRef: string;
+  bookingStatus?: string;
+  cancellation?: KandyInvoiceCancellation;
   customer: KandyInvoiceCustomer;
   tripDetails: KandyInvoiceTripDetails;
   financials: KandyInvoiceFinancials;
@@ -439,6 +456,48 @@ export function buildKandyInvoiceData(booking: any): KandyInvoiceData {
   const petFee = Number(payload.petFee || booking.petFee || 0);
   const extraKmAmount = Number(payload.extraKmAmount || booking.extraKmAmount || 0);
 
+  // Cancellation Details & Refund Calculation
+  const cancelledEvent = booking.tripEvents?.find((e: any) => e.type === 'BOOKING_CANCELLED');
+  const cancelPayload = (cancelledEvent?.payloadJson as any) || {};
+  const isCancelled = booking.status === 'CANCELLED' || Boolean(cancelledEvent);
+
+  let cancellation: KandyInvoiceCancellation | undefined = undefined;
+  if (isCancelled) {
+    const advPaid = Number(cancelPayload.advancePaid ?? advanceAmount);
+    let cancelCharge = 0;
+    if (cancelPayload.cancellationCharge !== undefined) {
+      cancelCharge = Number(cancelPayload.cancellationCharge);
+    } else {
+      const evalCharge = evaluateCancellationCharge(
+        booking.scheduledAt || new Date(),
+        vehicleCategory,
+        booking.updatedAt || new Date(),
+        {},
+        booking.tripType
+      );
+      cancelCharge = evalCharge.cancellationCharge;
+    }
+    const refAmt = Number(cancelPayload.refundAmount ?? Math.max(0, advPaid - cancelCharge));
+    const refundStatus = refAmt > 0 ? 'Eligible for Refund (Processing)' : 'No Refund Applicable';
+    const reason = cancelPayload.reason || booking.cancellationReason || 'Booking cancelled';
+    const cancelledBy = cancelPayload.cancelledBy || 'CUSTOMER';
+
+    cancellation = {
+      isCancelled: true,
+      cancelledBy,
+      reason,
+      cancellationCharge: cancelCharge,
+      advancePaid: advPaid,
+      refundAmount: refAmt,
+      refundStatus,
+      cancelledAt: cancelledEvent?.createdAt ? new Date(cancelledEvent.createdAt).toISOString() : undefined,
+      isWithinWindow: cancelPayload.isWithinWindow,
+      hoursUntilPickup: cancelPayload.hoursUntilPickup,
+    };
+
+    remarks = `Trip Cancelled. Advance Paid: ₹${advPaid.toFixed(2)}, Cancellation Charge Applied: ₹${cancelCharge.toFixed(2)}, Excess Amount to be Refunded: ₹${refAmt.toFixed(2)} (${refundStatus}).`;
+  }
+
   return {
     invoiceNumber,
     invoiceDate: invoiceDate.toISOString(),
@@ -446,6 +505,8 @@ export function buildKandyInvoiceData(booking: any): KandyInvoiceData {
     placeOfSupply: 'Karnataka',
     supplyType: 'Passenger Transportation Service',
     bookingRef: invoiceNumber,
+    bookingStatus: booking.status || (isCancelled ? 'CANCELLED' : 'CONFIRMED'),
+    cancellation,
     customer: {
       name: customerName.startsWith('Mr.') || customerName.startsWith('Ms.') || customerName.startsWith('Dr.') ? customerName : `Mr. ${customerName}`,
       phone: booking.customer?.user?.phone || booking.customerPhone || '',
@@ -663,6 +724,58 @@ export function generateKandyInvoiceHtml(invoice: KandyInvoiceData, options?: { 
       text-transform: uppercase;
       margin-bottom: 12px;
       border-radius: 2px;
+    }
+
+    /* Cancellation & Refund Styles */
+    .cancellation-card {
+      border: 1.5px solid #fda4af;
+      background: #fff1f2;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      margin-bottom: 14px;
+    }
+    .cancellation-card .title {
+      font-size: 12px;
+      font-weight: 900;
+      color: #be123c;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px dashed #fecdd3;
+      padding-bottom: 6px;
+    }
+    .cancellation-card table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+    }
+    .cancellation-card td {
+      padding: 5px 4px;
+      vertical-align: middle;
+    }
+    .cancellation-card .lbl {
+      color: #4c0519;
+      font-weight: 600;
+    }
+    .cancellation-card .val {
+      text-align: right;
+      font-weight: 800;
+      color: #162232;
+    }
+    .cancellation-card .refund-row {
+      border-top: 1.5px dashed #f43f5e;
+      border-bottom: 1.5px dashed #f43f5e;
+      background: #ffe4e6;
+    }
+    .cancellation-card .refund-row td {
+      padding: 8px 4px;
+      font-size: 13px;
+      color: #047857;
+      font-weight: 900;
     }
 
     /* Section Subheaders */
@@ -919,8 +1032,40 @@ export function generateKandyInvoiceHtml(invoice: KandyInvoiceData, options?: { 
       </tr>
     </table>
 
-    <!-- Navy Title Banner -->
+    <!-- Navy Title Banner / Cancellation Banner -->
+    ${invoice.cancellation?.isCancelled ? `
+    <div class="tax-invoice-banner" style="background: #be123c; letter-spacing: 1.5px;">TAX INVOICE / CANCELLATION VOUCHER (CANCELLED)</div>
+    <div class="cancellation-card">
+      <div class="title">
+        <span>⚠️ CANCELLATION CHARGES &amp; REFUND BREAKDOWN</span>
+        <span style="font-size: 10px; background: #be123c; color: #fff; padding: 2px 7px; border-radius: 4px;">TRIP CANCELLED</span>
+      </div>
+      <table>
+        <tr>
+          <td class="lbl">Total Advance Paid:</td>
+          <td class="val">₹${invoice.cancellation.advancePaid.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td class="lbl">Applicable Cancellation Charge:</td>
+          <td class="val" style="color: #be123c;">- ₹${invoice.cancellation.cancellationCharge.toFixed(2)}</td>
+        </tr>
+        <tr class="refund-row">
+          <td style="color: #047857;">Excess Amount to be Refunded:</td>
+          <td class="val" style="color: #047857; font-size: 13px;">₹${invoice.cancellation.refundAmount.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td class="lbl">Refund Settlement Status:</td>
+          <td class="val" style="color: #0284c7;">${invoice.cancellation.refundStatus}</td>
+        </tr>
+        ${invoice.cancellation.reason ? `
+        <tr>
+          <td class="lbl" style="font-size: 10px; color: #64748b;" colspan="2">Cancellation Reason: ${invoice.cancellation.reason}</td>
+        </tr>` : ''}
+      </table>
+    </div>
+    ` : `
     <div class="tax-invoice-banner">TAX INVOICE</div>
+    `}
 
     <!-- Table 1: Meta -->
     <table class="data-table">
@@ -1054,9 +1199,15 @@ export function generateKandyInvoiceHtml(invoice: KandyInvoiceData, options?: { 
     <div class="remarks-box">
       <div class="section-header">REMARKS / PAYMENT DETAILS</div>
       <div class="remarks-text">${invoice.remarks}</div>
-      <div class="payment-summary">
+      <div class="payment-summary" style="${invoice.cancellation?.isCancelled ? 'border-color: #fecdd3; background: #fff1f2;' : ''}">
+        ${invoice.cancellation?.isCancelled ? `
+        Advance Paid: ₹${invoice.cancellation.advancePaid.toFixed(2)} &nbsp;|&nbsp; 
+        Cancellation Fee: ₹${invoice.cancellation.cancellationCharge.toFixed(2)} &nbsp;|&nbsp; 
+        <strong>Excess Refund: ₹${invoice.cancellation.refundAmount.toFixed(2)} (${invoice.cancellation.refundStatus})</strong>
+        ` : `
         Advance Paid: ₹${invoice.financials.advancePaid.toFixed(2)} (${invoice.financials.advanceStatus}) &nbsp;|&nbsp; 
         Balance Payable: ₹${invoice.financials.balanceDue.toFixed(2)} (${invoice.financials.balanceStatus})
+        `}
       </div>
     </div>
 

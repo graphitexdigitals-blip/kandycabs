@@ -21,13 +21,13 @@ if (targetGlobal) {
   // Wrap TextDecoder so { fatal: true } and { stream: true } never throw in Hermes (jose / Supabase compatibility)
   if (targetGlobal.TextDecoder && !targetGlobal.TextDecoder.__safe_fatal_wrapped) {
     const RawDecoder = targetGlobal.TextDecoder;
-    function SafeTextDecoder(this: any, label?: string, options?: any) {
+    const SafeTextDecoder: any = function (this: any, label?: string, options?: any) {
       const safeOptions = options ? { ...options, fatal: false } : undefined;
       if (!(this instanceof SafeTextDecoder)) {
         return new (RawDecoder as any)(label, safeOptions);
       }
       return new RawDecoder(label, safeOptions);
-    }
+    };
     SafeTextDecoder.prototype = RawDecoder.prototype;
     SafeTextDecoder.__safe_fatal_wrapped = true;
 

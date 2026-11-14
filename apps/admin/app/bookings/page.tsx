@@ -205,6 +205,15 @@ export default function AdminBookingsPage() {
               fetchBookings(true);
             }
           )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'TripEvent' },
+            () => {
+              setRealtimeActive(true);
+              setIsReconnecting(false);
+              fetchBookings(true);
+            }
+          )
           .subscribe((status: string) => {
             if (status === 'SUBSCRIBED') {
               isSubscribed = true;
@@ -308,14 +317,22 @@ export default function AdminBookingsPage() {
 
   const formatBookingDateTime = (dateStr: string | Date | undefined) => {
     if (!dateStr) return '';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '';
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
+    try {
+      let str = typeof dateStr === 'string' ? dateStr : (dateStr instanceof Date ? dateStr.toISOString() : String(dateStr));
+      str = str.replace(/^00(\d{2})/, (_, yy) => `20${yy}`);
+      str = str.replace(/^(\d{1,3})-/, (_, y) => `${String(Number(y) < 100 ? 2000 + Number(y) : Number(y)).padStart(4, '0')}-`);
+      const d = new Date(str);
+      if (isNaN(d.getTime())) return '';
+      if (d.getFullYear() < 100) d.setFullYear(2000 + d.getFullYear());
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `${day}/${month}/${year} ${hours}:${minutes}`;
+    } catch {
+      return '';
+    }
   };
 
   const getStatusDisplay = (status: BookingStatus | string) => {
@@ -619,6 +636,21 @@ export default function AdminBookingsPage() {
                     </button>
                   );
                 }
+                if (b.status === BookingStatus.DRIVER_ACCEPTED || b.status === BookingStatus.DRIVER_EN_ROUTE) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenDispatch(b.id, b.humanReadableRef);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 transition shadow-2xs"
+                      title="Driver accepted but unable to continue? Re-dispatch to another driver"
+                    >
+                      <span>Re-dispatch</span>
+                    </button>
+                  );
+                }
                 return (
                   <button
                     type="button"
@@ -781,14 +813,19 @@ export default function AdminBookingsPage() {
                   }`}
                 >
                   {/* Column 1: Ref & Date */}
-                  <div className="w-full xl:w-32 shrink-0 flex flex-col justify-center">
+                  <div className="w-full xl:w-36 shrink-0 flex flex-col justify-center space-y-0.5">
                     <span className="font-bold text-slate-900 text-sm tracking-tight block">
                       {b.humanReadableRef}
                     </span>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5 font-medium">
-                      <IconCalendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span>{formatBookingDateTime(b.createdAt)}</span>
+                    <div className="flex items-center gap-1.5 text-xs text-amber-900 font-bold" title="Scheduled Pickup Timing">
+                      <IconCalendar className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>{formatBookingDateTime(b.scheduledAt || b.createdAt)}</span>
                     </div>
+                    {b.createdAt && (
+                      <span className="text-[10px] text-slate-400 font-medium block">
+                        Booked: {formatBookingDateTime(b.createdAt)}
+                      </span>
+                    )}
                   </div>
 
                   {/* Column 2: Customer */}
@@ -909,51 +946,88 @@ export default function AdminBookingsPage() {
                     {(() => {
                       const t = getTripTimingMilestones(b);
                       const hasAnyTiming =
-                        t.photosTime || t.arrivedPickupTime || t.startedTime || t.completedTime || t.waitingMinutes > 0;
+                        t.photosTime ||
+                        t.arrivedPickupTime ||
+                        t.startedTime ||
+                        t.completedTime ||
+                        t.waitingMinutes > 0 ||
+                        (t.totalAccumulatedSeconds && t.totalAccumulatedSeconds > 0) ||
+                        t.isWaitingActive;
                       if (!hasAnyTiming) return null;
+                      const timingItems: React.ReactNode[] = [];
+
+                      if (t.photosTime) {
+                        timingItems.push(
+                          <span key="photos" className="inline-flex items-center gap-1 font-mono text-slate-600">
+                            <span className="text-slate-500">Photos:</span>
+                            <strong className="text-slate-900 font-bold">{t.photosTime}</strong>
+                          </span>
+                        );
+                      }
+
+                      if (t.arrivedPickupTime) {
+                        timingItems.push(
+                          <span key="arrived" className="inline-flex items-center gap-1 font-mono text-blue-700">
+                            <span className="text-blue-600">Arrived:</span>
+                            <strong className="text-blue-950 font-bold">{t.arrivedPickupTime}</strong>
+                          </span>
+                        );
+                      }
+
+                      if (t.waitingMinutes > 0 || (t.totalAccumulatedSeconds && t.totalAccumulatedSeconds > 0) || t.isWaitingActive) {
+                        timingItems.push(
+                          <span key="waiting" className="inline-flex items-center gap-1 font-mono text-amber-800">
+                            <span className="text-amber-700">{t.isWaitingActive ? 'Waiting Now:' : 'Waited:'}</span>
+                            <strong className="text-amber-950 font-bold">
+                              {t.waitingMinutes > 0 ? `${t.waitingMinutes}m` : `${t.totalAccumulatedSeconds || 0}s`}
+                            </strong>
+                            {t.waitingTimeWindow && (
+                              <span className="text-[10px] text-amber-700 font-normal">({t.waitingTimeWindow})</span>
+                            )}
+                          </span>
+                        );
+                      }
+
+                      if (t.startedTime) {
+                        timingItems.push(
+                          <span key="started" className="inline-flex items-center gap-1 font-mono text-indigo-700">
+                            <span className="text-indigo-600">Started:</span>
+                            <strong className="text-indigo-950 font-bold">{t.startedTime}</strong>
+                          </span>
+                        );
+                      }
+
+                      if (t.completedTime) {
+                        timingItems.push(
+                          <span key="completed" className="inline-flex items-center gap-1 font-mono text-emerald-700">
+                            <span className="text-emerald-600">Drop:</span>
+                            <strong className="text-emerald-950 font-bold">{t.completedTime}</strong>
+                          </span>
+                        );
+                      }
+
+                      if (t.totalTripDuration) {
+                        timingItems.push(
+                          <span key="duration" className="inline-flex items-center gap-1 font-medium text-slate-600">
+                            <span className="text-slate-500">Total:</span>
+                            <strong className="text-slate-900 font-bold">{t.totalTripDuration}</strong>
+                          </span>
+                        );
+                      }
+
+                      if (timingItems.length === 0) return null;
+
                       return (
-                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2 pt-2 border-t border-slate-100 text-[11px]">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 pt-2 border-t border-slate-100 text-[11px]">
                           <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
                             Timings:
                           </span>
-                          {t.photosTime && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-50 border border-slate-200 text-slate-700 font-medium font-mono">
-                              <span>Photos:</span>
-                              <strong className="text-slate-900">{t.photosTime}</strong>
-                            </span>
-                          )}
-                          {t.arrivedPickupTime && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-800 font-medium font-mono">
-                              <span>Arrived:</span>
-                              <strong className="text-blue-950">{t.arrivedPickupTime}</strong>
-                            </span>
-                          )}
-                          {t.waitingMinutes > 0 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 border border-amber-300 text-amber-900 font-medium font-mono">
-                              <span>Waited:</span>
-                              <strong className="text-amber-950">{t.waitingMinutes}m</strong>
-                              {t.waitingTimeWindow && (
-                                <span className="text-[10px] text-amber-700">({t.waitingTimeWindow})</span>
-                              )}
-                            </span>
-                          )}
-                          {t.startedTime && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-50 border border-indigo-200 text-indigo-800 font-medium font-mono">
-                              <span>Started:</span>
-                              <strong className="text-indigo-950">{t.startedTime}</strong>
-                            </span>
-                          )}
-                          {t.completedTime && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 font-medium font-mono">
-                              <span>Drop:</span>
-                              <strong className="text-emerald-950">{t.completedTime}</strong>
-                            </span>
-                          )}
-                          {t.totalTripDuration && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
-                              <span>Total: {t.totalTripDuration}</span>
-                            </span>
-                          )}
+                          {timingItems.map((item, idx) => (
+                            <React.Fragment key={idx}>
+                              {idx > 0 && <span className="text-slate-300 font-light select-none">|</span>}
+                              {item}
+                            </React.Fragment>
+                          ))}
                         </div>
                       );
                     })()}

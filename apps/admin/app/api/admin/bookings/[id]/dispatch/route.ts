@@ -21,7 +21,7 @@ export async function POST(
 
     const { id } = params;
     const body = await req.json();
-    const { driverIds } = body;
+    const { driverIds, reassignReason } = body;
 
     if (!Array.isArray(driverIds) || driverIds.length === 0) {
       return NextResponse.json(
@@ -32,6 +32,13 @@ export async function POST(
 
     const booking = await prisma.booking.findUnique({
       where: { id },
+      include: {
+        assignedDriver: {
+          include: {
+            user: { select: { fullName: true, phone: true } },
+          },
+        },
+      },
     });
 
     if (!booking) {
@@ -41,15 +48,35 @@ export async function POST(
       );
     }
 
-    const isRedispatch = booking.status === BookingStatus.DISPATCHED;
+    // Validation: Cannot re-dispatch to the driver who is already assigned to this trip
+    if (booking.assignedDriverId && driverIds.includes(booking.assignedDriverId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Already same trip is assigned to same driver',
+        },
+        { status: 400 }
+      );
+    }
+
+    const wasDriverAccepted =
+      booking.status === BookingStatus.DRIVER_ACCEPTED ||
+      booking.status === BookingStatus.DRIVER_EN_ROUTE ||
+      Boolean(booking.assignedDriverId);
+    const isRedispatch = booking.status === BookingStatus.DISPATCHED || wasDriverAccepted;
+    const previousDriver = booking.assignedDriver;
+    const previousDriverName = previousDriver?.user?.fullName || 'Assigned Driver';
+    const effectiveReason =
+      (reassignReason && String(reassignReason).trim()) ||
+      (wasDriverAccepted ? 'Driver accepted but unable to continue the trip' : 'Admin re-dispatched ride');
 
     // Execute atomic dispatch transaction
     const result = await prisma.$transaction(async (tx) => {
-      // 0. Expire existing pending dispatches for this booking to prevent stale alerts
+      // 0. Expire existing pending & accepted dispatches for this booking to prevent stale alerts
       await tx.bookingDispatch.updateMany({
         where: {
           bookingId: id,
-          status: DispatchStatus.PENDING,
+          status: { in: [DispatchStatus.PENDING, DispatchStatus.ACCEPTED] },
         },
         data: {
           status: DispatchStatus.EXPIRED,
@@ -69,38 +96,54 @@ export async function POST(
         )
       );
 
-      // 2. Update booking status to DISPATCHED
+      // 2. Update booking status to DISPATCHED & unassign previous driver
       const updatedBooking = await tx.booking.update({
         where: { id },
         data: {
           status: BookingStatus.DISPATCHED,
+          assignedDriverId: null, // Clear assigned driver so new driver can accept
         },
       });
 
       // 3. Record TripEvent
+      const actionType = wasDriverAccepted
+        ? 'DRIVER_REASSIGNED'
+        : isRedispatch
+        ? 'DISPATCH_REBROADCAST'
+        : 'DISPATCH_BROADCAST';
+
       await tx.tripEvent.create({
         data: {
           bookingId: id,
-          type: isRedispatch ? 'DISPATCH_REBROADCAST' : 'DISPATCH_BROADCAST',
+          type: actionType,
           payloadJson: {
             dispatchedDriverIds: driverIds,
             broadcastCount: driverIds.length,
-            isRedispatch,
+            isRedispatch: true,
+            wasDriverAccepted,
+            previousDriverId: previousDriver?.id || null,
+            previousDriverName: previousDriverName,
+            previousDriverPhone: previousDriver?.user?.phone || null,
+            reason: effectiveReason,
             timestamp: new Date().toISOString(),
           },
         },
       });
 
-      // 4. Record AuditLog
+      // 4. Record AuditLog with clear audit trail note
+      const auditReason = wasDriverAccepted
+        ? `Driver reassigned: Previous driver ${previousDriverName} unable to continue (${effectiveReason}). Re-dispatched to ${driverIds.length} driver(s).`
+        : isRedispatch
+        ? `Admin re-dispatched ride to ${driverIds.length} driver(s).`
+        : `Admin broadcasted ride to ${driverIds.length} driver(s).`;
+
       await tx.auditLog.create({
         data: {
           actorUserId: session.userId,
-          action: isRedispatch ? 'DISPATCH_REBROADCAST' : 'DISPATCH_BROADCAST',
+          action: actionType,
           entityType: 'Booking',
           entityId: id,
-          reason: isRedispatch
-            ? `Admin re-dispatched ride to ${driverIds.length} driver(s).`
-            : `Admin broadcasted ride to ${driverIds.length} driver(s).`,
+          reason: auditReason,
         },
       });
 
@@ -109,6 +152,16 @@ export async function POST(
       timeout: 15000,
       maxWait: 10000,
     });
+
+    // Notify previous driver if they had push notifications
+    if (previousDriver?.pushToken) {
+      sendCloudPushNotification({
+        to: [previousDriver.pushToken],
+        title: 'Trip Re-assigned by Operations',
+        body: `Booking ${booking.humanReadableRef || ''} has been re-dispatched to another driver.`,
+        data: { bookingId: id, status: 'REASSIGNED' },
+      }).catch(() => {});
+    }
 
     // 5. Trigger Cloud Push Notifications to dispatched drivers in background
     try {

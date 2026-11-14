@@ -29,7 +29,8 @@ export type BookingRealtimeEventType =
   | 'TRIP_COMPLETED'
   | 'PAYMENT_RECEIVED'
   | 'DRIVER_NEAR_PICKUP'
-  | 'DRIVER_ARRIVED';
+  | 'DRIVER_ARRIVED'
+  | 'WAITING_RECORDED';
 
 export interface DriverEventPayload {
   type: DriverRealtimeEventType;

@@ -160,7 +160,7 @@ export const FAQ_DATA: FAQItem[] = [
     category: 'cancellation',
     question: 'Can I cancel or reschedule my booking?',
     answer:
-      'Open "My Bookings", select the active booking, and tap "Cancel Booking" or "Reschedule". Free cancellation is typically available up to 2 hours prior to scheduled departure. Check the policy details on your booking screen.',
+      'Open "My Bookings", select the active booking, and tap "Cancel Booking". Free cancellation is available up to 3 hours prior to scheduled departure. Cancellations within 3 hours incur a cancellation charge (₹500 for Compact/Sedans, ₹1000 for SUVs and larger fleets).',
     tags: ['cancel', 'cancellation', 'reschedule', 'change date', 'modify'],
   },
   {

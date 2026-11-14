@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BookingStatus } from '@kandy-cabs/shared';
 import { reverseGeocodeLocation } from '@/lib/geocoding';
 import {
@@ -8,6 +8,7 @@ import {
   getBookingMetadata,
   getTripVerificationPhotos,
   getTripTimingMilestones,
+  formatPickupDateTime,
 } from '@/lib/bookingHelpers';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import {
@@ -27,6 +28,7 @@ import {
   IconPayments,
   IconAlert,
   IconCar,
+  IconCalendar,
 } from '@/components/Icons';
 
 interface BookingDetailDrawerProps {
@@ -50,6 +52,7 @@ export function BookingDetailDrawer({
   const [trackingPoints, setTrackingPoints] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [togglingPhone, setTogglingPhone] = useState(false);
+  const [isPhoneReleased, setIsPhoneReleased] = useState<boolean>(false);
   const [driverLocationName, setDriverLocationName] = useState<string>('');
   const [driverAllowanceVal, setDriverAllowanceVal] = useState<string>('300');
   const [driverPayeeVal, setDriverPayeeVal] = useState<string>('4850');
@@ -60,14 +63,17 @@ export function BookingDetailDrawer({
   const [copiedVendorText, setCopiedVendorText] = useState<boolean>(false);
   const [savingDriverPay, setSavingDriverPay] = useState<boolean>(false);
   const [approvingFleet, setApprovingFleet] = useState<boolean>(false);
+  const [cancellingBooking, setCancellingBooking] = useState<boolean>(false);
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
+  const isTogglingPhoneRef = useRef<boolean>(false);
+  const lastPhoneToggledAtRef = useRef<number>(0);
 
   const fetchDetail = async (id: string) => {
     setLoading(true);
     try {
       const [resDetail, resTrack] = await Promise.all([
-        fetch(`/api/admin/bookings/${id}`),
-        fetch(`/api/admin/bookings/${id}/tracking`),
+        fetch(`/api/admin/bookings/${id}?_t=${Date.now()}`, { cache: 'no-store' }),
+        fetch(`/api/admin/bookings/${id}/tracking?_t=${Date.now()}`, { cache: 'no-store' }),
       ]);
 
       if (resDetail.ok) {
@@ -75,6 +81,7 @@ export function BookingDetailDrawer({
         setData(json);
         const b = json.booking;
         if (b) {
+          setIsPhoneReleased(Boolean(b.customerPhoneReleased));
           const bata = Number(b.driverAllowance) > 0 ? Number(b.driverAllowance) : 300;
           setDriverAllowanceVal(String(bata));
 
@@ -132,7 +139,12 @@ export function BookingDetailDrawer({
 
   const buildVendorTripDetails = () => {
     if (!booking) return '';
-    const d = booking.scheduledAt ? new Date(booking.scheduledAt) : (booking.createdAt ? new Date(booking.createdAt) : new Date());
+    const rawVal = booking.scheduledAt || booking.createdAt;
+    let cleanStr = typeof rawVal === 'string' ? rawVal : (rawVal ? new Date(rawVal).toISOString() : new Date().toISOString());
+    cleanStr = cleanStr.replace(/^00(\d{2})/, (_, yy) => `20${yy}`);
+    cleanStr = cleanStr.replace(/^(\d{1,3})-/, (_, y) => `${String(Number(y) < 100 ? 2000 + Number(y) : Number(y)).padStart(4, '0')}-`);
+    const d = new Date(cleanStr);
+    if (d.getFullYear() < 100) d.setFullYear(2000 + d.getFullYear());
 
     const getOrdinal = (n: number) => {
       const s = ['th', 'st', 'nd', 'rd'];
@@ -256,9 +268,9 @@ Exclusions (If applicable):
   useEffect(() => {
     if (isOpen && bookingId) {
       fetchDetail(bookingId);
-      // Auto refresh location every 5s if active
+      // Auto refresh location every 5s if active (lightweight query only)
       const interval = setInterval(() => {
-        fetch(`/api/admin/bookings/${bookingId}/tracking`)
+        fetch(`/api/admin/bookings/${bookingId}/tracking?_t=${Date.now()}`, { cache: 'no-store' })
           .then((r) => r.json())
           .then((d) => setTrackingPoints(d.points || []))
           .catch(() => {});
@@ -278,12 +290,57 @@ Exclusions (If applicable):
   const bookingMeta = getBookingMetadata(booking);
   const verificationData = getTripVerificationPhotos(booking);
   const timingData = getTripTimingMilestones(booking);
+  const pickupTiming = formatPickupDateTime(booking?.scheduledAt || booking?.createdAt);
+  const bookedTiming = formatPickupDateTime(booking?.createdAt);
+
+  const cancelEvent = booking?.tripEvents?.find((e: any) => e.type === 'BOOKING_CANCELLED');
+  const cancelEventData = cancelEvent?.payloadJson
+    ? (typeof cancelEvent.payloadJson === 'string' ? JSON.parse(cancelEvent.payloadJson) : cancelEvent.payloadJson)
+    : null;
+
+  const handleAdminCancelBooking = async () => {
+    if (!booking || cancellingBooking) return;
+    const reason = window.prompt(
+      `Cancel booking ${booking.humanReadableRef}?\n\nEnter cancellation reason:`,
+      'Cancelled by Admin Operations'
+    );
+    if (!reason || !reason.trim()) return;
+
+    const applyFee = window.confirm(
+      `Apply cancellation charge policy?\n\n- Click OK to apply normal cancellation fee according to policy (Free if >3h, ₹500/₹1000 if within 3h).\n- Click CANCEL to WAIVE the cancellation charge (₹0).`
+    );
+
+    setCancellingBooking(true);
+    try {
+      const res = await fetch(`/api/admin/bookings/${booking.id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason: reason.trim(),
+          waiveCharge: !applyFee,
+        }),
+      });
+      const resData = await res.json();
+      if (resData.success) {
+        alert(`Booking Cancelled.\nCancellation Charge: ₹${resData.cancellationCharge}\nRefund: ₹${resData.refundAmount}`);
+        fetchDetail(booking.id);
+        onRefresh();
+      } else {
+        alert(resData.message || 'Failed to cancel booking');
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error cancelling booking');
+    } finally {
+      setCancellingBooking(false);
+    }
+  };
 
   const handleTogglePhoneRelease = async () => {
-    if (!booking) return;
-    const targetState = !booking.customerPhoneReleased;
+    if (!booking || togglingPhone) return;
+    const targetState = !isPhoneReleased;
 
     // Instant optimistic UI update (0ms response)
+    setIsPhoneReleased(targetState);
     setData((prev: any) =>
       prev
         ? {
@@ -301,12 +358,33 @@ Exclusions (If applicable):
       const res = await fetch(`/api/admin/bookings/${booking.id}/release-phone`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
         body: JSON.stringify({ released: targetState }),
       });
       if (res.ok) {
+        const json = await res.json().catch(() => null);
+        const serverState = json && typeof json.customerPhoneReleased === 'boolean'
+          ? json.customerPhoneReleased
+          : targetState;
+
+        setIsPhoneReleased(serverState);
+        setData((prev: any) =>
+          prev
+            ? {
+                ...prev,
+                booking: {
+                  ...prev.booking,
+                  customerPhoneReleased: serverState,
+                },
+              }
+            : prev
+        );
         onRefresh();
       } else {
+        const errJson = await res.json().catch(() => ({}));
+        alert(errJson.message || 'Failed to update customer phone release');
         // Rollback if failed
+        setIsPhoneReleased(!targetState);
         setData((prev: any) =>
           prev
             ? {
@@ -319,9 +397,11 @@ Exclusions (If applicable):
             : prev
         );
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to toggle phone release:', err);
+      alert(err?.message || 'Network error while updating phone release');
       // Rollback on network error
+      setIsPhoneReleased(!targetState);
       setData((prev: any) =>
         prev
           ? {
@@ -366,10 +446,21 @@ Exclusions (If applicable):
                 </span>
               )}
             </div>
-            <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 truncate">
-              Trip Type: <span className="font-semibold text-slate-700">{booking?.tripType}</span>
-              {booking?.distanceKm ? ` • ${booking.distanceKm} km` : ''}
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-900 border border-amber-300 rounded-md text-[11px] font-bold shadow-2xs">
+                <IconCalendar className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                <span>Pickup: {pickupTiming.dateStr} • {pickupTiming.timeStr}</span>
+              </div>
+              {booking?.createdAt && (
+                <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-md text-[10.5px] font-medium">
+                  <span>Booked: {bookedTiming.dateStr} {bookedTiming.timeStr}</span>
+                </div>
+              )}
+              <p className="text-[10px] sm:text-xs text-slate-500 truncate">
+                Trip Type: <span className="font-semibold text-slate-700">{booking?.tripType}</span>
+                {booking?.distanceKm ? ` • ${booking.distanceKm} km` : ''}
+              </p>
+            </div>
           </div>
           <button
             type="button"
@@ -412,17 +503,30 @@ Exclusions (If applicable):
                 </button>
               )}
 
+              {(booking.status === BookingStatus.DRIVER_ACCEPTED ||
+                booking.status === BookingStatus.DRIVER_EN_ROUTE) && (
+                <button
+                  type="button"
+                  onClick={() => onOpenDispatch(booking.id, booking.humanReadableRef)}
+                  className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow-xs inline-flex items-center gap-1.5"
+                  title="Driver accepted but unable to continue? Re-dispatch to another driver"
+                >
+                  <IconRadio className="w-3.5 h-3.5" />
+                  <span>Re-dispatch Ride</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 disabled={togglingPhone}
                 onClick={handleTogglePhoneRelease}
                 className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition ${
-                  booking.customerPhoneReleased
+                  isPhoneReleased
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                 }`}
               >
-                {booking.customerPhoneReleased ? 'Phone Released' : 'Release Customer Phone'}
+                {isPhoneReleased ? 'Phone Released' : 'Release Customer Phone'}
               </button>
 
               {booking.status !== BookingStatus.TRIP_STARTED &&
@@ -435,6 +539,19 @@ Exclusions (If applicable):
                   >
                     <IconKey className="w-3.5 h-3.5" />
                     <span>OTP Override</span>
+                  </button>
+                )}
+
+              {booking.status !== BookingStatus.TRIP_STARTED &&
+                booking.status !== BookingStatus.TRIP_COMPLETED &&
+                booking.status !== BookingStatus.CANCELLED && (
+                  <button
+                    type="button"
+                    disabled={cancellingBooking}
+                    onClick={handleAdminCancelBooking}
+                    className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg shadow-xs transition"
+                  >
+                    {cancellingBooking ? 'Cancelling...' : 'Cancel Booking'}
                   </button>
                 )}
 
@@ -527,6 +644,48 @@ Exclusions (If applicable):
                   </button>
                 </div>
               )}
+
+            {/* Trip Cancelled Alert Box */}
+            {booking.status === BookingStatus.CANCELLED && (
+              <div className="p-3.5 bg-rose-50 border-2 border-rose-300 rounded-xl space-y-2 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                    <span className="font-black text-xs text-rose-900 uppercase tracking-wide">
+                      Booking Cancelled
+                    </span>
+                  </div>
+                  <span className="text-xs font-black px-2.5 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-200">
+                    {cancelEventData?.cancellationCharge && cancelEventData.cancellationCharge > 0
+                      ? `Cancellation Fee: ₹${cancelEventData.cancellationCharge}`
+                      : 'Free Cancellation (₹0)'}
+                  </span>
+                </div>
+                {cancelEventData?.reason && (
+                  <p className="text-xs text-rose-800 font-medium">
+                    Reason: {cancelEventData.reason}
+                  </p>
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-rose-200/60 text-[11px]">
+                  <div>
+                    <span className="text-rose-600 font-medium">Cancelled By:</span>{' '}
+                    <span className="font-bold text-rose-950">{cancelEventData?.cancelledBy || 'CUSTOMER'}</span>
+                  </div>
+                  <div>
+                    <span className="text-rose-600 font-medium">Cancellation Fee:</span>{' '}
+                    <span className="font-bold text-rose-950">₹{cancelEventData?.cancellationCharge ?? 0}</span>
+                  </div>
+                  <div>
+                    <span className="text-rose-600 font-medium">Advance Paid:</span>{' '}
+                    <span className="font-bold text-rose-950">₹{cancelEventData?.advancePaid ?? Number(booking.advanceAmount || 0)}</span>
+                  </div>
+                  <div>
+                    <span className="text-rose-600 font-medium">Refund Amount:</span>{' '}
+                    <span className="font-bold text-emerald-700">₹{cancelEventData?.refundAmount ?? 0}</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* FLOW A: Mini Live Tracking Map for Trip */}
             <div className="rounded-xl border border-slate-200 overflow-hidden">
@@ -745,9 +904,15 @@ Exclusions (If applicable):
                         <div className="w-0.5 h-full min-h-[28px] bg-slate-200 my-0.5" />
                       </div>
                       <div className="flex-1 pb-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide">Pickup Location</span>
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">Start</span>
+                        <div className="flex items-center justify-between flex-wrap gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide">Pickup Location</span>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">Start</span>
+                          </div>
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-300 rounded text-[10.5px] font-bold text-amber-900 shadow-2xs">
+                            <IconCalendar className="w-3 h-3 text-amber-700 shrink-0" />
+                            <span>Pickup: {pickupTiming.dateStr}, {pickupTiming.timeStr}</span>
+                          </div>
                         </div>
                         <p className="text-xs font-bold text-slate-900 mt-0.5">{booking.pickupAddress}</p>
                       </div>
@@ -796,8 +961,36 @@ Exclusions (If applicable):
                   </div>
 
                   {/* Customer Additional Notes / Luggage / Passengers / Carrier / Pet / Flight / GST / Alt Email */}
-                  {(meta.passengers || meta.luggage || meta.hasCarrier || meta.hasPet || meta.flightNumber || meta.gstin || meta.alternateEmail || meta.notes || meta.specialRequirements) && (
+                  {(Boolean(pickupTiming.dateStr !== '--') || meta.passengers || meta.luggage || meta.hasCarrier || meta.hasPet || meta.flightNumber || meta.gstin || meta.alternateEmail || meta.notes || meta.specialRequirements) && (
                     <div className="pt-2.5 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-4 gap-1.5 sm:gap-2 text-xs">
+                      {/* Pickup Timing */}
+                      <div className="bg-amber-50/90 p-2 sm:p-2.5 rounded-lg border border-amber-300">
+                        <span className="flex items-center gap-1 text-[10px] text-amber-800 font-bold mb-0.5">
+                          <IconCalendar className="w-3 h-3 text-amber-700 shrink-0" />
+                          <span>Pickup Timing</span>
+                        </span>
+                        <span className="font-extrabold text-amber-950 block text-[11px] sm:text-xs">
+                          {pickupTiming.dateStr}
+                        </span>
+                        <span className="font-bold text-amber-800 text-[10px] block">
+                          {pickupTiming.timeStr}
+                        </span>
+                      </div>
+                      {/* Booking Created Date */}
+                      {booking.createdAt && (
+                        <div className="bg-slate-50 p-2 sm:p-2.5 rounded-lg border border-slate-200">
+                          <span className="flex items-center gap-1 text-[10px] text-slate-500 font-semibold mb-0.5">
+                            <IconCalendar className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span>Booking Date</span>
+                          </span>
+                          <span className="font-bold text-slate-800 block text-[11px] sm:text-xs">
+                            {bookedTiming.dateStr}
+                          </span>
+                          <span className="text-slate-500 text-[10px] block font-medium">
+                            {bookedTiming.timeStr}
+                          </span>
+                        </div>
+                      )}
                       {meta.passengers ? (
                         <div className="bg-slate-50 p-2 sm:p-2.5 rounded-lg border border-slate-200">
                           <span className="flex items-center gap-1 text-[10px] text-slate-500 font-semibold mb-0.5">
@@ -975,6 +1168,22 @@ Exclusions (If applicable):
                     <p className="text-xs text-slate-600 font-mono mt-0.5">{assignedDriver.user.phone}</p>
                     <p className="text-xs text-slate-500 mt-1">License: {assignedDriver.licenseNumber}</p>
 
+                    {(booking.status === BookingStatus.DRIVER_ACCEPTED ||
+                      booking.status === BookingStatus.DRIVER_EN_ROUTE) && (
+                      <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-[11px] text-amber-800 font-medium">Driver unable to continue?</span>
+                        <button
+                          type="button"
+                          onClick={() => onOpenDispatch(booking.id, booking.humanReadableRef)}
+                          className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded text-xs font-bold inline-flex items-center gap-1 transition"
+                          title="Driver unable to continue the trip? Re-dispatch to another driver"
+                        >
+                          <IconRadio className="w-3 h-3 text-amber-700" />
+                          <span>Re-dispatch</span>
+                        </button>
+                      </div>
+                    )}
+
                     {/* Customer Rating & Review for Trip if Rated */}
                     {(() => {
                       const ratingEvt = booking.tripEvents?.find(
@@ -1125,6 +1334,62 @@ Exclusions (If applicable):
                   </div>
                 ))}
               </div>
+
+              {/* Recorded Waiting Sessions Breakdown */}
+              {(timingData.isWaitingActive || (timingData.waitingSessions && timingData.waitingSessions.length > 0)) && (
+                <div className="mt-2.5 p-3 rounded-lg border border-amber-200 bg-amber-50/70">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                      <span className="text-xs font-bold text-amber-950 uppercase tracking-wider">
+                        Customer Waiting Sessions Breakdown
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-mono font-bold text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded border border-amber-300">
+                      Total: {timingData.waitingMinutes > 0 ? `${timingData.waitingMinutes} mins` : `${timingData.totalAccumulatedSeconds || 0}s`}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {timingData.waitingSessions?.map((s, idx) => {
+                      const getOrdinalText = (n: number) => {
+                        const s = ['th', 'st', 'nd', 'rd'];
+                        const v = n % 100;
+                        return n + (s[(v - 20) % 10] || s[v] || s[0]);
+                      };
+                      return (
+                        <div
+                          key={s.id || idx}
+                          className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded bg-white border border-amber-200/80 shadow-2xs"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <span className="px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 text-[10px] font-bold">
+                              {s.label || `${getOrdinalText(idx + 1)} Waiting`}
+                            </span>
+                            <span className="text-slate-600 text-[11px]">
+                              Start: <strong className="text-slate-900">{s.startedAt}</strong> → Stop: <strong className="text-slate-900">{s.stoppedAt || 'Active'}</strong>
+                            </span>
+                          </div>
+                          <span className="font-mono font-bold text-amber-950 text-[11px]">
+                            {s.durationSeconds >= 60
+                              ? `${Math.floor(s.durationSeconds / 60)}m ${s.durationSeconds % 60}s`
+                              : `${s.durationSeconds}s`}
+                          </span>
+                        </div>
+                      );
+                    })}
+
+                    {timingData.isWaitingActive && (
+                      <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded bg-amber-100 border border-amber-300 animate-pulse">
+                        <span className="text-amber-900 font-semibold text-[11px]">
+                          🕒 Currently waiting for customer...
+                        </span>
+                        <span className="text-amber-950 font-bold text-[11px]">In Progress</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Verification Photos (5 Photos) & Odometer Evidence */}
@@ -1137,16 +1402,16 @@ Exclusions (If applicable):
                       </h4>
                     </div>
                     <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-md border border-sky-200">
-                      {verificationData.uploadedCount}/5 Photos
+                      {verificationData.uploadedCount}/{verificationData.totalCount} Photos
                     </span>
                   </div>
 
-                  {/* 5 Inspection Angles */}
+                  {/* Pre-Trip Inspection Angles */}
                   <div>
                     <span className="text-[11px] font-bold text-slate-700 block mb-1">
-                      Pre-Trip Verification Photos (5 Photos):
+                      Pre-Trip Verification Photos ({verificationData.totalCount} Photos):
                     </span>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:gap-2">
+                    <div className={`grid grid-cols-2 ${verificationData.photos.length === 5 ? 'sm:grid-cols-5' : 'sm:grid-cols-4'} gap-1.5 sm:gap-2`}>
                       {verificationData.photos.map((item) => {
                         const photoUrl = item.url;
                         return (

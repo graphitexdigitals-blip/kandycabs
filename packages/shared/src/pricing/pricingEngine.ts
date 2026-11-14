@@ -4,6 +4,10 @@ import {
   PricingCalculationInput,
   PricingBreakdown,
 } from './types';
+import {
+  getAirportFareForVehicle,
+  DEFAULT_NIGHT_CHARGE_SETTINGS,
+} from './airportRoutes';
 
 export const VEHICLE_RATES: Record<VehicleCategory, VehicleRateConfig> = {
   [VehicleCategory.HATCHBACK]: {
@@ -113,12 +117,12 @@ export const VEHICLE_RATES: Record<VehicleCategory, VehicleRateConfig> = {
     seats: 4,
     luggage: 3,
     perKmRate: {
-      [FuelType.CNG]: 13.0,
-      [FuelType.PETROL]: 14.0,
-      [FuelType.DIESEL]: 15.0,
+      [FuelType.CNG]: 12.0,
+      [FuelType.PETROL]: 13.0,
+      [FuelType.DIESEL]: 13.0,
     },
     extraKmRate: 15.0,
-    driverAllowancePerDay: 350.0,
+    driverAllowancePerDay: 300.0,
     nightCharge: 250.0,
     minRoundTripKmPerDay: 250,
     localPackages: [
@@ -135,7 +139,7 @@ export const VEHICLE_RATES: Record<VehicleCategory, VehicleRateConfig> = {
     perKmRate: {
       [FuelType.CNG]: 13.0,
       [FuelType.PETROL]: 14.0,
-      [FuelType.DIESEL]: 15.0,
+      [FuelType.DIESEL]: 14.0,
     },
     extraKmRate: 15.0,
     driverAllowancePerDay: 350.0,
@@ -148,7 +152,7 @@ export const VEHICLE_RATES: Record<VehicleCategory, VehicleRateConfig> = {
   },
   [VehicleCategory.SUV_ERTIGA]: {
     category: VehicleCategory.SUV_ERTIGA,
-    name: 'SUVs Ertiga',
+    name: 'SUV – Ertiga',
     description: 'Maruti Suzuki Ertiga or equivalent',
     seats: 6,
     luggage: 4,
@@ -168,14 +172,14 @@ export const VEHICLE_RATES: Record<VehicleCategory, VehicleRateConfig> = {
   },
   [VehicleCategory.SUV_CARENS]: {
     category: VehicleCategory.SUV_CARENS,
-    name: 'SUVs Kia Carens',
+    name: 'SUV – Kia Carens',
     description: 'Kia Carens Diesel Luxury 6+1',
     seats: 6,
     luggage: 4,
     perKmRate: {
       [FuelType.CNG]: 17.0,
       [FuelType.PETROL]: 18.0,
-      [FuelType.DIESEL]: 19.0,
+      [FuelType.DIESEL]: 18.0,
     },
     extraKmRate: 20.0,
     driverAllowancePerDay: 450.0,
@@ -188,14 +192,14 @@ export const VEHICLE_RATES: Record<VehicleCategory, VehicleRateConfig> = {
   },
   [VehicleCategory.SUV_INNOVA]: {
     category: VehicleCategory.SUV_INNOVA,
-    name: 'SUVs Toyota Innova',
+    name: 'SUV – Toyota Innova',
     description: 'Toyota Innova Diesel 7+1 Touring',
     seats: 7,
     luggage: 5,
     perKmRate: {
-      [FuelType.CNG]: 19.0,
-      [FuelType.PETROL]: 20.0,
-      [FuelType.DIESEL]: 21.0,
+      [FuelType.CNG]: 18.0,
+      [FuelType.PETROL]: 19.0,
+      [FuelType.DIESEL]: 19.0,
     },
     extraKmRate: 22.0,
     driverAllowancePerDay: 500.0,
@@ -208,14 +212,14 @@ export const VEHICLE_RATES: Record<VehicleCategory, VehicleRateConfig> = {
   },
   [VehicleCategory.SUV_CRYSTA]: {
     category: VehicleCategory.SUV_CRYSTA,
-    name: 'SUVs Innova Crysta',
-    description: 'Toyota Innova Crysta Diesel Luxury',
+    name: 'SUV – Innova Crysta',
+    description: 'Toyota Innova Crysta Diesel Luxury VIP',
     seats: 7,
     luggage: 5,
     perKmRate: {
-      [FuelType.CNG]: 22.0,
-      [FuelType.PETROL]: 23.0,
-      [FuelType.DIESEL]: 24.0,
+      [FuelType.CNG]: 20.0,
+      [FuelType.PETROL]: 21.0,
+      [FuelType.DIESEL]: 20.0,
     },
     extraKmRate: 25.0,
     driverAllowancePerDay: 500.0,
@@ -233,11 +237,11 @@ export const VEHICLE_RATES: Record<VehicleCategory, VehicleRateConfig> = {
     seats: 17,
     luggage: 10,
     perKmRate: {
-      [FuelType.CNG]: 30.0,
-      [FuelType.PETROL]: 31.0,
+      [FuelType.CNG]: 28.0,
+      [FuelType.PETROL]: 30.0,
       [FuelType.DIESEL]: 32.0,
     },
-    extraKmRate: 34.0,
+    extraKmRate: 32.0,
     driverAllowancePerDay: 650.0,
     nightCharge: 500.0,
     minRoundTripKmPerDay: 300,
@@ -290,12 +294,15 @@ export function calculateFare(input: PricingCalculationInput): PricingBreakdown 
   const minRoundTripKmPerDay = overrides?.minRoundTripKmPerDay !== undefined ? overrides.minRoundTripKmPerDay : config.minRoundTripKmPerDay;
   const gstRatePercent = overrides?.gstRatePercent !== undefined ? overrides.gstRatePercent : 5.0;
 
+  // Night charge options: check if transfer type is eligible
+  const applicableNightTypes = (overrides?.applicableNightTripTypes || input.applicableNightTripTypes || DEFAULT_NIGHT_CHARGE_SETTINGS.applicableTripTypes) as (TripType | string)[];
+  const isNightTripTypeEligible = applicableNightTypes.length === 0 || applicableNightTypes.includes(tripType) || applicableNightTypes.includes(String(tripType));
   const isNight = isNightTimeWindow(
     scheduledAt,
     overrides?.nightWindowStartHour ?? 22,
     overrides?.nightWindowEndHour ?? 6
   );
-  const nightCharge = isNight ? nightChargeAmount : 0;
+  const nightCharge = (isNight && isNightTripTypeEligible && overrides?.nightChargeEnabled !== false) ? nightChargeAmount : 0;
 
   let billableDistanceKm = distanceKm;
   let baseFare = 0;
@@ -345,15 +352,20 @@ export function calculateFare(input: PricingCalculationInput): PricingBreakdown 
       break;
     }
     case TripType.AIRPORT: {
-      // Minimum 35 km for airport transfers or custom admin threshold
-      const airportThreshold = extraKmThreshold || 35;
-      if (distanceKm > airportThreshold) {
+      // Airport Transfer: Billed strictly AS PER-KM CHARGE for ALL routes (No fixed prices)
+      // Calculated from Base Rate / KM, Extra KM Rate, and Extra KM Threshold from Fleet Tariff
+      if (extraKmThreshold && distanceKm > extraKmThreshold) {
         billableDistanceKm = distanceKm;
-        baseFare = airportThreshold * ratePerKm;
-        extraKmCharge = (distanceKm - airportThreshold) * extraKmRate;
+        baseFare = extraKmThreshold * ratePerKm;
+        extraKmCharge = (distanceKm - extraKmThreshold) * extraKmRate;
       } else {
-        billableDistanceKm = airportThreshold;
+        const minAirportKm = extraKmThreshold || 35;
+        billableDistanceKm = Math.max(distanceKm, minAirportKm);
         baseFare = billableDistanceKm * ratePerKm;
+      }
+      // Driver allowance for long airport trips (> 200 km)
+      if (billableDistanceKm > 200) {
+        driverAllowance = driverAllowancePerDay;
       }
       break;
     }

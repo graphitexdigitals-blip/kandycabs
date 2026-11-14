@@ -95,7 +95,12 @@ export async function GET(
         booking: formattedBooking,
         auditLogs,
       },
-      { status: 200 }
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        },
+      }
     );
   } catch (error: any) {
     console.error('Error in GET /api/admin/bookings/[id]:', error);

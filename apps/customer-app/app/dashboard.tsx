@@ -30,6 +30,9 @@ import {
   TripType,
   VehicleCategory,
   FuelType,
+  createSafeScheduledIso,
+  parseSafeIsoDate,
+  evaluateCancellationCharge,
 } from '@kandy-cabs/shared';
 
 export interface PlaceLocation {
@@ -760,7 +763,7 @@ export default function CustomerDashboardScreen() {
     setQuoteResult(null);
 
     try {
-      const scheduledDateTime = new Date(`${pickupDate}T${pickupTime}:00`).toISOString();
+      const scheduledDateTime = createSafeScheduledIso(pickupDate, pickupTime);
       const res = await customerApiClient.fetch('/api/pricing/quote', {
         method: 'POST',
         body: JSON.stringify({
@@ -906,7 +909,7 @@ export default function CustomerDashboardScreen() {
     try {
       let finalQuote = quoteResult?.quote;
       let dist = quoteResult?.distanceKm || 50;
-      const scheduledDateTime = new Date(`${pickupDate}T${pickupTime}:00`).toISOString();
+      const scheduledDateTime = createSafeScheduledIso(pickupDate, pickupTime);
 
       // 1. Create payment order via backend
       let orderId = `order_app_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -994,14 +997,48 @@ export default function CustomerDashboardScreen() {
     }
   };
 
-  const handleCancelBooking = (bookingId: string, ref: string) => {
+  const handleCancelBooking = (booking: any) => {
+    const bookingId = booking.id;
+    const ref = booking.humanReadableRef;
+    const category = booking.vehicle?.category || booking.category || 'SEDAN';
+    const evalResult = evaluateCancellationCharge(booking.scheduledAt, category, new Date(), {}, booking.tripType);
+
+    const isWithin3h = evalResult.isWithinWindow;
+    const fee = evalResult.applicableFeeIfCancelled;
+    const chargeEnabled = evalResult.chargeEnabled;
+    const advancePaid = Number(booking.advanceAmount || 0);
+
+    const isFeeApplicable = chargeEnabled && isWithin3h;
+    const cancellationFee = isFeeApplicable ? fee : 0;
+    const estimatedRefund = Math.max(0, advancePaid - cancellationFee);
+
+    const timeText = evalResult.hoursUntilPickup > 0
+      ? `(${evalResult.hoursUntilPickup}h left)`
+      : ``;
+
+    const title = isFeeApplicable ? 'Cancellation Fee Notice' : 'Cancel Booking';
+    const message = isFeeApplicable
+      ? `⚠️ This trip is scheduled within ${evalResult.windowHours} hours ${timeText}.\n\n` +
+        `• Advance Paid: ₹${advancePaid.toFixed(2)}\n` +
+        `• Cancellation Charge: ₹${cancellationFee.toFixed(2)} (${category})\n` +
+        `• Excess Refund to Account: ₹${estimatedRefund.toFixed(2)}\n\n` +
+        `According to policy, a cancellation fee of ₹${cancellationFee} will be deducted from your advance payment and the remaining excess amount of ₹${estimatedRefund.toFixed(2)} will be refunded.\n\n` +
+        `Are you sure you want to proceed?`
+      : `Free cancellation applies for this booking.\n\n` +
+        `• Advance Paid: ₹${advancePaid.toFixed(2)}\n` +
+        `• Cancellation Charge: ₹0.00\n` +
+        `• Refund to Account: ₹${advancePaid.toFixed(2)} (100% Full Refund)\n\n` +
+        `Are you sure you want to cancel booking Ref: ${ref}?`;
+
+    const cancelBtnText = isFeeApplicable ? `Cancel Ride (₹${fee} Fee)` : 'Yes, Cancel Ride';
+
     Alert.alert(
-      'Cancel Booking',
-      `Are you sure you want to cancel booking ${ref}?`,
+      title,
+      message,
       [
         { text: 'No, Keep Booking', style: 'cancel' },
         {
-          text: 'Yes, Cancel Ride',
+          text: cancelBtnText,
           style: 'destructive',
           onPress: async () => {
             setCancellingId(bookingId);
@@ -1012,7 +1049,13 @@ export default function CustomerDashboardScreen() {
               });
 
               if (res.success) {
-                Alert.alert('Cancelled', `Booking ${ref} has been cancelled.`);
+                const adv = Number(res.advancePaid ?? advancePaid);
+                const chg = Number(res.cancellationCharge ?? 0);
+                const refAmt = Number(res.refundAmount ?? 0);
+                const chargeMsg = chg > 0
+                  ? `• Advance Paid: ₹${adv.toFixed(2)}\n• Cancellation Fee Deducted: ₹${chg.toFixed(2)}\n• Excess Amount to be Refunded: ₹${refAmt.toFixed(2)}`
+                  : `Free cancellation applied.\n• Full Refund Amount: ₹${refAmt.toFixed(2)}`;
+                Alert.alert('Booking Cancelled', `Ride ${ref} has been cancelled successfully.\n\n${chargeMsg}\n\nExcess amount will be refunded. Your tax invoice has been updated with refund details.`);
                 fetchBookings();
               } else {
                 Alert.alert('Cancellation Notice', res.message || 'Cannot cancel booking.');
@@ -1686,7 +1729,7 @@ export default function CustomerDashboardScreen() {
                       <View style={styles.summaryCol}>
                         <Text style={styles.summaryLabel}>SCHEDULED</Text>
                         <Text style={styles.summaryVal}>
-                          {new Date(booking.scheduledAt).toLocaleString([], {
+                          {parseSafeIsoDate(booking.scheduledAt).toLocaleString([], {
                             month: 'short',
                             day: 'numeric',
                             hour: '2-digit',
@@ -1773,7 +1816,7 @@ export default function CustomerDashboardScreen() {
                         booking.status !== 'TRIP_IN_PROGRESS' && (
                           <TouchableOpacity
                             style={styles.cancelBtn}
-                            onPress={() => handleCancelBooking(booking.id, booking.humanReadableRef)}
+                            onPress={() => handleCancelBooking(booking)}
                             disabled={cancellingId === booking.id}
                           >
                             <Text style={styles.cancelBtnText}>
@@ -3352,13 +3395,13 @@ const styles = StyleSheet.create({
     color: '#b45309',
   },
   cancelBtn: {
-    backgroundColor: '#450a0a',
+    backgroundColor: '#dc2626',
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 8,
   },
   cancelBtnText: {
-    color: '#f87171',
+    color: '#ffffff',
     fontSize: 12,
     fontWeight: '700',
   },

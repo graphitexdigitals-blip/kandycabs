@@ -1746,7 +1746,7 @@ export default function TripDetailsScreen() {
         visible={isDatePickerOpen}
         currentDate={pickupDate}
         onSelect={(key, formatted) => {
-          const newDate = formatted || key;
+          const newDate = key || formatted;
           setPickupDate(newDate);
           setPickupDateError(false);
           setPickupTime((prev) => (prev ? getUpcomingPickupTime(newDate, prev) : ''));
@@ -1772,7 +1772,7 @@ export default function TripDetailsScreen() {
         visible={isReturnDatePickerOpen}
         currentDate={returnDate}
         onSelect={(key, formatted) => {
-          const newReturnDate = formatted || key;
+          const newReturnDate = key || formatted;
           setReturnDate(newReturnDate);
           setIsReturnDatePickerOpen(false);
         }}

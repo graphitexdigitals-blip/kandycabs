@@ -46,6 +46,7 @@ export function BroadcastDispatchModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [kycWarningDrivers, setKycWarningDrivers] = useState<DriverOption[] | null>(null);
+  const [reassignReason, setReassignReason] = useState('Driver accepted but unable to continue the trip');
 
   useEffect(() => {
     if (isOpen) {
@@ -123,26 +124,50 @@ export function BroadcastDispatchModal({
 
   if (!isOpen) return null;
 
+  const isDriverAssignedToThisTrip = (driverId: string) => {
+    if (!driverId) return false;
+    if (bookingData?.assignedDriverId === driverId) return true;
+    if (bookingData?.assignedDriver?.id === driverId) return true;
+    const driver = onlineDrivers.find((d) => d.id === driverId);
+    if (driver?.assignedBookings?.some((b: any) => b.id === bookingId)) return true;
+    return false;
+  };
+
   const toggleDriver = (id: string) => {
+    if (isDriverAssignedToThisTrip(id)) {
+      setError('Already same trip is assigned to same driver');
+      return;
+    }
+    setError('');
     setSelectedDriverIds((prev) =>
       prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
     );
   };
 
   const selectAllFiltered = () => {
-    const filteredIds = filteredDrivers.map((d) => d.id);
-    const allFilteredSelected = filteredIds.every((id) => selectedDriverIds.includes(id));
+    const validFilteredIds = filteredDrivers
+      .filter((d) => !isDriverAssignedToThisTrip(d.id))
+      .map((d) => d.id);
+    const allFilteredSelected =
+      validFilteredIds.length > 0 &&
+      validFilteredIds.every((id) => selectedDriverIds.includes(id));
 
     if (allFilteredSelected) {
-      setSelectedDriverIds((prev) => prev.filter((id) => !filteredIds.includes(id)));
+      setSelectedDriverIds((prev) => prev.filter((id) => !validFilteredIds.includes(id)));
     } else {
-      setSelectedDriverIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
+      setSelectedDriverIds((prev) => Array.from(new Set([...prev, ...validFilteredIds])));
     }
   };
 
   const handleInitialDispatch = () => {
     if (selectedDriverIds.length === 0) {
       setError('Please select at least one driver');
+      return;
+    }
+
+    const sameDriverId = selectedDriverIds.find((id) => isDriverAssignedToThisTrip(id));
+    if (sameDriverId) {
+      setError('Already same trip is assigned to same driver');
       return;
     }
 
@@ -167,7 +192,10 @@ export function BroadcastDispatchModal({
       const res = await fetch(`/api/admin/bookings/${bookingId}/dispatch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ driverIds: selectedDriverIds }),
+        body: JSON.stringify({
+          driverIds: selectedDriverIds,
+          reassignReason: reassignReason.trim() || 'Driver accepted but unable to continue the trip',
+        }),
       });
 
       const data = await res.json();
@@ -267,7 +295,7 @@ export function BroadcastDispatchModal({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                Broadcast Ride Dispatch
+                {bookingData?.assignedDriver ? 'Re-dispatch Ride (Reassign Driver)' : 'Broadcast Ride Dispatch'}
               </h3>
               <p className="text-xs text-slate-500">
                 Booking Ref: <span className="font-semibold text-slate-800">{bookingRef}</span>
@@ -369,9 +397,46 @@ export function BroadcastDispatchModal({
           )}
         </div>
 
+        {/* Driver Reassignment Notice when already accepted */}
+        {bookingData?.assignedDriver && (
+          <div className="mt-3 p-3 bg-amber-50/90 border-2 border-amber-300 rounded-xl text-xs text-amber-950 space-y-1.5 shadow-2xs">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              <span className="font-extrabold text-amber-950">
+                Re-dispatching Trip (Previously Accepted by {bookingData.assignedDriver.user?.fullName || 'Assigned Driver'})
+              </span>
+            </div>
+            <p className="text-[11px] text-amber-800 leading-snug">
+              Driver accepted but is unable to continue the trip. Re-dispatching will unassign this driver, broadcast to new driver(s), and log the reason in the official Audit Trail.
+            </p>
+            <div className="pt-1">
+              <label className="block text-[10px] font-bold text-amber-900 uppercase tracking-wide mb-1">
+                Reason for Re-dispatch (Recorded in Audit Trail)
+              </label>
+              <input
+                type="text"
+                value={reassignReason}
+                onChange={(e) => setReassignReason(e.target.value)}
+                placeholder="e.g. Driver unable to continue / Vehicle breakdown / Medical emergency"
+                className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              />
+            </div>
+          </div>
+        )}
+
         {error && (
-          <div className="my-3 rounded-lg bg-red-50 p-3 text-xs text-red-700 font-medium">
-            {error}
+          <div className="my-3 rounded-xl bg-rose-50 border-2 border-rose-300 p-3 text-xs text-rose-800 font-bold flex items-center justify-between gap-2 shadow-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-base">⚠️</span>
+              <span>{error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setError('')}
+              className="text-rose-500 hover:text-rose-700 font-bold text-sm px-1"
+            >
+              ✕
+            </button>
           </div>
         )}
 
@@ -497,27 +562,31 @@ export function BroadcastDispatchModal({
                 );
               });
 
-              const isOnTrip = activeBookingsOnDate.some(
+              const isThisTripDriver = isDriverAssignedToThisTrip(driver.id);
+              const isOnTrip = !isThisTripDriver && activeBookingsOnDate.some(
                 (b: any) => b.status === 'TRIP_STARTED' || b.status === 'IN_PROGRESS'
               );
-              const isAssigned = !isOnTrip && activeBookingsOnDate.length > 0;
+              const isAssigned = !isThisTripDriver && !isOnTrip && activeBookingsOnDate.length > 0;
 
               return (
                 <div
                   key={driver.id}
                   onClick={() => toggleDriver(driver.id)}
-                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-                    isSelected
-                      ? 'border-indigo-500 bg-indigo-50/50 shadow-xs'
-                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  className={`flex items-center justify-between p-3 rounded-xl border transition ${
+                    isThisTripDriver
+                      ? 'border-rose-300 bg-rose-50/50 cursor-not-allowed opacity-90'
+                      : isSelected
+                      ? 'border-indigo-500 bg-indigo-50/50 shadow-xs cursor-pointer'
+                      : 'border-slate-200 hover:border-slate-300 bg-white cursor-pointer'
                   }`}
                 >
                   <div className="flex items-center space-x-3 min-w-0">
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      onChange={() => {}}
-                      className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                      disabled={isThisTripDriver}
+                      onChange={() => toggleDriver(driver.id)}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 disabled:opacity-40"
                     />
                     <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
                       {driver.profilePhotoUrl ? (
@@ -537,7 +606,11 @@ export function BroadcastDispatchModal({
                         <span className="text-sm font-bold text-slate-900 truncate">
                           {driver.user.fullName}
                         </span>
-                        {isOnTrip ? (
+                        {isThisTripDriver ? (
+                          <span className="text-[10px] bg-rose-100 text-rose-800 border border-rose-300 px-1.5 py-0.5 rounded font-bold">
+                            Assigned to this trip
+                          </span>
+                        ) : isOnTrip ? (
                           <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">
                             On Trip
                           </span>
@@ -560,12 +633,18 @@ export function BroadcastDispatchModal({
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-500 truncate">
-                        {driver.user.phone} •{' '}
-                        {vehicle
-                          ? `${vehicle.category} (${vehicle.plateNumber || 'No Plate'})`
-                          : 'No Vehicle Assigned'}
-                      </p>
+                      {isThisTripDriver ? (
+                        <p className="text-[11px] text-rose-700 font-bold mt-0.5">
+                          ⚠️ Already same trip is assigned to same driver
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-500 truncate">
+                          {driver.user.phone} •{' '}
+                          {vehicle
+                            ? `${vehicle.category} (${vehicle.plateNumber || 'No Plate'})`
+                            : 'No Vehicle Assigned'}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -595,6 +674,8 @@ export function BroadcastDispatchModal({
             >
               {submitting
                 ? 'Broadcasting...'
+                : bookingData?.assignedDriver
+                ? `Re-dispatch to ${selectedDriverIds.length} Driver(s)`
                 : `Broadcast to ${selectedDriverIds.length} Driver(s)`}
             </button>
           </div>

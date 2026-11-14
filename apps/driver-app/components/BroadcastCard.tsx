@@ -197,7 +197,7 @@ export const BroadcastCard = memo(function BroadcastCard({
           onAccept={() => onAccept(dispatch.id)}
           disabled={isAccepting}
           isAccepting={isAccepting}
-          title={t('dashboard.slide_to_accept_ride', { defaultValue: 'Slide to Accept Ride →' })}
+          title={t('dashboard.slide_to_accept_ride', { defaultValue: 'Accept Ride →' })}
           acceptingTitle={t('dashboard.accepting', { defaultValue: 'Accepting...' })}
         />
         <TouchableOpacity

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@kandy-cabs/db';
-import { verifyAuthToken, BookingStatus } from '@kandy-cabs/shared';
+import {
+  verifyAuthToken,
+  BookingStatus,
+  DEFAULT_CANCELLATION_CONFIG,
+  CancellationRatesConfig,
+  evaluateCancellationCharge,
+} from '@kandy-cabs/shared';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
 import { RealtimeEvents } from '@/lib/realtime-events';
 
@@ -54,6 +60,10 @@ export async function POST(req: NextRequest) {
         customer: {
           include: { user: true },
         },
+        vehicle: true,
+        tripEvents: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
@@ -91,22 +101,45 @@ export async function POST(req: NextRequest) {
       return setCorsHeaders(res);
     }
 
-    // Enforce 2-hour cancellation rule
-    const now = Date.now();
-    const scheduledTime = new Date(booking.scheduledAt).getTime();
-    const twoHoursInMs = 2 * 60 * 60 * 1000;
-
-    if (scheduledTime - now < twoHoursInMs) {
-      const res = NextResponse.json(
-        {
-          success: false,
-          message:
-            'Free cancellation is only permitted at least 2 hours prior to scheduled pickup time. Please contact support.',
-        },
-        { status: 400 }
-      );
-      return setCorsHeaders(res);
+    // Fetch active cancellation policy configuration
+    let cancellationConfig: CancellationRatesConfig = DEFAULT_CANCELLATION_CONFIG;
+    try {
+      const rows = (await prisma.$queryRawUnsafe(`
+        SELECT "value" FROM "SystemSetting" WHERE "key" = 'cancellation_charges' LIMIT 1;
+      `)) as any[];
+      if (rows && rows.length > 0 && rows[0].value) {
+        const val = typeof rows[0].value === 'string' ? JSON.parse(rows[0].value) : rows[0].value;
+        cancellationConfig = {
+          windowHours: typeof val.windowHours === 'number' ? val.windowHours : DEFAULT_CANCELLATION_CONFIG.windowHours,
+          rates: {
+            ...DEFAULT_CANCELLATION_CONFIG.rates,
+            ...(val.rates || {}),
+          },
+        };
+      }
+    } catch (e) {
+      console.warn('Could not load dynamic cancellation config, using default:', e);
     }
+
+    // Determine category of booking
+    const category =
+      booking.vehicle?.category ||
+      booking.tripEvents?.find((e: any) => e.type === 'BOOKING_CREATED')?.payloadJson?.category ||
+      'SEDAN';
+
+    // Evaluate cancellation fee based on 3-hour window
+    const cancellationEvaluation = evaluateCancellationCharge(
+      booking.scheduledAt,
+      category,
+      new Date(),
+      cancellationConfig
+    );
+
+    const advancePaid = Number(booking.advanceAmount || 0);
+    const cancellationCharge = cancellationEvaluation.cancellationCharge;
+    const refundAmount = Math.max(0, advancePaid - cancellationCharge);
+    const isWithinWindow = cancellationEvaluation.isWithinWindow;
+    const hoursUntilPickup = cancellationEvaluation.hoursUntilPickup;
 
     // Atomic Cancellation Transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -118,7 +151,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // 2. Insert TripEvent
+      // 2. Insert TripEvent with full cancellation breakdown
       await tx.tripEvent.create({
         data: {
           bookingId,
@@ -126,8 +159,13 @@ export async function POST(req: NextRequest) {
           payloadJson: {
             cancelledBy: 'CUSTOMER',
             reason: reason.trim(),
-            refundEligible: true,
-            advancePaid: Number(booking.advanceAmount),
+            category,
+            cancellationCharge,
+            refundAmount,
+            advancePaid,
+            isWithinWindow,
+            hoursUntilPickup,
+            refundEligible: refundAmount > 0,
             timestamp: new Date().toISOString(),
           },
         },
@@ -140,7 +178,9 @@ export async function POST(req: NextRequest) {
           action: 'CANCEL_BOOKING',
           entityType: 'Booking',
           entityId: bookingId,
-          reason: `Customer cancelled ride: ${reason.trim()} (Refund eligible: true)`,
+          reason: isWithinWindow
+            ? `Customer cancelled ride within ${cancellationConfig.windowHours}h of pickup (${hoursUntilPickup}h left). Cancellation charge of ₹${cancellationCharge} applied to ${category}. Advance: ₹${advancePaid}, Refund: ₹${refundAmount}. Reason: ${reason.trim()}`
+            : `Customer cancelled ride (${hoursUntilPickup}h before pickup). Free cancellation applied. Full advance of ₹${refundAmount} eligible for refund. Reason: ${reason.trim()}`,
         },
       });
 
@@ -156,6 +196,7 @@ export async function POST(req: NextRequest) {
         bookingId,
         status: BookingStatus.CANCELLED,
         reason,
+        cancellationCharge,
       });
     }
 
@@ -170,14 +211,24 @@ export async function POST(req: NextRequest) {
       bookingId,
       status: BookingStatus.CANCELLED,
       reason,
+      cancellationCharge,
+      refundAmount,
     });
+
+    const successMessage = isWithinWindow
+      ? `Booking cancelled. A cancellation fee of ₹${cancellationCharge} was applied as the ride was cancelled within ${cancellationConfig.windowHours} hours of scheduled pickup. ${refundAmount > 0 ? `Net refund of ₹${refundAmount} will be processed.` : ''}`
+      : `Booking cancelled successfully with free cancellation. Full advance of ₹${refundAmount} will be refunded.`;
 
     const response = NextResponse.json(
       {
         success: true,
-        refundEligible: true,
+        cancellationCharge,
+        refundAmount,
+        advancePaid,
+        isWithinWindow,
+        refundEligible: refundAmount > 0,
         booking: result,
-        message: 'Booking cancelled successfully. Your advance payment is eligible for refund.',
+        message: successMessage,
       },
       { status: 200 }
     );

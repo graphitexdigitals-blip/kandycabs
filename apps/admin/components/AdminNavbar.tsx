@@ -19,6 +19,7 @@ import {
   IconLogout,
   IconMenu,
   IconX,
+  IconXCircle,
 } from './Icons';
 
 interface NavItem {
@@ -104,6 +105,13 @@ export function AdminNavbar() {
       label: 'Pricing & Tariffs',
       description: 'Per-km rates, min km, night & pet charges',
       icon: IconTag,
+      section: 'FLEET & DRIVERS',
+    },
+    {
+      href: '/cancellation',
+      label: 'Cancellation Rules',
+      description: 'Fleet & trip-wise cancellation charges & policies',
+      icon: IconXCircle,
       section: 'FLEET & DRIVERS',
     },
     {

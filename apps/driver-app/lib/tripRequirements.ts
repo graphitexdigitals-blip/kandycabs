@@ -27,7 +27,10 @@ export function formatTripDateTime(dateStr?: string | null, t?: (key: string, op
       isTomorrow: false,
     };
   }
-  const d = new Date(dateStr);
+  let cleanStr = typeof dateStr === 'string' ? dateStr : String(dateStr);
+  cleanStr = cleanStr.replace(/^00(\d{2})/, (_, yy) => `20${yy}`);
+  cleanStr = cleanStr.replace(/^(\d{1,3})-/, (_, y) => `${String(Number(y) < 100 ? 2000 + Number(y) : Number(y)).padStart(4, '0')}-`);
+  const d = new Date(cleanStr);
   if (isNaN(d.getTime())) {
     return {
       dateText: String(dateStr),
@@ -37,6 +40,7 @@ export function formatTripDateTime(dateStr?: string | null, t?: (key: string, op
       isTomorrow: false,
     };
   }
+  if (d.getFullYear() < 100) d.setFullYear(2000 + d.getFullYear());
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const tripStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();

@@ -22,6 +22,8 @@ export async function OPTIONS() {
 interface DbPricingCache {
   rules: any[];
   fleet: any[];
+  nightSettings: any;
+  airportRates: any;
   expiresAt: number;
 }
 
@@ -31,21 +33,43 @@ const DB_PRICING_CACHE_TTL_MS = 2 * 1000; // 2s
 async function getCachedPricingData() {
   const now = Date.now();
   if (dbPricingCache && now < dbPricingCache.expiresAt) {
-    return { rules: dbPricingCache.rules, fleet: dbPricingCache.fleet };
+    return {
+      rules: dbPricingCache.rules,
+      fleet: dbPricingCache.fleet,
+      nightSettings: dbPricingCache.nightSettings,
+      airportRates: dbPricingCache.airportRates,
+    };
   }
 
-  const [dbPricingRules, dbFleetCategories] = await Promise.all([
+  const [dbPricingRules, dbFleetCategories, systemSettings] = await Promise.all([
     prisma.pricingRule.findMany({ where: { isActive: true } }).catch(() => []),
     prisma.fleetCategory.findMany({ where: { isActive: true } }).catch(() => []),
+    prisma.systemSetting.findMany({
+      where: { key: { in: ['night_charge_settings', 'airport_city_rates'] } },
+    }).catch(() => []),
   ]);
+
+  let nightSettings = null;
+  let airportRates = null;
+  for (const s of systemSettings) {
+    if (s.key === 'night_charge_settings') nightSettings = s.value;
+    if (s.key === 'airport_city_rates') airportRates = s.value;
+  }
 
   dbPricingCache = {
     rules: dbPricingRules,
     fleet: dbFleetCategories,
+    nightSettings,
+    airportRates,
     expiresAt: now + DB_PRICING_CACHE_TTL_MS,
   };
 
-  return { rules: dbPricingRules, fleet: dbFleetCategories };
+  return {
+    rules: dbPricingRules,
+    fleet: dbFleetCategories,
+    nightSettings,
+    airportRates,
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -100,8 +124,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Load dynamic pricing rules & fleet categories from in-memory cached database snapshot
-    const { rules: dbPricingRules, fleet: dbFleetCategories } = await getCachedPricingData();
+    // 2. Load dynamic pricing rules, fleet categories, & settings from in-memory cached database snapshot
+    const {
+      rules: dbPricingRules,
+      fleet: dbFleetCategories,
+      nightSettings,
+      airportRates,
+    } = await getCachedPricingData();
 
     const fleetMap = new Map<string, any>();
     for (const f of dbFleetCategories) {
@@ -119,10 +148,17 @@ export async function POST(req: NextRequest) {
       ? [category]
       : [
           VehicleCategory.HATCHBACK,
+          VehicleCategory.SWIFT_DZIRE,
+          VehicleCategory.TOYOTA_ETIOS,
+          VehicleCategory.SUV_ERTIGA,
+          VehicleCategory.SUV_CARENS,
+          VehicleCategory.SUV_INNOVA,
+          VehicleCategory.SUV_CRYSTA,
+          VehicleCategory.TEMPO_TRAVELER,
+          VehicleCategory.URBANIA,
           VehicleCategory.SEDAN,
           VehicleCategory.SUV,
           VehicleCategory.SUV_PREMIUM,
-          VehicleCategory.TEMPO_TRAVELER,
         ];
 
     const quotes = categoriesToQuote.map((cat) => {
@@ -130,8 +166,8 @@ export async function POST(req: NextRequest) {
       const dbFleet = fleetMap.get(cat);
 
       // Determine strictly enabled fuels for this category configured in Admin Panel
-      const isCngOn = dbFleet ? Boolean(dbFleet.cngEnabled) : (cat === VehicleCategory.HATCHBACK || cat === VehicleCategory.SEDAN || cat === VehicleCategory.SUV);
-      const isPetrolOn = dbFleet ? Boolean(dbFleet.petrolEnabled) : (cat !== VehicleCategory.TEMPO_TRAVELER);
+      const isCngOn = dbFleet ? Boolean(dbFleet.cngEnabled) : (cat === VehicleCategory.HATCHBACK || cat === VehicleCategory.SEDAN || cat === VehicleCategory.SUV || cat === VehicleCategory.SUV_ERTIGA);
+      const isPetrolOn = dbFleet ? Boolean(dbFleet.petrolEnabled) : (cat !== VehicleCategory.TEMPO_TRAVELER && cat !== VehicleCategory.SWIFT_DZIRE && cat !== VehicleCategory.TOYOTA_ETIOS);
       const isDieselOn = dbFleet ? Boolean(dbFleet.dieselEnabled) : (cat !== VehicleCategory.HATCHBACK);
 
       const candidateFuels = [
@@ -165,6 +201,8 @@ export async function POST(req: NextRequest) {
             extraKmThreshold: dbRule?.extraKmThreshold ? Number(dbRule.extraKmThreshold) : dbFleet?.extraKmThreshold ? Number(dbFleet.extraKmThreshold) : undefined,
             driverAllowance: dbRule ? Number(dbRule.driverAllowance) : dbFleet ? Number(dbFleet.driverAllowance) : undefined,
             nightCharge: dbRule ? Number(dbRule.nightCharge) : dbFleet ? Number(dbFleet.nightCharge) : undefined,
+            nightChargeEnabled: nightSettings ? Boolean(nightSettings.enabled) : true,
+            applicableNightTripTypes: nightSettings?.applicableTripTypes,
             gstRatePercent: dbRule ? Number(dbRule.gstRatePercent) : undefined,
             nightWindowStartHour: dbRule ? dbRule.nightWindowStartHour : undefined,
             nightWindowEndHour: dbRule ? dbRule.nightWindowEndHour : undefined,
@@ -191,6 +229,9 @@ export async function POST(req: NextRequest) {
             packageHours,
             couponCode,
             overrides,
+            pickupAddress: body.pickupAddress,
+            dropAddress: body.dropAddress,
+            airportCityRates: airportRates,
           });
 
           return {

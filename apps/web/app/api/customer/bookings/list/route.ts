@@ -149,9 +149,31 @@ export async function GET(req: NextRequest) {
           comment: rawJson.comment || '',
         };
       }
+
+      const cancelEvent = b.tripEvents?.find(
+        (e: any) => e.type === 'BOOKING_CANCELLED'
+      );
+      let cancellationDetails = null;
+      if (cancelEvent?.payloadJson) {
+        const rawJson = typeof cancelEvent.payloadJson === 'string'
+          ? JSON.parse(cancelEvent.payloadJson)
+          : cancelEvent.payloadJson;
+        cancellationDetails = {
+          cancellationCharge: Number(rawJson.cancellationCharge ?? 0),
+          refundAmount: Number(rawJson.refundAmount ?? 0),
+          advancePaid: Number(rawJson.advancePaid ?? b.advanceAmount ?? 0),
+          isWithinWindow: Boolean(rawJson.isWithinWindow),
+          hoursUntilPickup: rawJson.hoursUntilPickup,
+          reason: rawJson.reason || 'Trip Cancelled',
+          cancelledBy: rawJson.cancelledBy || 'CUSTOMER',
+          timestamp: rawJson.timestamp || cancelEvent.createdAt,
+        };
+      }
+
       return {
         ...b,
         customerRating,
+        cancellationDetails,
         driverRating: b.assignedDriver ? 4.9 : null,
       };
     });

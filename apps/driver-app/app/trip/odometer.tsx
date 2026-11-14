@@ -692,15 +692,6 @@ export default function DriverOdometerScreen() {
 
         {/* Bottom Bar: Action to proceed to Odometer or OTP */}
         <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-          <View style={styles.instructionRow}>
-            <Ionicons name="information-circle" size={18} color="#0284c7" style={{ marginTop: 2, marginRight: 8 }} />
-            <Text style={styles.instructionText}>
-              {currentStep === 'selfie'
-                ? t('start_odometer.selfie_instruction', 'Capture driver cabin selfie from driving seat to proceed to odometer.')
-                : t('start_odometer.odometer_instruction', 'Capture vehicle starting odometer photo & confirm reading to proceed to customer OTP.')}
-            </Text>
-          </View>
-
           <TouchableOpacity
             style={[
               styles.primaryBtn,

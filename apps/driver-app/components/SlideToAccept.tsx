@@ -23,11 +23,20 @@ interface SlideToAcceptProps {
   fontSize?: number;
 }
 
+function formatSliderTitle(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/^slide\s+(?:right\s+to|to|right\s*:?|:)\s*/i, '')
+    .replace(/\b(?:slide\s+to|slide\s+right\s+to|slide\s+right)\b\s*/gi, '')
+    .replace(/\(\s*slide\s+right\s*\)/gi, '')
+    .trim();
+}
+
 export function SlideToAccept({
   onAccept,
   isAccepting = false,
   disabled = false,
-  title = 'SLIDE RIGHT TO ACCEPT',
+  title = 'ACCEPT',
   acceptingTitle = 'ACCEPTING RIDE...',
   fontSize = 12,
 }: SlideToAcceptProps) {
@@ -170,7 +179,7 @@ export function SlideToAccept({
         >
           <View style={[styles.textWrapper, { paddingLeft: 30, justifyContent: 'center' }]}>
             <Ionicons name="lock-closed" size={14} color="#ffffff" style={{ marginRight: 4 }} />
-            <Text style={styles.trackTextDisabled} numberOfLines={1}>{title}</Text>
+            <Text style={styles.trackTextDisabled} numberOfLines={1}>{formatSliderTitle(title)}</Text>
           </View>
           <View style={[styles.knob, styles.knobDisabled]}>
             <Ionicons name="lock-closed" size={20} color="#64748b" />
@@ -194,7 +203,7 @@ export function SlideToAccept({
           >
             {/* Animated Center Text & Chevrons */}
             <Animated.View style={[styles.textWrapper, { opacity: isAccepting ? 0.3 : textOpacity }]}>
-              <Text style={[styles.trackText, fontSize ? { fontSize } : null]}>{isAccepting ? acceptingTitle : title}</Text>
+              <Text style={[styles.trackText, fontSize ? { fontSize } : null]}>{isAccepting ? acceptingTitle : formatSliderTitle(title)}</Text>
               {!isAccepting && (
                 <Animated.View
                   style={[

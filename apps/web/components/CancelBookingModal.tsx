@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
+import { evaluateCancellationCharge } from '@kandy-cabs/shared';
 
 interface CancelBookingModalProps {
   bookingId: string | null;
   bookingRef: string;
   scheduledAt: string;
+  category?: string;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -15,6 +17,7 @@ export function CancelBookingModal({
   bookingId,
   bookingRef,
   scheduledAt,
+  category = 'SEDAN',
   isOpen,
   onClose,
   onSuccess,
@@ -25,18 +28,12 @@ export function CancelBookingModal({
 
   if (!isOpen || !bookingId) return null;
 
-  const scheduledTime = new Date(scheduledAt).getTime();
-  const now = Date.now();
-  const hoursLeft = (scheduledTime - now) / (1000 * 60 * 60);
-  const isEligible = hoursLeft >= 2;
+  const evalResult = evaluateCancellationCharge(scheduledAt, category, new Date());
+  const isWithin3h = evalResult.isWithinWindow;
+  const cancellationFee = evalResult.applicableFeeIfCancelled;
 
   const handleCancel = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isEligible) {
-      setError('Cancellations are only permitted at least 2 hours before scheduled pickup.');
-      return;
-    }
-
     setSubmitting(true);
     setError('');
 
@@ -74,13 +71,23 @@ export function CancelBookingModal({
             Are you sure you want to cancel booking <strong className="text-slate-900">{bookingRef}</strong>?
           </p>
 
-          {!isEligible ? (
-            <div className="p-3 bg-red-50 rounded-xl border border-red-200 text-red-700">
-              ⚠️ <strong>Cancellation Window Expired:</strong> Your trip is scheduled within the next 2 hours ({hoursLeft.toFixed(1)} hours left). Free cancellation is only available at least 2 hours before pickup.
+          {isWithin3h ? (
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-amber-800">
+                <span>⚠️ Cancellation Charge Policy Applies</span>
+              </div>
+              <p className="text-[11px] text-amber-800">
+                This trip is scheduled within 3 hours ({evalResult.hoursUntilPickup}h left). According to policy, a cancellation fee of <strong>₹{cancellationFee}</strong> applies for {category} and will be deducted from your advance.
+              </p>
             </div>
           ) : (
-            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-800">
-              ✅ <strong>Full Refund Eligible:</strong> You are cancelling {hoursLeft.toFixed(1)} hours before pickup. Your 25% online advance will be marked eligible for refund.
+            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-800 space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-emerald-900">
+                <span>✅ Free Cancellation Eligible</span>
+              </div>
+              <p className="text-[11px] text-emerald-700">
+                You are cancelling {evalResult.hoursUntilPickup} hours before pickup (more than 3 hours). Full advance payment will be refunded to your original source.
+              </p>
             </div>
           )}
 
@@ -115,10 +122,10 @@ export function CancelBookingModal({
             </button>
             <button
               type="submit"
-              disabled={submitting || !isEligible}
+              disabled={submitting}
               className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition disabled:opacity-50"
             >
-              {submitting ? 'Cancelling...' : 'Confirm Cancellation'}
+              {submitting ? 'Cancelling...' : isWithin3h ? `Confirm & Pay ₹${cancellationFee} Fee` : 'Confirm Cancellation'}
             </button>
           </div>
         </form>

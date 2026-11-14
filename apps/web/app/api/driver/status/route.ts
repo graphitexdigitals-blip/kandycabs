@@ -56,28 +56,18 @@ export async function GET(req: NextRequest) {
       orderBy: { scheduledAt: 'asc' },
     });
 
-    // Auto-release customer phone if within 5 hours
-    const idsToRelease: string[] = [];
-    for (let i = 0; i < assignedBookings.length; i++) {
-      const b = assignedBookings[i];
-      const scheduledMs = new Date(b.scheduledAt).getTime();
-      const isWithin5Hours = scheduledMs - Date.now() <= 5 * 60 * 60 * 1000;
-      if (isWithin5Hours && !b.customerPhoneReleased) {
-        idsToRelease.push(b.id);
-        assignedBookings[i] = {
-          ...b,
-          customerPhoneReleased: true,
-        };
+    // Safe scheduled date parser to handle 2-digit years or corrupt years gracefully
+    const parseSafeScheduledDate = (rawDate: any): Date | null => {
+      if (!rawDate) return null;
+      const d = new Date(rawDate);
+      if (isNaN(d.getTime())) return null;
+      if (d.getFullYear() < 100) {
+        d.setFullYear(2000 + d.getFullYear());
       }
-    }
-    if (idsToRelease.length > 0) {
-      await prisma.booking.updateMany({
-        where: { id: { in: idsToRelease } },
-        data: { customerPhoneReleased: true },
-      });
-    }
+      return d;
+    };
 
-    // Determine primary active booking:
+    // Primary active booking selection:
     // 1. Prioritize live trip in progress (TRIP_STARTED / DRIVER_EN_ROUTE)
     const liveTrip = assignedBookings.find(
       (b) => b.status === BookingStatus.TRIP_STARTED || b.status === BookingStatus.DRIVER_EN_ROUTE
@@ -171,6 +161,51 @@ export async function GET(req: NextRequest) {
       }));
     }
 
+    // Helper: auto-release if pickup time is within 5 hours of pickup (or pickup time has arrived)
+    const isBookingPhoneReleased = (b: any): boolean => {
+      if (!b) return false;
+      // 1. Explicit admin release
+      if (Boolean(b.customerPhoneReleased)) return true;
+      // 2. Already active on trip
+      if (['TRIP_STARTED', 'ON_TRIP', 'COMPLETED'].includes(b.status)) return true;
+      // 3. Auto-release if pickup time is within 5 hours of pickup
+      if (!b.scheduledAt) return false;
+      const schedDate = parseSafeScheduledDate(b.scheduledAt);
+      if (!schedDate || isNaN(schedDate.getTime())) return false;
+      const now = new Date();
+      const diffHours = (schedDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+      return diffHours <= 5 && diffHours >= -4;
+    };
+
+    // Mask customer phone number if phone is not released yet by admin or auto-released within 5 hours on pickup day
+    const maskBookingForDriver = (b: any) => {
+      if (!b) return null;
+      const isPhoneReleased = isBookingPhoneReleased(b);
+
+      if (isPhoneReleased) {
+        return {
+          ...b,
+          customerPhoneReleased: true,
+        };
+      }
+
+      return {
+        ...b,
+        customerPhoneReleased: false,
+        customer: b.customer
+          ? {
+              ...b.customer,
+              user: b.customer.user
+                ? {
+                    ...b.customer.user,
+                    phone: null,
+                  }
+                : null,
+            }
+          : null,
+      };
+    };
+
     const response = NextResponse.json(
       {
         success: true,
@@ -204,8 +239,8 @@ export async function GET(req: NextRequest) {
           docDates,
           expiringDocuments,
         },
-        activeBooking: activeBookingWithOtp || null,
-        upcomingBookings: upcomingBookings || [],
+        activeBooking: maskBookingForDriver(activeBookingWithOtp),
+        upcomingBookings: (upcomingBookings || []).map(maskBookingForDriver),
       },
       { status: 200 }
     );

@@ -85,16 +85,27 @@ export async function POST(req: NextRequest) {
       resolvedExistingName = '';
       const pastBooking = await prisma.booking.findFirst({
         where: {
-          OR: [
-            { customerPhone: normalizedPhone },
-            { customerPhone: phone.trim().replace(/\D/g, '').slice(-10) },
-          ],
+          customer: {
+            user: {
+              OR: [
+                { phone: normalizedPhone },
+                { phone: phone.trim().replace(/\D/g, '').slice(-10) },
+              ],
+            },
+          },
         },
-        select: { customerName: true },
+        include: {
+          customer: {
+            include: {
+              user: true,
+            },
+          },
+        },
         orderBy: { createdAt: 'desc' },
       });
-      if (pastBooking?.customerName && pastBooking.customerName.trim().length > 0 && pastBooking.customerName.trim().toLowerCase() !== 'customer') {
-        resolvedExistingName = pastBooking.customerName.trim();
+      const pastName = pastBooking?.customer?.user?.fullName?.trim();
+      if (pastName && pastName.length > 0 && pastName.toLowerCase() !== 'customer') {
+        resolvedExistingName = pastName;
       }
     }
 

@@ -145,10 +145,48 @@ export async function POST(req: NextRequest) {
               actualDropAddress: resolvedDropAddress || booking.dropAddress,
               actualDropLat: resolvedDropLat ?? booking.dropLat,
               actualDropLng: resolvedDropLng ?? booking.dropLng,
+              waitingMinutes: Number(body.waitingMinutes) || 0,
+              waitingDurationSeconds: Number(body.waitingDurationSeconds) || 0,
+              waitingSessions: Array.isArray(body.waitingSessions) ? body.waitingSessions : [],
               timestamp: now.toISOString(),
             },
           },
         });
+
+        // 3b. Insert or update WAITING_RECORDED event if wait time was recorded
+        const waitMins = Number(body.waitingMinutes) || 0;
+        const waitSecs = Number(body.waitingDurationSeconds) || 0;
+        const waitSessions = Array.isArray(body.waitingSessions) ? body.waitingSessions : [];
+        if (waitMins > 0 || waitSecs > 0 || waitSessions.length > 0) {
+          const existingWait = await tx.tripEvent.findFirst({
+            where: { bookingId, type: 'WAITING_RECORDED' },
+            orderBy: { createdAt: 'desc' },
+          });
+          const waitPayload = {
+            driverId: session.driverId,
+            waitingMinutes: waitMins,
+            durationSeconds: waitSecs,
+            totalAccumulatedSeconds: waitSecs,
+            waitingSessions: waitSessions,
+            isWaitingActive: false,
+            isWaitingPaused: false,
+            updatedAt: now.toISOString(),
+          };
+          if (existingWait) {
+            await tx.tripEvent.update({
+              where: { id: existingWait.id },
+              data: { payloadJson: waitPayload },
+            });
+          } else {
+            await tx.tripEvent.create({
+              data: {
+                bookingId,
+                type: 'WAITING_RECORDED',
+                payloadJson: waitPayload,
+              },
+            });
+          }
+        }
 
         // 4. Insert AuditLog
         await tx.auditLog.create({

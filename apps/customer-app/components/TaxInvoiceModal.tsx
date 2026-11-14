@@ -16,7 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Linking from 'expo-linking';
 import * as FileSystem from 'expo-file-system';
-import { KANDY_LOGO_BASE64 } from '@kandy-cabs/shared';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { KANDY_LOGO_BASE64, generateKandyInvoiceHtml } from '@kandy-cabs/shared';
 import { customerApiClient, getDynamicBaseUrl, customerTokenStorage } from '../lib/api';
 
 function formatOrdinalDate(d: Date): string {
@@ -264,12 +266,30 @@ function normalizeInvoiceData(raw: any): any {
     }
   }
 
+  const isCancelled = raw.cancellation?.isCancelled || raw.bookingStatus === 'CANCELLED' || booking.status === 'CANCELLED';
+  let cancellation = raw.cancellation;
+  if (isCancelled && !cancellation) {
+    const cancelCharge = Number(raw.cancellationCharge || 0);
+    const refAmt = Math.max(0, advancePaid - cancelCharge);
+    cancellation = {
+      isCancelled: true,
+      cancelledBy: 'CUSTOMER',
+      reason: booking.cancellationReason || 'Booking cancelled',
+      cancellationCharge: cancelCharge,
+      advancePaid: advancePaid,
+      refundAmount: refAmt,
+      refundStatus: refAmt > 0 ? 'Eligible for Refund (Processing)' : 'No Refund Applicable',
+    };
+  }
+
   return {
     invoiceNumber,
     invoiceDateFormatted,
     placeOfSupply: raw.placeOfSupply || 'Karnataka',
     supplyType: raw.supplyType || 'Passenger Transportation Service',
     bookingRef: invoiceNumber,
+    bookingStatus: raw.bookingStatus || booking.status || (isCancelled ? 'CANCELLED' : 'CONFIRMED'),
+    cancellation,
     customer: {
       name: customerName,
       phone: customer.phone || booking.customerPhone || '',
@@ -334,6 +354,7 @@ export function TaxInvoiceModal({
   const [invoice, setInvoice] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -360,41 +381,51 @@ export function TaxInvoiceModal({
 
   if (!isOpen || !bookingId) return null;
 
+  const generateLocalPdf = async (): Promise<string> => {
+    // 1. Generate full official HTML invoice template from invoice data
+    const htmlContent = generateKandyInvoiceHtml(invoice, { autoPrint: false });
+
+    // 2. Directly compile into native PDF file on device storage via expo-print
+    const { uri: tempPdfUri } = await Print.printToFileAsync({
+      html: htmlContent,
+    });
+
+    // 3. Prepare permanent named PDF destination
+    const fileName = `Kandy_Cabs_Tax_Invoice_${invoice.invoiceNumber}.pdf`;
+    const targetPdfUri = `${FileSystem.documentDirectory || FileSystem.cacheDirectory}${fileName}`;
+
+    // Move / Copy generated PDF to named file
+    await FileSystem.copyAsync({
+      from: tempPdfUri,
+      to: targetPdfUri,
+    });
+
+    return targetPdfUri;
+  };
+
   const handleDownloadPdf = async () => {
     if (!invoice || !bookingId) return;
     try {
       setDownloading(true);
-      const token = await customerTokenStorage.getTokenAsync();
-      const baseUrl = getDynamicBaseUrl();
-      const authParam = token ? `&auth=${encodeURIComponent(token)}` : '';
-      const downloadUrl = `${baseUrl}/api/customer/bookings/${bookingId}/invoice?format=html&download=1&print=true${authParam}`;
+      const targetPdfUri = await generateLocalPdf();
 
-      // 1. Also cache the HTML file locally on device if FileSystem is available
-      try {
-        const localPath = `${FileSystem.cacheDirectory || FileSystem.documentDirectory}Kandy_Cabs_Invoice_${invoice.invoiceNumber}.html`;
-        const htmlRes = await fetch(downloadUrl);
-        if (htmlRes.ok) {
-          const htmlText = await htmlRes.text();
-          await FileSystem.writeAsStringAsync(localPath, htmlText);
-        }
-      } catch (cacheErr) {
-        // Non-critical, continue to browser download
-        console.log('[TaxInvoice] Local cache warning:', cacheErr);
-      }
-
-      // 2. Open in device browser for immediate print / save as PDF
-      const supported = await Linking.canOpenURL(downloadUrl);
-      if (supported) {
-        await Linking.openURL(downloadUrl);
-      } else {
-        await Share.share({
-          title: `Tax Invoice - ${invoice.invoiceNumber}`,
-          message: `Kandy Cabs Official Tax Invoice #${invoice.invoiceNumber}\nDownload PDF: ${downloadUrl}`,
-          url: downloadUrl,
+      // 4. Directly save / share without redirecting to any external browser page
+      const isSharingAvailable = await Sharing.isAvailableAsync();
+      if (isSharingAvailable) {
+        await Sharing.shareAsync(targetPdfUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Save Invoice #${invoice.invoiceNumber}`,
+          UTI: 'com.adobe.pdf',
         });
+      } else {
+        Alert.alert(
+          'Invoice PDF Saved',
+          `Tax Invoice #${invoice.invoiceNumber} has been downloaded and saved to your device:\n\n${targetPdfUri}`
+        );
       }
     } catch (err: any) {
-      Alert.alert('Download Error', err.message || 'Unable to download tax invoice at this time.');
+      console.error('[TaxInvoice] Direct PDF download error:', err);
+      Alert.alert('Download Error', err.message || 'Unable to download invoice at this time.');
     } finally {
       setDownloading(false);
     }
@@ -403,17 +434,36 @@ export function TaxInvoiceModal({
   const handleShare = async () => {
     if (!invoice || !bookingId) return;
     try {
-      const token = await customerTokenStorage.getTokenAsync();
-      const baseUrl = getDynamicBaseUrl();
-      const authParam = token ? `&auth=${encodeURIComponent(token)}` : '';
-      const downloadUrl = `${baseUrl}/api/customer/bookings/${bookingId}/invoice?format=html&download=1&print=true${authParam}`;
+      setSharing(true);
+      // Generate actual PDF file on device
+      const targetPdfUri = await generateLocalPdf();
 
-      await Share.share({
-        title: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}`,
-        message: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}\nCustomer: ${invoice.customer?.name || 'Customer'}\nTotal: ₹${invoice.financials?.grandTotal?.toFixed(2) || '0.00'}\nDownload Official PDF: ${downloadUrl}`,
-        url: downloadUrl,
-      });
-    } catch (_) {}
+      const isSharingAvailable = await Sharing.isAvailableAsync();
+      if (isSharingAvailable) {
+        // Share actual .pdf document directly to WhatsApp, Email, Drive, etc.
+        await Sharing.shareAsync(targetPdfUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Share Kandy Cabs Invoice #${invoice.invoiceNumber}`,
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        // Fallback to text link if device doesn't support file sharing
+        const token = await customerTokenStorage.getTokenAsync();
+        const baseUrl = getDynamicBaseUrl();
+        const authParam = token ? `&auth=${encodeURIComponent(token)}` : '';
+        const downloadUrl = `${baseUrl}/api/customer/bookings/${bookingId}/invoice?format=html&download=1&print=true${authParam}`;
+        await Share.share({
+          title: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}`,
+          message: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}\nCustomer: ${invoice.customer?.name || 'Customer'}\nTotal: ₹${invoice.financials?.grandTotal?.toFixed(2) || '0.00'}\nDownload Official PDF: ${downloadUrl}`,
+          url: downloadUrl,
+        });
+      }
+    } catch (err: any) {
+      console.error('[TaxInvoice] Share PDF error:', err);
+      Alert.alert('Share Error', err.message || 'Unable to share invoice at this time.');
+    } finally {
+      setSharing(false);
+    }
   };
 
   return (
@@ -437,11 +487,17 @@ export function TaxInvoiceModal({
             </View>
 
             <View style={styles.topBarRight}>
-              <TouchableOpacity style={styles.iconActionBtn} onPress={handleDownloadPdf} activeOpacity={0.7}>
-                <Ionicons name="download-outline" size={17} color="#162232" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.iconActionBtn} onPress={handleShare} activeOpacity={0.7}>
-                <Ionicons name="share-social-outline" size={17} color="#162232" />
+              <TouchableOpacity
+                style={styles.iconActionBtn}
+                onPress={handleShare}
+                activeOpacity={0.7}
+                disabled={sharing || downloading}
+              >
+                {sharing ? (
+                  <ActivityIndicator size="small" color="#f74a01" />
+                ) : (
+                  <Ionicons name="share-social-outline" size={17} color="#162232" />
+                )}
               </TouchableOpacity>
               <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
                 <Ionicons name="close" size={20} color="#162232" />
@@ -495,10 +551,68 @@ export function TaxInvoiceModal({
                   </View>
                 </View>
 
-                {/* 2. Navy TAX INVOICE Banner */}
-                <View style={styles.taxInvoiceNavyBanner}>
-                  <Text style={styles.taxInvoiceNavyText}>TAX INVOICE</Text>
+                {/* 2. Navy TAX INVOICE Banner / Cancellation Banner */}
+                <View style={[
+                  styles.taxInvoiceNavyBanner,
+                  invoice.cancellation?.isCancelled ? styles.taxInvoiceCancelledBanner : null
+                ]}>
+                  <Text style={styles.taxInvoiceNavyText}>
+                    {invoice.cancellation?.isCancelled
+                      ? 'TAX INVOICE / CANCELLATION VOUCHER (CANCELLED)'
+                      : 'TAX INVOICE'}
+                  </Text>
                 </View>
+
+                {/* Dedicated Cancellation Charges & Excess Refund Breakdown */}
+                {invoice.cancellation?.isCancelled ? (
+                  <View style={styles.cancellationCard}>
+                    <View style={styles.cancellationCardHeader}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons name="warning-outline" size={15} color="#be123c" />
+                        <Text style={styles.cancellationCardTitle}>CANCELLATION CHARGES & REFUND BREAKDOWN</Text>
+                      </View>
+                      <View style={styles.cancellationBadge}>
+                        <Text style={styles.cancellationBadgeText}>TRIP CANCELLED</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.cancellationRow}>
+                      <Text style={styles.cancellationLbl}>Total Advance Paid:</Text>
+                      <Text style={styles.cancellationVal}>
+                        ₹{(invoice.cancellation.advancePaid ?? invoice.financials?.advancePaid ?? 0).toFixed(2)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.cancellationRow}>
+                      <Text style={styles.cancellationLbl}>Applicable Cancellation Charge:</Text>
+                      <Text style={[styles.cancellationVal, { color: '#be123c' }]}>
+                        - ₹{(invoice.cancellation.cancellationCharge ?? 0).toFixed(2)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.cancellationRefundRow}>
+                      <Text style={styles.cancellationRefundLbl}>Excess Amount to be Refunded:</Text>
+                      <Text style={styles.cancellationRefundVal}>
+                        ₹{(invoice.cancellation.refundAmount ?? 0).toFixed(2)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.cancellationRow}>
+                      <Text style={styles.cancellationLbl}>Refund Settlement Status:</Text>
+                      <Text style={[styles.cancellationVal, { color: '#0284c7' }]}>
+                        {invoice.cancellation.refundStatus || 'Eligible for Refund (Processing)'}
+                      </Text>
+                    </View>
+
+                    {invoice.cancellation.reason ? (
+                      <View style={[styles.cancellationRow, { borderBottomWidth: 0, paddingTop: 4 }]}>
+                        <Text style={styles.cancellationReasonTxt}>
+                          Reason: {invoice.cancellation.reason}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
 
                 {/* 3. Table 1: Invoice Meta */}
                 <View style={styles.tableBordered}>
@@ -751,11 +865,21 @@ export function TaxInvoiceModal({
                   <Text style={styles.sectionHeaderTitle}>REMARKS / PAYMENT DETAILS</Text>
                   <Text style={styles.remarksBodyText}>{invoice.remarks}</Text>
                   <View style={styles.paymentBadgeRow}>
-                    <Text style={styles.paymentBadgeTxt}>
-                      Advance: <Text style={{ fontWeight: '800' }}>₹{invoice.financials?.advancePaid?.toFixed(2)} ({invoice.financials?.advanceStatus})</Text>
-                      {'  '}|{'  '}
-                      Balance: <Text style={{ fontWeight: '800' }}>₹{invoice.financials?.balanceDue?.toFixed(2)} ({invoice.financials?.balanceStatus})</Text>
-                    </Text>
+                    {invoice.cancellation?.isCancelled ? (
+                      <Text style={styles.paymentBadgeTxt}>
+                        Advance Paid: <Text style={{ fontWeight: '800' }}>₹{(invoice.cancellation.advancePaid ?? invoice.financials?.advancePaid ?? 0).toFixed(2)}</Text>
+                        {'  '}|{'  '}
+                        Cancellation Fee: <Text style={{ fontWeight: '800', color: '#be123c' }}>₹{(invoice.cancellation.cancellationCharge ?? 0).toFixed(2)}</Text>
+                        {'  '}|{'  '}
+                        Excess Refund: <Text style={{ fontWeight: '800', color: '#047857' }}>₹{(invoice.cancellation.refundAmount ?? 0).toFixed(2)}</Text>
+                      </Text>
+                    ) : (
+                      <Text style={styles.paymentBadgeTxt}>
+                        Advance: <Text style={{ fontWeight: '800' }}>₹{invoice.financials?.advancePaid?.toFixed(2)} ({invoice.financials?.advanceStatus})</Text>
+                        {'  '}|{'  '}
+                        Balance: <Text style={{ fontWeight: '800' }}>₹{invoice.financials?.balanceDue?.toFixed(2)} ({invoice.financials?.balanceStatus})</Text>
+                      </Text>
+                    )}
                   </View>
                 </View>
 
@@ -780,8 +904,14 @@ export function TaxInvoiceModal({
                 disabled={downloading}
                 activeOpacity={0.8}
               >
-                <Ionicons name="document-text-outline" size={17} color="#ffffff" style={{ marginRight: 6 }} />
-                <Text style={styles.bottomDownloadBtnText}>Download PDF Copy</Text>
+                {downloading ? (
+                  <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 8 }} />
+                ) : (
+                  <Ionicons name="document-text-outline" size={17} color="#ffffff" style={{ marginRight: 6 }} />
+                )}
+                <Text style={styles.bottomDownloadBtnText}>
+                  {downloading ? 'Generating PDF...' : 'Download PDF Copy'}
+                </Text>
               </TouchableOpacity>
             </ScrollView>
           ) : null}
@@ -1017,6 +1147,91 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 2,
+  },
+  taxInvoiceCancelledBanner: {
+    backgroundColor: '#be123c',
+  },
+
+  /* Cancellation Card Styles */
+  cancellationCard: {
+    borderWidth: 1.5,
+    borderColor: '#fda4af',
+    backgroundColor: '#fff1f2',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  cancellationCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#fecdd3',
+    borderStyle: 'dashed',
+    paddingBottom: 6,
+    marginBottom: 6,
+  },
+  cancellationCardTitle: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: '#be123c',
+    letterSpacing: 0.5,
+  },
+  cancellationBadge: {
+    backgroundColor: '#be123c',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 4,
+  },
+  cancellationBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  cancellationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 3,
+  },
+  cancellationLbl: {
+    fontSize: 11,
+    color: '#4c0519',
+    fontWeight: '600',
+  },
+  cancellationVal: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#162232',
+  },
+  cancellationRefundRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#ffe4e6',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#f43f5e',
+    borderStyle: 'dashed',
+    paddingVertical: 5,
+    paddingHorizontal: 4,
+    marginVertical: 4,
+    borderRadius: 4,
+  },
+  cancellationRefundLbl: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#047857',
+  },
+  cancellationRefundVal: {
+    fontSize: 12.5,
+    fontWeight: '900',
+    color: '#047857',
+  },
+  cancellationReasonTxt: {
+    fontSize: 10,
+    color: '#64748b',
+    fontStyle: 'italic',
   },
 
   /* Section Title */

@@ -62,8 +62,8 @@ export async function GET(
         },
         vehicle: true,
         tripEvents: {
-          where: { type: 'BOOKING_CREATED' },
-          take: 1,
+          where: { type: { in: ['BOOKING_CREATED', 'BOOKING_CANCELLED'] } },
+          orderBy: { createdAt: 'desc' },
         },
         payments: {
           orderBy: { verifiedAt: 'desc' },
