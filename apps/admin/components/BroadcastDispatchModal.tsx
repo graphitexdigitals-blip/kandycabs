@@ -397,33 +397,6 @@ export function BroadcastDispatchModal({
           )}
         </div>
 
-        {/* Driver Reassignment Notice when already accepted */}
-        {bookingData?.assignedDriver && (
-          <div className="mt-3 p-3 bg-amber-50/90 border-2 border-amber-300 rounded-xl text-xs text-amber-950 space-y-1.5 shadow-2xs">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
-              <span className="font-extrabold text-amber-950">
-                Re-dispatching Trip (Previously Accepted by {bookingData.assignedDriver.user?.fullName || 'Assigned Driver'})
-              </span>
-            </div>
-            <p className="text-[11px] text-amber-800 leading-snug">
-              Driver accepted but is unable to continue the trip. Re-dispatching will unassign this driver, broadcast to new driver(s), and log the reason in the official Audit Trail.
-            </p>
-            <div className="pt-1">
-              <label className="block text-[10px] font-bold text-amber-900 uppercase tracking-wide mb-1">
-                Reason for Re-dispatch (Recorded in Audit Trail)
-              </label>
-              <input
-                type="text"
-                value={reassignReason}
-                onChange={(e) => setReassignReason(e.target.value)}
-                placeholder="e.g. Driver unable to continue / Vehicle breakdown / Medical emergency"
-                className="w-full text-xs px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
-              />
-            </div>
-          </div>
-        )}
-
         {error && (
           <div className="my-3 rounded-xl bg-rose-50 border-2 border-rose-300 p-3 text-xs text-rose-800 font-bold flex items-center justify-between gap-2 shadow-xs">
             <div className="flex items-center gap-2">
