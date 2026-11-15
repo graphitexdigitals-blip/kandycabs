@@ -465,30 +465,87 @@ export default function CancellationPage() {
             </div>
           </div>
 
-          {/* MODE 1: ADVANCE NON-REFUNDABLE ACTIVE BANNER */}
+          {/* MODE 1: ADVANCE NON-REFUNDABLE ACTIVE BANNER & WINDOW SETTING */}
           {currentMode === 'ADVANCE_NON_REFUNDABLE' && (
-            <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 space-y-3 animate-in fade-in">
-              <div className="flex items-center gap-2.5">
-                <span className="text-amber-600 text-base font-bold">⚠️</span>
-                <h4 className="text-xs font-black text-amber-950 uppercase tracking-wide">
-                  Advance Non-Refundable Policy Active for {selectedTripMeta.label}
-                </h4>
+            <div className="space-y-4 animate-in fade-in">
+              {/* Pickup Window Setting for Advance Non-Refundable */}
+              <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-amber-950">Advance Non-Refundable Pickup Window</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-200 text-amber-900">Policy Window</span>
+                  </div>
+                  <p className="text-xs text-amber-800 mt-0.5">
+                    Advance payment is retained as cancellation fee <strong>only if cancelled within this window</strong> before scheduled pickup. More than this window is 100% Free Cancellation.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1 mr-2">
+                    <button
+                      type="button"
+                      onClick={() => updateCurrentRule({ windowHours: 2 })}
+                      className={`px-2.5 py-1 text-xs font-black rounded-lg border transition ${
+                        currentRule.windowHours === 2
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      2 Hours
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateCurrentRule({ windowHours: 3 })}
+                      className={`px-2.5 py-1 text-xs font-black rounded-lg border transition ${
+                        currentRule.windowHours === 3
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      3 Hours
+                    </button>
+                  </div>
+                  <span className="text-xs text-slate-600 font-medium">Charge within:</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="48"
+                    value={currentRule.windowHours}
+                    onChange={(e) =>
+                      updateCurrentRule({
+                        windowHours: Math.max(1, parseInt(e.target.value) || 3),
+                      })
+                    }
+                    className="w-16 px-2.5 py-1.5 text-xs font-black text-center border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-rose-500 shadow-2xs"
+                  />
+                  <span className="text-xs font-bold text-slate-700">Hours before pickup</span>
+                </div>
               </div>
-              <p className="text-xs text-amber-900 leading-relaxed">
-                When a customer or administrator cancels a <strong>{selectedTripMeta.label}</strong> booking, the advance payment received at the time of booking will <strong>NOT be refunded</strong>. The entire advance amount is retained and recorded as the cancellation fee in the tax invoice and booking records.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                <div className="p-3 bg-white/80 rounded-xl border border-amber-200">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Cancellation Fee</span>
-                  <p className="text-xs font-black text-slate-900 mt-0.5">100% of Advance Received</p>
+
+              {/* Information Grid */}
+              <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-amber-600 text-base font-bold">⚠️</span>
+                  <h4 className="text-xs font-black text-amber-950 uppercase tracking-wide">
+                    Advance Policy Rules for {selectedTripMeta.label}
+                  </h4>
                 </div>
-                <div className="p-3 bg-white/80 rounded-xl border border-amber-200">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Customer Refund</span>
-                  <p className="text-xs font-black text-rose-600 mt-0.5">₹0.00 (Non-Refundable)</p>
-                </div>
-                <div className="p-3 bg-white/80 rounded-xl border border-amber-200">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Time Restriction</span>
-                  <p className="text-xs font-black text-slate-900 mt-0.5">Applies at all times</p>
+                <p className="text-xs text-amber-900 leading-relaxed">
+                  • <strong>Within {currentRule.windowHours} hours of pickup:</strong> Advance payment received will <strong>NOT be refunded</strong> and is retained as the cancellation fee.<br />
+                  • <strong>More than {currentRule.windowHours} hours before pickup:</strong> <strong>100% Free Cancellation</strong>. Full advance payment will be refunded to the customer.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  <div className="p-3 bg-white/80 rounded-xl border border-amber-200">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Within {currentRule.windowHours}h Window</span>
+                    <p className="text-xs font-black text-amber-900 mt-0.5">Advance Retained as Fee</p>
+                  </div>
+                  <div className="p-3 bg-white/80 rounded-xl border border-amber-200">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">More than {currentRule.windowHours}h before Pickup</span>
+                    <p className="text-xs font-black text-emerald-700 mt-0.5">100% Full Refund (₹0 Fee)</p>
+                  </div>
+                  <div className="p-3 bg-white/80 rounded-xl border border-amber-200">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Policy Window</span>
+                    <p className="text-xs font-black text-slate-900 mt-0.5">{currentRule.windowHours} Hours before Scheduled Pickup</p>
+                  </div>
                 </div>
               </div>
             </div>

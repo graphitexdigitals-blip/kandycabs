@@ -370,7 +370,7 @@ export default function MyBookingsScreen() {
 
     if (isAdvanceNonRefundable) {
       title = 'Cancel Ride?';
-      message = `Advance of ₹${advancePaid.toFixed(0)} is non-refundable and will be retained as cancellation fee.`;
+      message = `Advance of ₹${advancePaid.toFixed(0)} is non-refundable within ${evalResult.windowHours}h of pickup.`;
       cancelBtnText = 'Cancel (No Refund)';
     } else if (evalResult.isWithinWindow && !evalResult.freeCancellation) {
       title = 'Cancel Ride?';
@@ -711,7 +711,7 @@ export default function MyBookingsScreen() {
                             numberOfLines={1}
                           >
                             {tripPolicy.mode === 'ADVANCE_NON_REFUNDABLE'
-                              ? '• Non-refundable'
+                              ? `• Free cancel >${tripPolicy.windowHours}h`
                               : tripPolicy.mode === 'FREE'
                               ? '• Free cancel'
                               : `• Free cancel >${tripPolicy.windowHours}h`}

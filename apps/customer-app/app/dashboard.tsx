@@ -1039,7 +1039,7 @@ export default function CustomerDashboardScreen() {
 
     if (isAdvanceNonRefundable) {
       title = 'Cancel Ride?';
-      message = `Advance of ₹${advancePaid.toFixed(0)} is non-refundable and will be retained as cancellation fee.`;
+      message = `Advance of ₹${advancePaid.toFixed(0)} is non-refundable within ${evalResult.windowHours}h of pickup.`;
       cancelBtnText = 'Cancel (No Refund)';
     } else if (evalResult.isWithinWindow && !evalResult.freeCancellation) {
       title = 'Cancel Ride?';

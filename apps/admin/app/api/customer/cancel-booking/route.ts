@@ -182,10 +182,10 @@ export async function POST(req: NextRequest) {
 
       // 3. Insert AuditLog
       let auditReason = '';
-      if (mode === 'ADVANCE_NON_REFUNDABLE') {
-        auditReason = `Customer cancelled ride (${booking.tripType}). Advance Non-Refundable policy applied: Advance of ₹${advancePaid} retained as cancellation fee. Refund: ₹0. Reason: ${reason.trim()}`;
-      } else if (mode === 'FREE' || cancellationCharge === 0) {
-        auditReason = `Customer cancelled ride (${booking.tripType}, ${hoursUntilPickup}h before pickup). Free cancellation applied. Full advance of ₹${refundAmount} eligible for refund. Reason: ${reason.trim()}`;
+      if (mode === 'ADVANCE_NON_REFUNDABLE' && isWithinWindow) {
+        auditReason = `Customer cancelled ride (${booking.tripType}) within ${cancellationEvaluation.windowHours}h of pickup. Advance of ₹${advancePaid} retained as cancellation fee. Refund: ₹0. Reason: ${reason.trim()}`;
+      } else if (cancellationCharge === 0) {
+        auditReason = `Customer cancelled ride (${booking.tripType}, ${hoursUntilPickup}h before pickup). Free cancellation applied (> ${cancellationEvaluation.windowHours}h). Full advance of ₹${refundAmount} eligible for refund. Reason: ${reason.trim()}`;
       } else {
         auditReason = `Customer cancelled ride (${booking.tripType}) within ${cancellationEvaluation.windowHours}h of pickup (${hoursUntilPickup}h left). Fleet fee of ₹${cancellationCharge} applied to ${category}. Advance: ₹${advancePaid}, Net Refund: ₹${refundAmount}. Reason: ${reason.trim()}`;
       }
@@ -233,8 +233,8 @@ export async function POST(req: NextRequest) {
     });
 
     let successMessage = '';
-    if (mode === 'ADVANCE_NON_REFUNDABLE') {
-      successMessage = `Booking cancelled. As per the cancellation policy for ${booking.tripType || 'this ride'}, the advance payment of ₹${advancePaid} is non-refundable and has been charged as the cancellation fee.`;
+    if (mode === 'ADVANCE_NON_REFUNDABLE' && isWithinWindow) {
+      successMessage = `Booking cancelled. As the ride was cancelled within ${cancellationEvaluation.windowHours} hours of scheduled pickup, the advance payment of ₹${advancePaid} is non-refundable and has been charged as the cancellation fee.`;
     } else if (cancellationCharge > 0) {
       successMessage = `Booking cancelled. A cancellation fee of ₹${cancellationCharge} was applied as the ride was cancelled within ${cancellationEvaluation.windowHours} hours of scheduled pickup. Net refund of ₹${refundAmount.toFixed(2)} will be processed.`;
     } else {

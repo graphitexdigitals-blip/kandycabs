@@ -221,22 +221,28 @@ export function evaluateCancellationCharge(
     };
   }
 
-  // 2. ADVANCE PAYMENT NON-REFUNDABLE
+  // 2. ADVANCE PAYMENT NON-REFUNDABLE (Chargeable ONLY within windowHours before pickup time)
   if (mode === 'ADVANCE_NON_REFUNDABLE') {
-    const charge = advanceAmount > 0 ? advanceAmount : 0;
+    // Only chargeable if cancelled within the window (e.g. within 2 hours or 3 hours of scheduled pickup)
+    const isWithinWindow = hoursUntilPickup > 0 && hoursUntilPickup <= windowHours;
+    const charge = isWithinWindow ? (advanceAmount > 0 ? advanceAmount : 0) : 0;
+    const refundAmount = isWithinWindow ? 0 : Math.max(0, advanceAmount);
+
     return {
       mode: 'ADVANCE_NON_REFUNDABLE',
-      isWithinWindow: true,
+      isWithinWindow,
       hoursUntilPickup: roundedHours,
       cancellationCharge: charge,
-      refundAmount: 0,
-      freeCancellation: false,
+      refundAmount,
+      freeCancellation: !isWithinWindow,
       windowHours,
-      applicableFeeIfCancelled: charge,
+      applicableFeeIfCancelled: advanceAmount > 0 ? advanceAmount : 0,
       chargeEnabled: true,
       tripType: tripKey,
-      isAdvanceNonRefundable: true,
-      policyDescription: 'Advance payment received is non-refundable upon cancellation and will be charged as the cancellation fee.',
+      isAdvanceNonRefundable: isWithinWindow,
+      policyDescription: isWithinWindow
+        ? `Cancellation within ${windowHours} hours of pickup. Advance payment is non-refundable.`
+        : `Free cancellation (> ${windowHours}h before pickup). Full advance of ₹${refundAmount.toFixed(2)} will be refunded.`,
     };
   }
 
@@ -312,9 +318,9 @@ export function getTripCancellationPolicyBadge(
   if (mode === 'ADVANCE_NON_REFUNDABLE') {
     return {
       mode: 'ADVANCE_NON_REFUNDABLE',
-      title: 'Advance Non-Refundable',
-      shortLabel: 'Advance as Fee (Non-Refundable)',
-      description: 'Advance payment received is non-refundable upon cancellation and will be charged as the cancellation fee.',
+      title: 'Advance Policy',
+      shortLabel: `Free cancel >${windowHours}h • Non-refundable within ${windowHours}h`,
+      description: `Free cancellation up to ${windowHours} hours before pickup. If cancelled within ${windowHours} hours, advance payment is non-refundable.`,
       isAdvanceNonRefundable: true,
       isFree: false,
       windowHours,
