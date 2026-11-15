@@ -343,13 +343,16 @@ export default function ChauffeurAllowancePage() {
                     </div>
 
                     {/* Optional Flat Rate Override */}
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-50">
-                      <span className="text-[10px] text-slate-500">Custom Flat Day Rate (₹):</span>
+                    <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-50">
+                      <div>
+                        <span className="text-[10px] text-slate-500 block leading-tight">Flat Day Rate Override (₹):</span>
+                        <span className="text-[9px] text-slate-400">Leave blank for fleet default</span>
+                      </div>
                       <input
                         type="number"
                         min="0"
                         step="50"
-                        placeholder="Fleet Default"
+                        placeholder="Fleet Rate"
                         value={rule.dayRateOverride !== null && rule.dayRateOverride !== undefined ? rule.dayRateOverride : ''}
                         onChange={(e) => {
                           const val = e.target.value === '' ? null : Math.max(0, parseInt(e.target.value) || 0);

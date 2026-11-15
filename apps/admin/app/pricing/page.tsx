@@ -1213,12 +1213,15 @@ export default function AdminPricingPage() {
 
                       {/* Optional Flat Rate Override */}
                       <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-50">
-                        <span className="text-[10px] text-slate-500">Custom Flat Day Rate (₹):</span>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block leading-tight">Flat Day Rate Override (₹):</span>
+                          <span className="text-[9px] text-slate-400">Leave blank for fleet default</span>
+                        </div>
                         <input
                           type="number"
                           min="0"
                           step="50"
-                          placeholder="Fleet Default"
+                          placeholder="Fleet Rate"
                           value={rule.dayRateOverride !== null && rule.dayRateOverride !== undefined ? rule.dayRateOverride : ''}
                           onChange={(e) => {
                             const val = e.target.value === '' ? null : Math.max(0, parseInt(e.target.value) || 0);
@@ -1233,7 +1236,7 @@ export default function AdminPricingPage() {
                               },
                             }));
                           }}
-                          className="w-20 px-1.5 py-0.5 text-right font-mono text-[11px] border border-slate-200 rounded bg-slate-50 focus:bg-white focus:border-amber-500 font-bold"
+                          className="w-24 px-2 py-0.5 text-right font-mono text-[11px] border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-amber-500 font-bold"
                         />
                       </div>
                     </div>
