@@ -26,7 +26,17 @@ import { AuthModal } from '../../components/AuthModal';
 import BookingFlowHeader from '../../components/BookingFlowHeader';
 import { customerApiClient, customerTokenStorage } from '../../lib/api';
 import { termsAgreementState } from '../../lib/terms-agreement';
-import { VehicleCategory, TripType, FuelType, createSafeScheduledIso, parseSafeIsoDate } from '@kandy-cabs/shared';
+import {
+  VehicleCategory,
+  TripType,
+  FuelType,
+  createSafeScheduledIso,
+  parseSafeIsoDate,
+  DEFAULT_CANCELLATION_CONFIG,
+  DEFAULT_TRIP_TYPE_CANCELLATION_RULES,
+  CancellationRatesConfig,
+  getTripCancellationPolicyBadge,
+} from '@kandy-cabs/shared';
 
 const { width } = Dimensions.get('window');
 
@@ -543,6 +553,12 @@ export default function BookingFunnelScreen() {
     bird: 100,
   });
 
+  const [cancellationConfig, setCancellationConfig] = useState<CancellationRatesConfig>({
+    ...DEFAULT_CANCELLATION_CONFIG,
+    rates: { ...DEFAULT_CANCELLATION_CONFIG.rates },
+    tripTypeRules: { ...DEFAULT_TRIP_TYPE_CANCELLATION_RULES },
+  });
+
   useEffect(() => {
     let isMounted = true;
     (async () => {
@@ -558,11 +574,35 @@ export default function BookingFunnelScreen() {
       } catch {
         // Fallback to default rates
       }
+
+      try {
+        const cancelRes = await customerApiClient.fetch('/api/settings/cancellation-rates');
+        if (cancelRes && cancelRes.success && cancelRes.config && isMounted) {
+          setCancellationConfig({
+            windowHours: cancelRes.config.windowHours ?? DEFAULT_CANCELLATION_CONFIG.windowHours,
+            rates: { ...DEFAULT_CANCELLATION_CONFIG.rates, ...(cancelRes.config.rates || {}) },
+            tripTypeRules: {
+              ...DEFAULT_TRIP_TYPE_CANCELLATION_RULES,
+              ...(cancelRes.config.tripTypeRules || {}),
+            },
+          });
+        }
+      } catch {
+        // Fallback to default cancellation rules
+      }
     })();
     return () => {
       isMounted = false;
     };
   }, []);
+
+  const cancellationPolicyBadge = useMemo(() => {
+    return getTripCancellationPolicyBadge(
+      cancellationConfig,
+      tripTypeParam,
+      vehicleInfo?.category || rawCategory
+    );
+  }, [cancellationConfig, tripTypeParam, vehicleInfo?.category, rawCategory]);
   const [isBabyOnBoard, setIsBabyOnBoard] = useState<boolean>(
     params.isBabyOnBoard === 'true' || /baby\s*on\s*board/i.test(specialReqParam)
   );
@@ -3043,6 +3083,73 @@ export default function BookingFunnelScreen() {
 
               {/* Terms & Conditions Checkbox & Trust Badge */}
               <View style={styles.reviewTermsContainer}>
+                {/* Cancellation Policy Banner dynamically reflecting Admin selection */}
+                <View
+                  style={[
+                    styles.cancellationBannerBox,
+                    cancellationPolicyBadge.mode === 'ADVANCE_NON_REFUNDABLE'
+                      ? styles.cancellationBannerAmber
+                      : cancellationPolicyBadge.mode === 'FREE'
+                      ? styles.cancellationBannerEmerald
+                      : styles.cancellationBannerBlue,
+                  ]}
+                >
+                  <View style={styles.cancellationBannerHeader}>
+                    <Ionicons
+                      name={
+                        cancellationPolicyBadge.mode === 'ADVANCE_NON_REFUNDABLE'
+                          ? 'alert-circle'
+                          : cancellationPolicyBadge.mode === 'FREE'
+                          ? 'checkmark-circle'
+                          : 'shield-checkmark'
+                      }
+                      size={16}
+                      color={
+                        cancellationPolicyBadge.mode === 'ADVANCE_NON_REFUNDABLE'
+                          ? '#b45309'
+                          : cancellationPolicyBadge.mode === 'FREE'
+                          ? '#047857'
+                          : '#1d4ed8'
+                      }
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text
+                      style={[
+                        styles.cancellationBannerTitle,
+                        {
+                          color:
+                            cancellationPolicyBadge.mode === 'ADVANCE_NON_REFUNDABLE'
+                              ? '#92400e'
+                              : cancellationPolicyBadge.mode === 'FREE'
+                              ? '#065f46'
+                              : '#1e40af',
+                        },
+                      ]}
+                    >
+                      {cancellationPolicyBadge.mode === 'ADVANCE_NON_REFUNDABLE'
+                        ? 'Cancellation Policy: Advance Non-Refundable'
+                        : cancellationPolicyBadge.mode === 'FREE'
+                        ? 'Cancellation Policy: 100% Free Cancellation'
+                        : `Cancellation Policy: ₹${cancellationPolicyBadge.feeAmount} Fee within ${cancellationPolicyBadge.windowHours}h`}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.cancellationBannerDesc,
+                      {
+                        color:
+                          cancellationPolicyBadge.mode === 'ADVANCE_NON_REFUNDABLE'
+                            ? '#78350f'
+                            : cancellationPolicyBadge.mode === 'FREE'
+                            ? '#064e3b'
+                            : '#1e3a8a',
+                      },
+                    ]}
+                  >
+                    {cancellationPolicyBadge.description}
+                  </Text>
+                </View>
+
                 <TouchableOpacity
                   style={styles.termsRow}
                   activeOpacity={0.7}
@@ -3067,7 +3174,23 @@ export default function BookingFunnelScreen() {
                     {t('bookingReview.and', { defaultValue: 'and' })}{' '}
                     <Text
                       style={{ color: 'rgb(240, 117, 15)', fontWeight: '700', textDecorationLine: 'underline' }}
-                      onPress={() => router.push('/terms')}
+                      onPress={() => {
+                        Alert.alert(
+                          cancellationPolicyBadge.title,
+                          `${cancellationPolicyBadge.description}\n\n` +
+                          `• Trip Type: ${tripTypeParam}\n` +
+                          `• Vehicle: ${vehicleInfo.name}\n` +
+                          (cancellationPolicyBadge.mode === 'ADVANCE_NON_REFUNDABLE'
+                            ? `• Advance Received: ₹${advanceAmount.toLocaleString('en-IN')}\n• Cancellation Fee: 100% of Advance\n• Refund Amount: ₹0.00\n\nAdvance payment received will be retained as the cancellation fee upon cancellation.`
+                            : cancellationPolicyBadge.mode === 'FREE'
+                            ? `• Cancellation Fee: ₹0.00\n• Refund Amount: 100% Full Refund\n\nEnjoy complete peace of mind with 100% free cancellation.`
+                            : `• Pickup Window: ${cancellationPolicyBadge.windowHours} hours before pickup\n• Within Window: ₹${cancellationPolicyBadge.feeAmount} fee applies, excess advance refunded\n• More than ${cancellationPolicyBadge.windowHours}h: 100% Free Cancellation`),
+                          [
+                            { text: 'Got It', style: 'default' },
+                            { text: 'View Terms', onPress: () => router.push('/terms') },
+                          ]
+                        );
+                      }}
                     >
                       {t('bookingReview.cancellationPolicy', { defaultValue: 'Cancellation Policy' })}
                     </Text>
@@ -5928,6 +6051,39 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingTop: 2,
     paddingBottom: 2,
+  },
+  cancellationBannerBox: {
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+  },
+  cancellationBannerAmber: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+  },
+  cancellationBannerBlue: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#bfdbfe',
+  },
+  cancellationBannerEmerald: {
+    backgroundColor: '#ecfdf5',
+    borderColor: '#a7f3d0',
+  },
+  cancellationBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  cancellationBannerTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    flex: 1,
+  },
+  cancellationBannerDesc: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '500',
   },
   reviewTermsContainer: {
     marginTop: 2,

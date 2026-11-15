@@ -128,20 +128,24 @@ export async function POST(req: NextRequest) {
       (booking.tripEvents?.find((e: any) => e.type === 'BOOKING_CREATED')?.payloadJson as any)?.category ||
       'SEDAN';
 
-    // Evaluate cancellation fee based on trip type & pickup window
+    const advancePaid = Number(booking.advanceAmount || 0);
+
+    // Evaluate cancellation fee based on tripType policy (Advance Non-Refundable, Fixed Fleet Rate, or Free)
     const cancellationEvaluation = evaluateCancellationCharge(
       booking.scheduledAt,
       category,
       new Date(),
       cancellationConfig,
-      booking.tripType
+      booking.tripType,
+      advancePaid
     );
 
-    const advancePaid = Number(booking.advanceAmount || 0);
     const cancellationCharge = cancellationEvaluation.cancellationCharge;
-    const refundAmount = Math.max(0, advancePaid - cancellationCharge);
+    const refundAmount = cancellationEvaluation.refundAmount;
     const isWithinWindow = cancellationEvaluation.isWithinWindow;
     const hoursUntilPickup = cancellationEvaluation.hoursUntilPickup;
+    const mode = cancellationEvaluation.mode;
+    const isAdvanceNonRefundable = cancellationEvaluation.isAdvanceNonRefundable;
 
     // Atomic Cancellation Transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -162,10 +166,13 @@ export async function POST(req: NextRequest) {
             cancelledBy: 'CUSTOMER',
             reason: reason.trim(),
             category,
+            tripType: booking.tripType,
+            mode,
             cancellationCharge,
             refundAmount,
             advancePaid,
             isWithinWindow,
+            isAdvanceNonRefundable,
             hoursUntilPickup,
             refundEligible: refundAmount > 0,
             timestamp: new Date().toISOString(),
@@ -174,15 +181,22 @@ export async function POST(req: NextRequest) {
       });
 
       // 3. Insert AuditLog
+      let auditReason = '';
+      if (mode === 'ADVANCE_NON_REFUNDABLE') {
+        auditReason = `Customer cancelled ride (${booking.tripType}). Advance Non-Refundable policy applied: Advance of ₹${advancePaid} retained as cancellation fee. Refund: ₹0. Reason: ${reason.trim()}`;
+      } else if (mode === 'FREE' || cancellationCharge === 0) {
+        auditReason = `Customer cancelled ride (${booking.tripType}, ${hoursUntilPickup}h before pickup). Free cancellation applied. Full advance of ₹${refundAmount} eligible for refund. Reason: ${reason.trim()}`;
+      } else {
+        auditReason = `Customer cancelled ride (${booking.tripType}) within ${cancellationEvaluation.windowHours}h of pickup (${hoursUntilPickup}h left). Fleet fee of ₹${cancellationCharge} applied to ${category}. Advance: ₹${advancePaid}, Net Refund: ₹${refundAmount}. Reason: ${reason.trim()}`;
+      }
+
       await tx.auditLog.create({
         data: {
           actorUserId: payload.userId,
           action: 'CANCEL_BOOKING',
           entityType: 'Booking',
           entityId: bookingId,
-          reason: isWithinWindow
-            ? `Customer cancelled ride within ${cancellationConfig.windowHours}h of pickup (${hoursUntilPickup}h left). Cancellation charge of ₹${cancellationCharge} applied to ${category}. Advance: ₹${advancePaid}, Refund: ₹${refundAmount}. Reason: ${reason.trim()}`
-            : `Customer cancelled ride (${hoursUntilPickup}h before pickup). Free cancellation applied. Full advance of ₹${refundAmount} eligible for refund. Reason: ${reason.trim()}`,
+          reason: auditReason,
         },
       });
 
@@ -215,19 +229,27 @@ export async function POST(req: NextRequest) {
       reason,
       cancellationCharge,
       refundAmount,
+      mode,
     });
 
-    const successMessage = isWithinWindow
-      ? `Booking cancelled. A cancellation fee of ₹${cancellationCharge} was applied as the ride was cancelled within ${cancellationConfig.windowHours} hours of scheduled pickup. ${refundAmount > 0 ? `Net refund of ₹${refundAmount} will be processed.` : ''}`
-      : `Booking cancelled successfully with free cancellation. Full advance of ₹${refundAmount} will be refunded.`;
+    let successMessage = '';
+    if (mode === 'ADVANCE_NON_REFUNDABLE') {
+      successMessage = `Booking cancelled. As per the cancellation policy for ${booking.tripType || 'this ride'}, the advance payment of ₹${advancePaid} is non-refundable and has been charged as the cancellation fee.`;
+    } else if (cancellationCharge > 0) {
+      successMessage = `Booking cancelled. A cancellation fee of ₹${cancellationCharge} was applied as the ride was cancelled within ${cancellationEvaluation.windowHours} hours of scheduled pickup. Net refund of ₹${refundAmount.toFixed(2)} will be processed.`;
+    } else {
+      successMessage = `Booking cancelled successfully with free cancellation. Full advance of ₹${refundAmount.toFixed(2)} will be refunded.`;
+    }
 
     const response = NextResponse.json(
       {
         success: true,
+        mode,
         cancellationCharge,
         refundAmount,
         advancePaid,
         isWithinWindow,
+        isAdvanceNonRefundable,
         refundEligible: refundAmount > 0,
         booking: result,
         message: successMessage,

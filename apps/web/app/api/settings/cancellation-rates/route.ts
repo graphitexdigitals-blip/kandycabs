@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@kandy-cabs/db';
-import { DEFAULT_CANCELLATION_CONFIG, CancellationRatesConfig } from '@kandy-cabs/shared';
+import {
+  DEFAULT_CANCELLATION_CONFIG,
+  CancellationRatesConfig,
+  DEFAULT_TRIP_TYPE_CANCELLATION_RULES,
+  SUPPORTED_TRIP_TYPES_FOR_CANCELLATION,
+} from '@kandy-cabs/shared';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +16,11 @@ export async function OPTIONS() {
 
 export async function GET() {
   try {
-    let config: CancellationRatesConfig = { ...DEFAULT_CANCELLATION_CONFIG, rates: { ...DEFAULT_CANCELLATION_CONFIG.rates } };
+    let config: CancellationRatesConfig = {
+      ...DEFAULT_CANCELLATION_CONFIG,
+      rates: { ...DEFAULT_CANCELLATION_CONFIG.rates },
+      tripTypeRules: { ...DEFAULT_TRIP_TYPE_CANCELLATION_RULES },
+    };
 
     try {
       const rows = (await prisma.$queryRawUnsafe(`
@@ -26,13 +35,18 @@ export async function GET() {
             ...DEFAULT_CANCELLATION_CONFIG.rates,
             ...(val.rates || {}),
           },
+          tripTypeRules: {
+            ...DEFAULT_TRIP_TYPE_CANCELLATION_RULES,
+            ...(val.tripTypeRules || {}),
+          },
         };
       }
     } catch (dbErr) {
       console.warn('Could not query SystemSetting, using default cancellation rates:', dbErr);
     }
 
-    const res = NextResponse.json({ success: true, config });
+    const res = NextResponse.json({ success: true, config, supportedTripTypes: SUPPORTED_TRIP_TYPES_FOR_CANCELLATION });
+    return setCorsHeaders(res);
     return setCorsHeaders(res);
   } catch (error: any) {
     console.error('Error fetching cancellation rates:', error);

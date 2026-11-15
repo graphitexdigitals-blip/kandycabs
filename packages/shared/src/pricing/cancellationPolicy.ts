@@ -1,7 +1,10 @@
 import { parseSafeIsoDate } from '../utils/dateTime';
 import { VehicleCategory } from '../types';
 
+export type CancellationChargeMode = 'FIXED_RATE' | 'ADVANCE_NON_REFUNDABLE' | 'FREE';
+
 export interface TripTypeCancellationRule {
+  mode?: CancellationChargeMode; // 'FIXED_RATE' | 'ADVANCE_NON_REFUNDABLE' | 'FREE'
   enabled: boolean; // true = charges apply; false = NO cancellation charges needed (Free cancellation)
   windowHours: number; // default: 3 hours
   rates: Record<string, number>;
@@ -41,26 +44,31 @@ export const SUPPORTED_TRIP_TYPES_FOR_CANCELLATION = [
 
 export const DEFAULT_TRIP_TYPE_CANCELLATION_RULES: Record<string, TripTypeCancellationRule> = {
   ONEWAY: {
+    mode: 'FIXED_RATE',
     enabled: true,
     windowHours: 3,
     rates: { ...DEFAULT_CANCELLATION_CONFIG.rates },
   },
   ROUND: {
+    mode: 'FIXED_RATE',
     enabled: true,
     windowHours: 3,
     rates: { ...DEFAULT_CANCELLATION_CONFIG.rates },
   },
   AIRPORT: {
+    mode: 'FIXED_RATE',
     enabled: true,
     windowHours: 3,
     rates: { ...DEFAULT_CANCELLATION_CONFIG.rates },
   },
   LOCAL: {
+    mode: 'FIXED_RATE',
     enabled: true,
     windowHours: 3,
     rates: { ...DEFAULT_CANCELLATION_CONFIG.rates },
   },
   PACKAGE: {
+    mode: 'FIXED_RATE',
     enabled: true,
     windowHours: 3,
     rates: { ...DEFAULT_CANCELLATION_CONFIG.rates },
@@ -130,28 +138,35 @@ export function getCancellationFeeForCategory(
   return rates[catUpper] ?? 1000;
 }
 
+export interface CancellationEvaluationResult {
+  mode: CancellationChargeMode;
+  isWithinWindow: boolean;
+  hoursUntilPickup: number;
+  cancellationCharge: number;
+  refundAmount: number;
+  freeCancellation: boolean;
+  windowHours: number;
+  applicableFeeIfCancelled: number;
+  chargeEnabled: boolean;
+  tripType: string;
+  isAdvanceNonRefundable: boolean;
+  policyDescription: string;
+}
+
 /**
- * Evaluates whether cancellation fee applies based on trip type, 3-hour pickup window, and fleet category.
- * - If tripType has cancellation charges disabled (e.g. "no need of cancellation charges on this trip"): returns ₹0 (Free Cancellation).
- * - If within windowHours before pickup: applicable fleet cancellation charge applies.
- * - If more than windowHours before pickup: free cancellation (₹0).
+ * Evaluates whether cancellation fee applies based on admin's selected policy mode:
+ * 1. ADVANCE_NON_REFUNDABLE: Advance payment received is retained as the cancellation fee (0 refund).
+ * 2. FIXED_RATE: Fleet rate (₹500 / ₹1000) applies if cancelled within windowHours before scheduled pickup. Excess advance is refunded.
+ * 3. FREE: Free cancellation (₹0 fee); 100% advance refunded.
  */
 export function evaluateCancellationCharge(
   scheduledAt: Date | string,
   category: string | undefined | null,
   cancelTime: Date | string = new Date(),
   config: Partial<CancellationRatesConfig> = {},
-  tripType?: string | null
-): {
-  isWithinWindow: boolean;
-  hoursUntilPickup: number;
-  cancellationCharge: number;
-  freeCancellation: boolean;
-  windowHours: number;
-  applicableFeeIfCancelled: number;
-  chargeEnabled: boolean;
-  tripType: string;
-} {
+  tripType?: string | null,
+  advanceAmount: number = 0
+): CancellationEvaluationResult {
   const normTripType = String(tripType || 'ONEWAY').trim().toUpperCase().replace(/_/g, '');
   const tripKey =
     Object.keys(config.tripTypeRules || {}).find(
@@ -168,44 +183,166 @@ export function evaluateCancellationCharge(
       : 'ONEWAY');
 
   const tripRule = config.tripTypeRules?.[tripKey];
-  // If rule exists, check its enabled flag; if no rule or rule.enabled !== false, defaults to true
-  const chargeEnabled = tripRule ? Boolean(tripRule.enabled) : true;
+
+  // Resolve Mode
+  let mode: CancellationChargeMode = 'FIXED_RATE';
+  if (tripRule?.mode) {
+    mode = tripRule.mode;
+  } else if (tripRule && tripRule.enabled === false) {
+    mode = 'FREE';
+  } else {
+    mode = 'FIXED_RATE';
+  }
 
   const pickupMs = parseSafeIsoDate(scheduledAt).getTime();
   const cancelMs = parseSafeIsoDate(cancelTime).getTime();
   const hoursUntilPickup = (pickupMs - cancelMs) / (1000 * 60 * 60);
-
-  // If cancellation charges are turned OFF for this trip type
-  if (!chargeEnabled) {
-    return {
-      isWithinWindow: false,
-      hoursUntilPickup: Math.round(hoursUntilPickup * 10) / 10,
-      cancellationCharge: 0,
-      freeCancellation: true,
-      windowHours: tripRule?.windowHours ?? config.windowHours ?? DEFAULT_CANCELLATION_CONFIG.windowHours,
-      applicableFeeIfCancelled: 0,
-      chargeEnabled: false,
-      tripType: tripKey,
-    };
-  }
+  const roundedHours = Math.round(hoursUntilPickup * 10) / 10;
 
   const windowHours = tripRule?.windowHours ?? config.windowHours ?? DEFAULT_CANCELLATION_CONFIG.windowHours;
   const rates = tripRule?.rates ?? config.rates ?? DEFAULT_CANCELLATION_CONFIG.rates;
+  const applicableFleetFee = getCancellationFeeForCategory(category, rates);
 
-  const applicableFee = getCancellationFeeForCategory(category, rates);
-  // Cancellation charges apply ONLY within the window before scheduled pickup time (0 < hoursUntilPickup <= windowHours).
-  // If cancelled more than windowHours in advance (>3h) or if scheduled pickup time has already passed (<= 0), cancellation fee does not apply (Free Cancellation).
+  // 1. FREE CANCELLATION
+  if (mode === 'FREE') {
+    return {
+      mode: 'FREE',
+      isWithinWindow: false,
+      hoursUntilPickup: roundedHours,
+      cancellationCharge: 0,
+      refundAmount: Math.max(0, advanceAmount),
+      freeCancellation: true,
+      windowHours,
+      applicableFeeIfCancelled: 0,
+      chargeEnabled: false,
+      tripType: tripKey,
+      isAdvanceNonRefundable: false,
+      policyDescription: '100% Free Cancellation. Full advance payment will be refunded.',
+    };
+  }
+
+  // 2. ADVANCE PAYMENT NON-REFUNDABLE
+  if (mode === 'ADVANCE_NON_REFUNDABLE') {
+    const charge = advanceAmount > 0 ? advanceAmount : 0;
+    return {
+      mode: 'ADVANCE_NON_REFUNDABLE',
+      isWithinWindow: true,
+      hoursUntilPickup: roundedHours,
+      cancellationCharge: charge,
+      refundAmount: 0,
+      freeCancellation: false,
+      windowHours,
+      applicableFeeIfCancelled: charge,
+      chargeEnabled: true,
+      tripType: tripKey,
+      isAdvanceNonRefundable: true,
+      policyDescription: 'Advance payment received is non-refundable upon cancellation and will be charged as the cancellation fee.',
+    };
+  }
+
+  // 3. FIXED FLEET RATE (WINDOW BASED, e.g. ₹500 / ₹1000)
+  // Cancellation charges apply within the window before scheduled pickup time (0 < hoursUntilPickup <= windowHours).
   const isWithinWindow = hoursUntilPickup > 0 && hoursUntilPickup <= windowHours;
+  const cancellationCharge = isWithinWindow ? applicableFleetFee : 0;
+  const refundAmount = Math.max(0, advanceAmount - cancellationCharge);
 
   return {
+    mode: 'FIXED_RATE',
     isWithinWindow,
-    hoursUntilPickup: Math.round(hoursUntilPickup * 10) / 10,
-    cancellationCharge: isWithinWindow ? applicableFee : 0,
+    hoursUntilPickup: roundedHours,
+    cancellationCharge,
+    refundAmount,
     freeCancellation: !isWithinWindow,
     windowHours,
-    applicableFeeIfCancelled: applicableFee,
+    applicableFeeIfCancelled: applicableFleetFee,
     chargeEnabled: true,
     tripType: tripKey,
+    isAdvanceNonRefundable: false,
+    policyDescription: isWithinWindow
+      ? `Cancellation within ${windowHours} hours of pickup incurs ₹${applicableFleetFee} fee. Remaining advance of ₹${refundAmount.toFixed(2)} is refunded.`
+      : `Free cancellation up to ${windowHours} hours before pickup. Cancellations within ${windowHours}h incur standard fleet fee (₹${applicableFleetFee}).`,
   };
 }
 
+/**
+ * Returns user-friendly presentation details for UI badges and review cards.
+ */
+export function getTripCancellationPolicyBadge(
+  ruleOrConfig: TripTypeCancellationRule | Partial<CancellationRatesConfig> | undefined,
+  tripType?: string | null,
+  category?: string | null
+): {
+  mode: CancellationChargeMode;
+  title: string;
+  shortLabel: string;
+  description: string;
+  isAdvanceNonRefundable: boolean;
+  isFree: boolean;
+  windowHours: number;
+  feeAmount: number;
+} {
+  let rule: TripTypeCancellationRule | undefined;
+  let windowHours = 3;
+
+  if (ruleOrConfig && 'rates' in ruleOrConfig && 'enabled' in ruleOrConfig) {
+    rule = ruleOrConfig as TripTypeCancellationRule;
+    windowHours = rule.windowHours || 3;
+  } else if (ruleOrConfig && 'tripTypeRules' in ruleOrConfig) {
+    const config = ruleOrConfig as Partial<CancellationRatesConfig>;
+    const normTripType = String(tripType || 'ONEWAY').trim().toUpperCase().replace(/_/g, '');
+    const tripKey =
+      Object.keys(config.tripTypeRules || {}).find(
+        (k) => k.replace(/_/g, '').toUpperCase() === normTripType
+      ) || 'ONEWAY';
+    rule = config.tripTypeRules?.[tripKey];
+    windowHours = rule?.windowHours ?? config.windowHours ?? 3;
+  }
+
+  let mode: CancellationChargeMode = 'FIXED_RATE';
+  if (rule?.mode) {
+    mode = rule.mode;
+  } else if (rule && rule.enabled === false) {
+    mode = 'FREE';
+  } else {
+    mode = 'FIXED_RATE';
+  }
+
+  const feeAmount = getCancellationFeeForCategory(category, rule?.rates);
+
+  if (mode === 'ADVANCE_NON_REFUNDABLE') {
+    return {
+      mode: 'ADVANCE_NON_REFUNDABLE',
+      title: 'Advance Non-Refundable',
+      shortLabel: 'Advance as Fee (Non-Refundable)',
+      description: 'Advance payment received is non-refundable upon cancellation and will be charged as the cancellation fee.',
+      isAdvanceNonRefundable: true,
+      isFree: false,
+      windowHours,
+      feeAmount,
+    };
+  }
+
+  if (mode === 'FREE') {
+    return {
+      mode: 'FREE',
+      title: 'Free Cancellation',
+      shortLabel: '100% Free Cancellation',
+      description: 'Zero cancellation charges. If you cancel this booking, 100% of your advance payment will be refunded.',
+      isAdvanceNonRefundable: false,
+      isFree: true,
+      windowHours,
+      feeAmount: 0,
+    };
+  }
+
+  return {
+    mode: 'FIXED_RATE',
+    title: 'Fleet Rate Policy',
+    shortLabel: `Free cancel >${windowHours}h • ₹${feeAmount} within ${windowHours}h`,
+    description: `Free cancellation up to ${windowHours} hours before pickup. Cancellations within ${windowHours} hours incur ₹${feeAmount} cancellation fee and excess advance is refunded.`,
+    isAdvanceNonRefundable: false,
+    isFree: false,
+    windowHours,
+    feeAmount,
+  };
+}

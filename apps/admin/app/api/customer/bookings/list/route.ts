@@ -163,6 +163,8 @@ export async function GET(req: NextRequest) {
           ? JSON.parse(cancelEvent.payloadJson)
           : cancelEvent.payloadJson;
         cancellationDetails = {
+          mode: rawJson.mode,
+          isAdvanceNonRefundable: Boolean(rawJson.isAdvanceNonRefundable || rawJson.mode === 'ADVANCE_NON_REFUNDABLE'),
           cancellationCharge: Number(rawJson.cancellationCharge ?? 0),
           refundAmount: Number(rawJson.refundAmount ?? 0),
           advancePaid: Number(rawJson.advancePaid ?? b.advanceAmount ?? 0),

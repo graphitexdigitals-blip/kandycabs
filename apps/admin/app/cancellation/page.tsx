@@ -6,6 +6,7 @@ import {
   DEFAULT_CANCELLATION_CONFIG,
   CancellationRatesConfig,
   TripTypeCancellationRule,
+  CancellationChargeMode,
   DEFAULT_TRIP_TYPE_CANCELLATION_RULES,
   SUPPORTED_TRIP_TYPES_FOR_CANCELLATION,
   ALL_FLEET_CATEGORIES_FOR_CANCELLATION,
@@ -77,30 +78,48 @@ export default function CancellationPage() {
   const currentRule: TripTypeCancellationRule =
     config.tripTypeRules?.[selectedTripType] ??
     DEFAULT_TRIP_TYPE_CANCELLATION_RULES[selectedTripType] ?? {
+      mode: 'FIXED_RATE',
       enabled: true,
       windowHours: config.windowHours ?? 3,
       rates: { ...DEFAULT_CANCELLATION_CONFIG.rates },
     };
 
+  const currentMode: CancellationChargeMode =
+    currentRule.mode || (currentRule.enabled === false ? 'FREE' : 'FIXED_RATE');
+
   const updateCurrentRule = (updates: Partial<TripTypeCancellationRule>) => {
     setConfig((prev) => {
       const existingRules = prev.tripTypeRules ?? { ...DEFAULT_TRIP_TYPE_CANCELLATION_RULES };
       const current = existingRules[selectedTripType] ?? {
+        mode: 'FIXED_RATE',
         enabled: true,
         windowHours: prev.windowHours ?? 3,
         rates: { ...DEFAULT_CANCELLATION_CONFIG.rates },
       };
 
+      const nextRule: TripTypeCancellationRule = {
+        ...current,
+        ...updates,
+      };
+
+      if (updates.mode) {
+        nextRule.enabled = updates.mode !== 'FREE';
+      }
+
       return {
         ...prev,
         tripTypeRules: {
           ...existingRules,
-          [selectedTripType]: {
-            ...current,
-            ...updates,
-          },
+          [selectedTripType]: nextRule,
         },
       };
+    });
+  };
+
+  const handleModeChange = (mode: CancellationChargeMode) => {
+    updateCurrentRule({
+      mode,
+      enabled: mode !== 'FREE',
     });
   };
 
@@ -133,9 +152,16 @@ export default function CancellationPage() {
   };
 
   const handleApplyToAllTripTypes = () => {
+    const modeName =
+      currentMode === 'ADVANCE_NON_REFUNDABLE'
+        ? 'Advance Payment Non-Refundable'
+        : currentMode === 'FREE'
+        ? '100% Free Cancellation'
+        : 'Fixed Fleet Cancellation Fee';
+
     if (
       !confirm(
-        `Apply the current cancellation configuration for "${SUPPORTED_TRIP_TYPES_FOR_CANCELLATION.find((t) => t.key === selectedTripType)?.label}" across ALL trip types?`
+        `Apply the current configuration ("${modeName}") across ALL trip types (One Way, Round Trip, Airport, Local, Tour)?`
       )
     ) {
       return;
@@ -145,7 +171,8 @@ export default function CancellationPage() {
       const newRules: Record<string, TripTypeCancellationRule> = {};
       SUPPORTED_TRIP_TYPES_FOR_CANCELLATION.forEach((t) => {
         newRules[t.key] = {
-          enabled: currentRule.enabled,
+          mode: currentMode,
+          enabled: currentMode !== 'FREE',
           windowHours: currentRule.windowHours,
           rates: { ...currentRule.rates },
         };
@@ -158,7 +185,7 @@ export default function CancellationPage() {
       };
     });
 
-    setToastMessage(`Settings applied to all trip types! Click "Save Cancellation Rules" to persist.`);
+    setToastMessage(`Applied "${modeName}" to all trip types! Click "Save Cancellation Rules" to persist.`);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
@@ -191,7 +218,7 @@ export default function CancellationPage() {
               </h1>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl">
-              Configure fleet cancellation charges across all trip types (One Way, Round Trip, Airport, Local Rental, Tour). Toggle cancellation charges on or off for any trip type (e.g. Free Cancellation with no charges required).
+              Select and customize cancellation policies per trip type: <strong>Advance Non-Refundable</strong> (advance paid is retained as cancellation fee), <strong>Fixed Fleet Fee</strong> (₹500 / ₹1,000 within pickup window), or <strong>100% Free Cancellation</strong>.
             </p>
           </div>
 
@@ -236,14 +263,25 @@ export default function CancellationPage() {
             {SUPPORTED_TRIP_TYPES_FOR_CANCELLATION.map((trip) => {
               const isSelected = selectedTripType === trip.key;
               const rule = config.tripTypeRules?.[trip.key];
-              const isChargesEnabled = rule ? rule.enabled : true;
+              const mode: CancellationChargeMode =
+                rule?.mode || (rule && rule.enabled === false ? 'FREE' : 'FIXED_RATE');
+
+              let badgeText = '₹500 / ₹1000';
+              let badgeColor = 'bg-blue-50 text-blue-800 border-blue-200';
+              if (mode === 'ADVANCE_NON_REFUNDABLE') {
+                badgeText = 'Adv Non-Refundable';
+                badgeColor = 'bg-amber-100 text-amber-900 border-amber-300';
+              } else if (mode === 'FREE') {
+                badgeText = 'Free (₹0)';
+                badgeColor = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+              }
 
               return (
                 <button
                   key={trip.key}
                   type="button"
                   onClick={() => setSelectedTripType(trip.key)}
-                  className={`flex-1 min-w-[150px] p-3 rounded-xl text-left border transition ${
+                  className={`flex-1 min-w-[170px] p-3 rounded-xl text-left border transition ${
                     isSelected
                       ? 'bg-rose-50 border-rose-300 ring-2 ring-rose-500/20 shadow-xs'
                       : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-200'
@@ -254,13 +292,9 @@ export default function CancellationPage() {
                       {trip.label}
                     </span>
                     <span
-                      className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
-                        isChargesEnabled
-                          ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                          : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                      }`}
+                      className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full border ${badgeColor}`}
                     >
-                      {isChargesEnabled ? 'Fee Active' : 'Free (₹0)'}
+                      {badgeText}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{trip.desc}</p>
@@ -272,58 +306,225 @@ export default function CancellationPage() {
 
         {/* Selected Trip Type Configuration Section */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-6">
-          {/* Main Toggle: Enable / No Need of Cancellation Charges */}
-          <div className={`p-4 sm:p-5 rounded-2xl border-2 transition ${
-            currentRule.enabled
-              ? 'bg-amber-50/50 border-amber-200'
-              : 'bg-emerald-50 border-emerald-300 shadow-xs'
-          }`}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full ${currentRule.enabled ? 'bg-amber-500' : 'bg-emerald-600'}`} />
-                  <span className="text-sm font-black text-slate-900">
-                    Require Cancellation Charges for {selectedTripMeta.label}?
-                  </span>
-                  <span className={`text-[11px] font-black px-2 py-0.5 rounded-md ${
-                    currentRule.enabled
-                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                      : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                  }`}>
-                    {currentRule.enabled ? 'CANCELLATION CHARGES ACTIVE' : 'NO CANCELLATION CHARGES (FREE)'}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600 max-w-2xl">
-                  {currentRule.enabled
-                    ? `Cancellations on ${selectedTripMeta.label} will incur the fleet fee below if cancelled within the pickup window (${currentRule.windowHours} hours before pickup). More than ${currentRule.windowHours}h is free.`
-                    : `✓ Customers and Admin will enjoy 100% Free Cancellation at all times on ${selectedTripMeta.label} trips. No cancellation charge will ever be deducted.`}
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h2 className="text-base font-black text-slate-900">
+                  Select Cancellation Charge Policy for {selectedTripMeta.label}
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Choose which cancellation policy is enforced when customers or admins cancel a {selectedTripMeta.label} booking.
                 </p>
               </div>
 
-              {/* Toggle Switch */}
-              <div className="flex items-center gap-3 shrink-0">
-                <span className="text-xs font-bold text-slate-600">
-                  {currentRule.enabled ? 'Charges Enabled' : 'No Charges (Free)'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => updateCurrentRule({ enabled: !currentRule.enabled })}
-                  className={`relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    currentRule.enabled ? 'bg-rose-600' : 'bg-emerald-600'
-                  }`}
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                      currentRule.enabled ? 'translate-x-6' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
+              <button
+                type="button"
+                onClick={handleApplyToAllTripTypes}
+                className="px-3.5 py-1.5 text-xs font-black bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition flex items-center gap-1.5 shrink-0"
+              >
+                <svg className="w-3.5 h-3.5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+                <span>Apply this configuration to ALL Trip Types</span>
+              </button>
+            </div>
+
+            {/* 3 Selectable Policy Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mt-4">
+              {/* Option 1: Advance Payment Non-Refundable */}
+              <div
+                onClick={() => handleModeChange('ADVANCE_NON_REFUNDABLE')}
+                className={`p-4 rounded-2xl border-2 cursor-pointer transition flex flex-col justify-between ${
+                  currentMode === 'ADVANCE_NON_REFUNDABLE'
+                    ? 'bg-amber-50/70 border-amber-500 shadow-xs ring-2 ring-amber-500/20'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
+                }`}
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl">💰</span>
+                    <span
+                      className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                        currentMode === 'ADVANCE_NON_REFUNDABLE'
+                          ? 'bg-amber-200 text-amber-900'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      NON-REFUNDABLE
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-slate-900">Advance Non-Refundable</h3>
+                    <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                      Advance payment received from customer will <strong>NOT be refunded</strong> and is added as the cancellation fee (₹0 refund).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-amber-800">
+                    Fee: 100% of Advance Paid
+                  </span>
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    currentMode === 'ADVANCE_NON_REFUNDABLE' ? 'border-amber-600 bg-amber-600' : 'border-slate-300'
+                  }`}>
+                    {currentMode === 'ADVANCE_NON_REFUNDABLE' && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Option 2: Fixed Fleet Rate (₹500 / ₹1000) */}
+              <div
+                onClick={() => handleModeChange('FIXED_RATE')}
+                className={`p-4 rounded-2xl border-2 cursor-pointer transition flex flex-col justify-between ${
+                  currentMode === 'FIXED_RATE'
+                    ? 'bg-blue-50/70 border-blue-500 shadow-xs ring-2 ring-blue-500/20'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
+                }`}
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl">🚗</span>
+                    <span
+                      className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                        currentMode === 'FIXED_RATE'
+                          ? 'bg-blue-200 text-blue-900'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      FLEET RATE
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-slate-900">Fixed Fleet Fee (₹500 / ₹1000)</h3>
+                    <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                      Deducts standard fleet charge (₹500 for Sedans, ₹1000 for SUVs) if cancelled within the pickup window. Excess advance is refunded.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-blue-800">
+                    Window-based Fleet Rates
+                  </span>
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    currentMode === 'FIXED_RATE' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
+                  }`}>
+                    {currentMode === 'FIXED_RATE' && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Option 3: Free Cancellation */}
+              <div
+                onClick={() => handleModeChange('FREE')}
+                className={`p-4 rounded-2xl border-2 cursor-pointer transition flex flex-col justify-between ${
+                  currentMode === 'FREE'
+                    ? 'bg-emerald-50/70 border-emerald-500 shadow-xs ring-2 ring-emerald-500/20'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
+                }`}
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl">🛡️</span>
+                    <span
+                      className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                        currentMode === 'FREE'
+                          ? 'bg-emerald-200 text-emerald-900'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      100% FREE
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-slate-900">Free Cancellation (₹0 Fee)</h3>
+                    <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                      No cancellation charges are applied. Customers receive <strong>100% full refund</strong> of their advance payment.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-emerald-800">
+                    Fee: ₹0 (Zero Penalty)
+                  </span>
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    currentMode === 'FREE' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300'
+                  }`}>
+                    {currentMode === 'FREE' && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Conditional Fee Settings (Only when Charges are Enabled) */}
-          {currentRule.enabled ? (
+          {/* MODE 1: ADVANCE NON-REFUNDABLE ACTIVE BANNER */}
+          {currentMode === 'ADVANCE_NON_REFUNDABLE' && (
+            <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 space-y-3 animate-in fade-in">
+              <div className="flex items-center gap-2.5">
+                <span className="text-amber-600 text-base font-bold">⚠️</span>
+                <h4 className="text-xs font-black text-amber-950 uppercase tracking-wide">
+                  Advance Non-Refundable Policy Active for {selectedTripMeta.label}
+                </h4>
+              </div>
+              <p className="text-xs text-amber-900 leading-relaxed">
+                When a customer or administrator cancels a <strong>{selectedTripMeta.label}</strong> booking, the advance payment received at the time of booking will <strong>NOT be refunded</strong>. The entire advance amount is retained and recorded as the cancellation fee in the tax invoice and booking records.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <div className="p-3 bg-white/80 rounded-xl border border-amber-200">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Cancellation Fee</span>
+                  <p className="text-xs font-black text-slate-900 mt-0.5">100% of Advance Received</p>
+                </div>
+                <div className="p-3 bg-white/80 rounded-xl border border-amber-200">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Customer Refund</span>
+                  <p className="text-xs font-black text-rose-600 mt-0.5">₹0.00 (Non-Refundable)</p>
+                </div>
+                <div className="p-3 bg-white/80 rounded-xl border border-amber-200">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Time Restriction</span>
+                  <p className="text-xs font-black text-slate-900 mt-0.5">Applies at all times</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODE 3: FREE CANCELLATION ACTIVE BANNER */}
+          {currentMode === 'FREE' && (
+            <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3 animate-in fade-in">
+              <div className="flex items-center gap-2.5">
+                <span className="text-emerald-600 text-base font-bold">✓</span>
+                <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wide">
+                  100% Free Cancellation Policy Active for {selectedTripMeta.label}
+                </h4>
+              </div>
+              <p className="text-xs text-emerald-900 leading-relaxed">
+                Customers and administrators can cancel <strong>{selectedTripMeta.label}</strong> rides at any time with <strong>zero penalty</strong>. 100% of the advance amount paid will be refunded directly to the customer.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <div className="p-3 bg-white/80 rounded-xl border border-emerald-200">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Cancellation Fee</span>
+                  <p className="text-xs font-black text-emerald-700 mt-0.5">₹0.00 (Zero Fee)</p>
+                </div>
+                <div className="p-3 bg-white/80 rounded-xl border border-emerald-200">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Customer Refund</span>
+                  <p className="text-xs font-black text-emerald-700 mt-0.5">100% Full Refund</p>
+                </div>
+                <div className="p-3 bg-white/80 rounded-xl border border-emerald-200">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Customer Experience</span>
+                  <p className="text-xs font-black text-slate-900 mt-0.5">Hassle-Free Booking</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODE 2: FIXED FLEET RATE CONFIGURATION (Window + Fleet Rate Cards) */}
+          {currentMode === 'FIXED_RATE' && (
             <div className="space-y-6 animate-in fade-in">
               {/* Pickup Window Setting */}
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -333,7 +534,7 @@ export default function CancellationPage() {
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">Policy Window</span>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Charges apply only when customer or admin cancels within this timeframe prior to scheduled pickup.
+                    Charges apply only when customer or admin cancels within this timeframe prior to scheduled pickup. Cancellations more than this window are free.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -350,11 +551,11 @@ export default function CancellationPage() {
                     }
                     className="w-20 px-3 py-1.5 text-xs font-black text-center border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-rose-500 shadow-2xs"
                   />
-                  <span className="text-xs font-bold text-slate-700">Hours</span>
+                  <span className="text-xs font-bold text-slate-700">Hours before pickup</span>
                 </div>
               </div>
 
-              {/* Quick Batch Actions & Apply to All Trip Types */}
+              {/* Quick Batch Actions */}
               <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-slate-200">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-xs font-bold text-slate-500 mr-1">Quick Rates:</span>
@@ -380,17 +581,6 @@ export default function CancellationPage() {
                     Set All to ₹1000
                   </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleApplyToAllTripTypes}
-                  className="px-3 py-1.5 text-xs font-black bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition flex items-center gap-1.5"
-                >
-                  <svg className="w-3.5 h-3.5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                  </svg>
-                  <span>Apply this configuration to ALL Trip Types</span>
-                </button>
               </div>
 
               {/* Group 1: Compact & Sedans */}
@@ -501,25 +691,6 @@ export default function CancellationPage() {
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="p-8 text-center bg-emerald-50/50 border border-emerald-200 rounded-2xl space-y-2">
-              <div className="w-12 h-12 mx-auto rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-xl font-bold">
-                ✓
-              </div>
-              <h3 className="text-sm font-black text-emerald-950">
-                Free Cancellation Active for {selectedTripMeta.label}
-              </h3>
-              <p className="text-xs text-emerald-800 max-w-md mx-auto">
-                No cancellation charges will be billed for {selectedTripMeta.label} trips. If a trip is cancelled at any time by customer or admin, the advance amount will be fully refundable (₹0 fee).
-              </p>
-              <button
-                type="button"
-                onClick={() => updateCurrentRule({ enabled: true })}
-                className="mt-3 px-4 py-2 text-xs font-bold text-emerald-700 bg-white border border-emerald-300 rounded-xl hover:bg-emerald-100 transition shadow-xs"
-              >
-                Enable Cancellation Charges for {selectedTripMeta.label}
-              </button>
-            </div>
           )}
 
           {/* Footer Save Button */}
@@ -538,4 +709,3 @@ export default function CancellationPage() {
     </div>
   );
 }
-

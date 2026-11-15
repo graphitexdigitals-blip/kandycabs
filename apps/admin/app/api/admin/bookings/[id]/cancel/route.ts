@@ -85,19 +85,22 @@ export async function POST(
       (booking.tripEvents?.find((e: any) => e.type === 'BOOKING_CREATED')?.payloadJson as any)?.category ||
       'SEDAN';
 
+    const advancePaid = Number(booking.advanceAmount || 0);
+
     const cancellationEvaluation = evaluateCancellationCharge(
       booking.scheduledAt,
       category,
       new Date(),
       cancellationConfig,
-      booking.tripType
+      booking.tripType,
+      advancePaid
     );
 
-    const advancePaid = Number(booking.advanceAmount || 0);
     const cancellationCharge = waiveCharge ? 0 : (typeof body.customCharge === 'number' ? body.customCharge : cancellationEvaluation.cancellationCharge);
     const refundAmount = Math.max(0, advancePaid - cancellationCharge);
     const isWithinWindow = cancellationEvaluation.isWithinWindow;
     const hoursUntilPickup = cancellationEvaluation.hoursUntilPickup;
+    const mode = cancellationEvaluation.mode;
 
     const result = await prisma.$transaction(async (tx) => {
       const updated = await tx.booking.update({
@@ -116,11 +119,14 @@ export async function POST(
             adminUserId: session.userId,
             reason,
             category,
+            tripType: booking.tripType,
+            mode,
             cancellationCharge,
             waiveCharge,
             refundAmount,
             advancePaid,
             isWithinWindow,
+            isAdvanceNonRefundable: cancellationEvaluation.isAdvanceNonRefundable,
             hoursUntilPickup,
             refundEligible: refundAmount > 0,
             timestamp: new Date().toISOString(),
@@ -134,7 +140,7 @@ export async function POST(
           action: 'ADMIN_CANCEL_BOOKING',
           entityType: 'Booking',
           entityId: id,
-          reason: `Admin cancelled booking. Reason: ${reason}. Cancellation Charge: ₹${cancellationCharge}${waiveCharge ? ' (Fee Waived)' : ''}. Advance: ₹${advancePaid}, Refund: ₹${refundAmount}. Hours to pickup: ${hoursUntilPickup}h`,
+          reason: `Admin cancelled booking (${booking.tripType}, mode: ${mode}). Reason: ${reason}. Cancellation Charge: ₹${cancellationCharge}${waiveCharge ? ' (Fee Waived)' : ''}. Advance: ₹${advancePaid}, Refund: ₹${refundAmount}. Hours to pickup: ${hoursUntilPickup}h`,
         },
       });
 

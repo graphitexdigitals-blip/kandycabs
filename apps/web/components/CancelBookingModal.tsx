@@ -8,6 +8,8 @@ interface CancelBookingModalProps {
   bookingRef: string;
   scheduledAt: string;
   category?: string;
+  tripType?: string;
+  advanceAmount?: number;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -18,6 +20,8 @@ export function CancelBookingModal({
   bookingRef,
   scheduledAt,
   category = 'SEDAN',
+  tripType = 'ONEWAY',
+  advanceAmount = 0,
   isOpen,
   onClose,
   onSuccess,
@@ -28,9 +32,11 @@ export function CancelBookingModal({
 
   if (!isOpen || !bookingId) return null;
 
-  const evalResult = evaluateCancellationCharge(scheduledAt, category, new Date());
+  const evalResult = evaluateCancellationCharge(scheduledAt, category, new Date(), {}, tripType, advanceAmount);
   const isWithin3h = evalResult.isWithinWindow;
-  const cancellationFee = evalResult.applicableFeeIfCancelled;
+  const cancellationFee = evalResult.cancellationCharge;
+  const isAdvanceNonRefundable = evalResult.isAdvanceNonRefundable;
+  const isFree = evalResult.freeCancellation;
 
   const handleCancel = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,13 +77,22 @@ export function CancelBookingModal({
             Are you sure you want to cancel booking <strong className="text-slate-900">{bookingRef}</strong>?
           </p>
 
-          {isWithin3h ? (
+          {isAdvanceNonRefundable ? (
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-amber-800">
+                <span>⚠️ Advance Non-Refundable Policy</span>
+              </div>
+              <p className="text-[11px] text-amber-800">
+                As per the cancellation policy for {tripType}, the advance payment of <strong>₹{advanceAmount.toFixed(2)}</strong> will not be refunded and is charged as the cancellation fee (0 refund).
+              </p>
+            </div>
+          ) : isWithin3h && !isFree ? (
             <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 space-y-1">
               <div className="flex items-center gap-1.5 font-bold text-amber-800">
                 <span>⚠️ Cancellation Charge Policy Applies</span>
               </div>
               <p className="text-[11px] text-amber-800">
-                This trip is scheduled within 3 hours ({evalResult.hoursUntilPickup}h left). According to policy, a cancellation fee of <strong>₹{cancellationFee}</strong> applies for {category} and will be deducted from your advance.
+                This trip is scheduled within {evalResult.windowHours} hours ({evalResult.hoursUntilPickup}h left). According to policy, a cancellation fee of <strong>₹{cancellationFee}</strong> applies for {category} and will be deducted from your advance.
               </p>
             </div>
           ) : (
@@ -86,7 +101,7 @@ export function CancelBookingModal({
                 <span>✅ Free Cancellation Eligible</span>
               </div>
               <p className="text-[11px] text-emerald-700">
-                You are cancelling {evalResult.hoursUntilPickup} hours before pickup (more than 3 hours). Full advance payment will be refunded to your original source.
+                {evalResult.hoursUntilPickup > 0 ? `You are cancelling ${evalResult.hoursUntilPickup} hours before pickup.` : 'Free cancellation active.'} Full advance payment of <strong>₹{advanceAmount.toFixed(2)}</strong> will be refunded to your original source.
               </p>
             </div>
           )}

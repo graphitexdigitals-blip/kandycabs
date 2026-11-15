@@ -80,8 +80,15 @@ export async function POST(req: NextRequest) {
         ...(existing?.rates || {}),
       };
 
+      const rawMode = existing?.mode;
+      const mode = rawMode === 'ADVANCE_NON_REFUNDABLE' || rawMode === 'FREE' || rawMode === 'FIXED_RATE'
+        ? rawMode
+        : (existing?.enabled === false ? 'FREE' : 'FIXED_RATE');
+      const enabled = mode !== 'FREE';
+
       updatedTripTypeRules[trip.key] = {
-        enabled: typeof existing?.enabled === 'boolean' ? existing.enabled : true,
+        mode,
+        enabled,
         windowHours: typeof existing?.windowHours === 'number' && existing.windowHours >= 0 ? existing.windowHours : windowHours,
         rates: tripRates,
       };
