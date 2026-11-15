@@ -9,9 +9,6 @@ import {
   DEFAULT_AIRPORT_ROUTES,
   DEFAULT_AIRPORT_FIXED_FARES,
   DEFAULT_NIGHT_CHARGE_SETTINGS,
-  DEFAULT_CANCELLATION_CONFIG,
-  CancellationRatesConfig,
-  ALL_FLEET_CATEGORIES_FOR_CANCELLATION,
   AirportRouteRate,
   AirportRatesConfig,
   NightChargeSettings,
@@ -352,9 +349,7 @@ export default function AdminPricingPage() {
   });
   const [savingPetRates, setSavingPetRates] = useState(false);
 
-  // Cancellation Charges by Fleet State
-  const [cancellationConfig, setCancellationConfig] = useState<CancellationRatesConfig>(DEFAULT_CANCELLATION_CONFIG);
-  const [savingCancellation, setSavingCancellation] = useState(false);
+
 
   const fetchNightSettings = useCallback(async () => {
     try {
@@ -402,48 +397,11 @@ export default function AdminPricingPage() {
     }
   }, []);
 
-  const fetchCancellationRates = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/settings/cancellation-rates');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.config) {
-          setCancellationConfig(data.config);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load cancellation rates:', err);
-    }
-  }, []);
-
   useEffect(() => {
     fetchPetRates();
     fetchNightSettings();
     fetchAirportRates();
-    fetchCancellationRates();
-  }, [fetchPetRates, fetchNightSettings, fetchAirportRates, fetchCancellationRates]);
-
-  const handleSaveCancellation = async () => {
-    setSavingCancellation(true);
-    try {
-      const res = await fetch('/api/admin/settings/cancellation-rates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cancellationConfig),
-      });
-      if (res.ok) {
-        setSuccessToast('Saved Cancellation Charges for All Fleets!');
-        setTimeout(() => setSuccessToast(null), 3500);
-      } else {
-        alert('Failed to save cancellation rates');
-      }
-    } catch (err) {
-      console.error('Error saving cancellation rates:', err);
-      alert('Error saving cancellation rates');
-    } finally {
-      setSavingCancellation(false);
-    }
-  };
+  }, [fetchPetRates, fetchNightSettings, fetchAirportRates]);
 
   const handleSaveNightSettings = async () => {
     setSavingNightSettings(true);
@@ -935,150 +893,7 @@ export default function AdminPricingPage() {
           </div>
         </div>
 
-        {/* Cancellation Charges by Fleet Card */}
-        <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="15" y1="9" x2="9" y2="15" />
-                  <line x1="9" y1="9" x2="15" y2="15" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-sm sm:text-base font-black text-slate-900">
-                  Cancellation Policy & Charges by Fleet
-                </h3>
-                <p className="text-[11px] sm:text-xs text-slate-500">
-                  Policy: Free cancellation up to {cancellationConfig.windowHours} hours before pickup. Within {cancellationConfig.windowHours} hours of pickup, cancellation charges apply per fleet.
-                </p>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <a
-                href="/cancellation"
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition inline-flex items-center gap-1 shrink-0 border border-slate-200"
-              >
-                Trip-Wise Rules & Options →
-              </a>
-              <button
-                type="button"
-                disabled={savingCancellation}
-                onClick={handleSaveCancellation}
-                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0 shadow-xs"
-              >
-                {savingCancellation ? 'Saving...' : 'Save Cancellation Rates'}
-              </button>
-            </div>
-          </div>
-
-          {/* Cancellation Window Setting */}
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <span className="text-xs font-black text-slate-800">Cancellation Window (Hours Before Pickup)</span>
-              <p className="text-[11px] text-slate-500">If cancelled within this many hours of scheduled pickup time, cancellation fee is charged. Free cancellation if cancelled earlier.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="1"
-                max="24"
-                value={cancellationConfig.windowHours}
-                onChange={(e) => setCancellationConfig((prev) => ({ ...prev, windowHours: Math.max(1, parseInt(e.target.value) || 3) }))}
-                className="w-20 px-2.5 py-1 text-xs font-bold text-center border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-rose-500"
-              />
-              <span className="text-xs font-semibold text-slate-600">Hours</span>
-            </div>
-          </div>
-
-          {/* Group 1: Compact & Sedans (Default ₹500) */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
-                Compact & Sedans (Default ₹500)
-              </span>
-              <span className="text-[10px] font-semibold text-slate-500">Compact, Dzire, Etios, Sedan</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-              {ALL_FLEET_CATEGORIES_FOR_CANCELLATION.filter((f) => f.group === 'COMPACT_SEDAN').map((fleet) => {
-                const currentFee = cancellationConfig.rates[fleet.category] ?? fleet.defaultRate;
-                return (
-                  <div key={fleet.category} className="p-3 bg-white border border-slate-200 rounded-xl flex flex-col justify-between hover:border-slate-300 transition shadow-2xs">
-                    <div>
-                      <span className="text-xs font-black text-slate-800 line-clamp-1">{fleet.name}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">{fleet.category}</span>
-                    </div>
-                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
-                      <span className="text-[11px] font-bold text-slate-500">Fee (₹):</span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-slate-400">₹</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="50"
-                          value={currentFee}
-                          onChange={(e) => {
-                            const val = Math.max(0, parseInt(e.target.value) || 0);
-                            setCancellationConfig((prev) => ({
-                              ...prev,
-                              rates: { ...prev.rates, [fleet.category]: val },
-                            }));
-                          }}
-                          className="w-24 px-2 py-1 text-xs font-black text-right border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-rose-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Group 2: Rest All Fleets (Default ₹1000) */}
-          <div className="space-y-2 pt-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
-                Rest All Fleets (Default ₹1,000)
-              </span>
-              <span className="text-[10px] font-semibold text-slate-500">SUVs, Innova, Crysta, Tempo Traveller, Urbania</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-              {ALL_FLEET_CATEGORIES_FOR_CANCELLATION.filter((f) => f.group === 'REST_FLEETS').map((fleet) => {
-                const currentFee = cancellationConfig.rates[fleet.category] ?? fleet.defaultRate;
-                return (
-                  <div key={fleet.category} className="p-3 bg-white border border-slate-200 rounded-xl flex flex-col justify-between hover:border-slate-300 transition shadow-2xs">
-                    <div>
-                      <span className="text-xs font-black text-slate-800 line-clamp-1">{fleet.name}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">{fleet.category}</span>
-                    </div>
-                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
-                      <span className="text-[11px] font-bold text-slate-500">Fee (₹):</span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-slate-400">₹</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="50"
-                          value={currentFee}
-                          onChange={(e) => {
-                            const val = Math.max(0, parseInt(e.target.value) || 0);
-                            setCancellationConfig((prev) => ({
-                              ...prev,
-                              rates: { ...prev.rates, [fleet.category]: val },
-                            }));
-                          }}
-                          className="w-24 px-2 py-1 text-xs font-black text-right border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-rose-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
 
         {/* Airport Transfer Pricing Policy Card */}
         <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-xs space-y-4">
