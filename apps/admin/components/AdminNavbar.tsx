@@ -20,6 +20,7 @@ import {
   IconMenu,
   IconX,
   IconXCircle,
+  IconSteeringWheel,
 } from './Icons';
 
 interface NavItem {
@@ -105,6 +106,13 @@ export function AdminNavbar() {
       label: 'Pricing & Tariffs',
       description: 'Per-km rates, min km, night & pet charges',
       icon: IconTag,
+      section: 'FLEET & DRIVERS',
+    },
+    {
+      href: '/chauffeur',
+      label: 'Chauffeur Allowance',
+      description: 'Driver bata, duty hours (6 AM-8 PM) & trip rules',
+      icon: IconSteeringWheel,
       section: 'FLEET & DRIVERS',
     },
     {

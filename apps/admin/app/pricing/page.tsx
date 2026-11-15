@@ -939,7 +939,7 @@ export default function AdminPricingPage() {
 
 
         {/* Chauffeur Allowance (Driver Bata) Policy & Rates Card */}
-        <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-xs space-y-5">
+        <div id="chauffeur-allowance" className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-xs space-y-5 scroll-mt-24">
           {/* Section Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
             <div className="flex items-center gap-3">
