@@ -16,8 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Linking from 'expo-linking';
 import * as FileSystem from 'expo-file-system';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import { KANDY_LOGO_BASE64, generateKandyInvoiceHtml } from '@kandy-cabs/shared';
 import { customerApiClient, getDynamicBaseUrl, customerTokenStorage } from '../lib/api';
 
@@ -381,51 +379,22 @@ export function TaxInvoiceModal({
 
   if (!isOpen || !bookingId) return null;
 
-  const generateLocalPdf = async (): Promise<string> => {
-    // 1. Generate full official HTML invoice template from invoice data
-    const htmlContent = generateKandyInvoiceHtml(invoice, { autoPrint: false });
-
-    // 2. Directly compile into native PDF file on device storage via expo-print
-    const { uri: tempPdfUri } = await Print.printToFileAsync({
-      html: htmlContent,
-    });
-
-    // 3. Prepare permanent named PDF destination
-    const fileName = `Kandy_Cabs_Tax_Invoice_${invoice.invoiceNumber}.pdf`;
-    const targetPdfUri = `${FileSystem.documentDirectory || FileSystem.cacheDirectory}${fileName}`;
-
-    // Move / Copy generated PDF to named file
-    await FileSystem.copyAsync({
-      from: tempPdfUri,
-      to: targetPdfUri,
-    });
-
-    return targetPdfUri;
+  const getInvoiceDownloadUrl = async (): Promise<string> => {
+    const token = await customerTokenStorage.getTokenAsync();
+    const baseUrl = getDynamicBaseUrl();
+    const authParam = token ? `&auth=${encodeURIComponent(token)}` : '';
+    return `${baseUrl}/api/customer/bookings/${bookingId}/invoice?format=html&download=1&print=true${authParam}`;
   };
 
   const handleDownloadPdf = async () => {
     if (!invoice || !bookingId) return;
     try {
       setDownloading(true);
-      const targetPdfUri = await generateLocalPdf();
-
-      // 4. Directly save / share without redirecting to any external browser page
-      const isSharingAvailable = await Sharing.isAvailableAsync();
-      if (isSharingAvailable) {
-        await Sharing.shareAsync(targetPdfUri, {
-          mimeType: 'application/pdf',
-          dialogTitle: `Save Invoice #${invoice.invoiceNumber}`,
-          UTI: 'com.adobe.pdf',
-        });
-      } else {
-        Alert.alert(
-          'Invoice PDF Saved',
-          `Tax Invoice #${invoice.invoiceNumber} has been downloaded and saved to your device:\n\n${targetPdfUri}`
-        );
-      }
+      const downloadUrl = await getInvoiceDownloadUrl();
+      await Linking.openURL(downloadUrl);
     } catch (err: any) {
       console.error('[TaxInvoice] Direct PDF download error:', err);
-      Alert.alert('Download Error', err.message || 'Unable to download invoice at this time.');
+      Alert.alert('Download Error', err.message || 'Unable to open invoice at this time.');
     } finally {
       setDownloading(false);
     }
@@ -435,29 +404,12 @@ export function TaxInvoiceModal({
     if (!invoice || !bookingId) return;
     try {
       setSharing(true);
-      // Generate actual PDF file on device
-      const targetPdfUri = await generateLocalPdf();
-
-      const isSharingAvailable = await Sharing.isAvailableAsync();
-      if (isSharingAvailable) {
-        // Share actual .pdf document directly to WhatsApp, Email, Drive, etc.
-        await Sharing.shareAsync(targetPdfUri, {
-          mimeType: 'application/pdf',
-          dialogTitle: `Share Kandy Cabs Invoice #${invoice.invoiceNumber}`,
-          UTI: 'com.adobe.pdf',
-        });
-      } else {
-        // Fallback to text link if device doesn't support file sharing
-        const token = await customerTokenStorage.getTokenAsync();
-        const baseUrl = getDynamicBaseUrl();
-        const authParam = token ? `&auth=${encodeURIComponent(token)}` : '';
-        const downloadUrl = `${baseUrl}/api/customer/bookings/${bookingId}/invoice?format=html&download=1&print=true${authParam}`;
-        await Share.share({
-          title: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}`,
-          message: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}\nCustomer: ${invoice.customer?.name || 'Customer'}\nTotal: ₹${invoice.financials?.grandTotal?.toFixed(2) || '0.00'}\nDownload Official PDF: ${downloadUrl}`,
-          url: downloadUrl,
-        });
-      }
+      const downloadUrl = await getInvoiceDownloadUrl();
+      await Share.share({
+        title: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}`,
+        message: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}\nBooking: ${invoice.humanReadableRef || bookingId}\nCustomer: ${invoice.customer?.name || 'Customer'}\nTotal: ₹${invoice.financials?.grandTotal?.toFixed(2) || '0.00'}\n\nView / Download Official Invoice:\n${downloadUrl}`,
+        url: downloadUrl,
+      });
     } catch (err: any) {
       console.error('[TaxInvoice] Share PDF error:', err);
       Alert.alert('Share Error', err.message || 'Unable to share invoice at this time.');

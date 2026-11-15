@@ -88,6 +88,27 @@ function parseViaStops(booking: any): string[] {
   return [];
 }
 
+function formatBookingSchedule(val: any): string {
+  try {
+    const d = parseSafeIsoDate(val);
+    if (!d || isNaN(d.getTime())) return 'Scheduled';
+    return d.toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    try {
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? 'Scheduled' : d.toDateString();
+    } catch {
+      return String(val || 'Scheduled');
+    }
+  }
+}
+
 export default function MyBookingsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -675,13 +696,7 @@ export default function MyBookingsScreen() {
                           <Text style={styles.scheduledText} numberOfLines={1}>
                             {t('myBookings.scheduled', { defaultValue: 'Scheduled:' })}{' '}
                             <Text style={styles.scheduledBold}>
-                              {parseSafeIsoDate(booking.scheduledAt).toLocaleString([], {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                              {formatBookingSchedule(booking.scheduledAt)}
                             </Text>
                           </Text>
                         </View>
