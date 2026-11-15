@@ -719,7 +719,9 @@ export default function SelectCabScreen() {
       const rateB = isUrbaniaB ? selectedUrbaniaSeater.baseRatePerKm : b.ratePerKm;
       const fareA = Math.round(Math.max(a.minKm, estimatedKm) * rateA);
       const fareB = Math.round(Math.max(b.minKm, estimatedKm) * rateB);
-      return sortOrder === 'asc' ? fareA - fareB : fareB - fareA;
+      const fareWithGstA = fareA + Math.round(fareA * 0.05);
+      const fareWithGstB = fareB + Math.round(fareB * 0.05);
+      return sortOrder === 'asc' ? fareWithGstA - fareWithGstB : fareWithGstB - fareWithGstA;
     });
   }, [fleetList, sortOrder, estimatedKm, selectedUrbaniaSeater, tripType]);
 
@@ -1034,6 +1036,15 @@ export default function SelectCabScreen() {
               calculationBreakdown += ` + ₹250 (Night Charge)`;
             }
 
+            // Include 5% GST directly so customer sees true total trip fare upfront
+            const baseSubtotal = totalFare;
+            const gstAmount = Math.round(baseSubtotal * 0.05);
+            const totalFareWithGst = baseSubtotal + gstAmount;
+
+            if (calculationBreakdown) {
+              calculationBreakdown += ` + 5% GST (₹${gstAmount.toLocaleString('en-IN')}) = ₹${totalFareWithGst.toLocaleString('en-IN')}`;
+            }
+
             const seatsLabel = item.id === 'TEMPO_TRAVELER'
               ? '12-17'
               : `${effectiveSeats}+1`;
@@ -1154,7 +1165,7 @@ export default function SelectCabScreen() {
                               adjustsFontSizeToFit={true}
                               minimumFontScale={0.8}
                             >
-                              ₹ {totalFare.toLocaleString('en-IN')}
+                              ₹ {totalFareWithGst.toLocaleString('en-IN')}
                             </Text>
                           )}
 
@@ -1551,7 +1562,8 @@ export default function SelectCabScreen() {
               </View>
               {URBANIA_SEATER_OPTIONS.filter((s) => s.wheelbaseMm === 3350).map((opt) => {
                 const isSelected = selectedUrbaniaSeaterId === opt.id;
-                const optTotalFare = Math.round(Math.max(150, estimatedKm) * opt.baseRatePerKm);
+                const optBaseFare = Math.round(Math.max(150, estimatedKm) * opt.baseRatePerKm);
+                const optTotalFare = optBaseFare + Math.round(optBaseFare * 0.05);
                 return (
                   <TouchableOpacity
                     key={opt.id}
@@ -1603,7 +1615,8 @@ export default function SelectCabScreen() {
               </View>
               {URBANIA_SEATER_OPTIONS.filter((s) => s.wheelbaseMm === 3615).map((opt) => {
                 const isSelected = selectedUrbaniaSeaterId === opt.id;
-                const optTotalFare = Math.round(Math.max(150, estimatedKm) * opt.baseRatePerKm);
+                const optBaseFare = Math.round(Math.max(150, estimatedKm) * opt.baseRatePerKm);
+                const optTotalFare = optBaseFare + Math.round(optBaseFare * 0.05);
                 return (
                   <TouchableOpacity
                     key={opt.id}
@@ -1655,7 +1668,8 @@ export default function SelectCabScreen() {
               </View>
               {URBANIA_SEATER_OPTIONS.filter((s) => s.wheelbaseMm === 4400).map((opt) => {
                 const isSelected = selectedUrbaniaSeaterId === opt.id;
-                const optTotalFare = Math.round(Math.max(150, estimatedKm) * opt.baseRatePerKm);
+                const optBaseFare = Math.round(Math.max(150, estimatedKm) * opt.baseRatePerKm);
+                const optTotalFare = optBaseFare + Math.round(optBaseFare * 0.05);
                 return (
                   <TouchableOpacity
                     key={opt.id}
