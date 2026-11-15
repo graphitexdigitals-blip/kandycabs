@@ -27,6 +27,7 @@ import {
 } from '../lib/api';
 import { CAPTAIN_AVATAR_BASE64 } from '../assets/embeddedAssets';
 import { ADMIN_REGISTERED_DRIVERS, getAdminRegisteredDriver } from '../lib/adminDrivers';
+import { APP_FONT, APP_FONT_BOLD, APP_FONT_MEDIUM } from '../constants/typography';
 
 export default function DriverLoginScreen() {
   const router = useRouter();
@@ -492,6 +493,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   partnerTitle: {
+    fontFamily: APP_FONT_BOLD,
     fontSize: 13.5,
     fontWeight: '800',
     color: '#0f2942',
@@ -508,16 +510,19 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   langText: {
+    fontFamily: APP_FONT_MEDIUM,
     fontSize: 14,
     fontWeight: '600',
     color: '#475569',
     paddingHorizontal: 8,
   },
   langActive: {
+    fontFamily: APP_FONT_BOLD,
     color: '#ea580c',
     fontWeight: '800',
   },
   langDivider: {
+    fontFamily: APP_FONT,
     fontSize: 13,
     color: '#94a3b8',
     marginHorizontal: 3,
@@ -540,6 +545,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   pillInput: {
+    fontFamily: APP_FONT_MEDIUM,
     flex: 1,
     height: '100%',
     fontSize: 15,
@@ -562,6 +568,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgb(240, 117, 15)',
   },
   getOtpInlineText: {
+    fontFamily: APP_FONT_BOLD,
     fontSize: 12.5,
     fontWeight: '700',
     color: '#ffffff',
@@ -583,6 +590,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   loginSubmitBtnText: {
+    fontFamily: APP_FONT_BOLD,
     fontSize: 15.5,
     fontWeight: '800',
     color: '#ffffff',
@@ -623,6 +631,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   demoHeading: {
+    fontFamily: APP_FONT_BOLD,
     fontSize: 10.5,
     fontWeight: '800',
     color: '#64748b',
@@ -653,17 +662,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   demoName: {
+    fontFamily: APP_FONT_BOLD,
     color: '#0f172a',
     fontWeight: '800',
     fontSize: 13.5,
   },
   demoSubtitleOrange: {
+    fontFamily: APP_FONT_MEDIUM,
     color: '#b45309',
     fontSize: 11.5,
     fontWeight: '600',
     marginTop: 2,
   },
   demoSubtitleBlue: {
+    fontFamily: APP_FONT_MEDIUM,
     color: '#0284c7',
     fontSize: 11.5,
     fontWeight: '600',
@@ -676,6 +688,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   demoActionTextOrange: {
+    fontFamily: APP_FONT_BOLD,
     color: '#b45309',
     fontWeight: '800',
     fontSize: 12,
@@ -687,6 +700,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   demoActionTextBlue: {
+    fontFamily: APP_FONT_BOLD,
     color: '#0284c7',
     fontWeight: '800',
     fontSize: 12,

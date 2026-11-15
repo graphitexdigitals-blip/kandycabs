@@ -26,18 +26,71 @@ if (typeof global !== 'undefined' && (global as any).Response) {
 
 import '@kandy-cabs/shared';
 import React, { useEffect } from 'react';
-import { LogBox, Platform, PermissionsAndroid } from 'react-native';
+import { LogBox, Platform, PermissionsAndroid, Text as RNText, TextInput as RNTextInput } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
+import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
 import '../lib/location-tracker';
 import '../lib/i18n';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { APP_FONT, resolveRobotoStyle } from '../constants/typography';
+
+// Keep splash screen visible until custom Roboto fonts are loaded
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// Globally intercept RNText & RNTextInput to apply universal clean Roboto sans-serif typography
+// This prevents OEM themes (e.g., OnePlus Serif font settings) from overriding app styles.
+const originalTextRender = (RNText as any).__originalRender || (RNText as any).render;
+if (typeof originalTextRender === 'function') {
+  (RNText as any).__originalRender = originalTextRender;
+  (RNText as any).render = function (props: any, ref: any) {
+    const robotoOverride = resolveRobotoStyle(props?.style);
+    if (!robotoOverride) {
+      return originalTextRender.call(this, props, ref);
+    }
+    const mergedProps = {
+      ...props,
+      style: [props?.style, robotoOverride],
+    };
+    return originalTextRender.call(this, mergedProps, ref);
+  };
+}
+
+const originalInputRender = (RNTextInput as any).__originalRender || (RNTextInput as any).render;
+if (typeof originalInputRender === 'function') {
+  (RNTextInput as any).__originalRender = originalInputRender;
+  (RNTextInput as any).render = function (props: any, ref: any) {
+    const robotoOverride = resolveRobotoStyle(props?.style);
+    if (!robotoOverride) {
+      return originalInputRender.call(this, props, ref);
+    }
+    const mergedProps = {
+      ...props,
+      style: [props?.style, robotoOverride],
+    };
+    return originalInputRender.call(this, mergedProps, ref);
+  };
+}
 
 // Suppress development yellow box overlays so they do not block driver workflow
 LogBox.ignoreAllLogs(true);
 
 export default function RootLayout() {
   const router = useRouter();
+
+  const [fontsLoaded] = useFonts({
+    'Roboto': require('../assets/fonts/Roboto-Regular.ttf'),
+    'Roboto-Regular': require('../assets/fonts/Roboto-Regular.ttf'),
+    'Roboto-Medium': require('../assets/fonts/Roboto-Medium.ttf'),
+    'Roboto-Bold': require('../assets/fonts/Roboto-Bold.ttf'),
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded]);
 
   // Request Notification permission immediately on app startup (Android 13+ / API 33+)
   useEffect(() => {
@@ -79,6 +132,10 @@ export default function RootLayout() {
     const sub = Linking.addEventListener('url', (event) => handleUrl(event.url));
     return () => sub.remove();
   }, [router]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <ErrorBoundary>
