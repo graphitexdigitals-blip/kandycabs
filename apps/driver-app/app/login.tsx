@@ -17,6 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   driverApiClient,
   getDynamicBaseUrl,
@@ -29,6 +30,9 @@ import { ADMIN_REGISTERED_DRIVERS, getAdminRegisteredDriver } from '../lib/admin
 
 export default function DriverLoginScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : insets.top;
+  const topPadding = Math.max(statusBarHeight + 52, insets.top + 52, 82);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [language, setLanguage] = useState<'en' | 'kn' | 'hi'>('en');
@@ -320,7 +324,7 @@ export default function DriverLoginScreen() {
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: topPadding }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -478,8 +482,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   header: {
-    marginTop: 8,
-    marginBottom: 16,
+    marginTop: 10,
+    marginBottom: 12,
     alignItems: 'center',
   },
   logoImage: {
@@ -520,7 +524,7 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     paddingHorizontal: 2,
-    marginTop: 36,
+    marginTop: 22,
   },
   inputPillRow: {
     flexDirection: 'row',
