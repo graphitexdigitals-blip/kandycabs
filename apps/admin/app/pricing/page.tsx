@@ -9,8 +9,6 @@ import {
   DEFAULT_AIRPORT_ROUTES,
   DEFAULT_AIRPORT_FIXED_FARES,
   DEFAULT_NIGHT_CHARGE_SETTINGS,
-  DEFAULT_CHAUFFEUR_ALLOWANCE_CONFIG,
-  ChauffeurAllowanceConfig,
   AirportRouteRate,
   AirportRatesConfig,
   NightChargeSettings,
@@ -152,7 +150,7 @@ const FLEET_CATEGORIES_LIST = [
 
 const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.ReactNode; bg: string; border: string }> = {
   [VehicleCategory.HATCHBACK]: {
-    name: 'Sedan – Compact',
+    name: 'Sedan â€“ Compact',
     sample: 'Toyota Glanza, WagonR, Tiago, Celerio',
     icon: (
       <svg className="w-6 h-6 text-amber-600" viewBox="0 0 24 24" fill="currentColor">
@@ -163,7 +161,7 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
     border: 'border-slate-200',
   },
   SWIFT_DZIRE: {
-    name: 'Sedan – Swift Dzire',
+    name: 'Sedan â€“ Swift Dzire',
     sample: 'Maruti Suzuki Dzire (4+1, Diesel)',
     icon: (
       <svg className="w-6 h-6 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
@@ -174,7 +172,7 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
     border: 'border-slate-200',
   },
   TOYOTA_ETIOS: {
-    name: 'Sedan – Toyota Etios',
+    name: 'Sedan â€“ Toyota Etios',
     sample: 'Toyota Etios (4+1, Diesel with Boot)',
     icon: (
       <svg className="w-6 h-6 text-indigo-600" viewBox="0 0 24 24" fill="currentColor">
@@ -185,7 +183,7 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
     border: 'border-slate-200',
   },
   SUV_ERTIGA: {
-    name: 'SUV – Ertiga',
+    name: 'SUV â€“ Ertiga',
     sample: 'Maruti Suzuki Ertiga (6+1, CNG / Petrol)',
     icon: (
       <svg className="w-6 h-6 text-emerald-600" viewBox="0 0 24 24" fill="currentColor">
@@ -196,7 +194,7 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
     border: 'border-slate-200',
   },
   SUV_CARENS: {
-    name: 'SUV – Kia Carens',
+    name: 'SUV â€“ Kia Carens',
     sample: 'Kia Carens Diesel Luxury (6+1)',
     icon: (
       <svg className="w-6 h-6 text-teal-600" viewBox="0 0 24 24" fill="currentColor">
@@ -207,7 +205,7 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
     border: 'border-slate-200',
   },
   SUV_INNOVA: {
-    name: 'SUV – Toyota Innova',
+    name: 'SUV â€“ Toyota Innova',
     sample: 'Toyota Innova Diesel (6+1 / 7+1)',
     icon: (
       <svg className="w-6 h-6 text-cyan-600" viewBox="0 0 24 24" fill="currentColor">
@@ -218,7 +216,7 @@ const CATEGORY_META: Record<string, { name: string; sample: string; icon: React.
     border: 'border-slate-200',
   },
   SUV_CRYSTA: {
-    name: 'SUV – Innova Crysta',
+    name: 'SUV â€“ Innova Crysta',
     sample: 'Toyota Innova Crysta Diesel Luxury (6+1 / 7+1)',
     icon: (
       <svg className="w-6 h-6 text-purple-600" viewBox="0 0 24 24" fill="currentColor">
@@ -351,48 +349,6 @@ export default function AdminPricingPage() {
   });
   const [savingPetRates, setSavingPetRates] = useState(false);
 
-  // Chauffeur Allowance (Driver Bata) Policy & Rates State
-  const [chauffeurConfig, setChauffeurConfig] = useState<ChauffeurAllowanceConfig>(DEFAULT_CHAUFFEUR_ALLOWANCE_CONFIG);
-  const [savingChauffeurConfig, setSavingChauffeurConfig] = useState(false);
-
-  const fetchChauffeurConfig = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/settings/chauffeur-allowance');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.settings) {
-          setChauffeurConfig(data.settings);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load chauffeur allowance settings:', err);
-    }
-  }, []);
-
-  const handleSaveChauffeurConfig = async () => {
-    setSavingChauffeurConfig(true);
-    try {
-      const res = await fetch('/api/admin/settings/chauffeur-allowance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(chauffeurConfig),
-      });
-      if (res.ok) {
-        setSuccessToast('Saved Chauffeur Allowance (Driver Bata) Policy & Rates!');
-        setTimeout(() => setSuccessToast(null), 3500);
-      } else {
-        alert('Failed to save chauffeur allowance settings');
-      }
-    } catch (err) {
-      console.error('Error saving chauffeur allowance settings:', err);
-      alert('Error saving chauffeur allowance settings');
-    } finally {
-      setSavingChauffeurConfig(false);
-    }
-  };
-
-
-
   const fetchNightSettings = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/settings/night-charges');
@@ -443,8 +399,7 @@ export default function AdminPricingPage() {
     fetchPetRates();
     fetchNightSettings();
     fetchAirportRates();
-    fetchChauffeurConfig();
-  }, [fetchPetRates, fetchNightSettings, fetchAirportRates, fetchChauffeurConfig]);
+  }, [fetchPetRates, fetchNightSettings, fetchAirportRates]);
 
   const handleSaveNightSettings = async () => {
     setSavingNightSettings(true);
@@ -588,7 +543,7 @@ export default function AdminPricingPage() {
         if (data.rates) {
           setPetRates(data.rates);
         }
-        setSuccessToast(`Saved Pet Surcharge Rates: Cat ₹${petRates.cat}, Dog ₹${petRates.dog}, Bird ₹${petRates.bird}!`);
+        setSuccessToast(`Saved Pet Surcharge Rates: Cat â‚¹${petRates.cat}, Dog â‚¹${petRates.dog}, Bird â‚¹${petRates.bird}!`);
         setTimeout(() => setSuccessToast(null), 3500);
       } else {
         const data = await res.json();
@@ -675,7 +630,7 @@ export default function AdminPricingPage() {
       if (res.ok) {
         const saved = editingRule;
         setEditingRule(null);
-        setSuccessToast(`Saved pricing for ${saved.category} • ${saved.tripType} • ${saved.fuelType}`);
+        setSuccessToast(`Saved pricing for ${saved.category} â€¢ ${saved.tripType} â€¢ ${saved.fuelType}`);
         setTimeout(() => setSuccessToast(null), 3500);
         await fetchRules();
       } else {
@@ -755,7 +710,7 @@ export default function AdminPricingPage() {
               <span>{successToast}</span>
             </div>
             <button onClick={() => setSuccessToast(null)} className="text-emerald-600 hover:text-emerald-900">
-              ✕
+              âœ•
             </button>
           </div>
         )}
@@ -937,415 +892,6 @@ export default function AdminPricingPage() {
         </div>
 
 
-
-        {/* Chauffeur Allowance (Driver Bata) Policy & Rates Card */}
-        <div id="chauffeur-allowance" className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-xs space-y-5 scroll-mt-24">
-          {/* Section Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200 shadow-2xs">
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
-                  <path d="M2 12h20" />
-                </svg>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm sm:text-base font-black text-slate-900">
-                    Chauffeur Allowance (Driver Bata) Policy & Rates
-                  </h3>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-                    chauffeurConfig.enabled
-                      ? 'bg-amber-50 text-amber-800 border-amber-200'
-                      : 'bg-slate-100 text-slate-600 border-slate-200'
-                  }`}>
-                    {chauffeurConfig.enabled ? 'Policy Active' : 'Disabled'}
-                  </span>
-                </div>
-                <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
-                  Configure day/night duty hours, trip-wise allowance rules, and fleet-specific driver bata automatically synced with bookings.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setChauffeurConfig((prev) => ({ ...prev, enabled: !prev.enabled }))}
-                className={`px-3 py-1.5 font-bold text-xs rounded-lg transition border cursor-pointer ${
-                  chauffeurConfig.enabled
-                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200'
-                }`}
-              >
-                {chauffeurConfig.enabled ? 'Enabled' : 'Disabled'}
-              </button>
-              <button
-                type="button"
-                disabled={savingChauffeurConfig}
-                onClick={handleSaveChauffeurConfig}
-                className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-xs"
-              >
-                {savingChauffeurConfig ? 'Saving...' : 'Save Chauffeur Policy'}
-              </button>
-            </div>
-          </div>
-
-          {/* 1. Duty Windows (Day & Night) */}
-          <div className="p-3.5 bg-gradient-to-r from-amber-50/60 to-orange-50/40 border border-amber-200/80 rounded-xl space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200/50 pb-2">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                <span className="text-xs font-black text-slate-900 uppercase tracking-wide">
-                  Chauffeur Duty & Timing Windows
-                </span>
-              </div>
-              <span className="text-[11px] font-semibold text-slate-600">
-                Day: {chauffeurConfig.dayWindowStartHour}:00 to {chauffeurConfig.dayWindowEndHour}:00 • Night: {chauffeurConfig.nightWindowStartHour}:00 to {chauffeurConfig.nightWindowEndHour}:00
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Day Window Setting */}
-              <div className="bg-white/90 p-3 rounded-lg border border-amber-200/70 flex items-center justify-between gap-3 shadow-2xs">
-                <div>
-                  <span className="text-xs font-bold text-slate-800 block">Day Duty Hours</span>
-                  <span className="text-[10.5px] text-slate-500">Standard day driving window (6 AM to 8 PM)</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs font-bold shrink-0">
-                  <input
-                    type="number"
-                    min="0"
-                    max="23"
-                    value={chauffeurConfig.dayWindowStartHour}
-                    onChange={(e) => setChauffeurConfig((prev) => ({ ...prev, dayWindowStartHour: Math.max(0, Math.min(23, parseInt(e.target.value) || 0)) }))}
-                    className="w-12 px-1.5 py-1 text-center font-mono border border-slate-300 rounded bg-white text-slate-900"
-                  />
-                  <span className="text-slate-400">to</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="23"
-                    value={chauffeurConfig.dayWindowEndHour}
-                    onChange={(e) => setChauffeurConfig((prev) => ({ ...prev, dayWindowEndHour: Math.max(0, Math.min(23, parseInt(e.target.value) || 0)) }))}
-                    className="w-12 px-1.5 py-1 text-center font-mono border border-slate-300 rounded bg-white text-slate-900"
-                  />
-                  <span className="text-[10px] text-slate-500">Hrs</span>
-                </div>
-              </div>
-
-              {/* Night Window Setting */}
-              <div className="bg-white/90 p-3 rounded-lg border border-amber-200/70 flex items-center justify-between gap-3 shadow-2xs">
-                <div>
-                  <span className="text-xs font-bold text-slate-800 block">Night Duty Hours</span>
-                  <span className="text-[10.5px] text-slate-500">Late night window (8 PM to 6 AM)</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs font-bold shrink-0">
-                  <input
-                    type="number"
-                    min="0"
-                    max="23"
-                    value={chauffeurConfig.nightWindowStartHour}
-                    onChange={(e) => setChauffeurConfig((prev) => ({ ...prev, nightWindowStartHour: Math.max(0, Math.min(23, parseInt(e.target.value) || 0)) }))}
-                    className="w-12 px-1.5 py-1 text-center font-mono border border-slate-300 rounded bg-white text-slate-900"
-                  />
-                  <span className="text-slate-400">to</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="23"
-                    value={chauffeurConfig.nightWindowEndHour}
-                    onChange={(e) => setChauffeurConfig((prev) => ({ ...prev, nightWindowEndHour: Math.max(0, Math.min(23, parseInt(e.target.value) || 0)) }))}
-                    className="w-12 px-1.5 py-1 text-center font-mono border border-slate-300 rounded bg-white text-slate-900"
-                  />
-                  <span className="text-[10px] text-slate-500">Hrs</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 2. Trip-Type Rules Grid */}
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
-                Trip-Wise Allowance Rules
-              </span>
-              <span className="text-[10.5px] text-slate-500">Click toggles to customize day / night allowance inclusion per trip type</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {[
-                {
-                  key: 'ONEWAY',
-                  label: 'One Way Outstation',
-                  desc: 'Point-to-point drop ride',
-                  ruleBadge: 'Chauffeur Allowance Included',
-                  ruleBadgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-                  dayLabel: 'Day Allowance Included',
-                  nightLabel: 'Night Allowance (8 PM - 6 AM)',
-                },
-                {
-                  key: 'ROUND',
-                  label: 'Round Trip',
-                  desc: 'Return / multi-day round tour',
-                  ruleBadge: 'Day 6 AM-8 PM Included • Night 8 PM-6 AM Included',
-                  ruleBadgeColor: 'bg-blue-50 text-blue-800 border-blue-200',
-                  dayLabel: 'Day Included (6 AM to 8 PM)',
-                  nightLabel: 'Night Included (8 PM to 6 AM)',
-                },
-                {
-                  key: 'LOCAL',
-                  label: 'Local Rental Package',
-                  desc: 'Hourly 4hr/8hr/12hr city packages',
-                  ruleBadge: 'No Day Allowance • 8 PM - 6 AM Excluded',
-                  ruleBadgeColor: 'bg-slate-100 text-slate-700 border-slate-300',
-                  dayLabel: 'Day Allowance',
-                  nightLabel: '8 PM to 6 AM Night Allowance',
-                },
-                {
-                  key: 'AIRPORT',
-                  label: 'Airport Transfers',
-                  desc: 'Airport pickups & drops',
-                  ruleBadge: 'No Allowance',
-                  ruleBadgeColor: 'bg-rose-50 text-rose-800 border-rose-200',
-                  dayLabel: 'Day Allowance',
-                  nightLabel: 'Night Allowance',
-                },
-                {
-                  key: 'CORPORATE',
-                  label: 'Corporate Travel',
-                  desc: 'Executive & corporate bookings',
-                  ruleBadge: 'Same as Round Trip',
-                  ruleBadgeColor: 'bg-purple-50 text-purple-800 border-purple-200',
-                  dayLabel: 'Day Included (6 AM to 8 PM)',
-                  nightLabel: 'Night Included (8 PM to 6 AM)',
-                },
-                {
-                  key: 'PACKAGE',
-                  label: 'Pilgrimage Tour / Packages',
-                  desc: 'Sightseeing & temple tour packages',
-                  ruleBadge: 'Same as Round Trip',
-                  ruleBadgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
-                  dayLabel: 'Day Included (6 AM to 8 PM)',
-                  nightLabel: 'Night Included (8 PM to 6 AM)',
-                },
-              ].map((item) => {
-                const rule = chauffeurConfig.rules?.[item.key] || {
-                  tripType: item.key,
-                  label: item.label,
-                  dayAllowanceEnabled: item.key === 'ONEWAY' || item.key === 'ROUND' || item.key === 'CORPORATE' || item.key === 'PACKAGE',
-                  nightAllowanceEnabled: item.key === 'ROUND' || item.key === 'CORPORATE' || item.key === 'PACKAGE',
-                  notes: '',
-                };
-
-                return (
-                  <div
-                    key={item.key}
-                    className="p-3.5 bg-white border border-slate-200 hover:border-slate-300 rounded-xl transition flex flex-col justify-between shadow-2xs space-y-3"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-1.5">
-                        <div>
-                          <h4 className="text-xs font-black text-slate-900">{item.label}</h4>
-                          <span className="text-[10px] text-slate-400">{item.desc}</span>
-                        </div>
-                        <span className={`px-2 py-0.5 rounded text-[9.5px] font-bold border shrink-0 text-center ${item.ruleBadgeColor}`}>
-                          {item.ruleBadge}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 pt-2 border-t border-slate-100 text-xs">
-                      {/* Day Allowance Toggle */}
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] font-semibold text-slate-700">{item.dayLabel}:</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setChauffeurConfig((prev) => ({
-                              ...prev,
-                              rules: {
-                                ...prev.rules,
-                                [item.key]: {
-                                  ...rule,
-                                  dayAllowanceEnabled: !rule.dayAllowanceEnabled,
-                                },
-                              },
-                            }));
-                          }}
-                          className={`px-2.5 py-0.5 rounded text-[10.5px] font-bold transition border cursor-pointer ${
-                            rule.dayAllowanceEnabled
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                              : 'bg-slate-100 text-slate-500 border-slate-200'
-                          }`}
-                        >
-                          {rule.dayAllowanceEnabled ? '✓ Included' : '✕ Excluded'}
-                        </button>
-                      </div>
-
-                      {/* Night Allowance Toggle */}
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] font-semibold text-slate-700">{item.nightLabel}:</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setChauffeurConfig((prev) => ({
-                              ...prev,
-                              rules: {
-                                ...prev.rules,
-                                [item.key]: {
-                                  ...rule,
-                                  nightAllowanceEnabled: !rule.nightAllowanceEnabled,
-                                },
-                              },
-                            }));
-                          }}
-                          className={`px-2.5 py-0.5 rounded text-[10.5px] font-bold transition border cursor-pointer ${
-                            rule.nightAllowanceEnabled
-                              ? 'bg-indigo-50 text-indigo-700 border-indigo-300'
-                              : 'bg-slate-100 text-slate-500 border-slate-200'
-                          }`}
-                        >
-                          {rule.nightAllowanceEnabled ? '✓ Included' : '✕ Excluded'}
-                        </button>
-                      </div>
-
-                      {/* Optional Flat Rate Override */}
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-50">
-                        <div>
-                          <span className="text-[10px] text-slate-500 block leading-tight">Flat Day Rate Override (₹):</span>
-                          <span className="text-[9px] text-slate-400">Leave blank for fleet default</span>
-                        </div>
-                        <input
-                          type="number"
-                          min="0"
-                          step="50"
-                          placeholder="Fleet Rate"
-                          value={rule.dayRateOverride !== null && rule.dayRateOverride !== undefined ? rule.dayRateOverride : ''}
-                          onChange={(e) => {
-                            const val = e.target.value === '' ? null : Math.max(0, parseInt(e.target.value) || 0);
-                            setChauffeurConfig((prev) => ({
-                              ...prev,
-                              rules: {
-                                ...prev.rules,
-                                [item.key]: {
-                                  ...rule,
-                                  dayRateOverride: val,
-                                },
-                              },
-                            }));
-                          }}
-                          className="w-24 px-2 py-0.5 text-right font-mono text-[11px] border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-amber-500 font-bold"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 3. Fleet Default Driver Bata Rates (Day & Night) */}
-          <div className="space-y-2.5 pt-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <div>
-                <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
-                  Fleet-Specific Default Driver Bata Rates
-                </span>
-                <p className="text-[10.5px] text-slate-500">
-                  Standard Day Allowance (per day) and Night Allowance (8 PM to 6 AM) charged / credited per vehicle category.
-                </p>
-              </div>
-              <span className="text-[10px] font-mono text-slate-400">All amounts in INR (₹)</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-              {[
-                { key: 'HATCHBACK', name: 'Sedan – Compact', sub: 'Toyota Glanza, WagonR, Tiago' },
-                { key: 'SWIFT_DZIRE', name: 'Sedan – Swift Dzire', sub: 'Dzire (4+1, Diesel)' },
-                { key: 'TOYOTA_ETIOS', name: 'Sedan – Toyota Etios', sub: 'Etios (4+1, Diesel Boot)' },
-                { key: 'SUV_ERTIGA', name: 'SUV – Ertiga', sub: 'Ertiga (6+1, CNG / Petrol)' },
-                { key: 'SUV_CARENS', name: 'SUV – Kia Carens', sub: 'Carens Diesel Luxury (6+1)' },
-                { key: 'SUV_INNOVA', name: 'SUV – Toyota Innova', sub: 'Innova Diesel (6+1 / 7+1)' },
-                { key: 'SUV_CRYSTA', name: 'SUV – Innova Crysta', sub: 'Innova Crysta Luxury (6+1)' },
-                { key: 'TEMPO_TRAVELER', name: 'Tempo Traveller', sub: 'Force Traveller 12-17 Seater' },
-                { key: 'URBANIA', name: 'Force Urbania Luxury', sub: '10-17 Seater Luxury Van' },
-              ].map((fleet) => {
-                const currentFleet = chauffeurConfig.fleetRates?.[fleet.key] || { dayAllowance: 350, nightAllowance: 250 };
-
-                return (
-                  <div
-                    key={fleet.key}
-                    className="p-3 bg-slate-50/70 border border-slate-200 rounded-xl hover:border-slate-300 transition flex flex-col justify-between shadow-2xs space-y-2"
-                  >
-                    <div>
-                      <span className="text-xs font-black text-slate-900 block">{fleet.name}</span>
-                      <span className="text-[10px] text-slate-400 line-clamp-1">{fleet.sub}</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60">
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-600 block mb-0.5">Day Bata (₹):</span>
-                        <div className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-slate-200">
-                          <span className="text-[11px] font-bold text-slate-400">₹</span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="50"
-                            value={currentFleet.dayAllowance}
-                            onChange={(e) => {
-                              const val = Math.max(0, parseInt(e.target.value) || 0);
-                              setChauffeurConfig((prev) => ({
-                                ...prev,
-                                fleetRates: {
-                                  ...prev.fleetRates,
-                                  [fleet.key]: {
-                                    ...currentFleet,
-                                    dayAllowance: val,
-                                  },
-                                },
-                              }));
-                            }}
-                            className="w-full text-right font-mono font-black text-xs text-slate-900 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-600 block mb-0.5">Night Bata (₹):</span>
-                        <div className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-slate-200">
-                          <span className="text-[11px] font-bold text-slate-400">₹</span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="50"
-                            value={currentFleet.nightAllowance}
-                            onChange={(e) => {
-                              const val = Math.max(0, parseInt(e.target.value) || 0);
-                              setChauffeurConfig((prev) => ({
-                                ...prev,
-                                fleetRates: {
-                                  ...prev.fleetRates,
-                                  [fleet.key]: {
-                                    ...currentFleet,
-                                    nightAllowance: val,
-                                  },
-                                },
-                              }));
-                            }}
-                            className="w-full text-right font-mono font-black text-xs text-slate-900 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
         {/* Airport Transfer Pricing Policy Card */}
         <div className="bg-white border border-slate-200 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3">
@@ -1361,7 +907,7 @@ export default function AdminPricingPage() {
                     Airport Transfer Pricing Policy
                   </h3>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    ⚡ 100% As Per KM Rate
+                    âš¡ 100% As Per KM Rate
                   </span>
                 </div>
                 <p className="text-[11px] sm:text-xs text-slate-500">
@@ -1380,14 +926,14 @@ export default function AdminPricingPage() {
                 className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-xs transition flex items-center gap-1.5 cursor-pointer shrink-0"
               >
                 <span>Edit Airport KM Tariffs</span>
-                <span>➔</span>
+                <span>âž”</span>
               </button>
             </div>
           </div>
 
           <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5 sm:p-4 space-y-3">
             <div className="flex items-start gap-3">
-              <span className="text-xl">✈️</span>
+              <span className="text-xl">âœˆï¸</span>
               <div className="space-y-1">
                 <span className="text-xs font-black uppercase tracking-wider text-emerald-950 block">
                   Per-KM Tariff Billing Active For All Airport Transfers
@@ -1401,7 +947,7 @@ export default function AdminPricingPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 border-t border-emerald-200/80">
               <div className="bg-white/90 p-2.5 rounded-lg border border-emerald-200 shadow-2xs">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Standard Rate / KM</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">Distance (KM) × Base Rate/KM</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">Distance (KM) Ã— Base Rate/KM</span>
                 <span className="text-[10px] text-slate-400 mt-0.5 block">Fleet minimum KM applies</span>
               </div>
               <div className="bg-white/90 p-2.5 rounded-lg border border-emerald-200 shadow-2xs">
@@ -1552,7 +1098,7 @@ export default function AdminPricingPage() {
                             </svg>
                             {variant.seats} Seats
                           </span>
-                          <span>•</span>
+                          <span>â€¢</span>
                           <span className="inline-flex items-center gap-1">
                             <svg className="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
@@ -1560,7 +1106,7 @@ export default function AdminPricingPage() {
                             </svg>
                             {variant.luggage} Bags
                           </span>
-                          <span>•</span>
+                          <span>â€¢</span>
                           <span>Min {variant.minKm} km</span>
                         </div>
                       </div>
@@ -1573,7 +1119,7 @@ export default function AdminPricingPage() {
                           Rate / KM
                         </label>
                         <div className="relative">
-                          <span className="absolute left-1.5 sm:left-2 top-1.5 sm:top-2 text-xs font-bold text-slate-400">₹</span>
+                          <span className="absolute left-1.5 sm:left-2 top-1.5 sm:top-2 text-xs font-bold text-slate-400">â‚¹</span>
                           <input
                             type="number"
                             step="1"
@@ -1590,7 +1136,7 @@ export default function AdminPricingPage() {
                           Extra KM
                         </label>
                         <div className="relative">
-                          <span className="absolute left-1.5 sm:left-2 top-1.5 sm:top-2 text-xs font-bold text-slate-400">₹</span>
+                          <span className="absolute left-1.5 sm:left-2 top-1.5 sm:top-2 text-xs font-bold text-slate-400">â‚¹</span>
                           <input
                             type="number"
                             step="1"
@@ -1642,7 +1188,7 @@ export default function AdminPricingPage() {
                         <span>Calc ({testDistanceKm} km):</span>
                       </span>
                       <span className="font-black text-xs text-slate-900">
-                        ₹{totalFareWithGst.toLocaleString('en-IN')} <span className="text-[9.5px] text-slate-400 font-normal">incl. GST</span>
+                        â‚¹{totalFareWithGst.toLocaleString('en-IN')} <span className="text-[9.5px] text-slate-400 font-normal">incl. GST</span>
                       </span>
                     </div>
 
@@ -1651,33 +1197,33 @@ export default function AdminPricingPage() {
                       {threshold && isBeyondThreshold ? (
                         <>
                           <div className="flex justify-between">
-                            <span>Base ({threshold} km @ ₹{variant.rate}/km):</span>
-                            <span className="font-bold text-slate-800">₹{baseFare.toLocaleString('en-IN')}</span>
+                            <span>Base ({threshold} km @ â‚¹{variant.rate}/km):</span>
+                            <span className="font-bold text-slate-800">â‚¹{baseFare.toLocaleString('en-IN')}</span>
                           </div>
                           <div className="flex justify-between text-amber-800 font-semibold">
-                            <span>Extra ({extraKm} km @ ₹{variant.extraKm}/km):</span>
-                            <span className="font-bold">+ ₹{extraKmFare.toLocaleString('en-IN')}</span>
+                            <span>Extra ({extraKm} km @ â‚¹{variant.extraKm}/km):</span>
+                            <span className="font-bold">+ â‚¹{extraKmFare.toLocaleString('en-IN')}</span>
                           </div>
                         </>
                       ) : (
                         <>
                           <div className="flex justify-between">
-                            <span>Base ({testDistanceKm} km @ ₹{variant.rate}/km):</span>
-                            <span className="font-bold text-slate-800">₹{baseFare.toLocaleString('en-IN')}</span>
+                            <span>Base ({testDistanceKm} km @ â‚¹{variant.rate}/km):</span>
+                            <span className="font-bold text-slate-800">â‚¹{baseFare.toLocaleString('en-IN')}</span>
                           </div>
                           <div className="text-[10px] text-slate-500 pt-0.5">
-                            Extra KM rate: <strong>₹{variant.extraKm}/km</strong> if exceeded beyond booked distance
+                            Extra KM rate: <strong>â‚¹{variant.extraKm}/km</strong> if exceeded beyond booked distance
                           </div>
                         </>
                       )}
 
                       <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold text-slate-800">
                         <span>Subtotal Fare:</span>
-                        <span>₹{subtotalFare.toLocaleString('en-IN')}</span>
+                        <span>â‚¹{subtotalFare.toLocaleString('en-IN')}</span>
                       </div>
                       <div className="flex justify-between text-[10px] text-slate-500">
                         <span>GST (5%):</span>
-                        <span>+ ₹{gstAmount.toLocaleString('en-IN')}</span>
+                        <span>+ â‚¹{gstAmount.toLocaleString('en-IN')}</span>
                       </div>
                     </div>
 
@@ -1685,11 +1231,11 @@ export default function AdminPricingPage() {
                     <div className="grid grid-cols-2 gap-1.5 pt-0.5 text-[10.5px]">
                       <div className="bg-[#f5faff] border border-slate-200 px-2 py-1 rounded text-center">
                         <span className="text-[9.5px] text-slate-700 font-bold block">Advance (25%)</span>
-                        <span className="font-black text-slate-900">₹{advance25.toLocaleString('en-IN')}</span>
+                        <span className="font-black text-slate-900">â‚¹{advance25.toLocaleString('en-IN')}</span>
                       </div>
                       <div className="bg-slate-100 border border-slate-200 px-2 py-1 rounded text-center">
                         <span className="text-[9.5px] text-slate-600 font-bold block">Balance on Drop</span>
-                        <span className="font-black text-slate-900">₹{balance75.toLocaleString('en-IN')}</span>
+                        <span className="font-black text-slate-900">â‚¹{balance75.toLocaleString('en-IN')}</span>
                       </div>
                     </div>
                   </div>
@@ -1763,10 +1309,10 @@ export default function AdminPricingPage() {
 
                 <div className="mt-2.5 sm:mt-3">
                   <label className="text-[10.5px] sm:text-[11px] font-bold text-slate-700 block mb-1">
-                    Surcharge Amount (₹):
+                    Surcharge Amount (â‚¹):
                   </label>
                   <div className="flex items-center bg-white border border-slate-300 focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-500/20 rounded-lg px-2.5 py-1 sm:py-1.5 shadow-2xs transition">
-                    <span className="text-xs font-black text-slate-400 mr-1.5">₹</span>
+                    <span className="text-xs font-black text-slate-400 mr-1.5">â‚¹</span>
                     <input
                       type="number"
                       min="0"
@@ -1781,7 +1327,7 @@ export default function AdminPricingPage() {
 
               <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
                 <span className="text-slate-500">Customer App Fee:</span>
-                <span className="font-extrabold text-slate-900">+₹{petRates.cat}</span>
+                <span className="font-extrabold text-slate-900">+â‚¹{petRates.cat}</span>
               </div>
             </div>
 
@@ -1812,10 +1358,10 @@ export default function AdminPricingPage() {
 
                 <div className="mt-2.5 sm:mt-3">
                   <label className="text-[10.5px] sm:text-[11px] font-bold text-slate-700 block mb-1">
-                    Surcharge Amount (₹):
+                    Surcharge Amount (â‚¹):
                   </label>
                   <div className="flex items-center bg-white border border-slate-300 focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-500/20 rounded-lg px-2.5 py-1 sm:py-1.5 shadow-2xs transition">
-                    <span className="text-xs font-black text-slate-400 mr-1.5">₹</span>
+                    <span className="text-xs font-black text-slate-400 mr-1.5">â‚¹</span>
                     <input
                       type="number"
                       min="0"
@@ -1830,7 +1376,7 @@ export default function AdminPricingPage() {
 
               <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
                 <span className="text-slate-500">Customer App Fee:</span>
-                <span className="font-extrabold text-slate-900">+₹{petRates.dog}</span>
+                <span className="font-extrabold text-slate-900">+â‚¹{petRates.dog}</span>
               </div>
             </div>
 
@@ -1861,10 +1407,10 @@ export default function AdminPricingPage() {
 
                 <div className="mt-2.5 sm:mt-3">
                   <label className="text-[10.5px] sm:text-[11px] font-bold text-slate-700 block mb-1">
-                    Surcharge Amount (₹):
+                    Surcharge Amount (â‚¹):
                   </label>
                   <div className="flex items-center bg-white border border-slate-300 focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-500/20 rounded-lg px-2.5 py-1 sm:py-1.5 shadow-2xs transition">
-                    <span className="text-xs font-black text-slate-400 mr-1.5">₹</span>
+                    <span className="text-xs font-black text-slate-400 mr-1.5">â‚¹</span>
                     <input
                       type="number"
                       min="0"
@@ -1879,7 +1425,7 @@ export default function AdminPricingPage() {
 
               <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
                 <span className="text-slate-500">Customer App Fee:</span>
-                <span className="font-extrabold text-slate-900">+₹{petRates.bird}</span>
+                <span className="font-extrabold text-slate-900">+â‚¹{petRates.bird}</span>
               </div>
             </div>
           </div>
@@ -1970,26 +1516,26 @@ export default function AdminPricingPage() {
                             <span>Local Rental Packages</span>
                           </span>
                           <span className="text-[10px] font-black text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
-                            Extra: ₹{rule.extraKmRate}/km
+                            Extra: â‚¹{rule.extraKmRate}/km
                           </span>
                         </div>
                         <div className="grid grid-cols-3 gap-1.5 text-xs">
                           <div className="bg-white border border-slate-200 rounded-lg p-1.5 sm:p-2 text-center">
                             <div className="text-[9px] sm:text-[9.5px] font-bold text-slate-400">4h / {rule.localPackage4hrKm || 40}km</div>
                             <div className="font-black text-slate-900 text-xs sm:text-sm mt-0.5">
-                              ₹{rule.localPackage4hrBase || (rule.category === 'HATCHBACK' ? 1000 : rule.category === 'SEDAN' ? 1200 : rule.category === 'SUV' ? 1600 : rule.category === 'SUV_PREMIUM' ? 2200 : 3000)}
+                              â‚¹{rule.localPackage4hrBase || (rule.category === 'HATCHBACK' ? 1000 : rule.category === 'SEDAN' ? 1200 : rule.category === 'SUV' ? 1600 : rule.category === 'SUV_PREMIUM' ? 2200 : 3000)}
                             </div>
                           </div>
                           <div className="bg-white border border-slate-200 rounded-lg p-1.5 sm:p-2 text-center">
                             <div className="text-[9px] sm:text-[9.5px] font-bold text-slate-400">8h / {rule.localPackage8hrKm || 80}km</div>
                             <div className="font-black text-slate-900 text-xs sm:text-sm mt-0.5">
-                              ₹{rule.localPackage8hrBase || (rule.category === 'HATCHBACK' ? 1800 : rule.category === 'SEDAN' ? 2200 : rule.category === 'SUV' ? 2800 : rule.category === 'SUV_PREMIUM' ? 3800 : 5500)}
+                              â‚¹{rule.localPackage8hrBase || (rule.category === 'HATCHBACK' ? 1800 : rule.category === 'SEDAN' ? 2200 : rule.category === 'SUV' ? 2800 : rule.category === 'SUV_PREMIUM' ? 3800 : 5500)}
                             </div>
                           </div>
                           <div className="bg-white border border-slate-200 rounded-lg p-1.5 sm:p-2 text-center">
                             <div className="text-[9px] sm:text-[9.5px] font-bold text-slate-400">12h / {rule.localPackage12hrKm || 120}km</div>
                             <div className="font-black text-slate-900 text-xs sm:text-sm mt-0.5">
-                              ₹{rule.localPackage12hrBase || (rule.category === 'HATCHBACK' ? 2600 : rule.category === 'SEDAN' ? 3200 : rule.category === 'SUV' ? 4000 : rule.category === 'SUV_PREMIUM' ? 5200 : 7500)}
+                              â‚¹{rule.localPackage12hrBase || (rule.category === 'HATCHBACK' ? 2600 : rule.category === 'SEDAN' ? 3200 : rule.category === 'SUV' ? 4000 : rule.category === 'SUV_PREMIUM' ? 5200 : 7500)}
                             </div>
                           </div>
                         </div>
@@ -2001,7 +1547,7 @@ export default function AdminPricingPage() {
                             Base Rate
                           </span>
                           <div className="flex items-baseline gap-1 mt-0.5">
-                            <span className="text-xl sm:text-2xl font-black text-slate-900">₹{rule.baseRatePerKm}</span>
+                            <span className="text-xl sm:text-2xl font-black text-slate-900">â‚¹{rule.baseRatePerKm}</span>
                             <span className="text-xs font-bold text-slate-500">/ km</span>
                           </div>
                         </div>
@@ -2010,7 +1556,7 @@ export default function AdminPricingPage() {
                           <span className="text-[9.5px] sm:text-[10px] font-black uppercase text-slate-400 tracking-wider block">
                             Extra KM Rate
                           </span>
-                          <span className="text-xs sm:text-sm font-black text-slate-800">₹{rule.extraKmRate}/km</span>
+                          <span className="text-xs sm:text-sm font-black text-slate-800">â‚¹{rule.extraKmRate}/km</span>
                           <span className="text-[9.5px] sm:text-[10px] font-semibold text-slate-400 block mt-0.5">
                             {rule.extraKmThreshold ? `After ${rule.extraKmThreshold} km` : 'Beyond booked route'}
                           </span>
@@ -2028,7 +1574,7 @@ export default function AdminPricingPage() {
                           </svg>
                           <span className="truncate">Driver Allowance</span>
                         </div>
-                        <div className="font-black text-slate-800 text-[11px] sm:text-xs mt-0.5">₹{rule.driverAllowance} / day</div>
+                        <div className="font-black text-slate-800 text-[11px] sm:text-xs mt-0.5">â‚¹{rule.driverAllowance} / day</div>
                       </div>
 
                       <div className="bg-white border border-slate-100 rounded-lg p-1.5 sm:p-2">
@@ -2039,7 +1585,7 @@ export default function AdminPricingPage() {
                           <span className="truncate">Night Charge</span>
                         </div>
                         <div className="font-black text-slate-800 text-[11px] sm:text-xs mt-0.5">
-                          ₹{rule.nightCharge}{' '}
+                          â‚¹{rule.nightCharge}{' '}
                           <span className="text-[9px] sm:text-[10px] text-slate-500 font-normal">
                             ({rule.nightWindowStartHour}h-{rule.nightWindowEndHour}h)
                           </span>
@@ -2063,7 +1609,7 @@ export default function AdminPricingPage() {
                       <div className="bg-white border border-slate-100 rounded-lg p-1.5 sm:p-2">
                         <div className="text-[9.5px] sm:text-[10px] font-bold text-slate-400 uppercase">Status</div>
                         <div className={`font-black text-[11px] sm:text-xs mt-0.5 ${rule.isActive ? 'text-slate-900' : 'text-slate-400'}`}>
-                          {rule.isActive ? '● Active' : '○ Inactive'}
+                          {rule.isActive ? 'â— Active' : 'â—‹ Inactive'}
                         </div>
                       </div>
                     </div>
@@ -2130,7 +1676,7 @@ export default function AdminPricingPage() {
                 onClick={() => setEditingRule(null)}
                 className="text-slate-400 hover:text-slate-700 p-1 font-bold text-base"
               >
-                ✕
+                âœ•
               </button>
             </div>
 
@@ -2154,7 +1700,7 @@ export default function AdminPricingPage() {
                   {/* 4 Hours Package */}
                   <div className="grid grid-cols-3 gap-3 bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
                     <div>
-                      <label className="block text-slate-700 font-bold mb-1">4 Hours Price (₹)</label>
+                      <label className="block text-slate-700 font-bold mb-1">4 Hours Price (â‚¹)</label>
                       <input
                         type="number"
                         step="10"
@@ -2182,7 +1728,7 @@ export default function AdminPricingPage() {
                       <span className="text-[10px] text-slate-400 mt-0.5 block">Included KM</span>
                     </div>
                     <div>
-                      <label className="block text-slate-700 font-bold mb-1">Extra KM Rate (₹)</label>
+                      <label className="block text-slate-700 font-bold mb-1">Extra KM Rate (â‚¹)</label>
                       <input
                         type="number"
                         step="0.1"
@@ -2193,14 +1739,14 @@ export default function AdminPricingPage() {
                         className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-bold focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
                         required
                       />
-                      <span className="text-[10px] text-slate-400 mt-0.5 block">₹ / extra km</span>
+                      <span className="text-[10px] text-slate-400 mt-0.5 block">â‚¹ / extra km</span>
                     </div>
                   </div>
 
                   {/* 8 Hours Package */}
                   <div className="grid grid-cols-3 gap-3 bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
                     <div>
-                      <label className="block text-slate-700 font-bold mb-1">8 Hours Price (₹)</label>
+                      <label className="block text-slate-700 font-bold mb-1">8 Hours Price (â‚¹)</label>
                       <input
                         type="number"
                         step="10"
@@ -2228,7 +1774,7 @@ export default function AdminPricingPage() {
                       <span className="text-[10px] text-slate-400 mt-0.5 block">Included KM</span>
                     </div>
                     <div>
-                      <label className="block text-slate-700 font-bold mb-1">Extra KM Rate (₹)</label>
+                      <label className="block text-slate-700 font-bold mb-1">Extra KM Rate (â‚¹)</label>
                       <input
                         type="number"
                         step="0.1"
@@ -2239,14 +1785,14 @@ export default function AdminPricingPage() {
                         className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-bold focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
                         required
                       />
-                      <span className="text-[10px] text-slate-400 mt-0.5 block">₹ / extra km</span>
+                      <span className="text-[10px] text-slate-400 mt-0.5 block">â‚¹ / extra km</span>
                     </div>
                   </div>
 
                   {/* 12 Hours Package */}
                   <div className="grid grid-cols-3 gap-3 bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
                     <div>
-                      <label className="block text-slate-700 font-bold mb-1">12 Hours Price (₹)</label>
+                      <label className="block text-slate-700 font-bold mb-1">12 Hours Price (â‚¹)</label>
                       <input
                         type="number"
                         step="10"
@@ -2272,7 +1818,7 @@ export default function AdminPricingPage() {
                       <span className="text-[10px] text-slate-400 mt-0.5 block">Included KM</span>
                     </div>
                     <div>
-                      <label className="block text-slate-700 font-bold mb-1">Extra KM Rate (₹)</label>
+                      <label className="block text-slate-700 font-bold mb-1">Extra KM Rate (â‚¹)</label>
                       <input
                         type="number"
                         step="0.1"
@@ -2282,14 +1828,14 @@ export default function AdminPricingPage() {
                         onChange={(e) => setEditingRule({ ...editingRule, localPackage12hrExtraKmRate: parseFloat(e.target.value) || 0 })}
                         className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-bold focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
                       />
-                      <span className="text-[10px] text-slate-400 mt-0.5 block">₹ / extra km</span>
+                      <span className="text-[10px] text-slate-400 mt-0.5 block">â‚¹ / extra km</span>
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-slate-700 font-bold mb-1">Base Rate / KM (₹)</label>
+                    <label className="block text-slate-700 font-bold mb-1">Base Rate / KM (â‚¹)</label>
                     <input
                       type="number"
                       step="0.1"
@@ -2303,7 +1849,7 @@ export default function AdminPricingPage() {
                   </div>
 
                   <div>
-                    <label className="block text-slate-700 font-bold mb-1">Extra KM Rate (₹)</label>
+                    <label className="block text-slate-700 font-bold mb-1">Extra KM Rate (â‚¹)</label>
                     <input
                       type="number"
                       step="0.1"
@@ -2339,7 +1885,7 @@ export default function AdminPricingPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Driver Allowance / Day (₹)</label>
+                  <label className="block text-slate-700 font-bold mb-1">Driver Allowance / Day (â‚¹)</label>
                   <input
                     type="number"
                     step="10"
@@ -2352,7 +1898,7 @@ export default function AdminPricingPage() {
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Night Charge (₹)</label>
+                  <label className="block text-slate-700 font-bold mb-1">Night Charge (â‚¹)</label>
                   <input
                     type="number"
                     step="10"
@@ -2450,7 +1996,7 @@ export default function AdminPricingPage() {
                 onClick={() => setShowAddRouteModal(false)}
                 className="text-slate-400 hover:text-slate-600 text-lg cursor-pointer"
               >
-                ✕
+                âœ•
               </button>
             </div>
 
@@ -2459,7 +2005,7 @@ export default function AdminPricingPage() {
                 <label className="text-[11px] font-bold text-slate-600 block mb-1">Route Display Name</label>
                 <input
                   type="text"
-                  placeholder="e.g. Mangalore Airport ↔ Bangalore"
+                  placeholder="e.g. Mangalore Airport â†” Bangalore"
                   value={newRouteForm.name}
                   onChange={(e) => setNewRouteForm({ ...newRouteForm, name: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:bg-white focus:ring-2 focus:ring-sky-500"
