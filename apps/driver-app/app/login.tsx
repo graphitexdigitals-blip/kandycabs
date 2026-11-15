@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
   },
   langActive: {
     fontFamily: APP_FONT_BOLD,
-    color: '#ea580c',
+    color: '#f38c38',
     fontWeight: '800',
   },
   langDivider: {
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   getOtpInlineBtn: {
-    borderRadius: 14,
+    borderRadius: 999,
     paddingVertical: 7,
     paddingHorizontal: 15,
     alignItems: 'center',
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#cbd5e1',
   },
   getOtpInlineBtnActive: {
-    backgroundColor: 'rgb(240, 117, 15)',
+    backgroundColor: '#f38c38',
   },
   getOtpInlineText: {
     fontFamily: APP_FONT_BOLD,
@@ -574,27 +574,27 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   loginSubmitBtn: {
-    backgroundColor: 'rgb(240, 117, 15)',
-    borderRadius: 22,
-    height: 50,
+    backgroundColor: '#f38c38',
+    borderRadius: 999,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 18,
-    shadowColor: 'rgb(240, 117, 15)',
+    shadowColor: '#f38c38',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.35,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
   },
   loginSubmitBtnDisabled: {
-    opacity: 0.8,
+    opacity: 0.75,
   },
   loginSubmitBtnText: {
     fontFamily: APP_FONT_BOLD,
-    fontSize: 15.5,
+    fontSize: 16,
     fontWeight: '800',
     color: '#ffffff',
-    letterSpacing: 0.3,
+    letterSpacing: 0.8,
   },
   errorText: {
     color: '#dc2626',
