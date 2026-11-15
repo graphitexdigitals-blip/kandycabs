@@ -1,149 +1,168 @@
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
-const { execSync } = require('child_process');
 
 async function main() {
   const root = path.resolve(__dirname, '..');
   const tempDir = path.join(root, 'apps', 'driver-app', 'dist_bundle', 'icon_patch');
   if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
-  const kcOrangePath = path.join(root, 'apps', 'driver-app', 'assets', 'images', 'kc_orange_only.png');
-  if (!fs.existsSync(kcOrangePath)) {
-    throw new Error('kc_orange_only.png not found at ' + kcOrangePath);
+  // Locate the clean white KC letters
+  let kcWhiteLettersPath = path.join(root, 'apps', 'driver-app', 'assets', 'images', 'kc_letters_trimmed.png');
+  if (!fs.existsSync(kcWhiteLettersPath)) {
+    kcWhiteLettersPath = path.join(root, 'apps', 'customer-app', 'assets', 'images', 'kc_letters_trimmed.png');
+  }
+  if (!fs.existsSync(kcWhiteLettersPath)) {
+    throw new Error('kc_letters_trimmed.png not found at ' + kcWhiteLettersPath);
   }
 
-  console.log('Generating crisp launcher drawables with sharp...');
-  const iconTargets = [
-    { name: 'res/9w.png', size: 108 },
-    { name: 'res/QZ.png', size: 108 },
-    { name: 'res/zR.png', size: 108 },
-    { name: 'res/yn.png', size: 162 },
-    { name: 'res/zr.png', size: 162 },
-    { name: 'res/8c.png', size: 162 },
-    { name: 'res/FS.png', size: 216 },
-    { name: 'res/Em.png', size: 216 },
-    { name: 'res/wb.png', size: 216 },
-    { name: 'res/RJ.png', size: 324 },
-    { name: 'res/Lf.png', size: 324 },
-    { name: 'res/fO.png', size: 324 },
-    { name: 'res/o-.png', size: 432 },
-    { name: 'res/as.png', size: 432 },
-    { name: 'res/Gc.png', size: 432 }
-  ];
+  // Official brand full-bleed orange: RGB(252, 82, 4) -> #FC5204
+  const orangeBg = { r: 252, g: 82, b: 4, alpha: 1 };
 
-  const generatedList = [];
-  for (const target of iconTargets) {
-    const size = target.size;
-    const targetW = Math.round(size * 0.58);
-    
-    // Resize monogram to target safe zone
-    const resizedMonogram = await sharp(kcOrangePath)
+  console.log('Generating crisp full-bleed orange icons with white KC monogram...');
+
+  // Helper: generate full bleed orange icon with white KC monogram
+  async function generateFullBleedIcon(size, fontScale = 0.38) {
+    const targetW = Math.max(1, Math.round(size * fontScale));
+    const resizedMonogram = await sharp(kcWhiteLettersPath)
       .resize({ width: targetW, fit: 'inside' })
       .toBuffer();
 
-    // Create solid navy canvas and composite monogram in absolute center
-    const outBuf = await sharp({
+    const monoMeta = await sharp(resizedMonogram).metadata();
+    const top = Math.round((size - monoMeta.height) / 2);
+    const left = Math.round((size - monoMeta.width) / 2);
+
+    return sharp({
       create: {
         width: size,
         height: size,
         channels: 4,
-        background: { r: 1, g: 38, b: 67, alpha: 1 }
-      }
+        background: orangeBg,
+      },
     })
-    .composite([{ input: resizedMonogram, gravity: 'center' }])
-    .png()
-    .toBuffer();
-
-    const localFileName = target.name.replace('res/', '');
-    const localPath = path.join(tempDir, localFileName);
-    fs.writeFileSync(localPath, outBuf);
-    generatedList.push({ entry: target.name, file: localPath });
-    console.log(`Generated ${target.name} (${size}x${size})`);
+      .composite([{ input: resizedMonogram, top, left }])
+      .png()
+      .toBuffer();
   }
 
-  // Also update android native source mipmaps
+  // Master assets in apps/driver-app/assets/
+  const driverAssetsDir = path.join(root, 'apps', 'driver-app', 'assets');
+  const masterIconBuf = await generateFullBleedIcon(1024, 0.38);
+  fs.writeFileSync(path.join(driverAssetsDir, 'icon.png'), masterIconBuf);
+  fs.writeFileSync(path.join(driverAssetsDir, 'adaptive-icon.png'), masterIconBuf);
+  console.log('Updated apps/driver-app/assets/icon.png and adaptive-icon.png (1024x1024)');
+
+  // All 15 native Android APK drawable targets
+  // Adaptive foregrounds: 108, 162, 216, 324, 432 (fontScale = 0.38)
+  // Legacy square & round icons: 48, 72, 96, 144, 192 (fontScale = 0.40)
+  const iconTargets = [
+    // Adaptive foregrounds
+    { name: 'res/QZ.png', size: 108, scale: 0.38 },
+    { name: 'res/zr.png', size: 162, scale: 0.38 },
+    { name: 'res/Em.png', size: 216, scale: 0.38 },
+    { name: 'res/Lf.png', size: 324, scale: 0.38 },
+    { name: 'res/as.png', size: 432, scale: 0.38 },
+    // Legacy square icons
+    { name: 'res/9w.png', size: 48, scale: 0.40 },
+    { name: 'res/yn.png', size: 72, scale: 0.40 },
+    { name: 'res/FS.png', size: 96, scale: 0.40 },
+    { name: 'res/RJ.png', size: 144, scale: 0.40 },
+    { name: 'res/o-.png', size: 192, scale: 0.40 },
+    // Legacy round icons
+    { name: 'res/zR.png', size: 48, scale: 0.40 },
+    { name: 'res/8c.png', size: 72, scale: 0.40 },
+    { name: 'res/wb.png', size: 96, scale: 0.40 },
+    { name: 'res/fO.png', size: 144, scale: 0.40 },
+    { name: 'res/Gc.png', size: 192, scale: 0.40 }
+  ];
+
+  const generatedList = [];
+  for (const target of iconTargets) {
+    const outBuf = await generateFullBleedIcon(target.size, target.scale);
+    const safeName = target.name.replace('res/', '').replace('-', '_dash_') + '_' + target.size + '.png';
+    const localPath = path.join(tempDir, safeName);
+    fs.writeFileSync(localPath, outBuf);
+    generatedList.push({ entry: target.name, file: localPath });
+    console.log(`Generated ${target.name} (${target.size}x${target.size}) -> ${safeName}`);
+  }
+
+  // Update android native source mipmaps
   const mipmapDir = path.join(root, 'apps', 'driver-app', 'android', 'app', 'src', 'main', 'res');
   const mipmapMap = [
-    { dir: 'mipmap-mdpi', size: 108 },
-    { dir: 'mipmap-hdpi', size: 162 },
-    { dir: 'mipmap-xhdpi', size: 216 },
-    { dir: 'mipmap-xxhdpi', size: 324 },
-    { dir: 'mipmap-xxxhdpi', size: 432 }
+    { dir: 'mipmap-mdpi', squareSize: 48, fgSize: 108 },
+    { dir: 'mipmap-hdpi', squareSize: 72, fgSize: 162 },
+    { dir: 'mipmap-xhdpi', squareSize: 96, fgSize: 216 },
+    { dir: 'mipmap-xxhdpi', squareSize: 144, fgSize: 324 },
+    { dir: 'mipmap-xxxhdpi', squareSize: 192, fgSize: 432 }
   ];
 
   for (const m of mipmapMap) {
     const targetDir = path.join(mipmapDir, m.dir);
     if (fs.existsSync(targetDir)) {
-      const size = m.size;
-      const targetW = Math.round(size * 0.58);
-      const resizedMonogram = await sharp(kcOrangePath)
-        .resize({ width: targetW, fit: 'inside' })
-        .toBuffer();
+      const squareBuf = await generateFullBleedIcon(m.squareSize, 0.40);
+      const fgBuf = await generateFullBleedIcon(m.fgSize, 0.38);
 
-      const outBuf = await sharp({
-        create: {
-          width: size,
-          height: size,
-          channels: 4,
-          background: { r: 1, g: 38, b: 67, alpha: 1 }
-        }
-      })
-      .composite([{ input: resizedMonogram, gravity: 'center' }])
-      .png()
-      .toBuffer();
-
-      fs.writeFileSync(path.join(targetDir, 'ic_launcher.png'), outBuf);
-      fs.writeFileSync(path.join(targetDir, 'ic_launcher_round.png'), outBuf);
-      fs.writeFileSync(path.join(targetDir, 'ic_launcher_foreground.png'), outBuf);
-      console.log(`Updated android source ${m.dir} icons (${size}x${size})`);
+      fs.writeFileSync(path.join(targetDir, 'ic_launcher.png'), squareBuf);
+      fs.writeFileSync(path.join(targetDir, 'ic_launcher_round.png'), squareBuf);
+      fs.writeFileSync(path.join(targetDir, 'ic_launcher_foreground.png'), fgBuf);
+      console.log(`Updated android source ${m.dir} icons`);
     }
   }
 
-  // Update colors.xml iconBackground to #012643
+  // Update colors.xml iconBackground to #FC5204
   const colorsXmlPath = path.join(mipmapDir, 'values', 'colors.xml');
   if (fs.existsSync(colorsXmlPath)) {
     let colorsContent = fs.readFileSync(colorsXmlPath, 'utf8');
-    colorsContent = colorsContent.replace(/<color name="iconBackground">[^<]+<\/color>/, '<color name="iconBackground">#012643</color>');
+    colorsContent = colorsContent.replace(/<color name="iconBackground">[^<]+<\/color>/, '<color name="iconBackground">#FC5204</color>');
     fs.writeFileSync(colorsXmlPath, colorsContent);
-    console.log('Updated colors.xml iconBackground to #012643');
+    console.log('Updated colors.xml iconBackground to #FC5204');
   }
 
-  // Patch resources.arsc to change @color/iconBackground from 0xFFFFFFFF to 0xFF012643
-  const arscPath = path.join(root, 'scripts', 'resources.arsc');
-  if (fs.existsSync(arscPath)) {
-    const arscBuf = fs.readFileSync(arscPath);
-    const offset = 652996;
-    if (arscBuf[offset] === 0xFF && arscBuf[offset+1] === 0xFF && arscBuf[offset+2] === 0xFF && arscBuf[offset+3] === 0xFF) {
-      arscBuf[offset] = 0x43;     // Blue
-      arscBuf[offset+1] = 0x26;   // Green
-      arscBuf[offset+2] = 0x01;   // Red
-      arscBuf[offset+3] = 0xFF;   // Alpha
-      const patchedArscPath = path.join(tempDir, 'resources.arsc');
-      fs.writeFileSync(patchedArscPath, arscBuf);
-      console.log('Patched resources.arsc iconBackground to #012643 at offset', offset);
-      generatedList.push({ entry: 'resources.arsc', file: patchedArscPath });
-    } else {
-      console.warn('Warning: expected 0xFFFFFFFF at offset 652996 in resources.arsc not found!');
+  // In-place patch resources.arsc in base APK so it stays 100% uncompressed (Method 0) and 4-byte aligned
+  const zlib = require('zlib');
+  const baseApkPath = path.join(root, 'dist_apk', 'kandy-cabs-driver.apk');
+  if (fs.existsSync(baseApkPath)) {
+    const buf = fs.readFileSync(baseApkPath);
+    const name = Buffer.from('resources.arsc');
+    const idx = buf.indexOf(name);
+    if (idx !== -1) {
+      const fnLen = buf.readUInt16LE(idx - 30 + 26);
+      const extraLen = buf.readUInt16LE(idx - 30 + 28);
+      const dataStart = idx - 30 + 30 + fnLen + extraLen;
+      const dataLen = 1191092;
+      const pattern = Buffer.from([0x08, 0x00, 0x00, 0x1D, 0x43, 0x26, 0x01, 0xFF]);
+      const arscData = buf.subarray(dataStart, dataStart + dataLen);
+      const colorOffset = arscData.indexOf(pattern);
+
+      if (colorOffset !== -1) {
+        arscData[colorOffset + 4] = 0x04; // Blue
+        arscData[colorOffset + 5] = 0x52; // Green
+        arscData[colorOffset + 6] = 0xFC; // Red
+        arscData[colorOffset + 7] = 0xFF; // Alpha
+
+        const newCrc = zlib.crc32(arscData);
+        buf.writeUInt32LE(newCrc, idx - 30 + 14);
+
+        let cdIdx = idx + dataLen;
+        while ((cdIdx = buf.indexOf(name, cdIdx)) !== -1) {
+          if (buf.readUInt32LE(cdIdx - 46) === 0x02014b50) {
+            buf.writeUInt32LE(newCrc, cdIdx - 46 + 16);
+            break;
+          }
+          cdIdx += 14;
+        }
+
+        fs.writeFileSync(baseApkPath, buf);
+        console.log('In-place patched base APK resources.arsc with #FC5204 (Stored, aligned)');
+      } else {
+        console.log('Base APK resources.arsc already has #FC5204');
+      }
     }
   }
 
-  // Patch AndroidManifest.xml versionCode from 14 to 15
-  const manifestPath = path.join(root, 'scripts', 'AndroidManifest.xml');
-  if (fs.existsSync(manifestPath)) {
-    const manifestBuf = fs.readFileSync(manifestPath);
-    if (manifestBuf.readUInt32LE(9912) === 14) {
-      manifestBuf.writeUInt32LE(15, 9912);
-      const patchedManifestPath = path.join(tempDir, 'AndroidManifest.xml');
-      fs.writeFileSync(patchedManifestPath, manifestBuf);
-      console.log('Bumped versionCode to 15 in AndroidManifest.xml');
-      generatedList.push({ entry: 'AndroidManifest.xml', file: patchedManifestPath });
-    }
-  }
-
-  // Write mapping JSON as ARRAY to prevent case-insensitive key collisions in PowerShell
+  // Write mapping JSON for update-driver-apk.ps1 (drawables only)
   fs.writeFileSync(path.join(tempDir, 'manifest.json'), JSON.stringify(generatedList, null, 2));
-  console.log('Done preparing patch assets.');
+  console.log(`Done preparing ${generatedList.length} patch assets.`);
 }
 
 main().catch(err => {

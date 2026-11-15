@@ -96,8 +96,13 @@ if (Test-Path $patchManifest) {
         if (Test-Path $filePath) {
             $existing = $zip.GetEntry($entryName)
             if ($null -ne $existing) { $existing.Delete() }
-            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $filePath, $entryName)
-            Write-Output "Injected patched asset: $entryName"
+            if ($entryName -eq "resources.arsc") {
+                [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $filePath, $entryName, [System.IO.Compression.CompressionLevel]::NoCompression)
+                Write-Output "Injected uncompressed (stored): $entryName"
+            } else {
+                [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $filePath, $entryName)
+                Write-Output "Injected patched asset: $entryName"
+            }
         }
     }
 }
