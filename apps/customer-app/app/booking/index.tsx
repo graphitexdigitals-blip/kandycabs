@@ -3175,21 +3175,17 @@ export default function BookingFunnelScreen() {
                     <Text
                       style={{ color: 'rgb(240, 117, 15)', fontWeight: '700', textDecorationLine: 'underline' }}
                       onPress={() => {
-                        Alert.alert(
-                          cancellationPolicyBadge.title,
-                          `${cancellationPolicyBadge.description}\n\n` +
-                          `• Trip Type: ${tripTypeParam}\n` +
-                          `• Vehicle: ${vehicleInfo.name}\n` +
-                          (cancellationPolicyBadge.mode === 'ADVANCE_NON_REFUNDABLE'
-                            ? `• Advance Received: ₹${advanceAmount.toLocaleString('en-IN')}\n• Cancellation Fee: 100% of Advance\n• Refund Amount: ₹0.00\n\nAdvance payment received will be retained as the cancellation fee upon cancellation.`
+                        const summary =
+                          cancellationPolicyBadge.mode === 'ADVANCE_NON_REFUNDABLE'
+                            ? `Advance of ₹${advanceAmount.toLocaleString('en-IN')} is non-refundable upon cancellation.`
                             : cancellationPolicyBadge.mode === 'FREE'
-                            ? `• Cancellation Fee: ₹0.00\n• Refund Amount: 100% Full Refund\n\nEnjoy complete peace of mind with 100% free cancellation.`
-                            : `• Pickup Window: ${cancellationPolicyBadge.windowHours} hours before pickup\n• Within Window: ₹${cancellationPolicyBadge.feeAmount} fee applies, excess advance refunded\n• More than ${cancellationPolicyBadge.windowHours}h: 100% Free Cancellation`),
-                          [
-                            { text: 'Got It', style: 'default' },
-                            { text: 'View Terms', onPress: () => router.push('/terms') },
-                          ]
-                        );
+                            ? `100% Free cancellation at all times.`
+                            : `Free cancel up to ${cancellationPolicyBadge.windowHours}h before pickup. Within ${cancellationPolicyBadge.windowHours}h, ₹${cancellationPolicyBadge.feeAmount} fee applies.`;
+
+                        Alert.alert('Cancellation Policy', summary, [
+                          { text: 'OK' },
+                          { text: 'View Terms', onPress: () => router.push('/terms') },
+                        ]);
                       }}
                     >
                       {t('bookingReview.cancellationPolicy', { defaultValue: 'Cancellation Policy' })}

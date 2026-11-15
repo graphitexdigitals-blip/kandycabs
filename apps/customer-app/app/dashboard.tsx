@@ -1033,46 +1033,29 @@ export default function CustomerDashboardScreen() {
       ? `(${evalResult.hoursUntilPickup}h left)`
       : ``;
 
-    let title = 'Cancel Booking';
+    let title = 'Cancel Ride?';
     let message = '';
-    let cancelBtnText = 'Yes, Cancel Ride';
+    let cancelBtnText = 'Yes, Cancel';
 
     if (isAdvanceNonRefundable) {
-      title = 'Advance Non-Refundable Notice';
-      message =
-        `⚠️ Advance payment is non-refundable as per cancellation policy for ${booking.tripType || 'this ride'}.\n\n` +
-        `• Advance Paid: ₹${advancePaid.toFixed(2)}\n` +
-        `• Cancellation Fee: ₹${advancePaid.toFixed(2)} (Advance Retained)\n` +
-        `• Refund to Account: ₹0.00\n\n` +
-        `The advance payment of ₹${advancePaid.toFixed(2)} received for this booking will not be refunded and is charged as the cancellation fee.\n\n` +
-        `Are you sure you want to cancel booking Ref: ${ref}?`;
-      cancelBtnText = 'Confirm Cancel (No Refund)';
+      title = 'Cancel Ride?';
+      message = `Advance of ₹${advancePaid.toFixed(0)} is non-refundable and will be retained as cancellation fee.\n\nRefund: ₹0.00`;
+      cancelBtnText = 'Cancel (No Refund)';
     } else if (evalResult.isWithinWindow && !evalResult.freeCancellation) {
-      title = 'Cancellation Fee Notice';
-      message =
-        `⚠️ This trip is scheduled within ${evalResult.windowHours} hours ${timeText}.\n\n` +
-        `• Advance Paid: ₹${advancePaid.toFixed(2)}\n` +
-        `• Cancellation Charge: ₹${cancellationCharge.toFixed(2)} (${category})\n` +
-        `• Excess Refund to Account: ₹${estimatedRefund.toFixed(2)}\n\n` +
-        `According to policy, a cancellation fee of ₹${cancellationCharge} will be deducted from your advance payment and the remaining excess amount of ₹${estimatedRefund.toFixed(2)} will be refunded.\n\n` +
-        `Are you sure you want to proceed?`;
-      cancelBtnText = `Cancel Ride (₹${cancellationCharge} Fee)`;
+      title = 'Cancel Ride?';
+      message = `Cancellation fee of ₹${cancellationCharge.toFixed(0)} applies within ${evalResult.windowHours}h of pickup.\n\nRefund: ₹${estimatedRefund.toFixed(0)}`;
+      cancelBtnText = `Cancel (₹${cancellationCharge.toFixed(0)} Fee)`;
     } else {
-      title = 'Free Cancellation';
-      message =
-        `Free cancellation applies for this booking.\n\n` +
-        `• Advance Paid: ₹${advancePaid.toFixed(2)}\n` +
-        `• Cancellation Charge: ₹0.00\n` +
-        `• Refund to Account: ₹${advancePaid.toFixed(2)} (100% Full Refund)\n\n` +
-        `Are you sure you want to cancel booking Ref: ${ref}?`;
-      cancelBtnText = 'Yes, Cancel Ride';
+      title = 'Cancel Ride?';
+      message = `Free cancellation applies.\n\nFull refund: ₹${advancePaid.toFixed(0)}`;
+      cancelBtnText = 'Yes, Cancel';
     }
 
     Alert.alert(
       title,
       message,
       [
-        { text: 'No, Keep Booking', style: 'cancel' },
+        { text: 'Keep Ride', style: 'cancel' },
         {
           text: cancelBtnText,
           style: 'destructive',
@@ -1090,15 +1073,16 @@ export default function CustomerDashboardScreen() {
                 const refAmt = Number(res.refundAmount ?? estimatedRefund);
                 const isNonRef = res.isAdvanceNonRefundable || isAdvanceNonRefundable;
 
-                const chargeMsg = isNonRef
-                  ? `• Advance Paid: ₹${adv.toFixed(2)}\n• Cancellation Fee: ₹${adv.toFixed(2)} (Advance Retained)\n• Refund Amount: ₹0.00 (Non-Refundable)`
+                const detailMsg = isNonRef
+                  ? `Cancellation Fee: ₹${adv.toFixed(0)} (Advance retained)`
                   : chg > 0
-                  ? `• Advance Paid: ₹${adv.toFixed(2)}\n• Cancellation Fee Deducted: ₹${chg.toFixed(2)}\n• Excess Amount to be Refunded: ₹${refAmt.toFixed(2)}`
-                  : `Free cancellation applied.\n• Full Refund Amount: ₹${refAmt.toFixed(2)}`;
-                Alert.alert('Booking Cancelled', `Ride ${ref} has been cancelled successfully.\n\n${chargeMsg}\n\nExcess amount will be refunded. Your tax invoice has been updated with refund details.`);
+                  ? `Fee: ₹${chg.toFixed(0)} • Refund: ₹${refAmt.toFixed(0)}`
+                  : `Full Refund: ₹${refAmt.toFixed(0)}`;
+
+                Alert.alert('Ride Cancelled', `${ref} has been cancelled.\n${detailMsg}`);
                 fetchBookings();
               } else {
-                Alert.alert('Cancellation Notice', res.message || 'Cannot cancel booking.');
+                Alert.alert('Notice', res.message || 'Cannot cancel booking.');
               }
             } catch (err: any) {
               Alert.alert('Error', err.message || 'Failed to cancel booking.');
