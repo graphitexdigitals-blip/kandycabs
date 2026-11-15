@@ -3,7 +3,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 Add-Type -AssemblyName System.Drawing
 
 $root = "D:\Rakshith\Graphitex Digitals\client websites\kandycabs\kandycabs website\kandycabs updated"
-$baseApk = Join-Path $root "apps\driver-app\android\app\build\outputs\apk\release\app-release.apk"
+$baseApk = Join-Path $root "dist_apk\kandy-cabs-driver.apk"
 if (-not (Test-Path $baseApk)) {
     $baseApk = Join-Path $root "kandy-cabs-driver.apk"
 }

@@ -50,20 +50,28 @@ if (typeof originalInputRender === 'function') {
 LogBox.ignoreAllLogs(true);
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     'Roboto': require('../assets/fonts/Roboto-Regular.ttf'),
     'Roboto-Regular': require('../assets/fonts/Roboto-Regular.ttf'),
     'Roboto-Medium': require('../assets/fonts/Roboto-Medium.ttf'),
     'Roboto-Bold': require('../assets/fonts/Roboto-Bold.ttf'),
   });
 
+  const [ready, setReady] = React.useState(false);
+
   useEffect(() => {
-    if (fontsLoaded) {
+    if (fontsLoaded || fontError) {
+      setReady(true);
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [fontsLoaded]);
+    const t = setTimeout(() => {
+      setReady(true);
+      SplashScreen.hideAsync().catch(() => {});
+    }, 400);
+    return () => clearTimeout(t);
+  }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded) {
+  if (!ready && !fontsLoaded) {
     return null;
   }
 

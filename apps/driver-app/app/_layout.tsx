@@ -73,18 +73,23 @@ if (typeof originalInputRender === 'function') {
   };
 }
 
+console.log('[DEBUG_DRIVER] _layout.tsx loaded at top level');
+
 // Suppress development yellow box overlays so they do not block driver workflow
 LogBox.ignoreAllLogs(true);
 
 export default function RootLayout() {
+  console.log('[DEBUG_DRIVER] RootLayout component rendered');
   const router = useRouter();
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     'Roboto': require('../assets/fonts/Roboto-Regular.ttf'),
     'Roboto-Regular': require('../assets/fonts/Roboto-Regular.ttf'),
     'Roboto-Medium': require('../assets/fonts/Roboto-Medium.ttf'),
     'Roboto-Bold': require('../assets/fonts/Roboto-Bold.ttf'),
   });
+
+  console.log('[DEBUG_DRIVER] fontsLoaded status:', fontsLoaded, 'fontError:', fontError);
 
   useEffect(() => {
     if (fontsLoaded) {
@@ -133,7 +138,22 @@ export default function RootLayout() {
     return () => sub.remove();
   }, [router]);
 
-  if (!fontsLoaded) {
+  const [ready, setReady] = React.useState(false);
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      setReady(true);
+      SplashScreen.hideAsync().catch(() => {});
+    }
+    const t = setTimeout(() => {
+      console.log('[DEBUG_DRIVER] Force-showing app layout via timeout fallback');
+      setReady(true);
+      SplashScreen.hideAsync().catch(() => {});
+    }, 400);
+    return () => clearTimeout(t);
+  }, [fontsLoaded, fontError]);
+
+  if (!ready && !fontsLoaded) {
     return null;
   }
 
