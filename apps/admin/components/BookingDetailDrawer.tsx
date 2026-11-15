@@ -29,6 +29,7 @@ import {
   IconAlert,
   IconCar,
   IconCalendar,
+  IconMapPin,
 } from '@/components/Icons';
 
 interface BookingDetailDrawerProps {
@@ -1352,29 +1353,51 @@ Exclusions (If applicable):
 
                   <div className="space-y-1.5">
                     {timingData.waitingSessions?.map((s, idx) => {
-                      const getOrdinalText = (n: number) => {
-                        const s = ['th', 'st', 'nd', 'rd'];
-                        const v = n % 100;
-                        return n + (s[(v - 20) % 10] || s[v] || s[0]);
-                      };
+                      const locationText =
+                        s.address ||
+                        s.location?.address ||
+                        (s.lat && s.lng ? `${Number(s.lat).toFixed(4)}, ${Number(s.lng).toFixed(4)}` : null);
+                      const hasCoords = s.lat && s.lng;
+
                       return (
                         <div
                           key={s.id || idx}
-                          className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded bg-white border border-amber-200/80 shadow-2xs"
+                          className="flex flex-col text-xs py-1.5 px-2.5 rounded bg-white border border-amber-200/80 shadow-2xs gap-1"
                         >
-                          <div className="flex items-center space-x-2">
-                            <span className="px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 text-[10px] font-bold">
-                              {s.label || `${getOrdinalText(idx + 1)} Waiting`}
-                            </span>
-                            <span className="text-slate-600 text-[11px]">
-                              Start: <strong className="text-slate-900">{s.startedAt}</strong> → Stop: <strong className="text-slate-900">{s.stoppedAt || 'Active'}</strong>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <span className="w-5 h-5 rounded-full bg-sky-100 text-sky-800 text-[10px] font-bold flex items-center justify-center shrink-0">
+                                {idx + 1}
+                              </span>
+                              <span className="text-slate-600 text-[11px]">
+                                Start: <strong className="text-slate-900">{s.startedAt}</strong> → Stop: <strong className="text-slate-900">{s.stoppedAt || 'Active'}</strong>
+                              </span>
+                            </div>
+                            <span className="font-mono font-bold text-amber-950 text-[11px]">
+                              {s.durationSeconds >= 60
+                                ? `${Math.floor(s.durationSeconds / 60)}m ${s.durationSeconds % 60}s`
+                                : `${s.durationSeconds}s`}
                             </span>
                           </div>
-                          <span className="font-mono font-bold text-amber-950 text-[11px]">
-                            {s.durationSeconds >= 60
-                              ? `${Math.floor(s.durationSeconds / 60)}m ${s.durationSeconds % 60}s`
-                              : `${s.durationSeconds}s`}
-                          </span>
+
+                          {locationText && (
+                            <div className="flex items-center space-x-1.5 text-[10.5px] text-slate-500 pl-7">
+                              <IconMapPin className="w-3 h-3 text-rose-500 shrink-0" />
+                              <span className="truncate max-w-[320px]" title={locationText}>
+                                Stopped at: <strong className="text-slate-700 font-medium">{locationText}</strong>
+                              </span>
+                              {hasCoords && (
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lng}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline text-[10px] inline-flex items-center shrink-0 ml-1 font-medium"
+                                >
+                                  View Map ↗
+                                </a>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}

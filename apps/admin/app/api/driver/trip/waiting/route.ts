@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
       startedAt,
       stoppedAt,
       action = 'RECORD_WAITING',
+      lat,
+      lng,
+      address,
     } = body;
 
     if (!bookingId) {
@@ -68,6 +71,9 @@ export async function POST(req: NextRequest) {
           sessions,
           startedAt: startedAt || null,
           stoppedAt: stoppedAt || null,
+          lat: lat != null ? lat : null,
+          lng: lng != null ? lng : null,
+          address: address || null,
           action,
           timestamp: nowIso,
         },

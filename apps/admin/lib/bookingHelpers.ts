@@ -405,6 +405,14 @@ export interface TripTimingsSummary {
     startedAt: string;
     stoppedAt?: string;
     durationSeconds: number;
+    address?: string;
+    location?: {
+      lat?: number;
+      lng?: number;
+      address?: string;
+    };
+    lat?: number;
+    lng?: number;
   }>;
   waitingTimeWindow: string | null;
   startedTime: string | null;

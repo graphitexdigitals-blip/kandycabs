@@ -347,6 +347,14 @@ export interface WaitingSession {
   resumedAt?: string;
   stoppedAt?: string;
   durationSeconds: number;
+  location?: {
+    lat: number;
+    lng: number;
+    address?: string;
+  } | null;
+  address?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface TripWaitingState {

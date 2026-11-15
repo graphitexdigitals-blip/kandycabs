@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from '../../components/SafeLinearGradient';
 import { TripFlowHeader } from '../../components/TripFlowHeader';
 import { useTranslation } from 'react-i18next';
+import { getDistanceInMeters } from '@kandy-cabs/shared';
 import { driverApiClient } from '../../lib/api';
 import { locationTracker } from '../../lib/location-tracker';
 import { reverseGeocodeAddress } from '../../lib/reverse-geocoding';
@@ -224,6 +225,12 @@ export default function DriverTripActiveScreen() {
   const [currentSessionSeconds, setCurrentSessionSeconds] = useState(0);
   const [currentSessionStartTime, setCurrentSessionStartTime] = useState<string | null>(null);
   const [waitingSessions, setWaitingSessions] = useState<WaitingSession[]>([]);
+  const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [isMovingWhileWaiting, setIsMovingWhileWaiting] = useState(false);
+
+  const waitingStartCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const movementAlertCountRef = useRef<number>(0);
+  const lastMovementAlertTimeRef = useRef<number>(0);
 
   // Restore saved waiting state for this booking
   useEffect(() => {
@@ -270,6 +277,80 @@ export default function DriverTripActiveScreen() {
     };
   }, [isWaitingActive, isWaitingPaused, activeRunningStartedAt, totalAccumulatedSeconds]);
 
+  // Listen to live GPS location updates & detect movement while waiting timer is running
+  useEffect(() => {
+    const unsub = locationTracker.addListener((lat, lng) => {
+      if (lat != null && lng != null) {
+        setCurrentCoords({ lat, lng });
+
+        // Check if vehicle is moving while waiting is running
+        if (isWaitingActive && !isWaitingPaused && waitingStartCoordsRef.current) {
+          const dist = getDistanceInMeters(
+            waitingStartCoordsRef.current.lat,
+            waitingStartCoordsRef.current.lng,
+            lat,
+            lng
+          );
+
+          // If moved > 80m from stop location
+          if (dist > 80) {
+            setIsMovingWhileWaiting(true);
+            const now = Date.now();
+
+            // 1st Popup reminder
+            if (movementAlertCountRef.current === 0) {
+              movementAlertCountRef.current = 1;
+              lastMovementAlertTimeRef.current = now;
+              Alert.alert(
+                '⚠️ Vehicle is Moving',
+                'Your vehicle is moving! Please stop the waiting timer if customer waiting is over.',
+                [
+                  {
+                    text: 'Stop Waiting & Record',
+                    style: 'default',
+                    onPress: () => {
+                      executeStopWaiting();
+                    },
+                  },
+                  {
+                    text: 'Keep Waiting',
+                    style: 'cancel',
+                  },
+                ]
+              );
+            }
+            // 2nd Popup reminder (after a period of time, e.g. 50s, if not stopped but still moving)
+            else if (
+              movementAlertCountRef.current === 1 &&
+              now - lastMovementAlertTimeRef.current >= 50000
+            ) {
+              movementAlertCountRef.current = 2;
+              lastMovementAlertTimeRef.current = now;
+              Alert.alert(
+                '⚠️ Reminder: Stop Waiting Timer',
+                'Vehicle is still moving and waiting timer is still active. Would you like to stop and record waiting now?',
+                [
+                  {
+                    text: 'Stop Waiting Now',
+                    style: 'default',
+                    onPress: () => {
+                      executeStopWaiting();
+                    },
+                  },
+                  {
+                    text: 'Dismiss',
+                    style: 'cancel',
+                  },
+                ]
+              );
+            }
+          }
+        }
+      }
+    });
+    return () => unsub();
+  }, [isWaitingActive, isWaitingPaused]);
+
   const handleStartWaiting = () => {
     const now = Date.now();
     const timeStr = formatTimeOfDay(new Date(now));
@@ -278,6 +359,16 @@ export default function DriverTripActiveScreen() {
     setActiveRunningStartedAt(now);
     setCurrentSessionStartTime(timeStr);
     setCurrentSessionSeconds(0);
+    setIsMovingWhileWaiting(false);
+    movementAlertCountRef.current = 0;
+    lastMovementAlertTimeRef.current = 0;
+
+    const latest = locationTracker.getCurrentCoordinates();
+    const lat = latest.lat ?? currentCoords?.lat;
+    const lng = latest.lng ?? currentCoords?.lng;
+    if (lat != null && lng != null) {
+      waitingStartCoordsRef.current = { lat, lng };
+    }
 
     const id = bookingId || booking?.id;
     if (id) {
@@ -297,6 +388,8 @@ export default function DriverTripActiveScreen() {
           currentSessionStartTime: timeStr,
           totalAccumulatedSeconds,
           sessions: waitingSessions,
+          lat,
+          lng,
         }),
       }).catch(() => {});
     }
@@ -313,6 +406,7 @@ export default function DriverTripActiveScreen() {
     setDisplaySeconds(newTotal);
     setActiveRunningStartedAt(null);
     setIsWaitingPaused(true);
+    setIsMovingWhileWaiting(false);
 
     const id = bookingId || booking?.id;
     if (id) {
@@ -340,6 +434,16 @@ export default function DriverTripActiveScreen() {
     const now = Date.now();
     setActiveRunningStartedAt(now);
     setIsWaitingPaused(false);
+    setIsMovingWhileWaiting(false);
+    movementAlertCountRef.current = 0;
+    lastMovementAlertTimeRef.current = 0;
+
+    const latest = locationTracker.getCurrentCoordinates();
+    const lat = latest.lat ?? currentCoords?.lat;
+    const lng = latest.lng ?? currentCoords?.lng;
+    if (lat != null && lng != null) {
+      waitingStartCoordsRef.current = { lat, lng };
+    }
 
     const id = bookingId || booking?.id;
     if (id) {
@@ -357,6 +461,88 @@ export default function DriverTripActiveScreen() {
           isWaitingPaused: false,
           totalAccumulatedSeconds,
           sessions: waitingSessions,
+          lat,
+          lng,
+        }),
+      }).catch(() => {});
+    }
+  };
+
+  const executeStopWaiting = async () => {
+    const now = Date.now();
+    let sessionSecs = 0;
+    if (activeRunningStartedAt && !isWaitingPaused) {
+      sessionSecs = Math.max(0, Math.floor((now - activeRunningStartedAt) / 1000));
+    }
+    const finalTotal = totalAccumulatedSeconds + sessionSecs;
+    const stopTimeStr = formatTimeOfDay(new Date(now));
+
+    const latest = locationTracker.getCurrentCoordinates();
+    const stopLat = latest.lat ?? currentCoords?.lat ?? waitingStartCoordsRef.current?.lat;
+    const stopLng = latest.lng ?? currentCoords?.lng ?? waitingStartCoordsRef.current?.lng;
+    let stopAddress = '';
+    if (stopLat != null && stopLng != null) {
+      try {
+        stopAddress = await reverseGeocodeAddress(stopLat, stopLng);
+      } catch (_) {}
+    }
+
+    const newSession: WaitingSession = {
+      id: String(Date.now()),
+      startedAt: currentSessionStartTime || stopTimeStr,
+      stoppedAt: stopTimeStr,
+      durationSeconds: sessionSecs,
+      lat: stopLat != null ? stopLat : undefined,
+      lng: stopLng != null ? stopLng : undefined,
+      address: stopAddress || undefined,
+      location: (stopLat != null && stopLng != null) ? {
+        lat: stopLat,
+        lng: stopLng,
+        address: stopAddress || undefined,
+      } : null,
+    };
+
+    const updatedSessions = [...waitingSessions, newSession];
+
+    setIsWaitingActive(false);
+    setIsWaitingPaused(false);
+    setActiveRunningStartedAt(null);
+    setCurrentSessionStartTime(null);
+    setCurrentSessionSeconds(0);
+    setTotalAccumulatedSeconds(finalTotal);
+    setDisplaySeconds(finalTotal);
+    setWaitingSessions(updatedSessions);
+    setIsMovingWhileWaiting(false);
+    waitingStartCoordsRef.current = null;
+    movementAlertCountRef.current = 0;
+
+    const id = bookingId || booking?.id;
+    if (id) {
+      setTripWaitingState(id, {
+        isWaitingActive: false,
+        isWaitingPaused: false,
+        activeRunningStartedAt: null,
+        currentSessionStartTime: null,
+        totalAccumulatedSeconds: finalTotal,
+        sessions: updatedSessions,
+      });
+      // Sync waiting time live to backend
+      driverApiClient.fetch('/api/driver/trip/waiting', {
+        method: 'POST',
+        body: JSON.stringify({
+          bookingId: id,
+          action: 'STOP_RECORD',
+          isWaitingActive: false,
+          isWaitingPaused: false,
+          totalAccumulatedSeconds: finalTotal,
+          durationSeconds: finalTotal,
+          waitingMinutes: Math.round(finalTotal / 60),
+          sessions: updatedSessions,
+          startedAt: currentSessionStartTime || stopTimeStr,
+          stoppedAt: stopTimeStr,
+          lat: stopLat,
+          lng: stopLng,
+          address: stopAddress,
         }),
       }).catch(() => {});
     }
@@ -364,69 +550,16 @@ export default function DriverTripActiveScreen() {
 
   const handleStopWaiting = () => {
     const sessionNum = waitingSessions.length + 1;
-    const sessionLabel = `${getOrdinal(sessionNum)} Waiting`;
     Alert.alert(
-      `Stop ${sessionLabel}?`,
-      `Do you want to stop and record the customer waiting time for ${sessionLabel.toLowerCase()}?`,
+      `Stop Waiting #${sessionNum}?`,
+      `Do you want to stop and record the customer waiting time for session #${sessionNum}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Stop & Record',
           style: 'default',
           onPress: () => {
-            const now = Date.now();
-            let sessionSecs = 0;
-            if (activeRunningStartedAt && !isWaitingPaused) {
-              sessionSecs = Math.max(0, Math.floor((now - activeRunningStartedAt) / 1000));
-            }
-            const finalTotal = totalAccumulatedSeconds + sessionSecs;
-            const stopTimeStr = formatTimeOfDay(new Date(now));
-
-            const newSession: WaitingSession = {
-              id: String(Date.now()),
-              startedAt: currentSessionStartTime || stopTimeStr,
-              stoppedAt: stopTimeStr,
-              durationSeconds: sessionSecs,
-            };
-
-            const updatedSessions = [...waitingSessions, newSession];
-
-            setIsWaitingActive(false);
-            setIsWaitingPaused(false);
-            setActiveRunningStartedAt(null);
-            setCurrentSessionStartTime(null);
-            setCurrentSessionSeconds(0);
-            setTotalAccumulatedSeconds(finalTotal);
-            setDisplaySeconds(finalTotal);
-            setWaitingSessions(updatedSessions);
-
-            const id = bookingId || booking?.id;
-            if (id) {
-              setTripWaitingState(id, {
-                isWaitingActive: false,
-                isWaitingPaused: false,
-                activeRunningStartedAt: null,
-                currentSessionStartTime: null,
-                totalAccumulatedSeconds: finalTotal,
-                sessions: updatedSessions,
-              });
-              // Sync waiting time live to backend
-              driverApiClient.fetch('/api/driver/trip/waiting', {
-                method: 'POST',
-                body: JSON.stringify({
-                  bookingId: id,
-                  action: 'STOP_RECORD',
-                  isWaitingActive: false,
-                  isWaitingPaused: false,
-                  totalAccumulatedSeconds: finalTotal,
-                  durationSeconds: finalTotal,
-                  waitingMinutes: Math.round(finalTotal / 60),
-                  sessions: updatedSessions,
-                  startedAt: currentSessionStartTime || stopTimeStr,
-                  stoppedAt: stopTimeStr,
-                }),
-              }).catch(() => {});
-            }
+            executeStopWaiting();
           },
         },
       ]
@@ -451,6 +584,10 @@ export default function DriverTripActiveScreen() {
             setCurrentSessionSeconds(0);
             setCurrentSessionStartTime(null);
             setWaitingSessions([]);
+            setIsMovingWhileWaiting(false);
+            waitingStartCoordsRef.current = null;
+            movementAlertCountRef.current = 0;
+
             const id = bookingId || booking?.id;
             if (id) {
               clearTripWaitingState(id);
@@ -698,14 +835,32 @@ export default function DriverTripActiveScreen() {
                 </View>
               </View>
 
-              {/* Recorded Sessions Breakdown (shows 1st waiting, 2nd waiting, etc.) */}
+              {/* Movement Reminder Alert Banner */}
+              {isMovingWhileWaiting && isWaitingActive && !isWaitingPaused && (
+                <View style={styles.movingAlertBanner}>
+                  <Ionicons name="warning" size={15} color="#b45309" style={{ marginRight: 6 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.movingAlertTitle}>Vehicle is moving!</Text>
+                    <Text style={styles.movingAlertSub}>Stop waiting timer if waiting is over.</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.movingAlertBtn}
+                    onPress={() => executeStopWaiting()}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.movingAlertBtnText}>Stop Waiting</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Recorded Sessions Breakdown (shows 1, 2, 3 instead of 1st waiting, etc.) */}
               {waitingSessions.length > 0 && (
                 <View style={styles.waitingSessionsListWrap}>
                   {waitingSessions.map((s, idx) => (
                     <View key={s.id || String(idx)} style={styles.waitingSessionItemRow}>
                       <View style={styles.waitingSessionOrdinalBadge}>
                         <Text style={styles.waitingSessionOrdinalText}>
-                          {getOrdinal(idx + 1)} Waiting
+                          {idx + 1}
                         </Text>
                       </View>
                       <View style={styles.waitingSessionTimesCol}>
@@ -716,6 +871,14 @@ export default function DriverTripActiveScreen() {
                           <Text style={styles.waitingTimeLabel}>Stop: </Text>
                           <Text style={styles.waitingTimeValue}>{s.stoppedAt || '—'}</Text>
                         </View>
+                        {(s.address || s.location?.address) && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                            <Ionicons name="location-sharp" size={10} color="#ef4444" style={{ marginRight: 3 }} />
+                            <Text style={{ fontSize: 10, color: '#64748b', fontWeight: '500' }} numberOfLines={1}>
+                              {s.address || s.location?.address}
+                            </Text>
+                          </View>
+                        )}
                       </View>
                       <View style={styles.waitingSessionDurationWrap}>
                         <Text style={styles.waitingSessionDurationText}>
@@ -1439,6 +1602,37 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1e40af',
   },
+  movingAlertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef3c7',
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginTop: 8,
+  },
+  movingAlertTitle: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#92400e',
+  },
+  movingAlertSub: {
+    fontSize: 10,
+    color: '#b45309',
+  },
+  movingAlertBtn: {
+    backgroundColor: '#d97706',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  movingAlertBtnText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
   waitingSessionsListWrap: {
     marginTop: 8,
   },
@@ -1453,13 +1647,15 @@ const styles = StyleSheet.create({
   },
   waitingSessionOrdinalBadge: {
     backgroundColor: '#e0f2fe',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginRight: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
   waitingSessionOrdinalText: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '800',
     color: '#0369a1',
   },
