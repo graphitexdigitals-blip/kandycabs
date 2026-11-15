@@ -7,11 +7,8 @@ async function main() {
   const tempDir = path.join(root, 'apps', 'driver-app', 'dist_bundle', 'icon_patch');
   if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
-  // Locate the clean white KC letters
-  let kcWhiteLettersPath = path.join(root, 'apps', 'driver-app', 'assets', 'images', 'kc_letters_trimmed.png');
-  if (!fs.existsSync(kcWhiteLettersPath)) {
-    kcWhiteLettersPath = path.join(root, 'apps', 'customer-app', 'assets', 'images', 'kc_letters_trimmed.png');
-  }
+  // Locate the clean white KC letters for driver app
+  const kcWhiteLettersPath = path.join(root, 'apps', 'driver-app', 'assets', 'images', 'kc_letters_trimmed.png');
   if (!fs.existsSync(kcWhiteLettersPath)) {
     throw new Error('kc_letters_trimmed.png not found at ' + kcWhiteLettersPath);
   }
