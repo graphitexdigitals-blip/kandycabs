@@ -93,7 +93,7 @@ export function LanguageSelectionModal({
               <View style={styles.headerRow}>
                 <View style={styles.headerLeft}>
                   <View style={styles.headerIconBox}>
-                    <Ionicons name="globe-outline" size={22} color="#f38c38" />
+                    <Ionicons name="globe-outline" size={22} color="#f05a22" />
                   </View>
                   <View>
                     <Text style={styles.headerTitle}>{t('common.chooseLanguage')}</Text>
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   langBadgeSelected: {
-    backgroundColor: '#f38c38',
+    backgroundColor: '#f05a22',
   },
   langBadgeText: {
     fontSize: 13,
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     color: '#0f2744',
   },
   langNativeTitleSelected: {
-    color: '#f38c38',
+    color: '#f05a22',
   },
   langSublabel: {
     fontSize: 11,
@@ -351,12 +351,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   radioCircleSelected: {
-    borderColor: '#f38c38',
-    backgroundColor: '#f38c38',
+    borderColor: '#f05a22',
+    backgroundColor: '#f05a22',
   },
   confirmBtn: {
     marginTop: 18,
-    backgroundColor: '#f38c38',
+    backgroundColor: '#f05a22',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     ...Platform.select({
       ios: {
-        shadowColor: '#f38c38',
+        shadowColor: '#f05a22',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.25,
         shadowRadius: 8,

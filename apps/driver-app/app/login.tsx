@@ -87,6 +87,10 @@ export default function DriverLoginScreen() {
       setError('Please enter your 10-digit mobile number first');
       return;
     }
+    if (!otpSent) {
+      handleSendOtp();
+      return;
+    }
     if (otp.trim().length < 4) {
       setError('Please enter the OTP');
       return;
@@ -403,7 +407,7 @@ export default function DriverLoginScreen() {
               <TouchableOpacity
                 style={[
                   styles.loginSubmitBtn,
-                  (!otp || otp.trim().length < 4 || loading) && styles.loginSubmitBtnDisabled,
+                  loading && styles.loginSubmitBtnDisabled,
                 ]}
                 onPress={handleVerifyOtp}
                 disabled={loading}
@@ -518,7 +522,7 @@ const styles = StyleSheet.create({
   },
   langActive: {
     fontFamily: APP_FONT_BOLD,
-    color: '#f38c38',
+    color: '#f05a22',
     fontWeight: '800',
   },
   langDivider: {
@@ -565,7 +569,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#cbd5e1',
   },
   getOtpInlineBtnActive: {
-    backgroundColor: '#f38c38',
+    backgroundColor: '#f05a22',
   },
   getOtpInlineText: {
     fontFamily: APP_FONT_BOLD,
@@ -574,20 +578,20 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   loginSubmitBtn: {
-    backgroundColor: '#f38c38',
+    backgroundColor: '#f05a22',
     borderRadius: 999,
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 18,
-    shadowColor: '#f38c38',
+    shadowColor: '#f05a22',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 4,
   },
   loginSubmitBtnDisabled: {
-    opacity: 0.75,
+    opacity: 0.7,
   },
   loginSubmitBtnText: {
     fontFamily: APP_FONT_BOLD,
