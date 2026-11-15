@@ -331,7 +331,7 @@ export default function DriverLoginScreen() {
                 style={styles.logoImage}
                 resizeMode="contain"
               />
-              <Text style={styles.partnerTitle}>KANDY CABS PARTNER APP</Text>
+              <Text style={styles.partnerTitle}>PARTNER DRIVER APP</Text>
             </View>
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -407,7 +407,7 @@ export default function DriverLoginScreen() {
                 {loading && otpSent ? (
                   <ActivityIndicator color="#ffffff" size="small" />
                 ) : (
-                  <Text style={styles.loginSubmitBtnText}>Login</Text>
+                  <Text style={styles.loginSubmitBtnText}>LOGIN</Text>
                 )}
               </TouchableOpacity>
 
@@ -467,30 +467,34 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? 32 : 24,
+    paddingTop: Platform.OS === 'android' ? 68 : 58,
     paddingBottom: Platform.OS === 'android' ? 24 : 18,
     justifyContent: 'space-between',
   },
   mainContent: {
     flex: 1,
+    width: '100%',
+    maxWidth: 360,
+    alignSelf: 'center',
   },
   header: {
-    marginTop: 6,
-    marginBottom: 14,
+    marginTop: 8,
+    marginBottom: 16,
     alignItems: 'center',
   },
   logoImage: {
-    width: 225,
-    height: 110,
-    marginBottom: 2,
+    width: 175,
+    height: 90,
+    marginBottom: 4,
   },
   partnerTitle: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: '#002244',
-    letterSpacing: 0.8,
-    marginTop: 4,
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0f2942',
+    letterSpacing: 2.0,
+    marginTop: 6,
     textAlign: 'center',
+    textTransform: 'uppercase',
   },
   languageRow: {
     flexDirection: 'row',
@@ -516,7 +520,7 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     paddingHorizontal: 2,
-    marginTop: 4,
+    marginTop: 36,
   },
   inputPillRow: {
     flexDirection: 'row',
