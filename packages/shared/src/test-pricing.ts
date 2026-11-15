@@ -21,7 +21,7 @@ async function runPricingTests() {
   if (!isNightTimeWindow(nightTime2)) throw new Error('04:45 should be night time');
   console.log('   ✅ Night window tests passed');
 
-  // 2. Test Daytime Oneway Sedan Fare
+  // 2. Test Daytime Oneway Sedan Fare (with Chauffeur Allowance included)
   console.log('2. Testing Daytime Oneway Sedan (100 km)...');
   const onewayQuote = calculateFare({
     category: VehicleCategory.SEDAN,
@@ -31,36 +31,43 @@ async function runPricingTests() {
     scheduledAt: dayTime,
   });
 
-  // Sedan diesel = 15/km -> baseFare = 1500, driverAllowance = 0, nightCharge = 0
-  // subtotal = 1500
-  // GST 5% = 75
-  // totalFare = 1575
-  // advance (25%) = 394 (or round(1575*0.25)=394)
-  // balance = 1181
+  // Sedan diesel = 15/km -> baseFare = 1500, driverAllowance = 350 (Chauffeur Allowance included)
+  // subtotal = 1850
+  // GST 5% = 92.5
+  // totalFare = 1942.5
   if (onewayQuote.baseFare !== 1500) throw new Error(`Base fare mismatch: expected 1500, got ${onewayQuote.baseFare}`);
-  if (onewayQuote.nightCharge !== 0) throw new Error(`Night charge should be 0, got ${onewayQuote.nightCharge}`);
-  if (onewayQuote.gstAmount !== 75) throw new Error(`GST mismatch: expected 75, got ${onewayQuote.gstAmount}`);
-  if (onewayQuote.totalFare !== 1575) throw new Error(`Total fare mismatch: expected 1575, got ${onewayQuote.totalFare}`);
+  if (onewayQuote.driverAllowance !== 350) throw new Error(`Driver allowance mismatch: expected 350, got ${onewayQuote.driverAllowance}`);
+  if (onewayQuote.gstAmount !== 92.5) throw new Error(`GST mismatch: expected 92.5, got ${onewayQuote.gstAmount}`);
+  if (onewayQuote.totalFare !== 1942.5) throw new Error(`Total fare mismatch: expected 1942.5, got ${onewayQuote.totalFare}`);
   if (onewayQuote.advanceAmount + onewayQuote.balanceAmount !== onewayQuote.totalFare) {
     throw new Error('Advance + Balance must equal Total Fare');
   }
-  console.log(`   ✅ Daytime oneway sedan: total ₹${onewayQuote.totalFare} (Adv: ₹${onewayQuote.advanceAmount}, Bal: ₹${onewayQuote.balanceAmount})`);
+  console.log(`   ✅ Daytime oneway sedan: total ₹${onewayQuote.totalFare} (Adv: ₹${onewayQuote.advanceAmount}, Bal: ₹${onewayQuote.balanceAmount}, Driver Bata: ₹${onewayQuote.driverAllowance})`);
 
-  // 3. Test Night-time Oneway Sedan Fare
-  console.log('3. Testing Night-time Oneway Sedan (100 km at 23:15)...');
-  const nightQuote = calculateFare({
+  // 3. Test Airport Transfer: strictly No Chauffeur Allowance
+  console.log('3. Testing Airport Transfer (50 km)...');
+  const airportQuote = calculateFare({
     category: VehicleCategory.SEDAN,
     fuelType: FuelType.DIESEL,
-    tripType: TripType.ONEWAY,
-    distanceKm: 100,
-    scheduledAt: nightTime1,
+    tripType: TripType.AIRPORT,
+    distanceKm: 50,
+    scheduledAt: dayTime,
   });
-  // subtotal = 1500 + 250 (night charge) = 1750
-  // GST 5% = 87.5
-  // totalFare = 1837.5
-  if (nightQuote.nightCharge !== 250) throw new Error(`Night charge should be 250, got ${nightQuote.nightCharge}`);
-  if (nightQuote.totalFare !== 1837.5) throw new Error(`Total fare mismatch: expected 1837.5, got ${nightQuote.totalFare}`);
-  console.log(`   ✅ Night-time oneway sedan: total ₹${nightQuote.totalFare} (incl ₹${nightQuote.nightCharge} night charge)`);
+  if (airportQuote.driverAllowance !== 0) throw new Error(`Airport driver allowance should be 0, got ${airportQuote.driverAllowance}`);
+  console.log(`   ✅ Airport transfer: driver allowance ₹${airportQuote.driverAllowance} (No allowance rule verified)`);
+
+  // 4. Test Local Rental Package: No day allowance
+  console.log('4. Testing Local Rental Package (8hr/80km)...');
+  const localQuote = calculateFare({
+    category: VehicleCategory.SEDAN,
+    fuelType: FuelType.DIESEL,
+    tripType: TripType.LOCAL,
+    distanceKm: 80,
+    packageHours: 8,
+    scheduledAt: dayTime,
+  });
+  if (localQuote.driverAllowance !== 0) throw new Error(`Local rental driver allowance should be 0, got ${localQuote.driverAllowance}`);
+  console.log(`   ✅ Local rental package: driver allowance ₹${localQuote.driverAllowance} (No day allowance rule verified)`);
 
   // 4. Test Round-trip min 250km/day allowance
   console.log('4. Testing Round-trip 2-day SUV trip (Actual single distance: 100 km)...');
@@ -99,10 +106,10 @@ async function runPricingTests() {
     scheduledAt: dayTime,
     couponCode: 'KANDY10',
   });
-  // Subtotal before coupon = 1500, discount = 150 -> subtotal = 1350
-  // GST = 67.5, total = 1417.5
-  if (couponQuote.discount !== 150) throw new Error(`Discount mismatch: expected 150, got ${couponQuote.discount}`);
-  if (couponQuote.totalFare !== 1417.5) throw new Error(`Total fare mismatch: expected 1417.5, got ${couponQuote.totalFare}`);
+  // Subtotal before coupon = 1850, discount 10% = 185 -> subtotal = 1665
+  // GST = 83.25, total = 1748.25
+  if (couponQuote.discount !== 185) throw new Error(`Discount mismatch: expected 185, got ${couponQuote.discount}`);
+  if (couponQuote.totalFare !== 1748.25) throw new Error(`Total fare mismatch: expected 1748.25, got ${couponQuote.totalFare}`);
   console.log(`   ✅ Coupon discount applied: -₹${couponQuote.discount}, final total: ₹${couponQuote.totalFare}`);
 
   console.log('🎉 All Pricing Engine tests passed successfully!');

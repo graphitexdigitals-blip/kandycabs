@@ -12,6 +12,7 @@ export * from './api/client';
 export * from './pricing/types';
 export * from './pricing/pricingEngine';
 export * from './pricing/airportRoutes';
+export * from './pricing/chauffeurAllowance';
 export * from './supabase/client';
 export * from './utils/logger';
 export * from './utils/distance';

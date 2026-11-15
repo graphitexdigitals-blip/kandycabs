@@ -24,6 +24,7 @@ interface DbPricingCache {
   fleet: any[];
   nightSettings: any;
   airportRates: any;
+  chauffeurSettings: any;
   expiresAt: number;
 }
 
@@ -38,6 +39,7 @@ async function getCachedPricingData() {
       fleet: dbPricingCache.fleet,
       nightSettings: dbPricingCache.nightSettings,
       airportRates: dbPricingCache.airportRates,
+      chauffeurSettings: dbPricingCache.chauffeurSettings,
     };
   }
 
@@ -45,15 +47,17 @@ async function getCachedPricingData() {
     prisma.pricingRule.findMany({ where: { isActive: true } }).catch(() => []),
     prisma.fleetCategory.findMany({ where: { isActive: true } }).catch(() => []),
     prisma.systemSetting.findMany({
-      where: { key: { in: ['night_charge_settings', 'airport_city_rates'] } },
+      where: { key: { in: ['night_charge_settings', 'airport_city_rates', 'chauffeur_allowance_settings'] } },
     }).catch(() => []),
   ]);
 
   let nightSettings = null;
   let airportRates = null;
+  let chauffeurSettings = null;
   for (const s of systemSettings) {
     if (s.key === 'night_charge_settings') nightSettings = s.value;
     if (s.key === 'airport_city_rates') airportRates = s.value;
+    if (s.key === 'chauffeur_allowance_settings') chauffeurSettings = s.value;
   }
 
   dbPricingCache = {
@@ -61,6 +65,7 @@ async function getCachedPricingData() {
     fleet: dbFleetCategories,
     nightSettings,
     airportRates,
+    chauffeurSettings,
     expiresAt: now + DB_PRICING_CACHE_TTL_MS,
   };
 
@@ -69,6 +74,7 @@ async function getCachedPricingData() {
     fleet: dbFleetCategories,
     nightSettings,
     airportRates,
+    chauffeurSettings,
   };
 }
 
@@ -130,6 +136,7 @@ export async function POST(req: NextRequest) {
       fleet: dbFleetCategories,
       nightSettings,
       airportRates,
+      chauffeurSettings,
     } = await getCachedPricingData();
 
     const fleetMap = new Map<string, any>();
@@ -217,6 +224,7 @@ export async function POST(req: NextRequest) {
             localPackage12hrKm: dbRule?.localPackage12hrKm ? Number(dbRule.localPackage12hrKm) : dbFleet?.localPackage12hrKm ? Number(dbFleet.localPackage12hrKm) : 120,
             localPackage12hrExtraKmRate: dbRule?.localPackage12hrExtraKmRate ? Number(dbRule.localPackage12hrExtraKmRate) : undefined,
             extraHourRate: dbRule?.extraHourRate ? Number(dbRule.extraHourRate) : dbFleet?.extraHourRate ? Number(dbFleet.extraHourRate) : undefined,
+            chauffeurConfig: chauffeurSettings,
           };
 
           const pricing = calculateFare({
@@ -232,6 +240,7 @@ export async function POST(req: NextRequest) {
             pickupAddress: body.pickupAddress,
             dropAddress: body.dropAddress,
             airportCityRates: airportRates,
+            chauffeurConfig: chauffeurSettings,
           });
 
           return {

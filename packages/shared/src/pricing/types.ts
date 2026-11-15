@@ -41,6 +41,7 @@ export interface DynamicRateOverrides {
   localPackage12hrKm?: number;
   localPackage12hrExtraKmRate?: number;
   extraHourRate?: number;
+  chauffeurConfig?: any;
 }
 
 export interface PricingCalculationInput {
@@ -60,6 +61,7 @@ export interface PricingCalculationInput {
   pickupAddress?: string;
   dropAddress?: string;
   airportCityRates?: any;
+  chauffeurConfig?: any;
 }
 
 export interface PricingBreakdown {

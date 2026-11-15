@@ -8,6 +8,11 @@ import {
   getAirportFareForVehicle,
   DEFAULT_NIGHT_CHARGE_SETTINGS,
 } from './airportRoutes';
+import {
+  calculateTripChauffeurAllowance,
+  DEFAULT_CHAUFFEUR_ALLOWANCE_CONFIG,
+  isNightChauffeurWindow,
+} from './chauffeurAllowance';
 
 export const VEHICLE_RATES: Record<VehicleCategory, VehicleRateConfig> = {
   [VehicleCategory.HATCHBACK]: {
@@ -294,22 +299,34 @@ export function calculateFare(input: PricingCalculationInput): PricingBreakdown 
   const minRoundTripKmPerDay = overrides?.minRoundTripKmPerDay !== undefined ? overrides.minRoundTripKmPerDay : config.minRoundTripKmPerDay;
   const gstRatePercent = overrides?.gstRatePercent !== undefined ? overrides.gstRatePercent : 5.0;
 
-  // Night charge options: check if transfer type is eligible
-  const applicableNightTypes = (overrides?.applicableNightTripTypes || input.applicableNightTripTypes || DEFAULT_NIGHT_CHARGE_SETTINGS.applicableTripTypes) as (TripType | string)[];
-  const isNightTripTypeEligible = applicableNightTypes.length === 0 || applicableNightTypes.includes(tripType) || applicableNightTypes.includes(String(tripType));
-  const isNight = isNightTimeWindow(
+  const chauffeurConfig = input.chauffeurConfig || overrides?.chauffeurConfig || DEFAULT_CHAUFFEUR_ALLOWANCE_CONFIG;
+  const days = Math.max(1, durationDays);
+
+  const chauffeurCalc = calculateTripChauffeurAllowance({
+    tripType: String(tripType),
+    category: String(category),
     scheduledAt,
-    overrides?.nightWindowStartHour ?? 22,
-    overrides?.nightWindowEndHour ?? 6
-  );
+    durationDays: days,
+    config: chauffeurConfig,
+  });
+
+  // Night charge options: check if transfer type is eligible
+  const nightWindowStart = overrides?.nightWindowStartHour ?? chauffeurConfig.nightWindowStartHour ?? 20;
+  const nightWindowEnd = overrides?.nightWindowEndHour ?? chauffeurConfig.nightWindowEndHour ?? 6;
+  const isNight = isNightChauffeurWindow(scheduledAt, nightWindowStart, nightWindowEnd);
+
+  const rawTripTypeKey = String(tripType).toUpperCase();
+  const tripRule = chauffeurConfig.rules?.[rawTripTypeKey];
+  const isNightExcludedByPolicy = tripRule ? !tripRule.nightAllowanceEnabled : false;
+
+  const applicableNightTypes = (overrides?.applicableNightTripTypes || input.applicableNightTripTypes || DEFAULT_NIGHT_CHARGE_SETTINGS.applicableTripTypes) as (TripType | string)[];
+  const isNightTripTypeEligible = !isNightExcludedByPolicy && (applicableNightTypes.length === 0 || applicableNightTypes.includes(tripType) || applicableNightTypes.includes(String(tripType)));
   const nightCharge = (isNight && isNightTripTypeEligible && overrides?.nightChargeEnabled !== false) ? nightChargeAmount : 0;
 
   let billableDistanceKm = distanceKm;
   let baseFare = 0;
   let extraKmCharge = 0;
-  let driverAllowance = 0;
-
-  const days = Math.max(1, durationDays);
+  let driverAllowance = overrides?.driverAllowance !== undefined ? overrides.driverAllowance : chauffeurCalc.dayAllowance;
 
   switch (tripType) {
     case TripType.ROUND: {
@@ -326,7 +343,7 @@ export function calculateFare(input: PricingCalculationInput): PricingBreakdown 
         billableDistanceKm = minRequiredKm;
         baseFare = billableDistanceKm * ratePerKm;
       }
-      driverAllowance = days * driverAllowancePerDay;
+      driverAllowance = overrides?.driverAllowance !== undefined ? overrides.driverAllowance : chauffeurCalc.dayAllowance;
       break;
     }
     case TripType.ONEWAY: {
@@ -345,10 +362,8 @@ export function calculateFare(input: PricingCalculationInput): PricingBreakdown 
         billableDistanceKm = Math.max(distanceKm, 50);
         baseFare = billableDistanceKm * ratePerKm;
       }
-      // Driver allowance for long oneway trips (> 200 km)
-      if (billableDistanceKm > 200) {
-        driverAllowance = driverAllowancePerDay;
-      }
+      // Chauffeur allowance included for one way outstation trips
+      driverAllowance = overrides?.driverAllowance !== undefined ? overrides.driverAllowance : chauffeurCalc.dayAllowance;
       break;
     }
     case TripType.AIRPORT: {
@@ -363,14 +378,11 @@ export function calculateFare(input: PricingCalculationInput): PricingBreakdown 
         billableDistanceKm = Math.max(distanceKm, minAirportKm);
         baseFare = billableDistanceKm * ratePerKm;
       }
-      // Driver allowance for long airport trips (> 200 km)
-      if (billableDistanceKm > 200) {
-        driverAllowance = driverAllowancePerDay;
-      }
+      // Airport Transfers: No allowance
+      driverAllowance = overrides?.driverAllowance !== undefined ? overrides.driverAllowance : 0;
       break;
     }
-    case TripType.LOCAL:
-    case TripType.PACKAGE: {
+    case TripType.LOCAL: {
       const hours = input.packageHours || 8;
       let pkgKm = 80;
       let basePrice = 2200;
@@ -399,6 +411,40 @@ export function calculateFare(input: PricingCalculationInput): PricingBreakdown 
       if (distanceKm > pkgKm) {
         extraKmCharge = (distanceKm - pkgKm) * pkgExtraKmRate;
       }
+      // Local Rental Package: No day allowance; 8 PM to 6 AM excluded
+      driverAllowance = overrides?.driverAllowance !== undefined ? overrides.driverAllowance : 0;
+      break;
+    }
+    case TripType.PACKAGE: {
+      const hours = input.packageHours || 8;
+      let pkgKm = 80;
+      let basePrice = 2200;
+      let pkgExtraKmRate = extraKmRate;
+
+      if (hours <= 4) {
+        pkgKm = overrides?.localPackage4hrKm || extraKmThreshold || 40;
+        const default4hr = config.localPackages?.find((p) => p.hours === 4)?.basePrice || 1200;
+        basePrice = overrides?.localPackage4hrBase !== undefined ? overrides.localPackage4hrBase : default4hr;
+        pkgExtraKmRate = overrides?.localPackage4hrExtraKmRate !== undefined ? overrides.localPackage4hrExtraKmRate : extraKmRate;
+      } else if (hours <= 8) {
+        pkgKm = overrides?.localPackage8hrKm || extraKmThreshold || 80;
+        const default8hr = config.localPackages?.find((p) => p.hours === 8)?.basePrice || 2200;
+        basePrice = overrides?.localPackage8hrBase !== undefined ? overrides.localPackage8hrBase : default8hr;
+        pkgExtraKmRate = overrides?.localPackage8hrExtraKmRate !== undefined ? overrides.localPackage8hrExtraKmRate : extraKmRate;
+      } else {
+        pkgKm = overrides?.localPackage12hrKm || (overrides?.localPackage8hrKm ? Math.round(overrides.localPackage8hrKm * 1.5) : 120);
+        const default12hr = overrides?.localPackage8hrBase ? Math.round(overrides.localPackage8hrBase * 1.45) : 3200;
+        basePrice = overrides?.localPackage12hrBase !== undefined ? overrides.localPackage12hrBase : default12hr;
+        pkgExtraKmRate = overrides?.localPackage12hrExtraKmRate !== undefined ? overrides.localPackage12hrExtraKmRate : extraKmRate;
+      }
+
+      baseFare = basePrice;
+      billableDistanceKm = Math.max(distanceKm, pkgKm);
+      if (distanceKm > pkgKm) {
+        extraKmCharge = (distanceKm - pkgKm) * pkgExtraKmRate;
+      }
+      // Pilgrimage / Tour Package: Same as round trip
+      driverAllowance = overrides?.driverAllowance !== undefined ? overrides.driverAllowance : chauffeurCalc.dayAllowance;
       break;
     }
     default: {

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { BookingStatus } from '@kandy-cabs/shared';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { BookingStatus, calculateTripChauffeurAllowance } from '@kandy-cabs/shared';
 import { reverseGeocodeLocation } from '@/lib/geocoding';
 import {
   parseIntermediateStops,
@@ -83,7 +83,18 @@ export function BookingDetailDrawer({
         const b = json.booking;
         if (b) {
           setIsPhoneReleased(Boolean(b.customerPhoneReleased));
-          const bata = Number(b.driverAllowance) > 0 ? Number(b.driverAllowance) : 300;
+          let bata = 0;
+          if (b.driverAllowance !== undefined && b.driverAllowance !== null && !isNaN(Number(b.driverAllowance))) {
+            bata = Number(b.driverAllowance);
+          } else {
+            const policy = calculateTripChauffeurAllowance({
+              tripType: b.tripType,
+              category: b.vehicle?.category || 'SEDAN',
+              scheduledAt: b.scheduledAt,
+              durationDays: b.durationDays || 1,
+            });
+            bata = policy.totalAllowance;
+          }
           setDriverAllowanceVal(String(bata));
 
           // Automatically calculate vendor cost based on distance if not explicitly set
@@ -283,9 +294,19 @@ Exclusions (If applicable):
     }
   }, [isOpen, bookingId]);
 
+  const booking = data?.booking;
+  const chauffeurCalc = useMemo(() => {
+    if (!booking) return null;
+    return calculateTripChauffeurAllowance({
+      tripType: booking.tripType,
+      category: booking.vehicle?.category || 'SEDAN',
+      scheduledAt: booking.scheduledAt,
+      durationDays: booking.durationDays || 1,
+    });
+  }, [booking]);
+
   if (!isOpen || !bookingId) return null;
 
-  const booking = data?.booking;
   const auditLogs = data?.auditLogs || [];
   const assignedDriver = booking?.assignedDriver;
   const bookingMeta = getBookingMetadata(booking);
@@ -1682,9 +1703,18 @@ Exclusions (If applicable):
 
                 {/* Driver Bata Input */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Driver Bata (₹)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-700">
+                      Driver Bata (₹)
+                    </label>
+                    {chauffeurCalc && (
+                      <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                        chauffeurCalc.isDayIncluded ? 'text-indigo-700 bg-indigo-50 border border-indigo-200' : 'text-slate-500 bg-slate-100 border border-slate-200'
+                      }`}>
+                        {chauffeurCalc.isDayIncluded ? 'Day Included' : 'No Day Bata'}
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="number"
                     min="0"
@@ -1697,10 +1727,29 @@ Exclusions (If applicable):
                       const newTotal = Math.round(dist * (parseFloat(kmRateVal) || 13) + (parseFloat(newBata) || 0));
                       setDriverPayeeVal(String(newTotal));
                     }}
-                    placeholder="e.g. 300"
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="e.g. 350"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
                   />
-                  <span className="text-[9.5px] text-slate-500 mt-0.5 block">Driver allowance / day</span>
+                  <div className="flex flex-col gap-0.5 mt-1">
+                    <span className="text-[9.5px] text-slate-500 leading-tight">
+                      {chauffeurCalc ? `Policy: ${chauffeurCalc.summaryText}` : 'Driver allowance / day'}
+                    </span>
+                    {chauffeurCalc && parseFloat(driverAllowanceVal || '0') !== chauffeurCalc.totalAllowance && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDriverAllowanceVal(String(chauffeurCalc.totalAllowance));
+                          const dist = Number(booking.distanceKm) || 0;
+                          const newTotal = Math.round(dist * (parseFloat(kmRateVal) || 13) + chauffeurCalc.totalAllowance);
+                          setDriverPayeeVal(String(newTotal));
+                        }}
+                        className="text-[9.5px] font-bold text-indigo-600 hover:text-indigo-800 underline text-left cursor-pointer"
+                        title="Sync with configured Chauffeur Allowance policy"
+                      >
+                        Reset to Policy (₹{chauffeurCalc.totalAllowance})
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Base Km Rate */}
@@ -1717,7 +1766,7 @@ Exclusions (If applicable):
                       const newRate = e.target.value;
                       setKmRateVal(newRate);
                       const dist = Number(booking.distanceKm) || 0;
-                      const newTotal = Math.round(dist * (parseFloat(newRate) || 0) + (parseFloat(driverAllowanceVal) || 300));
+                      const newTotal = Math.round(dist * (parseFloat(newRate) || 0) + (parseFloat(driverAllowanceVal) || 0));
                       setDriverPayeeVal(String(newTotal));
                     }}
                     placeholder="e.g. 13"
@@ -1763,13 +1812,13 @@ Exclusions (If applicable):
                   <button
                     type="button"
                     onClick={() => {
-                      const auto = Math.round((Number(booking.distanceKm) || 0) * (parseFloat(kmRateVal) || 13) + (parseFloat(driverAllowanceVal) || 300));
+                      const auto = Math.round((Number(booking.distanceKm) || 0) * (parseFloat(kmRateVal) || 13) + (parseFloat(driverAllowanceVal) || 0));
                       setDriverPayeeVal(String(auto));
                     }}
-                    className="w-full px-2.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-xs rounded-lg transition text-center shadow-2xs"
+                    className="w-full px-2.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-xs rounded-lg transition text-center shadow-2xs cursor-pointer"
                     title="Calculate: Distance × Km Price + Driver Bata"
                   >
-                    Compute ({Number(booking.distanceKm || 0)} km × ₹{kmRateVal || 13} + ₹{driverAllowanceVal || 300})
+                    Compute ({Number(booking.distanceKm || 0)} km × ₹{kmRateVal || 13} + ₹{driverAllowanceVal || 0})
                   </button>
                 </div>
               </div>

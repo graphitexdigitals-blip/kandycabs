@@ -736,7 +736,7 @@ export default function AdminBookingsPage() {
                 const customerFare = Number(b.estimatedFare || 0);
                 const savedVendorCost = Number(b.driverPayeeAmount || 0);
                 const distanceKm = Number(b.distanceKm || 0);
-                const autoVendorCost = distanceKm > 0 ? Math.round(distanceKm * 13 + Number(b.driverAllowance || 300)) : null;
+                const autoVendorCost = distanceKm > 0 ? Math.round(distanceKm * 13 + Number(b.driverAllowance ?? 0)) : null;
                 const vendorCost = savedVendorCost > 0 ? savedVendorCost : autoVendorCost;
                 const netMargin = vendorCost !== null ? customerFare - vendorCost : null;
 

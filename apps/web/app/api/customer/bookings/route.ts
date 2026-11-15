@@ -165,8 +165,8 @@ export async function POST(req: NextRequest) {
     const petType = body.petType ? String(body.petType).toLowerCase() : 'dog';
     const petFee = hasPet ? (Number(body.petFee) || 500) : 0;
 
-    // Fetch dynamic pricing rule & system settings for night charge & airport rates
-    const [dbRule, nightSettingRow, airportRatesRow] = await Promise.all([
+    // Fetch dynamic pricing rule & system settings for night charge, airport rates, and chauffeur allowance
+    const [dbRule, nightSettingRow, airportRatesRow, chauffeurSettingRow] = await Promise.all([
       prisma.pricingRule.findFirst({
         where: { category, tripType, fuelType, isActive: true },
       }).catch(() => null),
@@ -176,10 +176,14 @@ export async function POST(req: NextRequest) {
       prisma.systemSetting.findUnique({
         where: { key: 'airport_city_rates' },
       }).catch(() => null),
+      prisma.systemSetting.findUnique({
+        where: { key: 'chauffeur_allowance_settings' },
+      }).catch(() => null),
     ]);
 
     const nightSettings = nightSettingRow?.value as any;
     const airportRates = airportRatesRow?.value as any;
+    const chauffeurSettings = chauffeurSettingRow?.value as any;
 
     const overrides: any = dbRule
       ? {
@@ -199,8 +203,11 @@ export async function POST(req: NextRequest) {
           localPackage8hrKm: dbRule.localPackage8hrKm ? Number(dbRule.localPackage8hrKm) : undefined,
           localPackage12hrBase: dbRule.localPackage12hrBase ? Number(dbRule.localPackage12hrBase) : undefined,
           localPackage12hrKm: dbRule.localPackage12hrKm ? Number(dbRule.localPackage12hrKm) : undefined,
+          chauffeurConfig: chauffeurSettings,
         }
-      : undefined;
+      : {
+          chauffeurConfig: chauffeurSettings,
+        };
 
     const pricing = calculateFare({
       category,
@@ -217,6 +224,7 @@ export async function POST(req: NextRequest) {
       pickupAddress,
       dropAddress,
       airportCityRates: airportRates,
+      chauffeurConfig: chauffeurSettings,
     });
 
     const isPayOnDrop = paymentMode === 'PAY_ON_DROP' || paymentMode === 'CASH';
@@ -253,7 +261,7 @@ export async function POST(req: NextRequest) {
           status: BookingStatus.PENDING_ADMIN,
           pickupOtp,
           customerLocationSharingEnabled: true,
-          driverAllowance: pricing.driverAllowance || 350.0,
+          driverAllowance: typeof pricing.driverAllowance === 'number' ? pricing.driverAllowance : 0.0,
           driverPayeeAmount: 0.0,
           driverPaymentStatus: PaymentStatus.PENDING,
         },
