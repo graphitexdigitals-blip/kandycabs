@@ -370,15 +370,15 @@ export default function MyBookingsScreen() {
 
     if (isAdvanceNonRefundable) {
       title = 'Cancel Ride?';
-      message = `Advance of ₹${advancePaid.toFixed(0)} is non-refundable and will be retained as cancellation fee.\n\nRefund: ₹0.00`;
+      message = `Advance of ₹${advancePaid.toFixed(0)} is non-refundable and will be retained as cancellation fee.`;
       cancelBtnText = 'Cancel (No Refund)';
     } else if (evalResult.isWithinWindow && !evalResult.freeCancellation) {
       title = 'Cancel Ride?';
-      message = `Cancellation fee of ₹${cancellationCharge.toFixed(0)} applies within ${evalResult.windowHours}h of pickup.\n\nRefund: ₹${estimatedRefund.toFixed(0)}`;
+      message = `Cancellation fee of ₹${cancellationCharge.toFixed(0)} applies within ${evalResult.windowHours}h of pickup.${estimatedRefund > 0 ? `\n\nRefund: ₹${estimatedRefund.toFixed(0)}` : ''}`;
       cancelBtnText = `Cancel (₹${cancellationCharge.toFixed(0)} Fee)`;
     } else {
       title = 'Cancel Ride?';
-      message = `Free cancellation applies.\n\nFull refund: ₹${advancePaid.toFixed(0)}`;
+      message = `Free cancellation applies.${advancePaid > 0 ? `\n\nFull refund: ₹${advancePaid.toFixed(0)}` : ''}`;
       cancelBtnText = 'Yes, Cancel';
     }
 
@@ -930,7 +930,7 @@ export default function MyBookingsScreen() {
                         </View>
                         {(booking.cancellationDetails?.isAdvanceNonRefundable || booking.cancellationDetails?.mode === 'ADVANCE_NON_REFUNDABLE') && (
                           <Text style={[styles.cancellationBannerRefundText, { color: '#b45309' }]}>
-                            Advance payment is non-refundable as per policy (₹0.00 refund).
+                            Advance payment is non-refundable as per policy.
                           </Text>
                         )}
                         {booking.cancellationDetails?.refundAmount !== undefined && booking.cancellationDetails.refundAmount > 0 ? (
