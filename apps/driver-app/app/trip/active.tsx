@@ -11,6 +11,7 @@ import {
   Platform,
   StatusBar,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -101,6 +102,17 @@ export default function DriverTripActiveScreen() {
       locationTracker.startActiveTripTracking(bookingId);
     }
   }, [bookingId, fetchTrip]);
+
+  // Block going back to previous screens; if back is pressed, direct to driver home dashboard
+  useEffect(() => {
+    const onBackPress = () => {
+      router.replace('/dashboard');
+      return true; // Prevent default pop behavior
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [router]);
 
   const openDropNavigation = () => {
     if (!booking) return;

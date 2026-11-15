@@ -11,6 +11,7 @@ import {
   Platform,
   StatusBar,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,6 +37,16 @@ export default function DriverEnRouteScreen() {
   const [driverCoords, setDriverCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const [isSlidingReached, setIsSlidingReached] = useState(false);
+
+  // Block going back; direct to driver home dashboard
+  useEffect(() => {
+    const onBackPress = () => {
+      router.replace('/dashboard');
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [router]);
 
   const formatTripType = (type?: string) => {
     if (!type) return t('en_route.trip_types.oneway', 'ONEWAY');

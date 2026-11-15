@@ -385,6 +385,47 @@ export function clearTripWaitingState(bookingId: string) {
   delete memoryWaitingStates[bookingId];
 }
 
+const memoryOdometerCompleted: Record<string, boolean> = {};
+
+export async function setTripOdometerCompleted(bookingId: string, completed = true) {
+  if (!bookingId) return;
+  memoryOdometerCompleted[bookingId] = completed;
+  try {
+    if (completed) {
+      await SecureStore.setItemAsync(`kandy_trip_odo_${bookingId}`, 'true');
+    } else {
+      await SecureStore.deleteItemAsync(`kandy_trip_odo_${bookingId}`);
+    }
+  } catch {}
+}
+
+export function isTripOdometerCompletedSync(bookingId: string): boolean {
+  if (!bookingId) return false;
+  return Boolean(memoryOdometerCompleted[bookingId]);
+}
+
+export async function isTripOdometerCompleted(bookingId: string): Promise<boolean> {
+  if (!bookingId) return false;
+  if (memoryOdometerCompleted[bookingId]) return true;
+  try {
+    const val = await SecureStore.getItemAsync(`kandy_trip_odo_${bookingId}`);
+    if (val === 'true') {
+      memoryOdometerCompleted[bookingId] = true;
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
+export async function clearTripOdometerCompleted(bookingId: string) {
+  if (!bookingId) return;
+  delete memoryOdometerCompleted[bookingId];
+  try {
+    await SecureStore.deleteItemAsync(`kandy_trip_odo_${bookingId}`);
+  } catch {}
+}
+
+
 
 
 

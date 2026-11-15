@@ -14,6 +14,7 @@ import {
   StatusBar,
   Image,
   Keyboard,
+  BackHandler,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +33,7 @@ import {
   setTripStartDraft,
   getTripStartDraft,
   clearTripStartDraft,
+  clearTripOdometerCompleted,
   isTripVerificationCompletedSync,
   isTripVerificationCompleted,
 } from '../../lib/tripState';
@@ -92,6 +94,17 @@ export default function DriverTripStartScreen() {
     });
     return () => unsub();
   }, [bookingId]);
+
+  // Block going back to previous screens (odometer / inspection); if back is pressed, direct to driver home dashboard
+  useEffect(() => {
+    const onBackPress = () => {
+      router.replace('/dashboard');
+      return true; // Prevent default pop behavior
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [router]);
 
   // Restore previously verified OTP, selfie, odometer, and photos if driver navigated away and came back
   useEffect(() => {
@@ -684,6 +697,7 @@ export default function DriverTripStartScreen() {
           await clearVerifiedPickupOtp(bookingId);
           await clearVerifiedSelfie(bookingId);
           clearTripStartDraft(bookingId);
+          await clearTripOdometerCompleted(bookingId);
           locationTracker.startActiveTripTracking(bookingId);
         }
         router.replace({
@@ -708,11 +722,7 @@ export default function DriverTripStartScreen() {
         body: JSON.stringify({ bookingId }),
       }).catch(() => {});
     }
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/dashboard');
-    }
+    router.replace('/dashboard');
   };
 
   const handleRequestAdminOverride = async () => {

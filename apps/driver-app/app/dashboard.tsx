@@ -43,6 +43,9 @@ import {
   isTripVerificationCompleted,
   setTripVerificationCompleted,
   isTripPickupReachedSync,
+  isTripOdometerCompletedSync,
+  isTripOdometerCompleted,
+  getTripStartDraft,
 } from '../lib/tripState';
 import { getExpiringDocuments } from '../lib/documentExpiry';
 import {
@@ -2104,7 +2107,14 @@ export default function DriverDashboardScreen() {
                                   await setTripVerificationCompleted(currentTrip.id, true);
                                 }
 
-                                if (isVerified && (isTripPickupReachedSync(currentTrip.id) || ['ARRIVED', 'ON_TRIP', 'COMPLETED'].includes(currentTrip.status))) {
+                                const isOdoDone =
+                                  isTripOdometerCompletedSync(currentTrip.id) ||
+                                  (await isTripOdometerCompleted(currentTrip.id)) ||
+                                  Boolean(getTripStartDraft(currentTrip.id)?.startingOdometer);
+
+                                if (isVerified && isOdoDone) {
+                                  router.push({ pathname: '/trip/start', params: { bookingId: currentTrip.id, step: '2', arrived: 'true' } });
+                                } else if (isVerified && (isTripPickupReachedSync(currentTrip.id) || ['ARRIVED', 'ON_TRIP', 'COMPLETED'].includes(currentTrip.status))) {
                                   router.push({ pathname: '/trip/odometer', params: { bookingId: currentTrip.id } });
                                 } else if (isVerified) {
                                   router.push({ pathname: '/trip/en-route', params: { bookingId: currentTrip.id } });

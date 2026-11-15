@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   PermissionsAndroid,
+  BackHandler,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +28,9 @@ import {
   setTripStartDraft,
   getVerifiedSelfie,
   setVerifiedSelfie,
+  setTripOdometerCompleted,
+  isTripOdometerCompleted,
+  isTripOdometerCompletedSync,
 } from '../../lib/tripState';
 
 const DRIVER_SELFIE_SAMPLE = require('../../assets/images/driver-selfie-reference.jpg');
@@ -49,6 +53,31 @@ export default function DriverOdometerScreen() {
   const [ocrScanning, setOcrScanning] = useState(false);
   const [ocrResultText, setOcrResultText] = useState<{ status: 'success' | 'failed' | 'idle'; reading?: number; message?: string }>({ status: 'idle' });
   const [error, setError] = useState<string>('');
+
+  // Handle hardware back button -> direct directly to driver home dashboard
+  useEffect(() => {
+    const onBackPress = () => {
+      router.replace('/dashboard');
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [router]);
+
+  // If odometer was already completed, block access and redirect forward to OTP screen
+  useEffect(() => {
+    if (!bookingId) return;
+    const checkAlreadyDone = async () => {
+      const isDone = isTripOdometerCompletedSync(bookingId) || (await isTripOdometerCompleted(bookingId));
+      if (isDone) {
+        router.replace({
+          pathname: '/trip/start',
+          params: { bookingId, step: '2', arrived: 'true' },
+        });
+      }
+    };
+    checkAlreadyDone();
+  }, [bookingId, router]);
 
   // Restore draft selfie and odometer on mount
   useEffect(() => {
@@ -411,9 +440,10 @@ export default function DriverOdometerScreen() {
         startingOdometer: startingOdometer.trim(),
         photoLocation,
       });
+      setTripOdometerCompleted(bookingId, true);
     }
 
-    router.push({
+    router.replace({
       pathname: '/trip/start',
       params: { bookingId: bookingId || booking?.id, step: '2', arrived: 'true' },
     });

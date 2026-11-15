@@ -12,6 +12,7 @@ import {
   StatusBar,
   Image,
   PermissionsAndroid,
+  BackHandler,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -120,6 +121,16 @@ export default function DriverVehicleInspectionScreen() {
     });
     return () => unsub();
   }, []);
+
+  // Block going back; direct to driver home dashboard
+  useEffect(() => {
+    const onBackPress = () => {
+      router.replace('/dashboard');
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [router]);
 
   const fetchBooking = useCallback(async () => {
     try {
