@@ -503,6 +503,62 @@ export default function DriverDashboardScreen() {
     });
   }, [upcomingBookings, t]);
 
+  // Trips shown inside New Trips modal:
+  // 1. All pending dispatches from admin
+  // 2. Any trips accepted by this driver that have not started yet (status: DRIVER_ACCEPTED)
+  const newTripsList = useMemo(() => {
+    const list: any[] = [...dispatches];
+
+    // Add activeBooking if it's accepted by this driver and waiting for trip start
+    if (
+      activeBooking &&
+      (activeBooking.status === BookingStatus.DRIVER_ACCEPTED ||
+        activeBooking.status === 'DRIVER_ACCEPTED' ||
+        Boolean(acceptedDispatches[activeBooking.id]))
+    ) {
+      const alreadyInList = list.some(
+        (d) =>
+          d.id === activeBooking.id ||
+          d.bookingId === activeBooking.id ||
+          d.booking?.id === activeBooking.id
+      );
+      if (!alreadyInList) {
+        list.push({
+          id: `dispatch-${activeBooking.id}`,
+          bookingId: activeBooking.id,
+          status: 'ACCEPTED',
+          isAccepted: true,
+          booking: activeBooking,
+        });
+      }
+    }
+
+    // Add upcomingBookings if accepted by this driver and waiting for trip start
+    (upcomingBookings || []).forEach((b) => {
+      if (
+        b &&
+        (b.status === BookingStatus.DRIVER_ACCEPTED ||
+          b.status === 'DRIVER_ACCEPTED' ||
+          Boolean(acceptedDispatches[b.id]))
+      ) {
+        const alreadyInList = list.some(
+          (d) => d.id === b.id || d.bookingId === b.id || d.booking?.id === b.id
+        );
+        if (!alreadyInList) {
+          list.push({
+            id: `dispatch-${b.id}`,
+            bookingId: b.id,
+            status: 'ACCEPTED',
+            isAccepted: true,
+            booking: b,
+          });
+        }
+      }
+    });
+
+    return sortTripsByDateTimeAscending(list);
+  }, [dispatches, activeBooking, upcomingBookings, acceptedDispatches]);
+
   // Detailed document verification status for KYC verification card
   const verificationDocs = useMemo(() => {
     // Only marked complete when document file/image is actually attached and present
@@ -1390,8 +1446,18 @@ export default function DriverDashboardScreen() {
     );
   }
 
-  // Display booking (either active booking or mock demo if none)
-  const currentTrip = activeBooking;
+  // Display live booking ONLY when trip is actually started / in progress / en route.
+  // Accepted and scheduled trips belong strictly inside New Trips / Upcoming Trips.
+  const isLiveActiveTrip = Boolean(
+    activeBooking &&
+      (activeBooking.status === BookingStatus.TRIP_STARTED ||
+        activeBooking.status === 'TRIP_STARTED' ||
+        activeBooking.status === 'IN_PROGRESS' ||
+        activeBooking.status === BookingStatus.DRIVER_EN_ROUTE ||
+        activeBooking.status === 'DRIVER_EN_ROUTE' ||
+        getTripInProcessSync(activeBooking.id))
+  );
+  const currentTrip = isLiveActiveTrip ? activeBooking : null;
 
   return (
     <View style={styles.container}>
@@ -1593,16 +1659,16 @@ export default function DriverDashboardScreen() {
                       {t('dashboard.new_trips', 'New Trips')}
                     </Text>
                     <Text style={styles.heroTripSub} numberOfLines={1}>
-                      {dispatches.length > 0
-                        ? `${dispatches.length} New Dispatched • Slide to Accept`
+                      {newTripsList.length > 0
+                        ? `${newTripsList.length} ${newTripsList.length === 1 ? 'Trip' : 'Trips'} • Tap to View`
                         : t('dashboard.live_rides', 'Live Rides')}
                     </Text>
                   </View>
                   {/* Popup Number Icon for New Dispatches */}
-                  {dispatches.length > 0 && (
+                  {newTripsList.length > 0 && (
                     <View style={styles.heroTripPopupBadgeOrange}>
                       <Text style={styles.heroTripPopupBadgeText}>
-                        {dispatches.length > 9 ? '9+' : dispatches.length}
+                        {newTripsList.length > 9 ? '9+' : newTripsList.length}
                       </Text>
                     </View>
                   )}
@@ -2496,8 +2562,8 @@ export default function DriverDashboardScreen() {
               </View>
             )}
 
-            {/* SEPARATE STANDALONE CARD: Queued / Accepted Trips */}
-            {upcomingBookings.length > 0 && (
+            {/* Standalone queued trips are accessed via Upcoming Trips modal */}
+            {false && upcomingBookings.length > 0 && (
               <View style={styles.separateQueuedCardWrapper}>
                 <View style={styles.separateQueuedHeader}>
                   <View style={styles.separateQueuedHeaderLeft}>
@@ -3137,16 +3203,16 @@ export default function DriverDashboardScreen() {
                     {t('dashboard.new_trips', 'New Trips')}
                   </Text>
                   <Text style={styles.heroTripSub} numberOfLines={1}>
-                    {dispatches.length > 0
-                      ? `${dispatches.length} New Dispatched • Slide to Accept`
+                    {newTripsList.length > 0
+                      ? `${newTripsList.length} ${newTripsList.length === 1 ? 'Trip' : 'Trips'} • Tap to View`
                       : t('dashboard.live_rides', 'Live Rides')}
                   </Text>
                 </View>
                 {/* Popup Number Icon for New Dispatches */}
-                {dispatches.length > 0 && (
+                {newTripsList.length > 0 && (
                   <View style={styles.heroTripPopupBadgeOrange}>
                     <Text style={styles.heroTripPopupBadgeText}>
-                      {dispatches.length > 9 ? '9+' : dispatches.length}
+                      {newTripsList.length > 9 ? '9+' : newTripsList.length}
                     </Text>
                   </View>
                 )}
@@ -3530,7 +3596,7 @@ export default function DriverDashboardScreen() {
       <NewTripsModal
         visible={isNewTripsModalOpen}
         onClose={() => setIsNewTripsModalOpen(false)}
-        dispatches={dispatches}
+        dispatches={newTripsList}
         acceptedDispatches={acceptedDispatches}
         onAcceptDispatch={handleAcceptDispatch}
         onDeclineDispatch={handleDeclineDispatch}
