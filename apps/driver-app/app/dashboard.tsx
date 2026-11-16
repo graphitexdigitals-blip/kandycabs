@@ -1539,6 +1539,179 @@ export default function DriverDashboardScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
+
+              {/* Inside the profile section below it: 2-column feature cards */}
+              <View style={styles.heroCardDivider} />
+              <View style={styles.heroCardsGridInside}>
+                {/* 1. Profile */}
+                <TouchableOpacity
+                  style={styles.heroCardGridItem}
+                  onPress={() => setIsProfileModalOpen(true)}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.heroCardGridIconBox}>
+                    <Ionicons name="person" size={19} color="#0f2744" />
+                  </View>
+                  <View style={styles.heroCardGridTextBox}>
+                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_profile', 'Profile')}
+                    </Text>
+                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_profile_sub', 'Personal Details')}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* 2. My Vehicle */}
+                <TouchableOpacity
+                  style={styles.heroCardGridItem}
+                  onPress={() => setIsVehicleModalOpen(true)}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.heroCardGridIconBox}>
+                    <Ionicons name="car" size={19} color="#0f2744" />
+                  </View>
+                  <View style={styles.heroCardGridTextBox}>
+                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_vehicle', 'My Vehicle')}
+                    </Text>
+                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_vehicle_sub', 'Fleet & Cabs')}
+                    </Text>
+                  </View>
+                  {hasVehiclePendingDocs && (
+                    <View style={styles.dashboardCardAlertBadge}>
+                      <Ionicons name="alert-circle" size={15} color="#ef4444" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {/* 3. KYC */}
+                <TouchableOpacity
+                  style={styles.heroCardGridItem}
+                  onPress={() => router.push('/documents')}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.heroCardGridIconBox}>
+                    <Ionicons name="document-text" size={19} color="#0f2744" />
+                  </View>
+                  <View style={styles.heroCardGridTextBox}>
+                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_kyc', 'KYC')}
+                    </Text>
+                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_kyc_sub', 'Documents & Verify')}
+                    </Text>
+                  </View>
+                  {hasKycPendingDocs && (
+                    <View style={styles.dashboardCardAlertBadge}>
+                      <Ionicons name="alert-circle" size={15} color="#ef4444" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {/* 4. My Trips */}
+                <TouchableOpacity
+                  style={styles.heroCardGridItem}
+                  onPress={() => setActiveBottomTab('MY_TRIPS')}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.heroCardGridIconBox}>
+                    <Ionicons name="receipt" size={19} color="#0f2744" />
+                  </View>
+                  <View style={styles.heroCardGridTextBox}>
+                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_trips', 'My Trips')}
+                    </Text>
+                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_trips_sub', 'History & Earnings')}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* 5. Payment */}
+                <TouchableOpacity
+                  style={styles.heroCardGridItem}
+                  onPress={() => router.push('/payout-details')}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.heroCardGridIconBox}>
+                    <Ionicons name="wallet" size={19} color="#0f2744" />
+                  </View>
+                  <View style={styles.heroCardGridTextBox}>
+                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('profile.payment', 'Payment')}
+                    </Text>
+                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('profile.payment_sub', 'Bank & Payouts')}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* 6. Notifications */}
+                <TouchableOpacity
+                  style={styles.heroCardGridItem}
+                  onPress={() => router.push('/notifications')}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.heroCardGridIconBox}>
+                    <Ionicons name="notifications" size={19} color="#0f2744" />
+                  </View>
+                  <View style={styles.heroCardGridTextBox}>
+                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_notifications', 'Notifications')}
+                    </Text>
+                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_notifications_sub', 'Alerts & Updates')}
+                    </Text>
+                  </View>
+                  {unreadUpdatesCount > 0 && (
+                    <View style={styles.dashboardCardNotifBadge}>
+                      <Text style={styles.dashboardCardNotifBadgeText}>
+                        {unreadUpdatesCount > 9 ? '9+' : unreadUpdatesCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {/* 7. Help & Support */}
+                <TouchableOpacity
+                  style={styles.heroCardGridItem}
+                  onPress={() => setActiveBottomTab('SUPPORT')}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.heroCardGridIconBox}>
+                    <Ionicons name="headset" size={19} color="#0f2744" />
+                  </View>
+                  <View style={styles.heroCardGridTextBox}>
+                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_support', 'Help & Support')}
+                    </Text>
+                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_support_sub', '24/7 Helpline')}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* 8. Terms & Conditions */}
+                <TouchableOpacity
+                  style={styles.heroCardGridItem}
+                  onPress={() => router.push('/terms')}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.heroCardGridIconBox}>
+                    <Ionicons name="shield-checkmark" size={19} color="#0f2744" />
+                  </View>
+                  <View style={styles.heroCardGridTextBox}>
+                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_terms', 'Terms & Conditions')}
+                    </Text>
+                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
+                      {t('dashboard.card_terms_sub', 'Policies & Safety')}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* FLOATING CARD CONTAINER */}
@@ -3742,6 +3915,63 @@ const styles = StyleSheet.create({
   },
   heroDutyToggleTextActive: {
     color: '#ffffff',
+  },
+  heroCardDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginHorizontal: 14,
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  heroCardsGridInside: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  heroCardGridItem: {
+    width: '48.5%',
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    marginBottom: 9,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+    minHeight: 64,
+  },
+  heroCardGridIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  heroCardGridTextBox: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  heroCardGridTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f2744',
+    letterSpacing: -0.2,
+    lineHeight: 16,
+  },
+  heroCardGridSub: {
+    fontSize: 10.5,
+    color: '#64748b',
+    marginTop: 1.5,
+    fontWeight: '500',
+    lineHeight: 13,
   },
   homeCardsContainer: {
     marginTop: 12,
