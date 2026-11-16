@@ -1543,11 +1543,11 @@ export default function DriverDashboardScreen() {
               {/* Inside the profile section below it: Trips row and 2-column feature cards */}
               <View style={styles.heroCardDivider} />
 
-              {/* One Row: New Trips & Upcoming Trips (White Background) */}
+              {/* Trips: New Trips & Upcoming Trips (Pastel Color Backgrounds) */}
               <View style={styles.heroTripsSummaryRow}>
-                {/* 1. New Trips */}
+                {/* 1. New Trips (Warm Peach) */}
                 <TouchableOpacity
-                  style={styles.heroTripWhiteCard}
+                  style={[styles.heroTripWhiteCard, styles.heroTripCardPeach]}
                   onPress={() => {
                     if (dispatches.length > 0) {
                       setIsNotificationModalOpen(true);
@@ -1576,12 +1576,12 @@ export default function DriverDashboardScreen() {
                       <Text style={styles.heroTripCountBadgeText}>{dispatches.length}</Text>
                     </View>
                   )}
-                  <Ionicons name="chevron-forward" size={16} color="#94a3b8" style={{ marginLeft: 6 }} />
+                  <Ionicons name="chevron-forward" size={16} color="#c2410c" style={{ marginLeft: 6 }} />
                 </TouchableOpacity>
 
-                {/* 2. Upcoming Trips */}
+                {/* 2. Upcoming Trips (Sky Blue) */}
                 <TouchableOpacity
-                  style={styles.heroTripWhiteCard}
+                  style={[styles.heroTripWhiteCard, styles.heroTripCardSky]}
                   onPress={() => setActiveBottomTab('MY_TRIPS')}
                   activeOpacity={0.8}
                 >
@@ -1601,7 +1601,7 @@ export default function DriverDashboardScreen() {
                       <Text style={styles.heroTripCountBadgeText}>{upcomingBookings.length}</Text>
                     </View>
                   )}
-                  <Ionicons name="chevron-forward" size={16} color="#94a3b8" style={{ marginLeft: 6 }} />
+                  <Ionicons name="chevron-forward" size={16} color="#0284c7" style={{ marginLeft: 6 }} />
                 </TouchableOpacity>
               </View>
 
@@ -3345,9 +3345,9 @@ export default function DriverDashboardScreen() {
             {/* TRIPS ROW: NEW TRIPS & UPCOMING TRIPS (WHITE BACKGROUND)      */}
             {/* ============================================================ */}
             <View style={[styles.heroTripsSummaryRow, { paddingHorizontal: 0, marginBottom: 8 }]}>
-              {/* 1. New Trips */}
+              {/* 1. New Trips (Warm Peach) */}
               <TouchableOpacity
-                style={styles.heroTripWhiteCard}
+                style={[styles.heroTripWhiteCard, styles.heroTripCardPeach]}
                 onPress={() => {
                   if (dispatches.length > 0) {
                     setIsNotificationModalOpen(true);
@@ -3376,12 +3376,12 @@ export default function DriverDashboardScreen() {
                     <Text style={styles.heroTripCountBadgeText}>{dispatches.length}</Text>
                   </View>
                 )}
-                <Ionicons name="chevron-forward" size={16} color="#94a3b8" style={{ marginLeft: 6 }} />
+                <Ionicons name="chevron-forward" size={16} color="#c2410c" style={{ marginLeft: 6 }} />
               </TouchableOpacity>
 
-              {/* 2. Upcoming Trips */}
+              {/* 2. Upcoming Trips (Sky Blue) */}
               <TouchableOpacity
-                style={styles.heroTripWhiteCard}
+                style={[styles.heroTripWhiteCard, styles.heroTripCardSky]}
                 onPress={() => setActiveBottomTab('MY_TRIPS')}
                 activeOpacity={0.8}
               >
@@ -3401,7 +3401,7 @@ export default function DriverDashboardScreen() {
                     <Text style={styles.heroTripCountBadgeText}>{upcomingBookings.length}</Text>
                   </View>
                 )}
-                <Ionicons name="chevron-forward" size={16} color="#94a3b8" style={{ marginLeft: 6 }} />
+                <Ionicons name="chevron-forward" size={16} color="#0284c7" style={{ marginLeft: 6 }} />
               </TouchableOpacity>
             </View>
 
@@ -4073,6 +4073,14 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
     minHeight: 52,
+  },
+  heroTripCardPeach: {
+    backgroundColor: '#fff3e3',
+    borderColor: '#fed7aa',
+  },
+  heroTripCardSky: {
+    backgroundColor: '#e2f3fd',
+    borderColor: '#bae6fd',
   },
   heroTripIconBox: {
     width: 28,
