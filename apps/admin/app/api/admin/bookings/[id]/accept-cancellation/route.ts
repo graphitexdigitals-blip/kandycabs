@@ -47,11 +47,10 @@ export async function POST(
 
     const bookingId = booking.id;
 
-    const driverId = booking.assignedDriverId;
-    const driverName = booking.assignedDriver?.user?.fullName || 'Driver';
-    const cancelReason = booking.tripEvents?.[0]?.payloadJson
-      ? (booking.tripEvents[0].payloadJson as any).reason
-      : 'Driver cancellation accepted by admin';
+    const cancelPayload = (booking.tripEvents?.[0]?.payloadJson as any) || {};
+    const driverId = booking.assignedDriverId || cancelPayload.driverId || null;
+    const driverName = booking.assignedDriver?.user?.fullName || cancelPayload.driverName || 'Driver';
+    const cancelReason = cancelPayload.reason || 'Driver cancellation accepted by admin';
 
     await prisma.$transaction(async (tx) => {
       // 1. Unassign driver and set booking to DISPATCHED so admin can re-dispatch
@@ -95,9 +94,15 @@ export async function POST(
       });
 
       // 4. Record AuditLog
+      let validActorId: string | null = null;
+      if (session.userId && !session.userId.startsWith('dev-')) {
+        const userExists = await tx.user.findUnique({ where: { id: session.userId }, select: { id: true } });
+        if (userExists) validActorId = userExists.id;
+      }
+
       await tx.auditLog.create({
         data: {
-          actorUserId: session.userId,
+          actorUserId: validActorId,
           action: 'ADMIN_APPROVE_DRIVER_CANCELLATION',
           entityType: 'Booking',
           entityId: bookingId,

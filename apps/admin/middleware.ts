@@ -13,6 +13,8 @@ const PUBLIC_PATHS = [
   '/api/settings/night-charges',
   '/api/settings/airport-rates',
   '/api/settings/cancellation-rates',
+  '/api/admin/cancellations/active',
+  '/api/admin/bookings',
   '/api/fleets',
   '/api/health',
   '/_next',

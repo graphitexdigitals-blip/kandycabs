@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -29,6 +29,36 @@ const CANCELLATION_REASONS = [
   'Distance Too Far / Fuel Issue',
   'Other Reason',
 ];
+
+export function NewTripsPinIcon({
+  size = 23,
+  color = '#ea580c',
+  dotColor = '#fff7ed',
+}: {
+  size?: number;
+  color?: string;
+  dotColor?: string;
+}) {
+  const dotSize = Math.max(3, Math.round(size * 0.22));
+  const dotTop = Math.round(size * 0.20);
+  const dotLeft = Math.round(size * 0.36);
+  return (
+    <View style={{ width: size, height: size, position: 'relative' }}>
+      <MaterialCommunityIcons name="map-marker-plus" size={size} color={color} />
+      <View
+        style={{
+          position: 'absolute',
+          top: dotTop,
+          left: dotLeft,
+          width: dotSize,
+          height: dotSize,
+          borderRadius: dotSize / 2,
+          backgroundColor: dotColor,
+        }}
+      />
+    </View>
+  );
+}
 
 interface NewTripsModalProps {
   visible: boolean;
@@ -100,6 +130,31 @@ export function NewTripsModal({
     }
   };
 
+  // Only count brand new dispatches assigned by admin that are awaiting driver action
+  // Do NOT show count / badge if trip is accepted, declined, cancelled, or pending admin cancellation
+  const newTripsPendingCount = useMemo(() => {
+    return (dispatches || []).filter((d) => {
+      const b = d?.booking || {};
+      const cancelReqEvent = b?.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED');
+      const cancelAppEvent = b?.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_APPROVED');
+      const isCancelPending =
+        Boolean(d?.isCancelRequested) ||
+        Boolean(b?.isCancelRequested) ||
+        (Boolean(cancelReqEvent) &&
+          (!cancelAppEvent || new Date(cancelReqEvent.createdAt) > new Date(cancelAppEvent.createdAt)));
+
+      const isAccepted =
+        d?.status === 'ACCEPTED' ||
+        d?.isAccepted ||
+        b?.status === 'DRIVER_ACCEPTED' ||
+        Boolean(d?.bookingId && acceptedDispatches?.[d.bookingId]) ||
+        Boolean(d?.id && acceptedDispatches?.[d.id]) ||
+        isCancelPending;
+
+      return !isAccepted && !isCancelPending;
+    }).length;
+  }, [dispatches, acceptedDispatches]);
+
   return (
     <Modal
       visible={visible}
@@ -112,21 +167,21 @@ export function NewTripsModal({
         <View style={styles.headerBar}>
           <View style={styles.headerLeftGroup}>
             <View style={styles.headerIconBadge}>
-              <MaterialCommunityIcons name="map-marker-plus" size={21} color="#ea580c" />
+              <NewTripsPinIcon size={21} color="#ea580c" dotColor="#ffedd5" />
             </View>
             <View>
               <View style={styles.headerTitleRow}>
                 <Text style={styles.headerTitle}>
                   {t('dashboard.new_trips', 'New Trips')}
                 </Text>
-                {dispatches.length > 0 && (
+                {newTripsPendingCount > 0 && (
                   <View style={styles.headerCountBadge}>
-                    <Text style={styles.headerCountText}>{dispatches.length}</Text>
+                    <Text style={styles.headerCountText}>{newTripsPendingCount}</Text>
                   </View>
                 )}
               </View>
               <Text style={styles.headerSub}>
-                {dispatches.length > 0
+                {newTripsPendingCount > 0
                   ? 'Accept or decline dispatched ride assignments'
                   : 'Live ride requests dispatched by Admin'}
               </Text>
@@ -152,7 +207,7 @@ export function NewTripsModal({
             /* Empty State */
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
-                <MaterialCommunityIcons name="map-marker-plus" size={44} color="#ea580c" />
+                <NewTripsPinIcon size={44} color="#ea580c" dotColor="#ffedd5" />
               </View>
               <Text style={styles.emptyTitle}>
                 {t('dashboard.no_new_trips_title', 'No New Trips Right Now')}

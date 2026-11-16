@@ -64,17 +64,17 @@ class MobileTokenStorage implements TokenStorage {
 export const driverTokenStorage = new MobileTokenStorage();
 
 const SECURE_API_URL_KEY = 'kandy_driver_api_url_v2';
-export const DEFAULT_PROD_URL = 'https://kandycabs-8kew.vercel.app';
 export const DEFAULT_DEV_PORT = '3001';
 export const DEFAULT_LAN_HOST = '192.168.1.5';
 export const DEFAULT_EMULATOR_HOST = '10.0.2.2';
+export const DEFAULT_LOCAL_URL = 'http://127.0.0.1:3001';
 
 export function resolveDefaultApiUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
   if (envUrl && envUrl.startsWith('http')) {
     return envUrl.replace(/\/+$/, '');
   }
-  return DEFAULT_PROD_URL;
+  return DEFAULT_LOCAL_URL;
 }
 
 export const DEFAULT_LAN_URL = resolveDefaultApiUrl();
@@ -84,21 +84,15 @@ let activeBaseUrl: string = resolveDefaultApiUrl();
 // Hydrate saved custom API URL asynchronously
 SecureStore.getItemAsync(SECURE_API_URL_KEY)
   .then((stored) => {
-    // Invalidate any local or dead endpoints
-    if (
-      stored &&
-      (stored.includes('192.168.') ||
-        stored.includes('10.0.2.2') ||
-        stored.includes(':3001') ||
-        stored.includes('localhost'))
-    ) {
-      activeBaseUrl = DEFAULT_PROD_URL;
-      SecureStore.setItemAsync(SECURE_API_URL_KEY, DEFAULT_PROD_URL).catch(() => {});
-      return;
-    }
-    if (stored && stored.startsWith('http')) {
+    if (stored && stored.startsWith('http') && !stored.includes('vercel.app')) {
       activeBaseUrl = stored.replace(/\/+$/, '');
+    } else {
+      if (stored && stored.includes('vercel.app')) {
+        SecureStore.deleteItemAsync(SECURE_API_URL_KEY).catch(() => {});
+      }
+      activeBaseUrl = resolveDefaultApiUrl();
     }
+    console.log('[driverApiClient] Active API Base URL:', activeBaseUrl);
   })
   .catch(() => {});
 

@@ -31,7 +31,7 @@ import { SUPPORTED_LANGUAGES, changeAppLanguage } from '../lib/i18n';
 import { SlideToAccept } from '../components/SlideToAccept';
 import { LanguageSelectionModal } from '../components/LanguageSelectionModal';
 import { NotificationsModal } from '../components/NotificationsModal';
-import { NewTripsModal } from '../components/NewTripsModal';
+import { NewTripsModal, NewTripsPinIcon } from '../components/NewTripsModal';
 import { UpcomingTripsModal } from '../components/UpcomingTripsModal';
 import { DriverProfileModal } from '../components/DriverProfileModal';
 import { DriverVehiclesModal, VehicleData } from '../components/DriverVehiclesModal';
@@ -1846,7 +1846,7 @@ export default function DriverDashboardScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={styles.heroTripIconBox}>
-                    <MaterialCommunityIcons name="map-marker-plus" size={23} color="#ea580c" />
+                    <NewTripsPinIcon size={23} color="#ea580c" dotColor="#fff7ed" />
                   </View>
                   <View style={styles.heroTripInfoBox}>
                     <Text style={styles.heroTripTitle} numberOfLines={1}>
@@ -3392,7 +3392,7 @@ export default function DriverDashboardScreen() {
                 activeOpacity={0.8}
               >
                 <View style={styles.heroTripIconBox}>
-                  <MaterialCommunityIcons name="map-marker-plus" size={23} color="#ea580c" />
+                  <NewTripsPinIcon size={23} color="#ea580c" dotColor="#fff7ed" />
                 </View>
                 <View style={styles.heroTripInfoBox}>
                   <Text style={styles.heroTripTitle} numberOfLines={1}>
