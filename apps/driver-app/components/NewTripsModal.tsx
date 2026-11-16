@@ -62,6 +62,10 @@ export function NewTripsModal({
   const [customReasonText, setCustomReasonText] = useState<string>('');
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
 
+  // Trip Details Modal State
+  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+  const [selectedTripDetails, setSelectedTripDetails] = useState<any>(null);
+
   const handleOpenCancelModal = (dispatchId: string, bookingId: string) => {
     setTargetCancelDispatch({ dispatchId, bookingId });
     setSelectedReason(CANCELLATION_REASONS[0]);
@@ -353,9 +357,9 @@ export function NewTripsModal({
                       </Text>
                     </View>
 
-                    {/* Action Buttons Row: (Cancel Ride) if accepted, or (Decline & Accept) if pending */}
+                    {/* Action Buttons Row: (Cancel Ride & Details) if accepted, or (Decline & Accept) if pending */}
                     {isAccepted ? (
-                      <View style={styles.dispatchActionRowAccepted}>
+                      <View style={styles.dispatchActionRow}>
                         <TouchableOpacity
                           style={styles.cancelRideBtn}
                           onPress={() => handleOpenCancelModal(d.id, bookingId)}
@@ -366,12 +370,32 @@ export function NewTripsModal({
                             <ActivityIndicator size="small" color="#ffffff" />
                           ) : (
                             <>
-                              <Ionicons name="close-circle" size={18} color="#ffffff" style={{ marginRight: 6 }} />
+                              <Ionicons name="close-circle-outline" size={17} color="#ffffff" style={{ marginRight: 5 }} />
                               <Text style={styles.cancelRideBtnText}>
                                 {t('dashboard.cancel_ride_btn', { defaultValue: 'CANCEL RIDE' })}
                               </Text>
                             </>
                           )}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.detailsRideBtn}
+                          onPress={() => {
+                            setSelectedTripDetails({
+                              booking: b,
+                              timing: tripTiming,
+                              payeeAmount,
+                              reqs,
+                              note,
+                            });
+                            setDetailsModalVisible(true);
+                          }}
+                          activeOpacity={0.85}
+                        >
+                          <Ionicons name="document-text-outline" size={17} color="#ffffff" style={{ marginRight: 5 }} />
+                          <Text style={styles.detailsRideBtnText}>
+                            {t('dashboard.details_btn', { defaultValue: 'DETAILS' })}
+                          </Text>
                         </TouchableOpacity>
                       </View>
                     ) : (
@@ -523,6 +547,150 @@ export function NewTripsModal({
               </View>
             </View>
           </KeyboardAvoidingView>
+        </Modal>
+
+        {/* Dedicated Trip Details Modal */}
+        <Modal
+          visible={detailsModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setDetailsModalVisible(false)}
+        >
+          <View style={styles.cancelModalOverlay}>
+            <View style={[styles.cancelModalCard, { maxHeight: '90%' }]}>
+              <View style={styles.cancelModalHeader}>
+                <View style={[styles.cancelModalIconWrap, { backgroundColor: '#e0f2fe' }]}>
+                  <Ionicons name="document-text" size={24} color="#0284c7" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cancelModalTitle}>
+                    {selectedTripDetails?.booking?.humanReadableRef || 'Trip Details'}
+                  </Text>
+                  <Text style={styles.cancelModalSubtitle}>
+                    Ride Assignment Information
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setDetailsModalVisible(false)}
+                  style={styles.cancelModalCloseBtn}
+                >
+                  <Ionicons name="close" size={20} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+                {/* Status Badge */}
+                <View style={{ marginBottom: 14 }}>
+                  <View style={styles.acceptedAlertBadge}>
+                    <Ionicons name="checkmark-circle" size={13} color="#16a34a" />
+                    <Text style={styles.acceptedAlertText}>ACCEPTED BY DRIVER</Text>
+                  </View>
+                </View>
+
+                {/* Pickup Date & Time */}
+                <View style={styles.detailsInfoBox}>
+                  <View style={styles.detailsInfoRow}>
+                    <Ionicons name="calendar-outline" size={16} color="#0284c7" style={{ marginRight: 8 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.detailsInfoLabel}>Pickup Date & Time</Text>
+                      <Text style={styles.detailsInfoValue}>
+                        {selectedTripDetails?.timing?.fullText || '--'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Stepper Route */}
+                <View style={styles.detailsInfoBox}>
+                  <Text style={styles.detailsInfoSectionTitle}>ROUTE DETAILS</Text>
+                  <View style={{ marginTop: 8 }}>
+                    <View style={styles.stepPoint}>
+                      <Ionicons name="location-sharp" size={16} color="#16a34a" style={styles.pickupPin} />
+                      <View style={styles.stepTextGroup}>
+                        <Text style={styles.detailsLocationLabel}>Pickup Location</Text>
+                        <Text style={styles.locationTitle}>
+                          {selectedTripDetails?.booking?.pickupAddress || 'Pickup Address'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.dashedTrail} />
+                    <View style={styles.stepPoint}>
+                      <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
+                      <View style={styles.stepTextGroup}>
+                        <Text style={styles.detailsLocationLabel}>Drop Destination</Text>
+                        <Text style={styles.locationTitle}>
+                          {selectedTripDetails?.booking?.dropAddress || 'Drop Address'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.detailsDistanceRow}>
+                    <Text style={styles.detailsDistanceText}>
+                      Total Distance: {selectedTripDetails?.booking?.distanceKm || '--'} km
+                    </Text>
+                    <Text style={styles.detailsTripTypeText}>
+                      {selectedTripDetails?.booking?.tripType
+                        ? selectedTripDetails.booking.tripType.replace(/_/g, ' ')
+                        : 'ONE WAY'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Customer & Fare */}
+                <View style={styles.detailsInfoBox}>
+                  <Text style={styles.detailsInfoSectionTitle}>CUSTOMER & DRIVER PAYEE</Text>
+                  <View style={[styles.detailsInfoRow, { marginTop: 8 }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.detailsInfoLabel}>Passenger Name</Text>
+                      <Text style={styles.detailsInfoValue}>
+                        {selectedTripDetails?.booking?.customer?.user?.fullName || 'Customer'}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.detailsInfoLabel}>Driver Fare Amount</Text>
+                      <Text style={[styles.detailsInfoValue, { color: '#16a34a', fontSize: 16, fontWeight: '900' }]}>
+                        ₹{selectedTripDetails?.payeeAmount?.toLocaleString('en-IN') || '--'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Customer Requirements */}
+                {selectedTripDetails?.reqs && selectedTripDetails.reqs.length > 0 && (
+                  <View style={styles.detailsInfoBox}>
+                    <Text style={styles.detailsInfoSectionTitle}>CUSTOMER REQUIREMENTS</Text>
+                    <View style={[styles.dispatchReqsRow, { marginTop: 8 }]}>
+                      {selectedTripDetails.reqs.map((r: any, rIdx: number) => (
+                        <View key={`modal-req-${rIdx}`} style={styles.reqPill}>
+                          <Ionicons name={r.icon as any} size={13} color="#2563eb" />
+                          <Text style={styles.reqPillText}>{r.label}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    {selectedTripDetails?.note ? (
+                      <View style={[styles.dispatchNotesBox, { marginTop: 8 }]}>
+                        <Ionicons name="chatbubble-ellipses-outline" size={13} color="#475569" style={{ marginTop: 1 }} />
+                        <Text style={styles.dispatchNotesText}>
+                          Note: "{selectedTripDetails.note}"
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                )}
+              </ScrollView>
+
+              {/* Close Button */}
+              <View style={{ marginTop: 14 }}>
+                <TouchableOpacity
+                  style={styles.detailsCloseBtn}
+                  onPress={() => setDetailsModalVisible(false)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.detailsCloseBtnText}>Close Details</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         </Modal>
       </SafeAreaView>
     </Modal>
@@ -1012,7 +1180,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   cancelRideBtn: {
-    width: '100%',
+    flex: 1,
     height: 48,
     borderRadius: 24,
     backgroundColor: '#dc2626',
@@ -1026,7 +1194,27 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cancelRideBtnText: {
-    fontSize: 13.5,
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  detailsRideBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#0f2744',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0f2744',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  detailsRideBtnText: {
+    fontSize: 13,
     fontWeight: '900',
     color: '#ffffff',
     letterSpacing: 0.5,
@@ -1188,6 +1376,76 @@ const styles = StyleSheet.create({
   },
   cancelModalConfirmBtnText: {
     fontSize: 13,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+
+  /* Dedicated Trip Details Modal Styles */
+  detailsInfoBox: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 12,
+    marginBottom: 10,
+  },
+  detailsInfoSectionTitle: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#64748b',
+    letterSpacing: 0.5,
+  },
+  detailsInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  detailsInfoLabel: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  detailsInfoValue: {
+    fontSize: 13,
+    color: '#0f2744',
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  detailsLocationLabel: {
+    fontSize: 10,
+    color: '#94a3b8',
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  detailsDistanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  detailsDistanceText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f2744',
+  },
+  detailsTripTypeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#ea580c',
+    textTransform: 'uppercase',
+  },
+  detailsCloseBtn: {
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#0f2744',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailsCloseBtnText: {
+    fontSize: 13.5,
     fontWeight: '800',
     color: '#ffffff',
   },
