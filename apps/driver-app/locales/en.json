@@ -17,6 +17,7 @@
     "profile": "Profile"
   },
   "header": {
+    "welcome": "Welcome",
     "online": "Online",
     "offline": "Offline",
     "go_online": "GO ONLINE",

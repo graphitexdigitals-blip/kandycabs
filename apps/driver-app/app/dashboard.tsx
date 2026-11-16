@@ -1472,6 +1472,9 @@ export default function DriverDashboardScreen() {
                   </TouchableOpacity>
 
                   <View style={styles.heroInfoBlock}>
+                    <Text style={styles.heroGreetingText}>
+                      {t('header.welcome', 'Welcome')}
+                    </Text>
                     <Text style={styles.heroCardName} numberOfLines={1}>
                       {driver?.fullName || (driver?.phone ? `Partner (${driver.phone.replace(/\D/g, '').slice(-4)})` : 'Driver Partner')}
                     </Text>
@@ -3763,6 +3766,14 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     flex: 1,
     justifyContent: 'center',
+  },
+  heroGreetingText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+    letterSpacing: 0.2,
+    marginBottom: 1,
+    lineHeight: 14,
   },
   heroCardRight: {
     flex: 1,
