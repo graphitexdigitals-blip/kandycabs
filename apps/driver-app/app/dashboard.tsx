@@ -1540,8 +1540,69 @@ export default function DriverDashboardScreen() {
                 </View>
               </View>
 
-              {/* Inside the profile section below it: 2-column feature cards with pastel backgrounds */}
+              {/* Inside the profile section below it: Trips row and 2-column feature cards */}
               <View style={styles.heroCardDivider} />
+
+              {/* One Row: New Trips & Upcoming Trips (White Background) */}
+              <View style={styles.heroTripsSummaryRow}>
+                {/* 1. New Trips */}
+                <TouchableOpacity
+                  style={styles.heroTripWhiteCard}
+                  onPress={() => {
+                    if (dispatches.length > 0) {
+                      setIsNotificationModalOpen(true);
+                    } else {
+                      Alert.alert(
+                        t('dashboard.new_trips', 'New Trips'),
+                        t('dashboard.no_new_trips_msg', 'No new dispatches right now. Stay online to receive rides!')
+                      );
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.heroTripIconBox}>
+                    <Ionicons name="flash" size={20} color="#ea580c" />
+                  </View>
+                  <View style={styles.heroTripInfoBox}>
+                    <Text style={styles.heroTripTitle} numberOfLines={1}>
+                      {t('dashboard.new_trips', 'New Trips')}
+                    </Text>
+                    <Text style={styles.heroTripSub} numberOfLines={1}>
+                      {dispatches.length > 0 ? `${dispatches.length} Available` : t('dashboard.live_rides', 'Live Rides')}
+                    </Text>
+                  </View>
+                  {dispatches.length > 0 && (
+                    <View style={styles.heroTripCountBadgeOrange}>
+                      <Text style={styles.heroTripCountBadgeText}>{dispatches.length}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {/* 2. Upcoming Trips */}
+                <TouchableOpacity
+                  style={styles.heroTripWhiteCard}
+                  onPress={() => setActiveBottomTab('MY_TRIPS')}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.heroTripIconBox}>
+                    <Ionicons name="calendar" size={20} color="#2563eb" />
+                  </View>
+                  <View style={styles.heroTripInfoBox}>
+                    <Text style={styles.heroTripTitle} numberOfLines={1}>
+                      {t('dashboard.upcoming_trips', 'Upcoming Trips')}
+                    </Text>
+                    <Text style={styles.heroTripSub} numberOfLines={1}>
+                      {upcomingBookings.length > 0 ? `${upcomingBookings.length} Scheduled` : t('dashboard.scheduled', 'Scheduled')}
+                    </Text>
+                  </View>
+                  {upcomingBookings.length > 0 && (
+                    <View style={styles.heroTripCountBadgeBlue}>
+                      <Text style={styles.heroTripCountBadgeText}>{upcomingBookings.length}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+
               <View style={styles.heroCardsGridInside}>
                 {/* 1. Profile (Sky Blue) */}
                 <TouchableOpacity
@@ -1674,9 +1735,9 @@ export default function DriverDashboardScreen() {
                   )}
                 </TouchableOpacity>
 
-                {/* 7. Help & Support (Lavender) - One in a row */}
+                {/* 7. Help & Support (Lavender) */}
                 <TouchableOpacity
-                  style={[styles.heroCardGridItemFull, styles.heroCardBgLavender]}
+                  style={[styles.heroCardGridItem, styles.heroCardBgLavender]}
                   onPress={() => setActiveBottomTab('SUPPORT')}
                   activeOpacity={0.75}
                 >
@@ -1691,12 +1752,11 @@ export default function DriverDashboardScreen() {
                       {t('dashboard.card_support_sub', '24/7 Helpline')}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={17} color="#475569" style={{ marginLeft: 'auto' }} />
                 </TouchableOpacity>
 
-                {/* 8. Terms & Conditions (Mint Green) - One in a row */}
+                {/* 8. Terms & Conditions (Mint Green) */}
                 <TouchableOpacity
-                  style={[styles.heroCardGridItemFull, styles.heroCardBgMint]}
+                  style={[styles.heroCardGridItem, styles.heroCardBgMint]}
                   onPress={() => router.push('/terms')}
                   activeOpacity={0.75}
                 >
@@ -1711,7 +1771,6 @@ export default function DriverDashboardScreen() {
                       {t('dashboard.card_terms_sub', 'Policies & Safety')}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={17} color="#475569" style={{ marginLeft: 'auto' }} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -3281,6 +3340,68 @@ export default function DriverDashboardScreen() {
             </TouchableOpacity>
 
             {/* ============================================================ */}
+            {/* TRIPS ROW: NEW TRIPS & UPCOMING TRIPS (WHITE BACKGROUND)      */}
+            {/* ============================================================ */}
+            <View style={[styles.heroTripsSummaryRow, { paddingHorizontal: 0, marginBottom: 8 }]}>
+              {/* 1. New Trips */}
+              <TouchableOpacity
+                style={styles.heroTripWhiteCard}
+                onPress={() => {
+                  if (dispatches.length > 0) {
+                    setIsNotificationModalOpen(true);
+                  } else {
+                    Alert.alert(
+                      t('dashboard.new_trips', 'New Trips'),
+                      t('dashboard.no_new_trips_msg', 'No new dispatches right now. Stay online to receive rides!')
+                    );
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={styles.heroTripIconBox}>
+                  <Ionicons name="flash" size={20} color="#ea580c" />
+                </View>
+                <View style={styles.heroTripInfoBox}>
+                  <Text style={styles.heroTripTitle} numberOfLines={1}>
+                    {t('dashboard.new_trips', 'New Trips')}
+                  </Text>
+                  <Text style={styles.heroTripSub} numberOfLines={1}>
+                    {dispatches.length > 0 ? `${dispatches.length} Available` : t('dashboard.live_rides', 'Live Rides')}
+                  </Text>
+                </View>
+                {dispatches.length > 0 && (
+                  <View style={styles.heroTripCountBadgeOrange}>
+                    <Text style={styles.heroTripCountBadgeText}>{dispatches.length}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* 2. Upcoming Trips */}
+              <TouchableOpacity
+                style={styles.heroTripWhiteCard}
+                onPress={() => setActiveBottomTab('MY_TRIPS')}
+                activeOpacity={0.8}
+              >
+                <View style={styles.heroTripIconBox}>
+                  <Ionicons name="calendar" size={20} color="#2563eb" />
+                </View>
+                <View style={styles.heroTripInfoBox}>
+                  <Text style={styles.heroTripTitle} numberOfLines={1}>
+                    {t('dashboard.upcoming_trips', 'Upcoming Trips')}
+                  </Text>
+                  <Text style={styles.heroTripSub} numberOfLines={1}>
+                    {upcomingBookings.length > 0 ? `${upcomingBookings.length} Scheduled` : t('dashboard.scheduled', 'Scheduled')}
+                  </Text>
+                </View>
+                {upcomingBookings.length > 0 && (
+                  <View style={styles.heroTripCountBadgeBlue}>
+                    <Text style={styles.heroTripCountBadgeText}>{upcomingBookings.length}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* ============================================================ */}
             {/* 2-COLUMN PROFILE GRID CARDS (ORGANIZED MENU BOXES)            */}
             {/* ============================================================ */}
             <View style={styles.dashboardCardsGrid}>
@@ -3415,9 +3536,9 @@ export default function DriverDashboardScreen() {
                 )}
               </TouchableOpacity>
 
-              {/* 7. Help and Support (Lavender) - One in a row */}
+              {/* 7. Help and Support (Lavender) */}
               <TouchableOpacity
-                style={[styles.dashboardCardItemFull, styles.dashboardCardBgLavender]}
+                style={[styles.dashboardCardItem, styles.dashboardCardBgLavender]}
                 onPress={() => setActiveBottomTab('SUPPORT')}
                 activeOpacity={0.75}
               >
@@ -3432,12 +3553,11 @@ export default function DriverDashboardScreen() {
                     {t('dashboard.card_support_sub', '24/7 Helpline')}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={17} color="#475569" style={{ marginLeft: 'auto' }} />
               </TouchableOpacity>
 
-              {/* 8. Terms and Conditions (Mint Green) - One in a row */}
+              {/* 8. Terms and Conditions (Mint Green) */}
               <TouchableOpacity
-                style={[styles.dashboardCardItemFull, styles.dashboardCardBgMint]}
+                style={[styles.dashboardCardItem, styles.dashboardCardBgMint]}
                 onPress={() => router.push('/terms')}
                 activeOpacity={0.75}
               >
@@ -3452,7 +3572,6 @@ export default function DriverDashboardScreen() {
                     {t('dashboard.card_terms_sub', 'Policies & Safety')}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={17} color="#475569" style={{ marginLeft: 'auto' }} />
               </TouchableOpacity>
             </View>
 
@@ -3927,6 +4046,79 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 10,
   },
+  heroTripsSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  heroTripWhiteCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+    minHeight: 56,
+  },
+  heroTripIconBox: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  heroTripInfoBox: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  heroTripTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0f2744',
+    letterSpacing: -0.2,
+    lineHeight: 16,
+  },
+  heroTripSub: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 1,
+    lineHeight: 13,
+  },
+  heroTripCountBadgeOrange: {
+    backgroundColor: '#ea580c',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTripCountBadgeBlue: {
+    backgroundColor: '#2563eb',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTripCountBadgeText: {
+    color: '#ffffff',
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
   heroCardsGridInside: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -3947,20 +4139,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     minHeight: 64,
-  },
-  heroCardGridItemFull: {
-    width: '100%',
-    backgroundColor: '#f8fafc',
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 9,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'relative',
-    minHeight: 56,
   },
   heroCardGridIconBox: {
     width: 28,
