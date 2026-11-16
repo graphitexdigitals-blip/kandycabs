@@ -1606,9 +1606,9 @@ export default function DriverDashboardScreen() {
               </View>
 
               <View style={styles.heroCardsGridInside}>
-                {/* 1. Profile (Sky Blue) */}
+                {/* 1. Profile */}
                 <TouchableOpacity
-                  style={[styles.heroCardGridItem, styles.heroCardBgSky]}
+                  style={styles.heroCardGridItem}
                   onPress={() => setIsProfileModalOpen(true)}
                   activeOpacity={0.75}
                 >
@@ -1625,9 +1625,9 @@ export default function DriverDashboardScreen() {
                   </View>
                 </TouchableOpacity>
 
-                {/* 2. My Vehicle (Warm Peach) */}
+                {/* 2. My Vehicle */}
                 <TouchableOpacity
-                  style={[styles.heroCardGridItem, styles.heroCardBgPeach]}
+                  style={styles.heroCardGridItem}
                   onPress={() => setIsVehicleModalOpen(true)}
                   activeOpacity={0.75}
                 >
@@ -1649,9 +1649,9 @@ export default function DriverDashboardScreen() {
                   )}
                 </TouchableOpacity>
 
-                {/* 3. KYC (Lavender) */}
+                {/* 3. KYC */}
                 <TouchableOpacity
-                  style={[styles.heroCardGridItem, styles.heroCardBgLavender]}
+                  style={styles.heroCardGridItem}
                   onPress={() => router.push('/documents')}
                   activeOpacity={0.75}
                 >
@@ -1673,9 +1673,9 @@ export default function DriverDashboardScreen() {
                   )}
                 </TouchableOpacity>
 
-                {/* 4. My Trips (Mint Green) */}
+                {/* 4. My Trips */}
                 <TouchableOpacity
-                  style={[styles.heroCardGridItem, styles.heroCardBgMint]}
+                  style={styles.heroCardGridItem}
                   onPress={() => setActiveBottomTab('MY_TRIPS')}
                   activeOpacity={0.75}
                 >
@@ -1692,9 +1692,9 @@ export default function DriverDashboardScreen() {
                   </View>
                 </TouchableOpacity>
 
-                {/* 5. Payment (Ice Blue) */}
+                {/* 5. Payment */}
                 <TouchableOpacity
-                  style={[styles.heroCardGridItem, styles.heroCardBgIce]}
+                  style={styles.heroCardGridItem}
                   onPress={() => router.push('/payout-details')}
                   activeOpacity={0.75}
                 >
@@ -1711,9 +1711,9 @@ export default function DriverDashboardScreen() {
                   </View>
                 </TouchableOpacity>
 
-                {/* 6. Notifications (Warm Peach) */}
+                {/* 6. Notifications */}
                 <TouchableOpacity
-                  style={[styles.heroCardGridItem, styles.heroCardBgPeach]}
+                  style={styles.heroCardGridItem}
                   onPress={() => router.push('/notifications')}
                   activeOpacity={0.75}
                 >
@@ -1737,9 +1737,9 @@ export default function DriverDashboardScreen() {
                   )}
                 </TouchableOpacity>
 
-                {/* 7. Help & Support (Lavender) */}
+                {/* 7. Help & Support */}
                 <TouchableOpacity
-                  style={[styles.heroCardGridItem, styles.heroCardBgLavender]}
+                  style={styles.heroCardGridItem}
                   onPress={() => setActiveBottomTab('SUPPORT')}
                   activeOpacity={0.75}
                 >
@@ -1756,9 +1756,9 @@ export default function DriverDashboardScreen() {
                   </View>
                 </TouchableOpacity>
 
-                {/* 8. Terms & Conditions (Mint Green) */}
+                {/* 8. Terms & Conditions */}
                 <TouchableOpacity
-                  style={[styles.heroCardGridItem, styles.heroCardBgMint]}
+                  style={styles.heroCardGridItem}
                   onPress={() => router.push('/terms')}
                   activeOpacity={0.75}
                 >
@@ -3409,9 +3409,9 @@ export default function DriverDashboardScreen() {
             {/* 2-COLUMN PROFILE GRID CARDS (ORGANIZED MENU BOXES)            */}
             {/* ============================================================ */}
             <View style={styles.dashboardCardsGrid}>
-              {/* 1. Profile (Sky Blue) */}
+              {/* 1. Profile */}
               <TouchableOpacity
-                style={[styles.dashboardCardItem, styles.dashboardCardBgSky]}
+                style={styles.dashboardCardItem}
                 onPress={() => setIsProfileModalOpen(true)}
                 activeOpacity={0.75}
               >
@@ -3428,9 +3428,9 @@ export default function DriverDashboardScreen() {
                 </View>
               </TouchableOpacity>
 
-              {/* 2. My Vehicle (Warm Peach) */}
+              {/* 2. My Vehicle */}
               <TouchableOpacity
-                style={[styles.dashboardCardItem, styles.dashboardCardBgPeach]}
+                style={styles.dashboardCardItem}
                 onPress={() => setIsVehicleModalOpen(true)}
                 activeOpacity={0.75}
               >
@@ -3452,9 +3452,9 @@ export default function DriverDashboardScreen() {
                 )}
               </TouchableOpacity>
 
-              {/* 3. KYC (Lavender) */}
+              {/* 3. KYC */}
               <TouchableOpacity
-                style={[styles.dashboardCardItem, styles.dashboardCardBgLavender]}
+                style={styles.dashboardCardItem}
                 onPress={() => router.push('/documents')}
                 activeOpacity={0.75}
               >
@@ -3476,9 +3476,9 @@ export default function DriverDashboardScreen() {
                 )}
               </TouchableOpacity>
 
-              {/* 4. My Trips (Mint Green) */}
+              {/* 4. My Trips */}
               <TouchableOpacity
-                style={[styles.dashboardCardItem, styles.dashboardCardBgMint]}
+                style={styles.dashboardCardItem}
                 onPress={() => setActiveBottomTab('MY_TRIPS')}
                 activeOpacity={0.75}
               >
@@ -3495,9 +3495,9 @@ export default function DriverDashboardScreen() {
                 </View>
               </TouchableOpacity>
 
-              {/* 5. Payment (Ice Blue) */}
+              {/* 5. Payment */}
               <TouchableOpacity
-                style={[styles.dashboardCardItem, styles.dashboardCardBgIce]}
+                style={styles.dashboardCardItem}
                 onPress={() => router.push('/payout-details')}
                 activeOpacity={0.75}
               >
@@ -3514,9 +3514,9 @@ export default function DriverDashboardScreen() {
                 </View>
               </TouchableOpacity>
 
-              {/* 6. Notifications (Warm Peach) */}
+              {/* 6. Notifications */}
               <TouchableOpacity
-                style={[styles.dashboardCardItem, styles.dashboardCardBgPeach]}
+                style={styles.dashboardCardItem}
                 onPress={() => router.push('/notifications')}
                 activeOpacity={0.75}
               >
@@ -3540,9 +3540,9 @@ export default function DriverDashboardScreen() {
                 )}
               </TouchableOpacity>
 
-              {/* 7. Help and Support (Lavender) */}
+              {/* 7. Help and Support */}
               <TouchableOpacity
-                style={[styles.dashboardCardItem, styles.dashboardCardBgLavender]}
+                style={styles.dashboardCardItem}
                 onPress={() => setActiveBottomTab('SUPPORT')}
                 activeOpacity={0.75}
               >
@@ -3559,9 +3559,9 @@ export default function DriverDashboardScreen() {
                 </View>
               </TouchableOpacity>
 
-              {/* 8. Terms and Conditions (Mint Green) */}
+              {/* 8. Terms and Conditions */}
               <TouchableOpacity
-                style={[styles.dashboardCardItem, styles.dashboardCardBgMint]}
+                style={styles.dashboardCardItem}
                 onPress={() => router.push('/terms')}
                 activeOpacity={0.75}
               >
@@ -4139,9 +4139,9 @@ const styles = StyleSheet.create({
   },
   heroCardGridItem: {
     width: '48.5%',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
-    paddingVertical: 10,
+    paddingVertical: 11,
     paddingHorizontal: 10,
     marginBottom: 9,
     borderWidth: 1,
@@ -4150,6 +4150,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     minHeight: 64,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
   },
   heroCardGridIconBox: {
     width: 28,
