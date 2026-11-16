@@ -55,7 +55,7 @@ export function NewTripsModal({
         <View style={styles.headerBar}>
           <View style={styles.headerLeftGroup}>
             <View style={styles.headerIconBadge}>
-              <Ionicons name="flash" size={19} color="#ea580c" />
+              <Ionicons name="flash" size={18} color="#ea580c" />
             </View>
             <View>
               <View style={styles.headerTitleRow}>
@@ -70,7 +70,7 @@ export function NewTripsModal({
               </View>
               <Text style={styles.headerSub}>
                 {dispatches.length > 0
-                  ? 'Slide to accept and lock ride assignment'
+                  ? 'Accept or decline dispatched ride assignments'
                   : 'Live ride requests dispatched by Admin'}
               </Text>
             </View>
@@ -95,7 +95,7 @@ export function NewTripsModal({
             /* Empty State */
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
-                <Ionicons name="flash-outline" size={40} color="#ea580c" />
+                <Ionicons name="flash-outline" size={38} color="#ea580c" />
               </View>
               <Text style={styles.emptyTitle}>
                 {t('dashboard.no_new_trips_title', 'No New Trips Right Now')}
@@ -103,7 +103,7 @@ export function NewTripsModal({
               <Text style={styles.emptyText}>
                 {t(
                   'dashboard.no_new_trips_desc',
-                  'When an admin dispatches a ride to you, it will pop up here instantly with Slide to Accept. Stay online on duty to receive requests along your route.'
+                  'When an admin dispatches a ride to you, it will pop up here instantly. Stay online on duty to receive requests along your route.'
                 )}
               </Text>
 
@@ -135,193 +135,199 @@ export function NewTripsModal({
                 const note = extractCustomerNotes(b);
 
                 return (
-                  <View key={d.id || `dispatch-${index}`} style={styles.floatingDispatchCardWhite}>
-                    {/* Header Banner: Negative Margins with #f8fafc background matching Image 1 */}
-                    <View style={styles.dispatchHeaderBanner}>
-                      <View style={styles.dispatchHeaderRow}>
-                        <View>
-                          <View style={styles.newAlertBadge}>
-                            <Ionicons
-                              name="radio-button-on"
-                              size={13}
-                              color="#2563eb"
-                            />
-                            <Text style={styles.newAlertText}>
-                              {t('dashboard.new_ride', 'NEW RIDE')}
-                            </Text>
-                          </View>
-                          <Text style={styles.dispatchRefText}>
-                            {b?.humanReadableRef || 'RIDE'}
-                          </Text>
+                  <View key={d.id || `dispatch-${index}`} style={styles.premiumCard}>
+                    {/* Top Header Row: Live Alert Pill + Booking Ref + Distance */}
+                    <View style={styles.topHeaderRow}>
+                      <View style={styles.topHeaderLeft}>
+                        <View style={styles.newRideBadge}>
+                          <Ionicons name="radio-button-on" size={13} color="#2563eb" style={{ marginRight: 4 }} />
+                          <Text style={styles.newRideBadgeText}>NEW RIDE</Text>
                         </View>
-                        <View style={styles.distanceBadgeLight}>
-                          <Text style={styles.distanceBadgeTextLight}>
-                            📍 {b?.distanceKm || '--'} km
-                          </Text>
-                        </View>
+                        <Text style={styles.bookingRefText}>
+                          {b?.humanReadableRef || 'RIDE'}
+                        </Text>
                       </View>
-                    </View>
 
-                    {/* Trip Date & Pickup Time Banner */}
-                    <View style={styles.tripDateBanner}>
-                      <View style={styles.tripDateBannerLeft}>
-                        <Ionicons name="calendar" size={14} color="#0284c7" />
-                        <Text style={styles.tripDateBannerLabel}>
-                          {t('dashboard.pickup_date_time_banner', { defaultValue: 'PICKUP DATE & TIME:' })}
-                        </Text>
-                        <Text style={styles.tripDateBannerValue}>
-                          {tripTiming.fullText}
-                        </Text>
-                      </View>
-                      {tripTiming.isToday ? (
-                        <View style={styles.todayTagPill}>
-                          <Text style={styles.todayTagText}>
-                            {t('dashboard.today_tag', { defaultValue: 'TODAY' })}
-                          </Text>
-                        </View>
-                      ) : tripTiming.isTomorrow ? (
-                        <View style={styles.tomorrowTagPill}>
-                          <Text style={styles.tomorrowTagText}>
-                            {t('dashboard.tomorrow_tag', { defaultValue: 'TOMORROW' })}
-                          </Text>
+                      {b?.distanceKm ? (
+                        <View style={styles.distanceBadge}>
+                          <Ionicons name="location-sharp" size={12} color="#ea580c" style={{ marginRight: 3 }} />
+                          <Text style={styles.distanceBadgeText}>{b.distanceKm} km</Text>
                         </View>
                       ) : null}
                     </View>
 
-                    {/* Stepper Route (Clean open design without nested boxes) */}
-                    <View style={styles.stepperContainer}>
-                      <View style={styles.stepperLeft}>
-                        {/* Pickup */}
-                        <View style={styles.stepPoint}>
-                          <Ionicons name="location-sharp" size={16} color="#16a34a" style={styles.pickupPin} />
-                          <View style={styles.stepTextGroup}>
-                            <Text style={styles.locationTitle}>{b?.pickupAddress || 'Pickup Location'}</Text>
-                          </View>
-                        </View>
-
-                        {/* Connector line */}
-                        <View style={styles.dashedTrail} />
-
-                        {/* Drop */}
-                        <View style={styles.stepPoint}>
-                          <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
-                          <View style={styles.stepTextGroup}>
-                            <Text style={styles.locationTitle}>{b?.dropAddress || 'Drop Location'}</Text>
-                          </View>
-                        </View>
+                    {/* Earnings Hero Row */}
+                    <View style={styles.earningsHeroRow}>
+                      <View>
+                        <Text style={styles.earningsAmount}>
+                          ₹{payeeAmount.toLocaleString('en-IN')}
+                        </Text>
+                        <Text style={styles.earningsLabel}>Driver Payee Amount</Text>
+                      </View>
+                      <View style={styles.tripTypeTag}>
+                        <Text style={styles.tripTypeTagText}>
+                          {b?.tripType ? (b.tripType === 'ONE_WAY' ? 'ONEWAY' : b.tripType.replace(/_/g, ' ')) : 'ONEWAY'}
+                          {b?.category ? ` • ${b.category}` : ''}
+                        </Text>
                       </View>
                     </View>
 
-                    {/* Customer Requirements & Preferences Pills */}
-                    {(reqs.length > 0 || note) && (
-                      <View style={styles.dispatchReqsSection}>
-                        <View style={styles.dispatchReqsHeaderRow}>
-                          <Ionicons name="options-outline" size={12} color="#64748b" />
-                          <Text style={styles.dispatchReqsHeading}>
-                            {t('dashboard.customer_requirements', { defaultValue: 'CUSTOMER REQUIREMENTS' })}
+                    {/* Pickup Date & Time Banner */}
+                    <View style={styles.pickupTimeBanner}>
+                      <View style={styles.pickupTimeLeft}>
+                        <Ionicons name="calendar" size={15} color="#0284c7" />
+                        <Text style={styles.pickupTimeLabel}>PICKUP DATE & TIME:</Text>
+                        <Text style={styles.pickupTimeValue}>{tripTiming.fullText}</Text>
+                      </View>
+                      {tripTiming.isToday ? (
+                        <View style={styles.todayPill}>
+                          <Text style={styles.todayTagText}>TODAY</Text>
+                        </View>
+                      ) : tripTiming.isTomorrow ? (
+                        <View style={styles.tomorrowPill}>
+                          <Text style={styles.tomorrowTagText}>TOMORROW</Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    {/* Stepper Route (Clean & Open) */}
+                    <View style={styles.routeContainer}>
+                      {/* Pickup */}
+                      <View style={styles.routePointRow}>
+                        <View style={styles.pinCircleGreen}>
+                          <Ionicons name="location-sharp" size={14} color="#16a34a" />
+                        </View>
+                        <View style={styles.routeTextCol}>
+                          <Text style={styles.routeAddressText}>
+                            {b?.pickupAddress || 'Pickup Location'}
                           </Text>
                         </View>
-                        <View style={styles.dispatchReqsRow}>
-                          {reqs.map((r, rIdx) => (
-                            <React.Fragment key={`req-${rIdx}`}>
-                              {rIdx > 0 && <View style={styles.reqLineSeparator} />}
-                              <View style={styles.reqPill}>
-                                <Ionicons
-                                  name={r.icon as any}
-                                  size={12}
-                                  color={
-                                    r.type === 'highlight'
-                                      ? '#c2410c'
-                                      : r.type === 'warning'
-                                      ? '#b45309'
-                                      : r.type === 'info'
-                                      ? '#2563eb'
-                                      : '#334155'
-                                  }
-                                />
-                                <Text
-                                  style={[
-                                    styles.reqPillText,
-                                    r.type === 'highlight' && styles.reqPillTextHighlight,
-                                    r.type === 'warning' && styles.reqPillTextWarning,
-                                    r.type === 'info' && styles.reqPillTextInfo,
-                                  ]}
-                                >
-                                  {r.label}
-                                </Text>
-                              </View>
-                            </React.Fragment>
-                          ))}
-                        </View>
-                        {note ? (
-                          <View style={styles.dispatchNotesBox}>
-                            <Ionicons name="chatbubble-ellipses-outline" size={12} color="#475569" style={{ marginTop: 1 }} />
-                            <Text style={styles.dispatchNotesText} numberOfLines={2}>
-                              Note: "{note}"
-                            </Text>
-                          </View>
-                        ) : null}
                       </View>
-                    )}
 
-                    {/* Passenger, Driver Payee Amount In Between, & Trip Type Row */}
-                    <View style={styles.dispatchPassengerRowLight}>
-                      <Text style={styles.dispatchPassengerNameDark} numberOfLines={1}>
-                        👤 {b?.customer?.user?.fullName || 'Customer'}
-                      </Text>
-                      <Text style={styles.dispatchVendorAmountCenter}>
-                        ₹{payeeAmount.toLocaleString('en-IN')}
-                      </Text>
-                      <Text style={styles.dispatchTripTypeOrange}>
-                        {b?.tripType ? (b.tripType === 'ONE_WAY' ? 'ONEWAY' : b.tripType.replace(/_/g, ' ')) : 'ONEWAY'}
-                      </Text>
+                      {/* Dashed Connecting Line */}
+                      <View style={styles.connectorTrack}>
+                        <View style={styles.connectorDashedLine} />
+                      </View>
+
+                      {/* Destination */}
+                      <View style={styles.routePointRow}>
+                        <View style={styles.pinCircleRed}>
+                          <Ionicons name="location-sharp" size={14} color="#dc2626" />
+                        </View>
+                        <View style={styles.routeTextCol}>
+                          <Text style={styles.routeAddressText}>
+                            {b?.dropAddress || 'Destination Address'}
+                          </Text>
+                        </View>
+                      </View>
                     </View>
 
-                    {/* SLIDE TO ACCEPT & DECLINE ACTIONS */}
-                    <View style={styles.actionContainer}>
-                      {/* Slide to Accept Slider */}
-                      <SlideToAccept
-                        onAccept={async () => {
-                          await onAcceptDispatch(d.id, bookingId);
-                          onClose();
-                        }}
-                        isAccepting={isAccepting}
-                        disabled={isAccepting || isDeclining}
-                        title={t('dashboard.slide_to_accept_caps', { defaultValue: 'SLIDE TO ACCEPT RIDE' })}
-                        acceptingTitle={t('dashboard.accepting', { defaultValue: 'ACCEPTING RIDE...' })}
-                      />
+                    {/* Customer Requirements & Passenger Specs */}
+                    <View style={styles.specsSection}>
+                      <View style={styles.specsHeaderRow}>
+                        <Ionicons name="options-outline" size={12} color="#64748b" />
+                        <Text style={styles.specsHeading}>CUSTOMER REQUIREMENTS</Text>
+                      </View>
+                      <View style={styles.specsRow}>
+                        <View style={styles.specChip}>
+                          <Ionicons name="person" size={12} color="#0f2744" />
+                          <Text style={styles.specChipText}>
+                            {b?.customer?.user?.fullName || 'Customer'}
+                          </Text>
+                        </View>
 
-                      {/* Clean Decline Button matching Image 1 aesthetics */}
-                      <TouchableOpacity
-                        style={styles.declineDispatchOutlineBtn}
-                        onPress={() => {
-                          Alert.alert(
-                            'Decline Ride',
-                            'Are you sure you want to pass on this ride request?',
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              {
-                                text: 'Decline',
-                                style: 'destructive',
-                                onPress: () => onDeclineDispatch(d.id, bookingId),
-                              },
-                            ]
-                          );
-                        }}
-                        disabled={isAccepting || isDeclining}
-                        activeOpacity={0.8}
-                      >
-                        {isDeclining ? (
-                          <ActivityIndicator size="small" color="#dc2626" />
-                        ) : (
-                          <>
-                            <Ionicons name="close-circle-outline" size={16} color="#dc2626" style={{ marginRight: 6 }} />
-                            <Text style={styles.declineDispatchOutlineBtnText}>
-                              {t('dashboard.decline_btn', { defaultValue: 'DECLINE RIDE' })}
-                            </Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
+                        {reqs.map((r, rIdx) => (
+                          <View key={`req-${rIdx}`} style={styles.specChip}>
+                            <Ionicons name={r.icon as any} size={12} color="#475569" />
+                            <Text style={styles.specChipText}>{r.label}</Text>
+                          </View>
+                        ))}
+                      </View>
+
+                      {note ? (
+                        <View style={styles.notesBox}>
+                          <Ionicons name="chatbubble-ellipses-outline" size={13} color="#9a3412" style={{ marginTop: 1 }} />
+                          <Text style={styles.notesText}>Note: "{note}"</Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    {/* ======================================================= */}
+                    {/* REDESIGNED BUTTONS: HIGH-CONVERTING MODERN ACTIONS     */}
+                    {/* ======================================================= */}
+                    <View style={styles.actionsSection}>
+                      {/* 1. Modern Side-by-Side Decline & Accept Buttons */}
+                      <View style={styles.dualButtonsRow}>
+                        {/* DECLINE BUTTON (Clean, Soft-Red Rounded Pill) */}
+                        <TouchableOpacity
+                          style={styles.modernDeclineBtn}
+                          onPress={() => {
+                            Alert.alert(
+                              'Decline Ride',
+                              'Are you sure you want to pass on this ride request?',
+                              [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                  text: 'Decline',
+                                  style: 'destructive',
+                                  onPress: () => onDeclineDispatch(d.id, bookingId),
+                                },
+                              ]
+                            );
+                          }}
+                          disabled={isAccepting || isDeclining}
+                          activeOpacity={0.8}
+                        >
+                          {isDeclining ? (
+                            <ActivityIndicator size="small" color="#dc2626" />
+                          ) : (
+                            <>
+                              <Ionicons name="close-circle-outline" size={18} color="#dc2626" style={{ marginRight: 6 }} />
+                              <Text style={styles.modernDeclineBtnText}>DECLINE</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+
+                        {/* ACCEPT RIDE BUTTON (Rich Emerald Green with Checkmark) */}
+                        <TouchableOpacity
+                          style={styles.modernAcceptBtn}
+                          onPress={async () => {
+                            await onAcceptDispatch(d.id, bookingId);
+                            onClose();
+                          }}
+                          disabled={isAccepting || isDeclining}
+                          activeOpacity={0.85}
+                        >
+                          {isAccepting ? (
+                            <ActivityIndicator size="small" color="#ffffff" />
+                          ) : (
+                            <>
+                              <Ionicons name="checkmark-circle" size={19} color="#ffffff" style={{ marginRight: 6 }} />
+                              <Text style={styles.modernAcceptBtnText}>ACCEPT RIDE</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* 2. Optional Slide To Accept for swipe convenience */}
+                      <View style={styles.orDividerRow}>
+                        <View style={styles.orDividerLine} />
+                        <Text style={styles.orDividerText}>OR SLIDE TO LOCK</Text>
+                        <View style={styles.orDividerLine} />
+                      </View>
+
+                      <View style={styles.sliderContainer}>
+                        <SlideToAccept
+                          onAccept={async () => {
+                            await onAcceptDispatch(d.id, bookingId);
+                            onClose();
+                          }}
+                          isAccepting={isAccepting}
+                          disabled={isAccepting || isDeclining}
+                          title={t('dashboard.slide_to_accept_caps', { defaultValue: 'SLIDE TO ACCEPT RIDE' })}
+                          acceptingTitle={t('dashboard.accepting', { defaultValue: 'ACCEPTING RIDE...' })}
+                        />
+                      </View>
                     </View>
                   </View>
                 );
@@ -366,9 +372,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerIconBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#fff3e3',
     borderWidth: 1,
     borderColor: '#fed7aa',
@@ -429,9 +435,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: '#fff3e3',
     borderWidth: 2,
     borderColor: '#fed7aa',
@@ -464,109 +470,148 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   tripsListContainer: {
-    gap: 14,
+    gap: 16,
   },
 
-  /* EXACT IMAGE 1 CARD STYLES */
-  floatingDispatchCardWhite: {
+  /* PREMIUM REDESIGNED CARD */
+  premiumCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
     ...Platform.select({
       ios: {
         shadowColor: '#0f172a',
-        shadowOpacity: 0.05,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
       android: {
-        elevation: 3,
+        elevation: 4,
       },
     }),
   },
-  dispatchHeaderBanner: {
-    backgroundColor: '#f8fafc',
-    marginHorizontal: -14,
-    marginTop: -14,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-    borderTopLeftRadius: 17,
-    borderTopRightRadius: 17,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    marginBottom: 10,
-  },
-  dispatchHeaderRow: {
+  topHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
   },
-  newAlertBadge: {
+  topHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'transparent',
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    alignSelf: 'flex-start',
-    marginBottom: 2,
+    gap: 8,
   },
-  newAlertText: {
+  newRideBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  newRideBadgeText: {
     fontSize: 10,
     fontWeight: '900',
-    color: '#0f2744',
-    letterSpacing: 0.3,
+    color: '#2563eb',
+    letterSpacing: 0.5,
   },
-  dispatchRefText: {
+  bookingRefText: {
     fontSize: 14,
     fontWeight: '900',
     color: '#0f2744',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
-  distanceBadgeLight: {
-    backgroundColor: 'transparent',
-    paddingHorizontal: 0,
-    paddingVertical: 0,
+  distanceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
-  distanceBadgeTextLight: {
+  distanceBadgeText: {
     fontSize: 12,
     fontWeight: '800',
     color: '#0f2744',
   },
 
-  /* Trip Date Banner */
-  tripDateBanner: {
+  /* Earnings Hero */
+  earningsHeroRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  earningsAmount: {
+    fontSize: 25,
+    fontWeight: '900',
+    color: '#0f2744',
+    letterSpacing: -0.5,
+  },
+  earningsLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#16a34a',
+    marginTop: 1,
+  },
+  tripTypeTag: {
+    backgroundColor: '#fff3e3',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  tripTypeTagText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#ea580c',
+  },
+
+  /* Pickup Time Banner */
+  pickupTimeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 2,
-    paddingVertical: 5,
-    marginTop: 2,
-    marginBottom: 6,
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 14,
   },
-  tripDateBannerLeft: {
+  pickupTimeLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
     gap: 6,
+    flex: 1,
     flexWrap: 'wrap',
   },
-  tripDateBannerLabel: {
+  pickupTimeLabel: {
     fontSize: 10,
     fontWeight: '800',
     color: '#0369a1',
     letterSpacing: 0.5,
   },
-  tripDateBannerValue: {
+  pickupTimeValue: {
     fontSize: 12.5,
     fontWeight: '800',
     color: '#0f2744',
   },
-  todayTagPill: {
+  todayPill: {
     backgroundColor: '#dcfce7',
     borderWidth: 1,
     borderColor: '#86efac',
@@ -581,7 +626,7 @@ const styles = StyleSheet.create({
     color: '#15803d',
     letterSpacing: 0.5,
   },
-  tomorrowTagPill: {
+  tomorrowPill: {
     backgroundColor: '#fef3c7',
     borderWidth: 1,
     borderColor: '#fde68a',
@@ -597,173 +642,185 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  /* Stepper Route */
-  stepperContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    paddingVertical: 8,
-    paddingHorizontal: 0,
-    marginVertical: 4,
+  /* Route Stepper */
+  routeContainer: {
+    paddingHorizontal: 2,
+    marginBottom: 12,
   },
-  stepperLeft: {
-    flex: 1,
-  },
-  stepPoint: {
+  routePointRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
-  pickupPin: {
-    width: 18,
-    textAlign: 'center',
+  pinCircleGreen: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#dcfce7',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  dropPin: {
-    width: 18,
-    textAlign: 'center',
+  pinCircleRed: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#fee2e2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  stepTextGroup: {
+  routeTextCol: {
     flex: 1,
   },
-  locationTitle: {
-    fontSize: 13.5,
+  routeAddressText: {
+    fontSize: 14,
     fontWeight: '800',
     color: '#0f2744',
     lineHeight: 18,
   },
-  dashedTrail: {
+  connectorTrack: {
+    width: 22,
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  connectorDashedLine: {
     width: 2,
     height: 16,
     borderStyle: 'dashed',
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    marginLeft: 8,
-    marginVertical: 2,
   },
 
-  /* Customer Requirements */
-  dispatchReqsSection: {
-    marginTop: 6,
-    marginBottom: 6,
-    paddingTop: 8,
+  /* Specs Section */
+  specsSection: {
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
+    marginBottom: 12,
   },
-  dispatchReqsHeaderRow: {
+  specsHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     marginBottom: 6,
   },
-  dispatchReqsHeading: {
+  specsHeading: {
     fontSize: 9.5,
     fontWeight: '900',
     color: '#64748b',
     letterSpacing: 0.5,
   },
-  dispatchReqsRow: {
+  specsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     flexWrap: 'wrap',
     gap: 6,
+    marginBottom: 6,
   },
-  reqLineSeparator: {
-    width: 1,
-    height: 12,
-    backgroundColor: '#cbd5e1',
-    marginHorizontal: 2,
-  },
-  reqPill: {
+  specChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
-  reqPillText: {
+  specChipText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#334155',
   },
-  reqPillTextHighlight: {
-    color: '#c2410c',
-    fontWeight: '800',
-  },
-  reqPillTextWarning: {
-    color: '#b45309',
-    fontWeight: '800',
-  },
-  reqPillTextInfo: {
-    color: '#2563eb',
-    fontWeight: '800',
-  },
-  dispatchNotesBox: {
+  notesBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 6,
-    marginTop: 6,
-    padding: 6,
     backgroundColor: '#fff7ed',
-    borderRadius: 6,
+    padding: 8,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#ffedd5',
+    marginTop: 4,
   },
-  dispatchNotesText: {
+  notesText: {
     fontSize: 11,
     color: '#9a3412',
     fontStyle: 'italic',
     flex: 1,
   },
 
-  /* Passenger, Amount, and Trip Type Row */
-  dispatchPassengerRowLight: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    paddingVertical: 8,
-    paddingHorizontal: 0,
+  /* ========================================================= */
+  /* REDESIGNED BUTTONS: DUAL ACTIONS + OPTIONAL SLIDER        */
+  /* ========================================================= */
+  actionsSection: {
     marginTop: 4,
-    marginBottom: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-  },
-  dispatchPassengerNameDark: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  dispatchVendorAmountCenter: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#0f172a',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    textAlign: 'center',
-  },
-  dispatchTripTypeOrange: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#ea580c',
-  },
-
-  /* Actions Area */
-  actionContainer: {
-    marginTop: 6,
     gap: 10,
   },
-  declineDispatchOutlineBtn: {
-    height: 42,
-    borderRadius: 21,
+  dualButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  modernDeclineBtn: {
+    flex: 1,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: '#fff1f2',
     borderWidth: 1.5,
-    borderColor: '#fca5a5',
-    backgroundColor: '#fef2f2',
+    borderColor: '#fecdd3',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#e11d48',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  declineDispatchOutlineBtnText: {
-    fontSize: 12.5,
-    fontWeight: '800',
+  modernDeclineBtnText: {
+    fontSize: 13,
+    fontWeight: '900',
     color: '#dc2626',
     letterSpacing: 0.5,
+  },
+  modernAcceptBtn: {
+    flex: 1.45,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: '#16a34a',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  modernAcceptBtnText: {
+    fontSize: 13.5,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+
+  orDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginVertical: 2,
+  },
+  orDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e2e8f0',
+  },
+  orDividerText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#94a3b8',
+    letterSpacing: 0.6,
+  },
+  sliderContainer: {
+    width: '100%',
   },
 });
