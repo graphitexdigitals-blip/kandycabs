@@ -54,7 +54,7 @@ export function NewTripsModal({
         <View style={styles.headerBar}>
           <View style={styles.headerLeftGroup}>
             <View style={styles.headerIconBadge}>
-              <MaterialCommunityIcons name="map-marker-plus-outline" size={20} color="#ea580c" />
+              <MaterialCommunityIcons name="map-marker-plus" size={21} color="#ea580c" />
             </View>
             <View>
               <View style={styles.headerTitleRow}>
@@ -94,7 +94,7 @@ export function NewTripsModal({
             /* Empty State */
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
-                <MaterialCommunityIcons name="map-marker-plus-outline" size={42} color="#ea580c" />
+                <MaterialCommunityIcons name="map-marker-plus" size={44} color="#ea580c" />
               </View>
               <Text style={styles.emptyTitle}>
                 {t('dashboard.no_new_trips_title', 'No New Trips Right Now')}

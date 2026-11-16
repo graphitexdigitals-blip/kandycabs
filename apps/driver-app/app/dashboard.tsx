@@ -1572,7 +1572,7 @@ export default function DriverDashboardScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={styles.heroTripIconBox}>
-                    <MaterialCommunityIcons name="map-marker-plus-outline" size={22} color="#ea580c" />
+                    <MaterialCommunityIcons name="map-marker-plus" size={23} color="#ea580c" />
                   </View>
                   <View style={styles.heroTripInfoBox}>
                     <Text style={styles.heroTripTitle} numberOfLines={1}>
@@ -3116,7 +3116,7 @@ export default function DriverDashboardScreen() {
                 activeOpacity={0.8}
               >
                 <View style={styles.heroTripIconBox}>
-                  <MaterialCommunityIcons name="map-marker-plus-outline" size={22} color="#ea580c" />
+                  <MaterialCommunityIcons name="map-marker-plus" size={23} color="#ea580c" />
                 </View>
                 <View style={styles.heroTripInfoBox}>
                   <Text style={styles.heroTripTitle} numberOfLines={1}>
