@@ -438,11 +438,29 @@ export default function DriverDashboardScreen() {
   const unreadUpdatesCount = useMemo(() => {
     let count = 0;
 
-    // 1. Pending Dispatches
+    // 1. Pending Dispatches (only brand new dispatches, not accepted or declined)
     dispatches.forEach((d) => {
-      const notifId = `dispatch-${d.id}`;
-      if (!readNotifIds.has(notifId)) {
-        count++;
+      const bId = d.bookingId || d.booking?.id || d.id;
+      const isAccepted =
+        d.isAccepted === true ||
+        d.status === 'ACCEPTED' ||
+        Boolean(acceptedDispatches[d.id]) ||
+        Boolean(acceptedDispatches[bId]) ||
+        d.booking?.status === BookingStatus.DRIVER_ACCEPTED ||
+        d.booking?.status === 'DRIVER_ACCEPTED';
+      const isDeclinedOrCancelled =
+        d.status === 'DECLINED' ||
+        d.status === 'EXPIRED' ||
+        d.status === 'CANCELLED' ||
+        d.booking?.status === BookingStatus.CANCELLED ||
+        d.booking?.status === 'CANCELLED' ||
+        d.isCancelRequested === true;
+
+      if (!isAccepted && !isDeclinedOrCancelled) {
+        const notifId = `dispatch-${d.id}`;
+        if (!readNotifIds.has(notifId)) {
+          count++;
+        }
       }
     });
 
@@ -558,6 +576,30 @@ export default function DriverDashboardScreen() {
 
     return sortTripsByDateTimeAscending(list);
   }, [dispatches, activeBooking, upcomingBookings, acceptedDispatches]);
+
+  // Only count brand new dispatches assigned by admin that are awaiting driver action
+  // Do NOT show count / badge if trip is accepted, declined, cancelled, or pending admin cancellation
+  const pendingNewTripsCount = useMemo(() => {
+    return (dispatches || []).filter((d: any) => {
+      const bId = d.bookingId || d.booking?.id || d.id;
+      const isAccepted =
+        d.isAccepted === true ||
+        d.status === 'ACCEPTED' ||
+        Boolean(acceptedDispatches[d.id]) ||
+        Boolean(acceptedDispatches[bId]) ||
+        d.booking?.status === BookingStatus.DRIVER_ACCEPTED ||
+        d.booking?.status === 'DRIVER_ACCEPTED';
+      const isDeclinedOrCancelled =
+        d.status === 'DECLINED' ||
+        d.status === 'EXPIRED' ||
+        d.status === 'CANCELLED' ||
+        d.booking?.status === BookingStatus.CANCELLED ||
+        d.booking?.status === 'CANCELLED' ||
+        d.isCancelRequested === true;
+
+      return !isAccepted && !isDeclinedOrCancelled;
+    }).length;
+  }, [dispatches, acceptedDispatches]);
 
   // Detailed document verification status for KYC verification card
   const verificationDocs = useMemo(() => {
@@ -1687,16 +1729,18 @@ export default function DriverDashboardScreen() {
                       {t('dashboard.new_trips', 'New Trips')}
                     </Text>
                     <Text style={styles.heroTripSub} numberOfLines={1}>
-                      {newTripsList.length > 0
+                      {pendingNewTripsCount > 0
+                        ? `${pendingNewTripsCount} ${pendingNewTripsCount === 1 ? 'New Trip' : 'New Trips'} • Tap to View`
+                        : newTripsList.length > 0
                         ? `${newTripsList.length} ${newTripsList.length === 1 ? 'Trip' : 'Trips'} • Tap to View`
                         : t('dashboard.live_rides', 'Live Rides')}
                     </Text>
                   </View>
-                  {/* Popup Number Icon for New Dispatches */}
-                  {newTripsList.length > 0 && (
+                  {/* Popup Number Icon: ONLY show numbers when new trip is assigned (not if accepted or declined) */}
+                  {pendingNewTripsCount > 0 && (
                     <View style={styles.heroTripPopupBadgeOrange}>
                       <Text style={styles.heroTripPopupBadgeText}>
-                        {newTripsList.length > 9 ? '9+' : newTripsList.length}
+                        {pendingNewTripsCount > 9 ? '9+' : pendingNewTripsCount}
                       </Text>
                     </View>
                   )}
@@ -3231,16 +3275,18 @@ export default function DriverDashboardScreen() {
                     {t('dashboard.new_trips', 'New Trips')}
                   </Text>
                   <Text style={styles.heroTripSub} numberOfLines={1}>
-                    {newTripsList.length > 0
+                    {pendingNewTripsCount > 0
+                      ? `${pendingNewTripsCount} ${pendingNewTripsCount === 1 ? 'New Trip' : 'New Trips'} • Tap to View`
+                      : newTripsList.length > 0
                       ? `${newTripsList.length} ${newTripsList.length === 1 ? 'Trip' : 'Trips'} • Tap to View`
                       : t('dashboard.live_rides', 'Live Rides')}
                   </Text>
                 </View>
-                {/* Popup Number Icon for New Dispatches */}
-                {newTripsList.length > 0 && (
+                {/* Popup Number Icon: ONLY show numbers when new trip is assigned (not if accepted or declined) */}
+                {pendingNewTripsCount > 0 && (
                   <View style={styles.heroTripPopupBadgeOrange}>
                     <Text style={styles.heroTripPopupBadgeText}>
-                      {newTripsList.length > 9 ? '9+' : newTripsList.length}
+                      {pendingNewTripsCount > 9 ? '9+' : pendingNewTripsCount}
                     </Text>
                   </View>
                 )}
@@ -3593,9 +3639,11 @@ export default function DriverDashboardScreen() {
               size={22}
               color={activeBottomTab === 'PROFILE' ? '#f0750f' : '#94a3b8'}
             />
-            <View style={styles.profilePendingNotificationBadge}>
-              <Text style={styles.profilePendingNotificationBadgeText}>1</Text>
-            </View>
+            {hasPendingDocuments && (
+              <View style={styles.profilePendingNotificationBadge}>
+                <Text style={styles.profilePendingNotificationBadgeText}>1</Text>
+              </View>
+            )}
           </View>
           <Text style={[styles.bottomNavText, activeBottomTab === 'PROFILE' && styles.bottomNavTextActive]}>
             {t('tabs.profile')}
