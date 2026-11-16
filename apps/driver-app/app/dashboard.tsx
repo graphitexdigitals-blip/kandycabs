@@ -1550,7 +1550,7 @@ export default function DriverDashboardScreen() {
                   activeOpacity={0.75}
                 >
                   <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="person" size={19} color="#0f2744" />
+                    <Ionicons name="person" size={22} color="#0f2744" />
                   </View>
                   <View style={styles.heroCardGridTextBox}>
                     <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -1569,7 +1569,7 @@ export default function DriverDashboardScreen() {
                   activeOpacity={0.75}
                 >
                   <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="car" size={19} color="#0f2744" />
+                    <Ionicons name="car" size={22} color="#0f2744" />
                   </View>
                   <View style={styles.heroCardGridTextBox}>
                     <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -1593,7 +1593,7 @@ export default function DriverDashboardScreen() {
                   activeOpacity={0.75}
                 >
                   <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="document-text" size={19} color="#0f2744" />
+                    <Ionicons name="document-text" size={22} color="#0f2744" />
                   </View>
                   <View style={styles.heroCardGridTextBox}>
                     <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -1617,7 +1617,7 @@ export default function DriverDashboardScreen() {
                   activeOpacity={0.75}
                 >
                   <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="receipt" size={19} color="#0f2744" />
+                    <Ionicons name="receipt" size={22} color="#0f2744" />
                   </View>
                   <View style={styles.heroCardGridTextBox}>
                     <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -1636,7 +1636,7 @@ export default function DriverDashboardScreen() {
                   activeOpacity={0.75}
                 >
                   <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="wallet" size={19} color="#0f2744" />
+                    <Ionicons name="wallet" size={22} color="#0f2744" />
                   </View>
                   <View style={styles.heroCardGridTextBox}>
                     <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -1655,7 +1655,7 @@ export default function DriverDashboardScreen() {
                   activeOpacity={0.75}
                 >
                   <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="notifications" size={19} color="#0f2744" />
+                    <Ionicons name="notifications" size={22} color="#0f2744" />
                   </View>
                   <View style={styles.heroCardGridTextBox}>
                     <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -1681,7 +1681,7 @@ export default function DriverDashboardScreen() {
                   activeOpacity={0.75}
                 >
                   <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="headset" size={19} color="#0f2744" />
+                    <Ionicons name="headset" size={22} color="#0f2744" />
                   </View>
                   <View style={styles.heroCardGridTextBox}>
                     <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -1700,7 +1700,7 @@ export default function DriverDashboardScreen() {
                   activeOpacity={0.75}
                 >
                   <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="shield-checkmark" size={19} color="#0f2744" />
+                    <Ionicons name="shield-checkmark" size={22} color="#0f2744" />
                   </View>
                   <View style={styles.heroCardGridTextBox}>
                     <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -3289,7 +3289,7 @@ export default function DriverDashboardScreen() {
                 activeOpacity={0.75}
               >
                 <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="person" size={20} color="#0f2744" />
+                  <Ionicons name="person" size={22} color="#0f2744" />
                 </View>
                 <View style={styles.dashboardCardTextBox}>
                   <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -3308,7 +3308,7 @@ export default function DriverDashboardScreen() {
                 activeOpacity={0.75}
               >
                 <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="car" size={20} color="#0f2744" />
+                  <Ionicons name="car" size={22} color="#0f2744" />
                 </View>
                 <View style={styles.dashboardCardTextBox}>
                   <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -3332,7 +3332,7 @@ export default function DriverDashboardScreen() {
                 activeOpacity={0.75}
               >
                 <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="document-text" size={20} color="#0f2744" />
+                  <Ionicons name="document-text" size={22} color="#0f2744" />
                 </View>
                 <View style={styles.dashboardCardTextBox}>
                   <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -3356,7 +3356,7 @@ export default function DriverDashboardScreen() {
                 activeOpacity={0.75}
               >
                 <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="receipt" size={20} color="#0f2744" />
+                  <Ionicons name="receipt" size={22} color="#0f2744" />
                 </View>
                 <View style={styles.dashboardCardTextBox}>
                   <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -3375,7 +3375,7 @@ export default function DriverDashboardScreen() {
                 activeOpacity={0.75}
               >
                 <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="wallet" size={20} color="#0f2744" />
+                  <Ionicons name="wallet" size={22} color="#0f2744" />
                 </View>
                 <View style={styles.dashboardCardTextBox}>
                   <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -3394,7 +3394,7 @@ export default function DriverDashboardScreen() {
                 activeOpacity={0.75}
               >
                 <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="notifications" size={20} color="#0f2744" />
+                  <Ionicons name="notifications" size={22} color="#0f2744" />
                 </View>
                 <View style={styles.dashboardCardTextBox}>
                   <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -3420,7 +3420,7 @@ export default function DriverDashboardScreen() {
                 activeOpacity={0.75}
               >
                 <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="headset" size={20} color="#0f2744" />
+                  <Ionicons name="headset" size={22} color="#0f2744" />
                 </View>
                 <View style={styles.dashboardCardTextBox}>
                   <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -3439,7 +3439,7 @@ export default function DriverDashboardScreen() {
                 activeOpacity={0.75}
               >
                 <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="shield-checkmark" size={20} color="#0f2744" />
+                  <Ionicons name="shield-checkmark" size={22} color="#0f2744" />
                 </View>
                 <View style={styles.dashboardCardTextBox}>
                   <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
@@ -3945,15 +3945,11 @@ const styles = StyleSheet.create({
     minHeight: 64,
   },
   heroCardGridIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: '#ffffff',
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    marginRight: 6,
   },
   heroCardGridTextBox: {
     flex: 1,
@@ -5331,13 +5327,11 @@ const styles = StyleSheet.create({
     minHeight: 72,
   },
   dashboardCardIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#f0f5ff',
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 6,
     flexShrink: 0,
   },
   dashboardCardTextBox: {
