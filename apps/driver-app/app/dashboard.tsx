@@ -2747,161 +2747,6 @@ export default function DriverDashboardScreen() {
                 })}
               </View>
             )}
-
-            {/* Quick Access Dashboard Cards: Only shown when there are NO active trips or dispatches */}
-            {!currentTrip && dispatches.length === 0 && upcomingBookings.length === 0 && (
-              <View style={styles.dashboardCardsGrid}>
-                {/* 1. Profile */}
-                <TouchableOpacity
-                  style={styles.dashboardCardItem}
-                  onPress={() => setIsProfileModalOpen(true)}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.dashboardCardIconBox}>
-                    <Ionicons name="person" size={20} color="#0f2744" />
-                  </View>
-                  <View style={styles.dashboardCardTextBox}>
-                    <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_profile', 'Profile')}
-                    </Text>
-                    <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_profile_sub', 'Personal Details')}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                {/* 2. My Vehicle */}
-                <TouchableOpacity
-                  style={styles.dashboardCardItem}
-                  onPress={() => setIsVehicleModalOpen(true)}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.dashboardCardIconBox}>
-                    <Ionicons name="car" size={20} color="#0f2744" />
-                  </View>
-                  <View style={styles.dashboardCardTextBox}>
-                    <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_vehicle', 'My Vehicle')}
-                    </Text>
-                    <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_vehicle_sub', 'Fleet & Cabs')}
-                    </Text>
-                  </View>
-                  {hasVehiclePendingDocs && (
-                    <View style={styles.dashboardCardAlertBadge}>
-                      <Ionicons name="alert-circle" size={16} color="#ef4444" />
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                {/* 3. KYC */}
-                <TouchableOpacity
-                  style={styles.dashboardCardItem}
-                  onPress={() => router.push('/documents')}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.dashboardCardIconBox}>
-                    <Ionicons name="document-text" size={20} color="#0f2744" />
-                  </View>
-                  <View style={styles.dashboardCardTextBox}>
-                    <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_kyc', 'KYC')}
-                    </Text>
-                    <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_kyc_sub', 'Documents & Verify')}
-                    </Text>
-                  </View>
-                  {hasKycPendingDocs && (
-                    <View style={styles.dashboardCardAlertBadge}>
-                      <Ionicons name="alert-circle" size={16} color="#ef4444" />
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                {/* 4. My Trips */}
-                <TouchableOpacity
-                  style={styles.dashboardCardItem}
-                  onPress={() => setActiveBottomTab('MY_TRIPS')}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.dashboardCardIconBox}>
-                    <Ionicons name="receipt" size={20} color="#0f2744" />
-                  </View>
-                  <View style={styles.dashboardCardTextBox}>
-                    <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_trips', 'My Trips')}
-                    </Text>
-                    <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_trips_sub', 'History & Earnings')}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                {/* 5. Notifications */}
-                <TouchableOpacity
-                  style={styles.dashboardCardItem}
-                  onPress={() => router.push('/notifications')}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.dashboardCardIconBox}>
-                    <Ionicons name="notifications" size={20} color="#0f2744" />
-                  </View>
-                  <View style={styles.dashboardCardTextBox}>
-                    <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_notifications', 'Notifications')}
-                    </Text>
-                    <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_notifications_sub', 'Alerts & Updates')}
-                    </Text>
-                  </View>
-                  {unreadUpdatesCount > 0 && (
-                    <View style={styles.dashboardCardNotifBadge}>
-                      <Text style={styles.dashboardCardNotifBadgeText}>
-                        {unreadUpdatesCount > 9 ? '9+' : unreadUpdatesCount}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                {/* 6. Help and Support */}
-                <TouchableOpacity
-                  style={styles.dashboardCardItem}
-                  onPress={() => setActiveBottomTab('SUPPORT')}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.dashboardCardIconBox}>
-                    <Ionicons name="headset" size={20} color="#0f2744" />
-                  </View>
-                  <View style={styles.dashboardCardTextBox}>
-                    <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_support', 'Help & Support')}
-                    </Text>
-                    <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_support_sub', '24/7 Helpline')}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                {/* 7. Terms and Condition */}
-                <TouchableOpacity
-                  style={styles.dashboardCardItem}
-                  onPress={() => router.push('/terms')}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.dashboardCardIconBox}>
-                    <Ionicons name="shield-checkmark" size={20} color="#0f2744" />
-                  </View>
-                  <View style={styles.dashboardCardTextBox}>
-                    <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_terms', 'Terms & Conditions')}
-                    </Text>
-                    <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_terms_sub', 'Policies & Safety')}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-            )}
             </View>
           </View>
         )}
@@ -3261,161 +3106,211 @@ export default function DriverDashboardScreen() {
             </TouchableOpacity>
 
             {/* ============================================================ */}
-            {/* 6 PROFILE SECTIONS - CLEAN & MODULAR (NO MORE CONGESTION)     */}
+            {/* 2-COLUMN PROFILE GRID CARDS (ORGANIZED MENU BOXES)            */}
             {/* ============================================================ */}
-            <View style={styles.profileSectionsList}>
-              {/* 1. MY PROFILE */}
+            <View style={styles.dashboardCardsGrid}>
+              {/* 1. Profile */}
               <TouchableOpacity
-                style={styles.profileSectionItem}
+                style={styles.dashboardCardItem}
                 onPress={() => setIsProfileModalOpen(true)}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
               >
-                <View style={styles.profileSectionIconBox}>
-                  <Ionicons name="person" size={22} color="#0f2744" />
+                <View style={styles.dashboardCardIconBox}>
+                  <Ionicons name="person" size={20} color="#0f2744" />
                 </View>
-                <View style={styles.profileSectionTextBox}>
-                  <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('profile.my_profile', 'My Profile')}
+                <View style={styles.dashboardCardTextBox}>
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('dashboard.card_profile', 'Profile')}
+                  </Text>
+                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('dashboard.card_profile_sub', 'Personal Details')}
                   </Text>
                 </View>
               </TouchableOpacity>
 
-              {/* 2. MY VEHICLE */}
+              {/* 2. My Vehicle */}
               <TouchableOpacity
-                style={styles.profileSectionItem}
+                style={styles.dashboardCardItem}
                 onPress={() => setIsVehicleModalOpen(true)}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
               >
-                <View style={styles.profileSectionIconBox}>
-                  <Ionicons name="car-sport" size={22} color="#0f2744" />
+                <View style={styles.dashboardCardIconBox}>
+                  <Ionicons name="car" size={20} color="#0f2744" />
                 </View>
-                <View style={styles.profileSectionTextBox}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('profile.my_vehicle', 'My Vehicle')}
-                    </Text>
-                    {hasVehiclePendingDocs && (
-                      <Ionicons name="alert-circle" size={17} color="#dc2626" />
-                    )}
+                <View style={styles.dashboardCardTextBox}>
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('dashboard.card_vehicle', 'My Vehicle')}
+                  </Text>
+                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('dashboard.card_vehicle_sub', 'Fleet & Cabs')}
+                  </Text>
+                </View>
+                {hasVehiclePendingDocs && (
+                  <View style={styles.dashboardCardAlertBadge}>
+                    <Ionicons name="alert-circle" size={16} color="#ef4444" />
                   </View>
-                </View>
+                )}
               </TouchableOpacity>
 
-              {/* 3. DOCUMENTS AND KYC */}
+              {/* 3. KYC */}
               <TouchableOpacity
-                style={styles.profileSectionItem}
+                style={styles.dashboardCardItem}
                 onPress={() => router.push('/documents')}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
               >
-                <View style={styles.profileSectionIconBox}>
-                  <Ionicons name="document-text" size={22} color="#0f2744" />
+                <View style={styles.dashboardCardIconBox}>
+                  <Ionicons name="document-text" size={20} color="#0f2744" />
                 </View>
-                <View style={styles.profileSectionTextBox}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('profile.documents_and_kyc', 'Documents and KYC')}
-                    </Text>
-                    {hasKycPendingDocs && (
-                      <Ionicons name="alert-circle" size={17} color="#dc2626" />
-                    )}
+                <View style={styles.dashboardCardTextBox}>
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('dashboard.card_kyc', 'KYC')}
+                  </Text>
+                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('dashboard.card_kyc_sub', 'Documents & Verify')}
+                  </Text>
+                </View>
+                {hasKycPendingDocs && (
+                  <View style={styles.dashboardCardAlertBadge}>
+                    <Ionicons name="alert-circle" size={16} color="#ef4444" />
                   </View>
+                )}
+              </TouchableOpacity>
+
+              {/* 4. My Trips */}
+              <TouchableOpacity
+                style={styles.dashboardCardItem}
+                onPress={() => setActiveBottomTab('MY_TRIPS')}
+                activeOpacity={0.75}
+              >
+                <View style={styles.dashboardCardIconBox}>
+                  <Ionicons name="receipt" size={20} color="#0f2744" />
+                </View>
+                <View style={styles.dashboardCardTextBox}>
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('dashboard.card_trips', 'My Trips')}
+                  </Text>
+                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('dashboard.card_trips_sub', 'History & Earnings')}
+                  </Text>
                 </View>
               </TouchableOpacity>
 
-              {/* 4. PAYMENT */}
+              {/* 5. Payment */}
               <TouchableOpacity
-                style={styles.profileSectionItem}
+                style={styles.dashboardCardItem}
                 onPress={() => router.push('/payout-details')}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
               >
-                <View style={styles.profileSectionIconBox}>
-                  <Ionicons name="wallet" size={22} color="#0f2744" />
+                <View style={styles.dashboardCardIconBox}>
+                  <Ionicons name="wallet" size={20} color="#0f2744" />
                 </View>
-                <View style={styles.profileSectionTextBox}>
-                  <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
+                <View style={styles.dashboardCardTextBox}>
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
                     {t('profile.payment', 'Payment')}
                   </Text>
+                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('profile.payment_sub', 'Bank & Payouts')}
+                  </Text>
                 </View>
               </TouchableOpacity>
 
-              {/* 5. NOTIFICATIONS */}
+              {/* 6. Notifications */}
               <TouchableOpacity
-                style={styles.profileSectionItem}
+                style={styles.dashboardCardItem}
                 onPress={() => router.push('/notifications')}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
               >
-                <View style={styles.profileSectionIconBox}>
-                  <Ionicons name="notifications" size={22} color="#0f2744" />
+                <View style={styles.dashboardCardIconBox}>
+                  <Ionicons name="notifications" size={20} color="#0f2744" />
                 </View>
-                <View style={styles.profileSectionTextBox}>
-                  <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('profile.notifications', 'Notifications')}
+                <View style={styles.dashboardCardTextBox}>
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('dashboard.card_notifications', 'Notifications')}
+                  </Text>
+                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('dashboard.card_notifications_sub', 'Alerts & Updates')}
                   </Text>
                 </View>
+                {unreadUpdatesCount > 0 && (
+                  <View style={styles.dashboardCardNotifBadge}>
+                    <Text style={styles.dashboardCardNotifBadgeText}>
+                      {unreadUpdatesCount > 9 ? '9+' : unreadUpdatesCount}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
 
-              {/* 6. HELP AND SUPPORT */}
+              {/* 7. Help and Support */}
               <TouchableOpacity
-                style={styles.profileSectionItem}
+                style={styles.dashboardCardItem}
                 onPress={() => setActiveBottomTab('SUPPORT')}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
               >
-                <View style={styles.profileSectionIconBox}>
-                  <Ionicons name="headset" size={22} color="#0f2744" />
+                <View style={styles.dashboardCardIconBox}>
+                  <Ionicons name="headset" size={20} color="#0f2744" />
                 </View>
-                <View style={styles.profileSectionTextBox}>
-                  <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('profile.help_and_support', 'Help and Support')}
+                <View style={styles.dashboardCardTextBox}>
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('dashboard.card_support', 'Help & Support')}
+                  </Text>
+                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('dashboard.card_support_sub', '24/7 Helpline')}
                   </Text>
                 </View>
               </TouchableOpacity>
 
-              {/* 7. TERMS AND CONDITIONS */}
+              {/* 8. Terms and Conditions */}
               <TouchableOpacity
-                style={styles.profileSectionItem}
+                style={styles.dashboardCardItem}
                 onPress={() => router.push('/terms')}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
               >
-                <View style={styles.profileSectionIconBox}>
-                  <Ionicons name="shield-checkmark" size={22} color="#0f2744" />
+                <View style={styles.dashboardCardIconBox}>
+                  <Ionicons name="shield-checkmark" size={20} color="#0f2744" />
                 </View>
-                <View style={styles.profileSectionTextBox}>
-                  <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('profile.terms_and_conditions', 'Terms and Conditions')}
+                <View style={styles.dashboardCardTextBox}>
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('dashboard.card_terms', 'Terms & Conditions')}
+                  </Text>
+                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('dashboard.card_terms_sub', 'Policies & Safety')}
                   </Text>
                 </View>
               </TouchableOpacity>
+            </View>
 
-              {/* 8. APP LANGUAGE */}
+            {/* Utility Options: App Language & Logout */}
+            <View style={styles.profileBottomUtilityContainer}>
               <TouchableOpacity
-                style={styles.profileSectionItem}
+                style={styles.profileUtilityCard}
                 onPress={() => setIsLangModalOpen(true)}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
               >
                 <View style={styles.profileSectionIconBox}>
-                  <Ionicons name="globe" size={22} color="#0f2744" />
+                  <Ionicons name="globe" size={20} color="#0f2744" />
                 </View>
                 <View style={styles.profileSectionTextBox}>
                   <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
                     {t('profile.app_language', 'App Language')}
                   </Text>
                 </View>
+                <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
               </TouchableOpacity>
 
-              {/* 9. LOGOUT */}
               <TouchableOpacity
-                style={[styles.profileSectionItem, styles.profileSectionLogout]}
+                style={[styles.profileUtilityCard, styles.profileUtilityLogoutCard]}
                 onPress={handleLogout}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
               >
                 <View style={styles.profileSectionIconBox}>
-                  <Ionicons name="log-out" size={22} color="#dc2626" />
+                  <Ionicons name="log-out" size={20} color="#dc2626" />
                 </View>
                 <View style={styles.profileSectionTextBox}>
                   <Text style={[styles.profileSectionTitle, { color: '#dc2626' }]} numberOfLines={1} adjustsFontSizeToFit>
                     {t('profile.logout', 'Logout')}
                   </Text>
                 </View>
+                <Ionicons name="chevron-forward" size={18} color="#dc2626" />
               </TouchableOpacity>
             </View>
 
@@ -7444,6 +7339,30 @@ const styles = StyleSheet.create({
   },
   profileSectionsList: {
     marginBottom: 24,
+  },
+  profileBottomUtilityContainer: {
+    marginTop: 4,
+    marginBottom: 20,
+    gap: 10,
+  },
+  profileUtilityCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#eef2f6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  profileUtilityLogoutCard: {
+    borderColor: '#fee2e2',
+    backgroundColor: '#fff7f7',
   },
   profileSectionItem: {
     flexDirection: 'row',
