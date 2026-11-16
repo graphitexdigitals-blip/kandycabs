@@ -1674,9 +1674,9 @@ export default function DriverDashboardScreen() {
                   )}
                 </TouchableOpacity>
 
-                {/* 7. Help & Support (Lavender) */}
+                {/* 7. Help & Support (Lavender) - One in a row */}
                 <TouchableOpacity
-                  style={[styles.heroCardGridItem, styles.heroCardBgLavender]}
+                  style={[styles.heroCardGridItemFull, styles.heroCardBgLavender]}
                   onPress={() => setActiveBottomTab('SUPPORT')}
                   activeOpacity={0.75}
                 >
@@ -1691,11 +1691,12 @@ export default function DriverDashboardScreen() {
                       {t('dashboard.card_support_sub', '24/7 Helpline')}
                     </Text>
                   </View>
+                  <Ionicons name="chevron-forward" size={17} color="#475569" style={{ marginLeft: 'auto' }} />
                 </TouchableOpacity>
 
-                {/* 8. Terms & Conditions (Mint Green) */}
+                {/* 8. Terms & Conditions (Mint Green) - One in a row */}
                 <TouchableOpacity
-                  style={[styles.heroCardGridItem, styles.heroCardBgMint]}
+                  style={[styles.heroCardGridItemFull, styles.heroCardBgMint]}
                   onPress={() => router.push('/terms')}
                   activeOpacity={0.75}
                 >
@@ -1710,6 +1711,7 @@ export default function DriverDashboardScreen() {
                       {t('dashboard.card_terms_sub', 'Policies & Safety')}
                     </Text>
                   </View>
+                  <Ionicons name="chevron-forward" size={17} color="#475569" style={{ marginLeft: 'auto' }} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -3413,9 +3415,9 @@ export default function DriverDashboardScreen() {
                 )}
               </TouchableOpacity>
 
-              {/* 7. Help and Support (Lavender) */}
+              {/* 7. Help and Support (Lavender) - One in a row */}
               <TouchableOpacity
-                style={[styles.dashboardCardItem, styles.dashboardCardBgLavender]}
+                style={[styles.dashboardCardItemFull, styles.dashboardCardBgLavender]}
                 onPress={() => setActiveBottomTab('SUPPORT')}
                 activeOpacity={0.75}
               >
@@ -3430,11 +3432,12 @@ export default function DriverDashboardScreen() {
                     {t('dashboard.card_support_sub', '24/7 Helpline')}
                   </Text>
                 </View>
+                <Ionicons name="chevron-forward" size={17} color="#475569" style={{ marginLeft: 'auto' }} />
               </TouchableOpacity>
 
-              {/* 8. Terms and Conditions (Mint Green) */}
+              {/* 8. Terms and Conditions (Mint Green) - One in a row */}
               <TouchableOpacity
-                style={[styles.dashboardCardItem, styles.dashboardCardBgMint]}
+                style={[styles.dashboardCardItemFull, styles.dashboardCardBgMint]}
                 onPress={() => router.push('/terms')}
                 activeOpacity={0.75}
               >
@@ -3449,6 +3452,7 @@ export default function DriverDashboardScreen() {
                     {t('dashboard.card_terms_sub', 'Policies & Safety')}
                   </Text>
                 </View>
+                <Ionicons name="chevron-forward" size={17} color="#475569" style={{ marginLeft: 'auto' }} />
               </TouchableOpacity>
             </View>
 
@@ -3943,6 +3947,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     minHeight: 64,
+  },
+  heroCardGridItemFull: {
+    width: '100%',
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 9,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+    minHeight: 56,
   },
   heroCardGridIconBox: {
     width: 28,
