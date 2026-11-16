@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@kandy-cabs/db';
 import { getDriverSession } from '@/lib/driver-auth';
-import { BookingStatus, DispatchStatus } from '@kandy-cabs/shared';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
 import { RealtimeEvents } from '@/lib/realtime-events';
 
@@ -33,7 +32,7 @@ export async function POST(req: NextRequest) {
       return setCorsHeaders(res);
     }
 
-    // Check if the booking was already accepted by this driver (support matching by id or humanReadableRef)
+    // Check if the booking exists (support matching by id or humanReadableRef)
     const currentBooking = await prisma.booking.findFirst({
       where: {
         OR: [
@@ -45,143 +44,67 @@ export async function POST(req: NextRequest) {
     });
 
     const targetBookingId = currentBooking?.id || bookingId;
-    const isAlreadyAccepted =
-      currentBooking?.assignedDriverId === session.driverId ||
-      currentBooking?.status === BookingStatus.DRIVER_ACCEPTED;
+    const bookingRef = currentBooking?.humanReadableRef || bookingId;
 
-    if (isAlreadyAccepted) {
-      // Driver is requesting cancellation of an accepted assignment.
-      // Admin MUST accept the cancellation request before unassigning!
-      await prisma.$transaction(async (tx) => {
-        // Record TripEvent: DRIVER_CANCEL_REQUESTED
-        await tx.tripEvent.create({
-          data: {
-            bookingId: targetBookingId,
-            type: 'DRIVER_CANCEL_REQUESTED',
-            payloadJson: {
-              driverId: session.driverId,
-              driverName: session.user.fullName,
-              driverPhone: session.user.phone,
-              dispatchId,
-              bookingRef: currentBooking?.humanReadableRef || targetBookingId,
-              reason: reason || 'Driver requested ride cancellation',
-              timestamp: new Date().toISOString(),
-              status: 'PENDING_ADMIN_ACCEPTANCE',
-            },
-          },
-        });
-
-        // Record AuditLog
-        await tx.auditLog.create({
-          data: {
-            actorUserId: session.userId,
-            action: 'DRIVER_CANCEL_REQUESTED',
-            entityType: 'Booking',
-            entityId: targetBookingId,
-            reason: `Driver ${session.user.fullName} requested cancellation: ${reason || 'No reason specified'}`,
-          },
-        });
-      });
-
-      // Broadcast to Admin and booking channel
-      RealtimeEvents.emitToBooking(targetBookingId, 'BOOKING_STATUS', {
-        bookingId: targetBookingId,
-        bookingRef: currentBooking?.humanReadableRef || targetBookingId,
-        driverCancelRequested: true,
-        driverId: session.driverId,
-        driverName: session.user.fullName,
-        driverPhone: session.user.phone,
-        reason: reason || 'Driver requested ride cancellation',
-      });
-
-      RealtimeEvents.emitToAllDrivers('TRIP_STATUS', {
-        bookingId: targetBookingId,
-        bookingRef: currentBooking?.humanReadableRef || targetBookingId,
-        driverCancelRequested: true,
-        driverId: session.driverId,
-      });
-
-      const res = NextResponse.json(
-        {
-          success: true,
-          pendingApproval: true,
-          bookingId: targetBookingId,
-          bookingRef: currentBooking?.humanReadableRef || targetBookingId,
-          message: 'Cancellation request sent to Admin. Please wait for Admin to accept your request.',
-        },
-        { status: 200 }
-      );
-      return setCorsHeaders(res);
-    }
-
-    // Atomic Transaction for Driver Decline (Pending offer not yet accepted)
+    // Driver requested cancellation or decline with a reason:
+    // ALWAYS submit as a cancellation request requiring Admin approval.
+    // NEVER auto-decline or auto-unassign without Admin acceptance!
     await prisma.$transaction(async (tx) => {
-      // 1. Mark this driver's dispatch as EXPIRED/DECLINED
-      await tx.bookingDispatch.updateMany({
-        where: {
-          id: dispatchId,
-          driverId: session.driverId,
-        },
-        data: {
-          status: DispatchStatus.EXPIRED,
-          respondedAt: new Date(),
-        },
-      });
-
-      // 2. If the booking was assigned to this driver, unassign so admin can re-dispatch
-      await tx.booking.updateMany({
-        where: {
-          id: bookingId,
-          assignedDriverId: session.driverId,
-        },
-        data: {
-          assignedDriverId: null,
-          status: BookingStatus.DISPATCHED,
-        },
-      });
-
-      // 3. Record TripEvent for admin panel tracking
+      // 1. Record TripEvent: DRIVER_CANCEL_REQUESTED
       await tx.tripEvent.create({
         data: {
-          bookingId,
-          type: 'DRIVER_DECLINED',
+          bookingId: targetBookingId,
+          type: 'DRIVER_CANCEL_REQUESTED',
           payloadJson: {
             driverId: session.driverId,
             driverName: session.user.fullName,
             driverPhone: session.user.phone,
             dispatchId,
-            reason: reason || 'Declined by driver from mobile app',
+            bookingRef,
+            reason: reason || 'Driver requested ride cancellation',
             timestamp: new Date().toISOString(),
+            status: 'PENDING_ADMIN_ACCEPTANCE',
           },
         },
       });
 
-      // 4. Record AuditLog
+      // 2. Record AuditLog
       await tx.auditLog.create({
         data: {
           actorUserId: session.userId,
-          action: 'DRIVER_DECLINE_DISPATCH',
+          action: 'DRIVER_CANCEL_REQUESTED',
           entityType: 'Booking',
-          entityId: bookingId,
-          reason: `Driver ${session.user.fullName} declined ride dispatch${reason ? `: ${reason}` : '.'}`,
+          entityId: targetBookingId,
+          reason: `Driver ${session.user.fullName} requested cancellation: ${reason || 'No reason specified'}`,
         },
       });
     });
 
-    // 5. Realtime SSE: Broadcast decline to admin & booking channel
-    RealtimeEvents.emitToBooking(bookingId, 'BOOKING_STATUS', {
-      bookingId,
-      status: BookingStatus.DISPATCHED,
-      driverDeclined: true,
+    // 3. Broadcast to Admin and booking channel
+    RealtimeEvents.emitToBooking(targetBookingId, 'BOOKING_STATUS', {
+      bookingId: targetBookingId,
+      bookingRef,
+      driverCancelRequested: true,
       driverId: session.driverId,
       driverName: session.user.fullName,
-      reason: reason || 'Declined by driver',
+      driverPhone: session.user.phone,
+      reason: reason || 'Driver requested ride cancellation',
+    });
+
+    RealtimeEvents.emitToAllDrivers('TRIP_STATUS', {
+      bookingId: targetBookingId,
+      bookingRef,
+      driverCancelRequested: true,
+      driverId: session.driverId,
     });
 
     const res = NextResponse.json(
       {
         success: true,
-        message: 'Ride declined successfully. Admin has been notified.',
+        pendingApproval: true,
+        bookingId: targetBookingId,
+        bookingRef,
+        message: 'Cancellation request sent to Admin. Please wait for Admin to accept your request.',
       },
       { status: 200 }
     );
@@ -189,10 +112,9 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('Error in POST /api/driver/dispatches/decline:', error);
     const res = NextResponse.json(
-      { success: false, message: error.message || 'Failed to decline dispatch' },
+      { success: false, message: error.message || 'Failed to process cancellation request' },
       { status: 500 }
     );
     return setCorsHeaders(res);
   }
 }
-

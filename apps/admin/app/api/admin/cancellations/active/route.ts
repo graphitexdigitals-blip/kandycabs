@@ -17,11 +17,10 @@ export async function GET(req: NextRequest) {
       return setCorsHeaders(res);
     }
 
-    // Find all bookings with assigned driver where latest DRIVER_CANCEL_REQUESTED event is pending
+    // Find all bookings where latest DRIVER_CANCEL_REQUESTED event is pending
     const bookings = await prisma.booking.findMany({
       where: {
         deletedAt: null,
-        assignedDriverId: { not: null },
         tripEvents: {
           some: {
             type: 'DRIVER_CANCEL_REQUESTED',

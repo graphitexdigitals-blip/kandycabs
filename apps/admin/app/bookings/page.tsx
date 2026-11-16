@@ -566,7 +566,19 @@ export default function AdminBookingsPage() {
               const hasOverrideRequest =
                 b.tripEvents?.some((e: any) => e.type === 'OVERRIDE_REQUESTED') &&
                 (b.status === BookingStatus.DRIVER_ACCEPTED || b.status === BookingStatus.DRIVER_EN_ROUTE);
-              const statusDisplay = getStatusDisplay(b.status);
+              const latestCancelReq = b.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED');
+              const latestCancelApp = b.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_APPROVED');
+              const hasPendingCancel =
+                Boolean(latestCancelReq) &&
+                (!latestCancelApp || new Date(latestCancelReq.createdAt) > new Date(latestCancelApp.createdAt));
+
+              const statusDisplay = hasPendingCancel
+                ? {
+                    label: 'Cancel Requested',
+                    badgeClass: 'bg-rose-50 text-rose-700 border-rose-300 font-bold',
+                    icon: <IconAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />,
+                  }
+                : getStatusDisplay(b.status);
 
               const completeEvt = b.tripEvents?.find((e: any) => e.type === 'TRIP_COMPLETED');
               const paymentMethod = completeEvt?.payloadJson?.paymentMethod;
@@ -685,6 +697,47 @@ export default function AdminBookingsPage() {
               };
 
               const renderDriverContent = () => {
+                const latestCancelReq = b.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED');
+                const latestCancelApp = b.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_APPROVED');
+                const hasPendingCancel =
+                  Boolean(latestCancelReq) &&
+                  (!latestCancelApp || new Date(latestCancelReq.createdAt) > new Date(latestCancelApp.createdAt));
+
+                if (hasPendingCancel) {
+                  const driverName = b.assignedDriver?.user?.fullName || latestCancelReq?.payloadJson?.driverName || cleanDriverName || 'Driver Partner';
+                  const driverPhone = b.assignedDriver?.user?.phone || latestCancelReq?.payloadJson?.driverPhone || '';
+                  return (
+                    <div className="space-y-1">
+                      <span className="font-bold text-slate-900 text-sm block truncate" title={driverName}>
+                        {driverName}
+                      </span>
+                      {driverPhone ? (
+                        <span className="text-xs text-slate-500 font-mono block">{driverPhone}</span>
+                      ) : null}
+                      <div className="mt-1 p-2 bg-rose-50 border border-rose-300 rounded-lg shadow-xs">
+                        <span className="text-[11px] font-black text-rose-900 flex items-center gap-1">
+                          <IconAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                          <span>Cancellation Requested</span>
+                        </span>
+                        <span className="text-[10px] text-rose-800 font-bold block mt-0.5 truncate max-w-[150px]" title={latestCancelReq?.payloadJson?.reason}>
+                          "{latestCancelReq?.payloadJson?.reason || 'Reason not specified'}"
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDirectAcceptCancellation(b.id);
+                          }}
+                          className="mt-1.5 w-full px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-[11px] font-black rounded-md shadow-sm transition flex items-center justify-center gap-1"
+                        >
+                          <span>✓</span>
+                          <span>Accept Cancellation</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
                 if (b.assignedDriver) {
                   return (
                     <div className="space-y-0.5">
@@ -715,40 +768,6 @@ export default function AdminBookingsPage() {
                           </span>
                         )}
                       </div>
-
-                      {/* Driver Cancellation Request Alert & 1-Click Accept in Table */}
-                      {(() => {
-                        const latestCancelReq = b.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED');
-                        const latestCancelApp = b.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_APPROVED');
-                        const hasPendingCancel =
-                          Boolean(latestCancelReq) &&
-                          (!latestCancelApp || new Date(latestCancelReq.createdAt) > new Date(latestCancelApp.createdAt)) &&
-                          b.assignedDriver != null;
-
-                        if (!hasPendingCancel) return null;
-
-                        return (
-                          <div className="mt-1.5 p-1.5 bg-amber-50 border border-amber-300 rounded-lg">
-                            <span className="text-[11px] font-black text-amber-900 flex items-center gap-1">
-                              <IconAlert className="w-3 h-3 text-amber-600 shrink-0" />
-                              <span>Cancel Requested</span>
-                            </span>
-                            <span className="text-[10px] text-rose-700 font-bold block truncate max-w-[140px]" title={latestCancelReq?.payloadJson?.reason}>
-                              "{latestCancelReq?.payloadJson?.reason || 'Reason not specified'}"
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDirectAcceptCancellation(b.id);
-                              }}
-                              className="mt-1 w-full px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black rounded shadow-xs"
-                            >
-                              Accept Cancel
-                            </button>
-                          </div>
-                        );
-                      })()}
                     </div>
                   );
                 }
