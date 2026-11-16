@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { SlideToAccept } from './SlideToAccept';
 import {
   formatTripDateTime,
   parseCustomerRequirements,
@@ -135,199 +134,204 @@ export function NewTripsModal({
                 const note = extractCustomerNotes(b);
 
                 return (
-                  <View key={d.id || `dispatch-${index}`} style={styles.premiumCard}>
-                    {/* Top Header Row: Live Alert Pill + Booking Ref + Distance */}
-                    <View style={styles.topHeaderRow}>
-                      <View style={styles.topHeaderLeft}>
-                        <View style={styles.newRideBadge}>
-                          <Ionicons name="radio-button-on" size={13} color="#2563eb" style={{ marginRight: 4 }} />
-                          <Text style={styles.newRideBadgeText}>NEW RIDE</Text>
+                  <View key={d.id || `dispatch-${index}`} style={styles.floatingDispatchCardWhite}>
+                    {/* Header Banner: Negative Margins with #f8fafc background matching Image 1 */}
+                    <View style={styles.dispatchHeaderBanner}>
+                      <View style={styles.dispatchHeaderRow}>
+                        <View>
+                          <View style={styles.newAlertBadge}>
+                            <Ionicons
+                              name="radio-button-on"
+                              size={13}
+                              color="#2563eb"
+                            />
+                            <Text style={styles.newAlertText}>
+                              {t('dashboard.new_ride', 'NEW RIDE')}
+                            </Text>
+                          </View>
+                          <Text style={styles.dispatchRefText}>
+                            {b?.humanReadableRef || 'RIDE'}
+                          </Text>
                         </View>
-                        <Text style={styles.bookingRefText}>
-                          {b?.humanReadableRef || 'RIDE'}
-                        </Text>
-                      </View>
-
-                      {b?.distanceKm ? (
-                        <View style={styles.distanceBadge}>
-                          <Ionicons name="location-sharp" size={12} color="#ea580c" style={{ marginRight: 3 }} />
-                          <Text style={styles.distanceBadgeText}>{b.distanceKm} km</Text>
+                        <View style={styles.distanceBadgeLight}>
+                          <Text style={styles.distanceBadgeTextLight}>
+                            📍 {b?.distanceKm || '--'} km
+                          </Text>
                         </View>
-                      ) : null}
-                    </View>
-
-                    {/* Earnings Hero Row */}
-                    <View style={styles.earningsHeroRow}>
-                      <View>
-                        <Text style={styles.earningsAmount}>
-                          ₹{payeeAmount.toLocaleString('en-IN')}
-                        </Text>
-                        <Text style={styles.earningsLabel}>Driver Payee Amount</Text>
-                      </View>
-                      <View style={styles.tripTypeTag}>
-                        <Text style={styles.tripTypeTagText}>
-                          {b?.tripType ? (b.tripType === 'ONE_WAY' ? 'ONEWAY' : b.tripType.replace(/_/g, ' ')) : 'ONEWAY'}
-                          {b?.category ? ` • ${b.category}` : ''}
-                        </Text>
                       </View>
                     </View>
 
-                    {/* Pickup Date & Time Banner */}
-                    <View style={styles.pickupTimeBanner}>
-                      <View style={styles.pickupTimeLeft}>
-                        <Ionicons name="calendar" size={15} color="#0284c7" />
-                        <Text style={styles.pickupTimeLabel}>PICKUP DATE & TIME:</Text>
-                        <Text style={styles.pickupTimeValue}>{tripTiming.fullText}</Text>
+                    {/* Trip Date & Pickup Time Banner */}
+                    <View style={styles.tripDateBanner}>
+                      <View style={styles.tripDateBannerLeft}>
+                        <Ionicons name="calendar" size={14} color="#0284c7" />
+                        <Text style={styles.tripDateBannerLabel}>
+                          {t('dashboard.pickup_date_time_banner', { defaultValue: 'PICKUP DATE & TIME:' })}
+                        </Text>
+                        <Text style={styles.tripDateBannerValue}>
+                          {tripTiming.fullText}
+                        </Text>
                       </View>
                       {tripTiming.isToday ? (
-                        <View style={styles.todayPill}>
-                          <Text style={styles.todayTagText}>TODAY</Text>
+                        <View style={styles.todayTagPill}>
+                          <Text style={styles.todayTagText}>
+                            {t('dashboard.today_tag', { defaultValue: 'TODAY' })}
+                          </Text>
                         </View>
                       ) : tripTiming.isTomorrow ? (
-                        <View style={styles.tomorrowPill}>
-                          <Text style={styles.tomorrowTagText}>TOMORROW</Text>
+                        <View style={styles.tomorrowTagPill}>
+                          <Text style={styles.tomorrowTagText}>
+                            {t('dashboard.tomorrow_tag', { defaultValue: 'TOMORROW' })}
+                          </Text>
                         </View>
                       ) : null}
                     </View>
 
-                    {/* Stepper Route (Clean & Open) */}
-                    <View style={styles.routeContainer}>
-                      {/* Pickup */}
-                      <View style={styles.routePointRow}>
-                        <View style={styles.pinCircleGreen}>
-                          <Ionicons name="location-sharp" size={14} color="#16a34a" />
-                        </View>
-                        <View style={styles.routeTextCol}>
-                          <Text style={styles.routeAddressText}>
-                            {b?.pickupAddress || 'Pickup Location'}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {/* Dashed Connecting Line */}
-                      <View style={styles.connectorTrack}>
-                        <View style={styles.connectorDashedLine} />
-                      </View>
-
-                      {/* Destination */}
-                      <View style={styles.routePointRow}>
-                        <View style={styles.pinCircleRed}>
-                          <Ionicons name="location-sharp" size={14} color="#dc2626" />
-                        </View>
-                        <View style={styles.routeTextCol}>
-                          <Text style={styles.routeAddressText}>
-                            {b?.dropAddress || 'Destination Address'}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* Customer Requirements & Passenger Specs */}
-                    <View style={styles.specsSection}>
-                      <View style={styles.specsHeaderRow}>
-                        <Ionicons name="options-outline" size={12} color="#64748b" />
-                        <Text style={styles.specsHeading}>CUSTOMER REQUIREMENTS</Text>
-                      </View>
-                      <View style={styles.specsRow}>
-                        <View style={styles.specChip}>
-                          <Ionicons name="person" size={12} color="#0f2744" />
-                          <Text style={styles.specChipText}>
-                            {b?.customer?.user?.fullName || 'Customer'}
-                          </Text>
-                        </View>
-
-                        {reqs.map((r, rIdx) => (
-                          <View key={`req-${rIdx}`} style={styles.specChip}>
-                            <Ionicons name={r.icon as any} size={12} color="#475569" />
-                            <Text style={styles.specChipText}>{r.label}</Text>
+                    {/* Stepper Route (Clean open design matching Image 1) */}
+                    <View style={styles.stepperContainer}>
+                      <View style={styles.stepperLeft}>
+                        {/* Pickup */}
+                        <View style={styles.stepPoint}>
+                          <Ionicons name="location-sharp" size={16} color="#16a34a" style={styles.pickupPin} />
+                          <View style={styles.stepTextGroup}>
+                            <Text style={styles.locationTitle}>{b?.pickupAddress || 'Pickup Location'}</Text>
                           </View>
-                        ))}
-                      </View>
-
-                      {note ? (
-                        <View style={styles.notesBox}>
-                          <Ionicons name="chatbubble-ellipses-outline" size={13} color="#9a3412" style={{ marginTop: 1 }} />
-                          <Text style={styles.notesText}>Note: "{note}"</Text>
                         </View>
-                      ) : null}
+
+                        {/* Connector line */}
+                        <View style={styles.dashedTrail} />
+
+                        {/* Drop */}
+                        <View style={styles.stepPoint}>
+                          <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
+                          <View style={styles.stepTextGroup}>
+                            <Text style={styles.locationTitle}>{b?.dropAddress || 'Drop Location'}</Text>
+                          </View>
+                        </View>
+                      </View>
                     </View>
 
-                    {/* ======================================================= */}
-                    {/* REDESIGNED BUTTONS: HIGH-CONVERTING MODERN ACTIONS     */}
-                    {/* ======================================================= */}
-                    <View style={styles.actionsSection}>
-                      {/* 1. Modern Side-by-Side Decline & Accept Buttons */}
-                      <View style={styles.dualButtonsRow}>
-                        {/* DECLINE BUTTON (Clean, Soft-Red Rounded Pill) */}
-                        <TouchableOpacity
-                          style={styles.modernDeclineBtn}
-                          onPress={() => {
-                            Alert.alert(
-                              'Decline Ride',
-                              'Are you sure you want to pass on this ride request?',
-                              [
-                                { text: 'Cancel', style: 'cancel' },
-                                {
-                                  text: 'Decline',
-                                  style: 'destructive',
-                                  onPress: () => onDeclineDispatch(d.id, bookingId),
-                                },
-                              ]
-                            );
-                          }}
-                          disabled={isAccepting || isDeclining}
-                          activeOpacity={0.8}
-                        >
-                          {isDeclining ? (
-                            <ActivityIndicator size="small" color="#dc2626" />
-                          ) : (
-                            <>
-                              <Ionicons name="close-circle-outline" size={18} color="#dc2626" style={{ marginRight: 6 }} />
-                              <Text style={styles.modernDeclineBtnText}>DECLINE</Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-
-                        {/* ACCEPT RIDE BUTTON (Rich Emerald Green with Checkmark) */}
-                        <TouchableOpacity
-                          style={styles.modernAcceptBtn}
-                          onPress={async () => {
-                            await onAcceptDispatch(d.id, bookingId);
-                            onClose();
-                          }}
-                          disabled={isAccepting || isDeclining}
-                          activeOpacity={0.85}
-                        >
-                          {isAccepting ? (
-                            <ActivityIndicator size="small" color="#ffffff" />
-                          ) : (
-                            <>
-                              <Ionicons name="checkmark-circle" size={19} color="#ffffff" style={{ marginRight: 6 }} />
-                              <Text style={styles.modernAcceptBtnText}>ACCEPT RIDE</Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
+                    {/* Customer Requirements & Preferences Pills */}
+                    {(reqs.length > 0 || note) && (
+                      <View style={styles.dispatchReqsSection}>
+                        <View style={styles.dispatchReqsHeaderRow}>
+                          <Ionicons name="options-outline" size={12} color="#64748b" />
+                          <Text style={styles.dispatchReqsHeading}>
+                            {t('dashboard.customer_requirements', { defaultValue: 'CUSTOMER REQUIREMENTS' })}
+                          </Text>
+                        </View>
+                        <View style={styles.dispatchReqsRow}>
+                          {reqs.map((r, rIdx) => (
+                            <React.Fragment key={`req-${rIdx}`}>
+                              {rIdx > 0 && <View style={styles.reqLineSeparator} />}
+                              <View style={styles.reqPill}>
+                                <Ionicons
+                                  name={r.icon as any}
+                                  size={12}
+                                  color={
+                                    r.type === 'highlight'
+                                      ? '#c2410c'
+                                      : r.type === 'warning'
+                                      ? '#b45309'
+                                      : r.type === 'info'
+                                      ? '#2563eb'
+                                      : '#334155'
+                                  }
+                                />
+                                <Text
+                                  style={[
+                                    styles.reqPillText,
+                                    r.type === 'highlight' && styles.reqPillTextHighlight,
+                                    r.type === 'warning' && styles.reqPillTextWarning,
+                                    r.type === 'info' && styles.reqPillTextInfo,
+                                  ]}
+                                >
+                                  {r.label}
+                                </Text>
+                              </View>
+                            </React.Fragment>
+                          ))}
+                        </View>
+                        {note ? (
+                          <View style={styles.dispatchNotesBox}>
+                            <Ionicons name="chatbubble-ellipses-outline" size={12} color="#475569" style={{ marginTop: 1 }} />
+                            <Text style={styles.dispatchNotesText} numberOfLines={2}>
+                              Note: "{note}"
+                            </Text>
+                          </View>
+                        ) : null}
                       </View>
+                    )}
 
-                      {/* 2. Optional Slide To Accept for swipe convenience */}
-                      <View style={styles.orDividerRow}>
-                        <View style={styles.orDividerLine} />
-                        <Text style={styles.orDividerText}>OR SLIDE TO LOCK</Text>
-                        <View style={styles.orDividerLine} />
+                    {/* Passenger, Driver Payee Amount In Between, & Trip Type Row */}
+                    <View style={styles.dispatchPassengerRowLight}>
+                      <View style={styles.passengerGroupLeft}>
+                        <Ionicons name="person" size={12} color="#2563eb" style={{ marginRight: 5 }} />
+                        <Text style={styles.dispatchPassengerNameDark} numberOfLines={1}>
+                          {b?.customer?.user?.fullName || 'Customer'}
+                        </Text>
                       </View>
+                      <Text style={styles.dispatchVendorAmountCenter}>
+                        ₹{payeeAmount.toLocaleString('en-IN')}
+                      </Text>
+                      <Text style={styles.dispatchTripTypeOrange}>
+                        {b?.tripType ? (b.tripType === 'ONE_WAY' ? 'ONEWAY' : b.tripType.replace(/_/g, ' ')) : 'ONEWAY'}
+                      </Text>
+                    </View>
 
-                      <View style={styles.sliderContainer}>
-                        <SlideToAccept
-                          onAccept={async () => {
-                            await onAcceptDispatch(d.id, bookingId);
-                            onClose();
-                          }}
-                          isAccepting={isAccepting}
-                          disabled={isAccepting || isDeclining}
-                          title={t('dashboard.slide_to_accept_caps', { defaultValue: 'SLIDE TO ACCEPT RIDE' })}
-                          acceptingTitle={t('dashboard.accepting', { defaultValue: 'ACCEPTING RIDE...' })}
-                        />
-                      </View>
+                    {/* Decline (Left) & Accept (Right) Action Buttons Row - EXACTLY AS IMAGE 1 */}
+                    <View style={styles.dispatchActionRow}>
+                      <TouchableOpacity
+                        style={styles.declineDispatchBtn}
+                        onPress={() => {
+                          Alert.alert(
+                            'Decline Ride',
+                            'Are you sure you want to pass on this ride request?',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Decline',
+                                style: 'destructive',
+                                onPress: () => onDeclineDispatch(d.id, bookingId),
+                              },
+                            ]
+                          );
+                        }}
+                        disabled={isAccepting || isDeclining}
+                        activeOpacity={0.8}
+                      >
+                        {isDeclining ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <>
+                            <Ionicons name="close-circle-outline" size={17} color="#ffffff" style={{ marginRight: 4 }} />
+                            <Text style={styles.declineDispatchBtnText}>
+                              {t('dashboard.decline_btn', { defaultValue: 'DECLINE' })}
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.acceptDispatchBtn}
+                        onPress={async () => {
+                          await onAcceptDispatch(d.id, bookingId);
+                          onClose();
+                        }}
+                        disabled={isAccepting || isDeclining}
+                        activeOpacity={0.85}
+                      >
+                        {isAccepting ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <>
+                            <Ionicons name="checkmark-circle" size={17} color="#ffffff" style={{ marginRight: 4 }} />
+                            <Text style={styles.acceptDispatchBtnText}>
+                              {t('dashboard.accept_ride_btn', { defaultValue: 'ACCEPT RIDE' })}
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
                     </View>
                   </View>
                 );
@@ -470,148 +474,109 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   tripsListContainer: {
-    gap: 16,
+    gap: 14,
   },
 
-  /* PREMIUM REDESIGNED CARD */
-  premiumCard: {
+  /* EXACT IMAGE 1 CARD STYLES */
+  floatingDispatchCardWhite: {
     backgroundColor: '#ffffff',
-    borderRadius: 22,
-    padding: 16,
-    borderWidth: 1.5,
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
     borderColor: '#e2e8f0',
     ...Platform.select({
       ios: {
         shadowColor: '#0f172a',
-        shadowOpacity: 0.08,
-        shadowRadius: 14,
-        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
       },
       android: {
-        elevation: 4,
+        elevation: 3,
       },
     }),
   },
-  topHeaderRow: {
+  dispatchHeaderBanner: {
+    backgroundColor: '#f8fafc',
+    marginHorizontal: -14,
+    marginTop: -14,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 10,
+    borderTopLeftRadius: 17,
+    borderTopRightRadius: 17,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    marginBottom: 10,
+  },
+  dispatchHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  topHeaderLeft: {
+  newAlertBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 5,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    alignSelf: 'flex-start',
+    marginBottom: 2,
   },
-  newRideBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-  },
-  newRideBadgeText: {
+  newAlertText: {
     fontSize: 10,
     fontWeight: '900',
-    color: '#2563eb',
-    letterSpacing: 0.5,
+    color: '#0f2744',
+    letterSpacing: 0.3,
   },
-  bookingRefText: {
+  dispatchRefText: {
     fontSize: 14,
     fontWeight: '900',
     color: '#0f2744',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
-  distanceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+  distanceBadgeLight: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
-  distanceBadgeText: {
+  distanceBadgeTextLight: {
     fontSize: 12,
     fontWeight: '800',
     color: '#0f2744',
   },
 
-  /* Earnings Hero */
-  earningsHeroRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-  },
-  earningsAmount: {
-    fontSize: 25,
-    fontWeight: '900',
-    color: '#0f2744',
-    letterSpacing: -0.5,
-  },
-  earningsLabel: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#16a34a',
-    marginTop: 1,
-  },
-  tripTypeTag: {
-    backgroundColor: '#fff3e3',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#fed7aa',
-  },
-  tripTypeTagText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#ea580c',
-  },
-
-  /* Pickup Time Banner */
-  pickupTimeBanner: {
+  /* Trip Date Banner */
+  tripDateBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f0f9ff',
-    borderWidth: 1,
-    borderColor: '#bae6fd',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 14,
+    paddingHorizontal: 2,
+    paddingVertical: 5,
+    marginTop: 2,
+    marginBottom: 6,
   },
-  pickupTimeLeft: {
+  tripDateBannerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
     flex: 1,
+    gap: 6,
     flexWrap: 'wrap',
   },
-  pickupTimeLabel: {
+  tripDateBannerLabel: {
     fontSize: 10,
     fontWeight: '800',
     color: '#0369a1',
     letterSpacing: 0.5,
   },
-  pickupTimeValue: {
+  tripDateBannerValue: {
     fontSize: 12.5,
     fontWeight: '800',
     color: '#0f2744',
   },
-  todayPill: {
+  todayTagPill: {
     backgroundColor: '#dcfce7',
     borderWidth: 1,
     borderColor: '#86efac',
@@ -626,7 +591,7 @@ const styles = StyleSheet.create({
     color: '#15803d',
     letterSpacing: 0.5,
   },
-  tomorrowPill: {
+  tomorrowTagPill: {
     backgroundColor: '#fef3c7',
     borderWidth: 1,
     borderColor: '#fde68a',
@@ -642,150 +607,186 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  /* Route Stepper */
-  routeContainer: {
-    paddingHorizontal: 2,
-    marginBottom: 12,
-  },
-  routePointRow: {
+  /* Stepper Route */
+  stepperContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 10,
+    backgroundColor: 'transparent',
+    paddingVertical: 8,
+    paddingHorizontal: 0,
+    marginVertical: 4,
   },
-  pinCircleGreen: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#dcfce7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pinCircleRed: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#fee2e2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  routeTextCol: {
+  stepperLeft: {
     flex: 1,
   },
-  routeAddressText: {
-    fontSize: 14,
+  stepPoint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pickupPin: {
+    width: 18,
+    textAlign: 'center',
+  },
+  dropPin: {
+    width: 18,
+    textAlign: 'center',
+  },
+  stepTextGroup: {
+    flex: 1,
+  },
+  locationTitle: {
+    fontSize: 13.5,
     fontWeight: '800',
     color: '#0f2744',
     lineHeight: 18,
   },
-  connectorTrack: {
-    width: 22,
-    alignItems: 'center',
-    paddingVertical: 2,
-  },
-  connectorDashedLine: {
+  dashedTrail: {
     width: 2,
     height: 16,
     borderStyle: 'dashed',
     borderWidth: 1,
     borderColor: '#cbd5e1',
+    marginLeft: 8,
+    marginVertical: 2,
   },
 
-  /* Specs Section */
-  specsSection: {
-    paddingTop: 10,
+  /* Customer Requirements */
+  dispatchReqsSection: {
+    marginTop: 6,
+    marginBottom: 6,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
-    marginBottom: 12,
   },
-  specsHeaderRow: {
+  dispatchReqsHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     marginBottom: 6,
   },
-  specsHeading: {
+  dispatchReqsHeading: {
     fontSize: 9.5,
     fontWeight: '900',
     color: '#64748b',
     letterSpacing: 0.5,
   },
-  specsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 6,
-  },
-  specChip: {
+  dispatchReqsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
+    flexWrap: 'wrap',
+    gap: 6,
   },
-  specChipText: {
+  reqLineSeparator: {
+    width: 1,
+    height: 12,
+    backgroundColor: '#cbd5e1',
+    marginHorizontal: 2,
+  },
+  reqPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  reqPillText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#334155',
   },
-  notesBox: {
+  reqPillTextHighlight: {
+    color: '#c2410c',
+    fontWeight: '800',
+  },
+  reqPillTextWarning: {
+    color: '#b45309',
+    fontWeight: '800',
+  },
+  reqPillTextInfo: {
+    color: '#2563eb',
+    fontWeight: '800',
+  },
+  dispatchNotesBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 6,
+    marginTop: 6,
+    padding: 6,
     backgroundColor: '#fff7ed',
-    padding: 8,
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#ffedd5',
-    marginTop: 4,
   },
-  notesText: {
+  dispatchNotesText: {
     fontSize: 11,
     color: '#9a3412',
     fontStyle: 'italic',
     flex: 1,
   },
 
-  /* ========================================================= */
-  /* REDESIGNED BUTTONS: DUAL ACTIONS + OPTIONAL SLIDER        */
-  /* ========================================================= */
-  actionsSection: {
+  /* Passenger, Amount, and Trip Type Row */
+  dispatchPassengerRowLight: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    paddingVertical: 8,
+    paddingHorizontal: 0,
     marginTop: 4,
-    gap: 10,
+    marginBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
   },
-  dualButtonsRow: {
+  passengerGroupLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
   },
-  modernDeclineBtn: {
+  dispatchPassengerNameDark: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  dispatchVendorAmountCenter: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#0f172a',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    textAlign: 'center',
+  },
+  dispatchTripTypeOrange: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#ea580c',
+  },
+
+  /* Decline & Accept Action Buttons Row - EXACTLY AS IMAGE 1 */
+  dispatchActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 6,
+  },
+  declineDispatchBtn: {
     flex: 1,
-    height: 50,
-    borderRadius: 16,
-    backgroundColor: '#fff1f2',
+    height: 48,
+    borderRadius: 24,
     borderWidth: 1.5,
-    borderColor: '#fecdd3',
+    borderColor: '#dc2626',
+    backgroundColor: '#dc2626',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#e11d48',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  modernDeclineBtnText: {
+  declineDispatchBtnText: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#dc2626',
+    color: '#ffffff',
     letterSpacing: 0.5,
   },
-  modernAcceptBtn: {
+  acceptDispatchBtn: {
     flex: 1.45,
-    height: 50,
-    borderRadius: 16,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#16a34a',
     flexDirection: 'row',
     alignItems: 'center',
@@ -793,34 +794,13 @@ const styles = StyleSheet.create({
     shadowColor: '#16a34a',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
-    shadowRadius: 8,
+    shadowRadius: 6,
     elevation: 4,
   },
-  modernAcceptBtnText: {
-    fontSize: 13.5,
+  acceptDispatchBtnText: {
+    fontSize: 13,
     fontWeight: '900',
     color: '#ffffff',
     letterSpacing: 0.5,
-  },
-
-  orDividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginVertical: 2,
-  },
-  orDividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e2e8f0',
-  },
-  orDividerText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: '#94a3b8',
-    letterSpacing: 0.6,
-  },
-  sliderContainer: {
-    width: '100%',
   },
 });
