@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
           action: 'DRIVER_DECLINE_DISPATCH',
           entityType: 'Booking',
           entityId: bookingId,
-          reason: `Driver ${session.user.fullName} declined ride dispatch.`,
+          reason: `Driver ${session.user.fullName} declined ride dispatch${reason ? `: ${reason}` : '.'}`,
         },
       });
     });
@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
       driverDeclined: true,
       driverId: session.driverId,
       driverName: session.user.fullName,
+      reason: reason || 'Declined by driver',
     });
 
     const res = NextResponse.json(

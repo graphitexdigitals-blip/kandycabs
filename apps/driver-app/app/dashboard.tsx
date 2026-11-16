@@ -1006,13 +1006,28 @@ export default function DriverDashboardScreen() {
 
       if (res.success && res.booking) {
         const acceptedBId = res.booking.id || bookingId;
-        // Transform the button on this dispatch card immediately to VERIFICATION
+        // Transform the button on this dispatch card immediately to VERIFICATION / ACCEPTED
         setAcceptedDispatches((prev) => ({
           ...prev,
           [dispatchId]: acceptedBId,
           [acceptedBId]: acceptedBId,
           [bookingId]: acceptedBId,
         }));
+
+        // Keep the dispatch in New Trips modal marked as ACCEPTED BY DRIVER
+        setDispatches((prev) =>
+          prev.map((d) => {
+            if (d.id === dispatchId || d.bookingId === bookingId || d.booking?.id === bookingId) {
+              return {
+                ...d,
+                status: 'ACCEPTED',
+                isAccepted: true,
+                booking: { ...(d.booking || {}), ...res.booking, status: 'DRIVER_ACCEPTED' },
+              };
+            }
+            return d;
+          })
+        );
 
         if (currentTrip) {
           // If already on an active trip, add to upcoming queue
@@ -1045,34 +1060,33 @@ export default function DriverDashboardScreen() {
     }
   };
 
-  const handleDeclineDispatch = async (dispatchId: string, bookingId: string) => {
-    Alert.alert(
-      'Decline Ride Request',
-      'Are you sure you want to decline this ride? Admin will be notified immediately.',
-      [
-        { text: 'Keep Ride', style: 'cancel' },
-        {
-          text: 'Decline Ride',
-          style: 'destructive',
-          onPress: async () => {
-            setDecliningId(dispatchId);
-            try {
-              await driverApiClient.fetch('/api/driver/dispatches/decline', {
-                method: 'POST',
-                body: JSON.stringify({ dispatchId, bookingId }),
-              });
-              setDispatches((prev) => prev.filter((d) => d.id !== dispatchId && d.booking?.id !== bookingId));
-              fetchDriverData();
-            } catch (err: any) {
-              setDispatches((prev) => prev.filter((d) => d.id !== dispatchId));
-              fetchDriverData();
-            } finally {
-              setDecliningId(null);
-            }
-          },
-        },
-      ]
-    );
+  const handleDeclineDispatch = async (dispatchId: string, bookingId: string, reason?: string) => {
+    setDecliningId(dispatchId);
+    try {
+      await driverApiClient.fetch('/api/driver/dispatches/decline', {
+        method: 'POST',
+        body: JSON.stringify({ dispatchId, bookingId, reason: reason || 'Declined by driver' }),
+      });
+      // Remove from dispatches list
+      setDispatches((prev) => prev.filter((d) => d.id !== dispatchId && d.booking?.id !== bookingId));
+      // Remove from acceptedDispatches mapping
+      setAcceptedDispatches((prev) => {
+        const next = { ...prev };
+        delete next[dispatchId];
+        delete next[bookingId];
+        return next;
+      });
+      // Remove from activeBooking if it matches
+      setActiveBooking((prev: any) => (prev?.id === bookingId ? null : prev));
+      // Remove from upcomingBookings if it matches
+      setUpcomingBookings((prev) => prev.filter((b) => b.id !== bookingId));
+      fetchDriverData();
+    } catch (err: any) {
+      setDispatches((prev) => prev.filter((d) => d.id !== dispatchId));
+      fetchDriverData();
+    } finally {
+      setDecliningId(null);
+    }
   };
 
   const handleSaveProfile = async (updatedDriver: any) => {
@@ -3512,11 +3526,12 @@ export default function DriverDashboardScreen() {
         }}
       />
 
-      {/* Dedicated New Trips Dispatched Modal (With Slide to Accept) */}
+      {/* Dedicated New Trips Dispatched Modal (With Accept / Cancel Actions) */}
       <NewTripsModal
         visible={isNewTripsModalOpen}
         onClose={() => setIsNewTripsModalOpen(false)}
         dispatches={dispatches}
+        acceptedDispatches={acceptedDispatches}
         onAcceptDispatch={handleAcceptDispatch}
         onDeclineDispatch={handleDeclineDispatch}
         acceptingId={acceptingId}

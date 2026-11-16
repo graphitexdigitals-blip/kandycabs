@@ -24,11 +24,23 @@ export async function GET(req: NextRequest) {
     const pendingDispatches = await prisma.bookingDispatch.findMany({
       where: {
         driverId: session.driverId,
-        status: DispatchStatus.PENDING,
-        booking: {
-          deletedAt: null,
-          status: { in: [BookingStatus.PENDING_ADMIN, BookingStatus.DISPATCHED] },
-        },
+        OR: [
+          {
+            status: DispatchStatus.PENDING,
+            booking: {
+              deletedAt: null,
+              status: { in: [BookingStatus.PENDING_ADMIN, BookingStatus.DISPATCHED] },
+            },
+          },
+          {
+            status: DispatchStatus.ACCEPTED,
+            booking: {
+              deletedAt: null,
+              assignedDriverId: session.driverId,
+              status: BookingStatus.DRIVER_ACCEPTED,
+            },
+          },
+        ],
       },
       include: {
         booking: {

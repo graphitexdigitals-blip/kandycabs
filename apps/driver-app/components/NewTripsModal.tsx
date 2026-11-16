@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -19,15 +21,25 @@ import {
   extractCustomerNotes,
 } from '../lib/tripRequirements';
 
+const CANCELLATION_REASONS = [
+  'Vehicle Breakdown / Mechanical Issue',
+  'Medical or Personal Emergency',
+  'Heavy Traffic / Unable to Reach on Time',
+  'Customer Requested Cancellation',
+  'Distance Too Far / Fuel Issue',
+  'Other Reason',
+];
+
 interface NewTripsModalProps {
   visible: boolean;
   onClose: () => void;
   dispatches: any[];
   onAcceptDispatch: (dispatchId: string, bookingId: string) => Promise<void>;
-  onDeclineDispatch: (dispatchId: string, bookingId: string) => Promise<void>;
+  onDeclineDispatch: (dispatchId: string, bookingId: string, reason?: string) => Promise<void>;
   acceptingId: string | null;
   decliningId: string | null;
   driver?: any;
+  acceptedDispatches?: Record<string, string>;
 }
 
 export function NewTripsModal({
@@ -39,8 +51,50 @@ export function NewTripsModal({
   acceptingId,
   decliningId,
   driver,
+  acceptedDispatches,
 }: NewTripsModalProps) {
   const { t } = useTranslation();
+
+  // Cancellation Reason Modal State
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [targetCancelDispatch, setTargetCancelDispatch] = useState<{ dispatchId: string; bookingId: string } | null>(null);
+  const [selectedReason, setSelectedReason] = useState<string>(CANCELLATION_REASONS[0]);
+  const [customReasonText, setCustomReasonText] = useState<string>('');
+  const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
+
+  const handleOpenCancelModal = (dispatchId: string, bookingId: string) => {
+    setTargetCancelDispatch({ dispatchId, bookingId });
+    setSelectedReason(CANCELLATION_REASONS[0]);
+    setCustomReasonText('');
+    setCancelModalVisible(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!targetCancelDispatch) return;
+    const finalReason =
+      selectedReason === 'Other Reason'
+        ? customReasonText.trim() || 'Other reason'
+        : selectedReason;
+
+    setIsSubmittingCancel(true);
+    try {
+      await onDeclineDispatch(
+        targetCancelDispatch.dispatchId,
+        targetCancelDispatch.bookingId,
+        finalReason
+      );
+      setCancelModalVisible(false);
+      setTargetCancelDispatch(null);
+      Alert.alert(
+        'Ride Cancelled',
+        'The ride assignment has been cancelled and unassigned. Admin has been notified with your reason.'
+      );
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to cancel ride');
+    } finally {
+      setIsSubmittingCancel(false);
+    }
+  };
 
   return (
     <Modal
@@ -133,22 +187,42 @@ export function NewTripsModal({
                 const reqs = parseCustomerRequirements(b, t);
                 const note = extractCustomerNotes(b);
 
+                const isAccepted =
+                  d?.status === 'ACCEPTED' ||
+                  d?.isAccepted ||
+                  b?.status === 'DRIVER_ACCEPTED' ||
+                  Boolean(bookingId && acceptedDispatches?.[bookingId]) ||
+                  Boolean(d.id && acceptedDispatches?.[d.id]);
+
                 return (
                   <View key={d.id || `dispatch-${index}`} style={styles.floatingDispatchCardWhite}>
                     {/* Header Banner: Negative Margins with #f8fafc background matching Image 1 */}
                     <View style={styles.dispatchHeaderBanner}>
                       <View style={styles.dispatchHeaderRow}>
                         <View>
-                          <View style={styles.newAlertBadge}>
-                            <Ionicons
-                              name="radio-button-on"
-                              size={13}
-                              color="#2563eb"
-                            />
-                            <Text style={styles.newAlertText}>
-                              {t('dashboard.new_ride', 'NEW RIDE')}
-                            </Text>
-                          </View>
+                          {isAccepted ? (
+                            <View style={styles.acceptedAlertBadge}>
+                              <Ionicons
+                                name="checkmark-circle"
+                                size={13}
+                                color="#16a34a"
+                              />
+                              <Text style={styles.acceptedAlertText}>
+                                {t('dashboard.accepted_by_driver', 'ACCEPTED BY DRIVER')}
+                              </Text>
+                            </View>
+                          ) : (
+                            <View style={styles.newAlertBadge}>
+                              <Ionicons
+                                name="radio-button-on"
+                                size={13}
+                                color="#2563eb"
+                              />
+                              <Text style={styles.newAlertText}>
+                                {t('dashboard.new_ride', 'NEW RIDE')}
+                              </Text>
+                            </View>
+                          )}
                           <Text style={styles.dispatchRefText}>
                             {b?.humanReadableRef || 'RIDE'}
                           </Text>
@@ -279,66 +353,177 @@ export function NewTripsModal({
                       </Text>
                     </View>
 
-                    {/* Decline (Left) & Accept (Right) Action Buttons Row - EXACTLY AS IMAGE 1 */}
-                    <View style={styles.dispatchActionRow}>
-                      <TouchableOpacity
-                        style={styles.declineDispatchBtn}
-                        onPress={() => {
-                          Alert.alert(
-                            'Decline Ride',
-                            'Are you sure you want to pass on this ride request?',
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              {
-                                text: 'Decline',
-                                style: 'destructive',
-                                onPress: () => onDeclineDispatch(d.id, bookingId),
-                              },
-                            ]
-                          );
-                        }}
-                        disabled={isAccepting || isDeclining}
-                        activeOpacity={0.8}
-                      >
-                        {isDeclining ? (
-                          <ActivityIndicator size="small" color="#ffffff" />
-                        ) : (
-                          <>
-                            <Ionicons name="close-circle-outline" size={17} color="#ffffff" style={{ marginRight: 4 }} />
-                            <Text style={styles.declineDispatchBtnText}>
-                              {t('dashboard.decline_btn', { defaultValue: 'DECLINE' })}
-                            </Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
+                    {/* Action Buttons Row: (Cancel Ride) if accepted, or (Decline & Accept) if pending */}
+                    {isAccepted ? (
+                      <View style={styles.dispatchActionRowAccepted}>
+                        <TouchableOpacity
+                          style={styles.cancelRideBtn}
+                          onPress={() => handleOpenCancelModal(d.id, bookingId)}
+                          disabled={isDeclining || isSubmittingCancel}
+                          activeOpacity={0.85}
+                        >
+                          {isDeclining ? (
+                            <ActivityIndicator size="small" color="#ffffff" />
+                          ) : (
+                            <>
+                              <Ionicons name="close-circle" size={18} color="#ffffff" style={{ marginRight: 6 }} />
+                              <Text style={styles.cancelRideBtnText}>
+                                {t('dashboard.cancel_ride_btn', { defaultValue: 'CANCEL RIDE' })}
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View style={styles.dispatchActionRow}>
+                        <TouchableOpacity
+                          style={styles.declineDispatchBtn}
+                          onPress={() => handleOpenCancelModal(d.id, bookingId)}
+                          disabled={isAccepting || isDeclining}
+                          activeOpacity={0.8}
+                        >
+                          {isDeclining ? (
+                            <ActivityIndicator size="small" color="#ffffff" />
+                          ) : (
+                            <>
+                              <Ionicons name="close-circle-outline" size={17} color="#ffffff" style={{ marginRight: 4 }} />
+                              <Text style={styles.declineDispatchBtnText}>
+                                {t('dashboard.decline_btn', { defaultValue: 'DECLINE' })}
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
 
-                      <TouchableOpacity
-                        style={styles.acceptDispatchBtn}
-                        onPress={async () => {
-                          await onAcceptDispatch(d.id, bookingId);
-                          onClose();
-                        }}
-                        disabled={isAccepting || isDeclining}
-                        activeOpacity={0.85}
-                      >
-                        {isAccepting ? (
-                          <ActivityIndicator size="small" color="#ffffff" />
-                        ) : (
-                          <>
-                            <Ionicons name="checkmark-circle" size={17} color="#ffffff" style={{ marginRight: 4 }} />
-                            <Text style={styles.acceptDispatchBtnText}>
-                              {t('dashboard.accept_ride_btn', { defaultValue: 'ACCEPT RIDE' })}
-                            </Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    </View>
+                        <TouchableOpacity
+                          style={styles.acceptDispatchBtn}
+                          onPress={async () => {
+                            await onAcceptDispatch(d.id, bookingId);
+                          }}
+                          disabled={isAccepting || isDeclining}
+                          activeOpacity={0.85}
+                        >
+                          {isAccepting ? (
+                            <ActivityIndicator size="small" color="#ffffff" />
+                          ) : (
+                            <>
+                              <Ionicons name="checkmark-circle" size={17} color="#ffffff" style={{ marginRight: 4 }} />
+                              <Text style={styles.acceptDispatchBtnText}>
+                                {t('dashboard.accept_ride_btn', { defaultValue: 'ACCEPT RIDE' })}
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </View>
                 );
               })}
             </View>
           )}
         </ScrollView>
+
+        {/* Dedicated Cancellation Reason Modal */}
+        <Modal
+          visible={cancelModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {
+            if (!isSubmittingCancel) setCancelModalVisible(false);
+          }}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.cancelModalOverlay}
+          >
+            <View style={styles.cancelModalCard}>
+              <View style={styles.cancelModalHeader}>
+                <View style={styles.cancelModalIconWrap}>
+                  <Ionicons name="alert-circle" size={24} color="#dc2626" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cancelModalTitle}>Reason for Cancelling Ride</Text>
+                  <Text style={styles.cancelModalSubtitle}>
+                    Please select a reason. Admin will be notified immediately.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (!isSubmittingCancel) setCancelModalVisible(false);
+                  }}
+                  style={styles.cancelModalCloseBtn}
+                  disabled={isSubmittingCancel}
+                >
+                  <Ionicons name="close" size={20} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.cancelReasonsList} showsVerticalScrollIndicator={false}>
+                {CANCELLATION_REASONS.map((reason) => {
+                  const isSelected = selectedReason === reason;
+                  return (
+                    <TouchableOpacity
+                      key={reason}
+                      style={[styles.reasonOptionRow, isSelected && styles.reasonOptionRowSelected]}
+                      onPress={() => setSelectedReason(reason)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.reasonRadioOuter, isSelected && styles.reasonRadioOuterSelected]}>
+                        {isSelected && <View style={styles.reasonRadioInner} />}
+                      </View>
+                      <Text style={[styles.reasonOptionText, isSelected && styles.reasonOptionTextSelected]}>
+                        {reason}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+
+                {selectedReason === 'Other Reason' && (
+                  <View style={styles.customReasonInputWrap}>
+                    <TextInput
+                      style={styles.customReasonInput}
+                      placeholder="Enter cancellation reason..."
+                      placeholderTextColor="#94a3b8"
+                      value={customReasonText}
+                      onChangeText={setCustomReasonText}
+                      multiline
+                      numberOfLines={3}
+                    />
+                  </View>
+                )}
+              </ScrollView>
+
+              <View style={styles.cancelModalActions}>
+                <TouchableOpacity
+                  style={styles.cancelModalBackBtn}
+                  onPress={() => setCancelModalVisible(false)}
+                  disabled={isSubmittingCancel}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.cancelModalBackBtnText}>Keep Ride</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.cancelModalConfirmBtn,
+                    selectedReason === 'Other Reason' && !customReasonText.trim() && { opacity: 0.5 },
+                  ]}
+                  disabled={
+                    isSubmittingCancel ||
+                    (selectedReason === 'Other Reason' && !customReasonText.trim())
+                  }
+                  onPress={handleConfirmCancel}
+                  activeOpacity={0.8}
+                >
+                  {isSubmittingCancel ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text style={styles.cancelModalConfirmBtnText}>Confirm Cancel</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
       </SafeAreaView>
     </Modal>
   );
@@ -802,5 +987,208 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#ffffff',
     letterSpacing: 0.5,
+  },
+
+  /* Accepted State Badge & Button */
+  acceptedAlertBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginBottom: 3,
+    gap: 4,
+  },
+  acceptedAlertText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#15803d',
+    letterSpacing: 0.5,
+  },
+  dispatchActionRowAccepted: {
+    marginTop: 6,
+    width: '100%',
+  },
+  cancelRideBtn: {
+    width: '100%',
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#dc2626',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  cancelRideBtnText: {
+    fontSize: 13.5,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+
+  /* Cancellation Reason Modal */
+  cancelModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  cancelModalCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 440,
+    maxHeight: '85%',
+    padding: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 15,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  cancelModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  cancelModalIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#fee2e2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelModalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f2744',
+  },
+  cancelModalSubtitle: {
+    fontSize: 11.5,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  cancelModalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelReasonsList: {
+    maxHeight: 280,
+    marginBottom: 16,
+  },
+  reasonOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    backgroundColor: '#ffffff',
+    marginBottom: 8,
+  },
+  reasonOptionRowSelected: {
+    borderColor: '#fca5a5',
+    backgroundColor: '#fef2f2',
+  },
+  reasonRadioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#cbd5e1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  reasonRadioOuterSelected: {
+    borderColor: '#dc2626',
+  },
+  reasonRadioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#dc2626',
+  },
+  reasonOptionText: {
+    fontSize: 13,
+    color: '#334155',
+    fontWeight: '600',
+    flex: 1,
+  },
+  reasonOptionTextSelected: {
+    color: '#991b1b',
+    fontWeight: '700',
+  },
+  customReasonInputWrap: {
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  customReasonInput: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    padding: 10,
+    fontSize: 13,
+    color: '#0f172a',
+    textAlignVertical: 'top',
+    minHeight: 70,
+  },
+  cancelModalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+  },
+  cancelModalBackBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelModalBackBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  cancelModalConfirmBtn: {
+    flex: 1.4,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#dc2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cancelModalConfirmBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#ffffff',
   },
 });
