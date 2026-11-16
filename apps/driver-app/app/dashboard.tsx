@@ -1576,6 +1576,7 @@ export default function DriverDashboardScreen() {
                       <Text style={styles.heroTripCountBadgeText}>{dispatches.length}</Text>
                     </View>
                   )}
+                  <Ionicons name="chevron-forward" size={16} color="#94a3b8" style={{ marginLeft: 6 }} />
                 </TouchableOpacity>
 
                 {/* 2. Upcoming Trips */}
@@ -1600,6 +1601,7 @@ export default function DriverDashboardScreen() {
                       <Text style={styles.heroTripCountBadgeText}>{upcomingBookings.length}</Text>
                     </View>
                   )}
+                  <Ionicons name="chevron-forward" size={16} color="#94a3b8" style={{ marginLeft: 6 }} />
                 </TouchableOpacity>
               </View>
 
@@ -3374,6 +3376,7 @@ export default function DriverDashboardScreen() {
                     <Text style={styles.heroTripCountBadgeText}>{dispatches.length}</Text>
                   </View>
                 )}
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" style={{ marginLeft: 6 }} />
               </TouchableOpacity>
 
               {/* 2. Upcoming Trips */}
@@ -3398,6 +3401,7 @@ export default function DriverDashboardScreen() {
                     <Text style={styles.heroTripCountBadgeText}>{upcomingBookings.length}</Text>
                   </View>
                 )}
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" style={{ marginLeft: 6 }} />
               </TouchableOpacity>
             </View>
 
@@ -4047,18 +4051,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   heroTripsSummaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    flexDirection: 'column',
+    gap: 8,
     paddingHorizontal: 12,
     marginBottom: 10,
   },
   heroTripWhiteCard: {
-    flex: 1,
+    width: '100%',
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     flexDirection: 'row',
@@ -4069,7 +4072,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 5,
     elevation: 2,
-    minHeight: 56,
+    minHeight: 52,
   },
   heroTripIconBox: {
     width: 28,
