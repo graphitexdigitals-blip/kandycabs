@@ -31,6 +31,8 @@ import { SUPPORTED_LANGUAGES, changeAppLanguage } from '../lib/i18n';
 import { SlideToAccept } from '../components/SlideToAccept';
 import { LanguageSelectionModal } from '../components/LanguageSelectionModal';
 import { NotificationsModal } from '../components/NotificationsModal';
+import { NewTripsModal } from '../components/NewTripsModal';
+import { UpcomingTripsModal } from '../components/UpcomingTripsModal';
 import { DriverProfileModal } from '../components/DriverProfileModal';
 import { DriverVehiclesModal, VehicleData } from '../components/DriverVehiclesModal';
 import { LinearGradient } from '../components/SafeLinearGradient';
@@ -117,6 +119,8 @@ export default function DriverDashboardScreen() {
   const [tripInProcessRev, setTripInProcessRev] = useState(0);
   const [isLangModalOpen, setIsLangModalOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [isNewTripsModalOpen, setIsNewTripsModalOpen] = useState(false);
+  const [isUpcomingTripsModalOpen, setIsUpcomingTripsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
   const [selectedFleetVehicleIndex, setSelectedFleetVehicleIndex] = useState(0);
@@ -485,6 +489,20 @@ export default function DriverDashboardScreen() {
     return count;
   }, [dispatches, activeBooking, upcomingBookings, driver, expiringDocuments, hasPendingDocuments, readNotifIds]);
 
+  // Trips scheduled closer before 1 day (today, tomorrow, or within ~24-36h)
+  const upcomingWithinOneDayTrips = useMemo(() => {
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    return (upcomingBookings || []).filter((trip) => {
+      if (!trip?.scheduledAt) return true;
+      const tripTime = new Date(trip.scheduledAt).getTime();
+      if (isNaN(tripTime)) return true;
+      const diff = tripTime - now;
+      const timing = formatTripDateTime(trip.scheduledAt, t);
+      return timing.isToday || timing.isTomorrow || (diff >= 0 && diff <= oneDayMs + 12 * 3600 * 1000);
+    });
+  }, [upcomingBookings, t]);
+
   // Detailed document verification status for KYC verification card
   const verificationDocs = useMemo(() => {
     // Only marked complete when document file/image is actually attached and present
@@ -828,6 +846,8 @@ export default function DriverDashboardScreen() {
         if (prev.some((d) => d.id === newDispatch.id)) return prev;
         return sortTripsByDateTimeAscending([newDispatch, ...prev]);
       });
+      // Admin dispatched trip: pop up modal with Slide to Accept
+      setIsNewTripsModalOpen(true);
     });
 
     const unsubRevoke = driverRealtimeClient.on('DISPATCH_REVOKED', (data: any) => {
@@ -1548,16 +1568,7 @@ export default function DriverDashboardScreen() {
                 {/* 1. New Trips (Warm Peach) */}
                 <TouchableOpacity
                   style={[styles.heroTripWhiteCard, styles.heroTripCardPeach]}
-                  onPress={() => {
-                    if (dispatches.length > 0) {
-                      setIsNotificationModalOpen(true);
-                    } else {
-                      Alert.alert(
-                        t('dashboard.new_trips', 'New Trips'),
-                        t('dashboard.no_new_trips_msg', 'No new dispatches right now. Stay online to receive rides!')
-                      );
-                    }
-                  }}
+                  onPress={() => setIsNewTripsModalOpen(true)}
                   activeOpacity={0.8}
                 >
                   <View style={styles.heroTripIconBox}>
@@ -1568,12 +1579,17 @@ export default function DriverDashboardScreen() {
                       {t('dashboard.new_trips', 'New Trips')}
                     </Text>
                     <Text style={styles.heroTripSub} numberOfLines={1}>
-                      {dispatches.length > 0 ? `${dispatches.length} Available` : t('dashboard.live_rides', 'Live Rides')}
+                      {dispatches.length > 0
+                        ? `${dispatches.length} New Dispatched • Slide to Accept`
+                        : t('dashboard.live_rides', 'Live Rides')}
                     </Text>
                   </View>
+                  {/* Popup Number Icon for New Dispatches */}
                   {dispatches.length > 0 && (
-                    <View style={styles.heroTripCountBadgeOrange}>
-                      <Text style={styles.heroTripCountBadgeText}>{dispatches.length}</Text>
+                    <View style={styles.heroTripPopupBadgeOrange}>
+                      <Text style={styles.heroTripPopupBadgeText}>
+                        {dispatches.length > 9 ? '9+' : dispatches.length}
+                      </Text>
                     </View>
                   )}
                   <Ionicons name="chevron-forward" size={16} color="#c2410c" style={{ marginLeft: 6 }} />
@@ -1582,7 +1598,7 @@ export default function DriverDashboardScreen() {
                 {/* 2. Upcoming Trips (Sky Blue) */}
                 <TouchableOpacity
                   style={[styles.heroTripWhiteCard, styles.heroTripCardSky]}
-                  onPress={() => setActiveBottomTab('MY_TRIPS')}
+                  onPress={() => setIsUpcomingTripsModalOpen(true)}
                   activeOpacity={0.8}
                 >
                   <View style={styles.heroTripIconBox}>
@@ -1593,14 +1609,27 @@ export default function DriverDashboardScreen() {
                       {t('dashboard.upcoming_trips', 'Upcoming Trips')}
                     </Text>
                     <Text style={styles.heroTripSub} numberOfLines={1}>
-                      {upcomingBookings.length > 0 ? `${upcomingBookings.length} Scheduled` : t('dashboard.scheduled', 'Scheduled')}
+                      {upcomingWithinOneDayTrips.length > 0
+                        ? `${upcomingWithinOneDayTrips.length} Within 24h • Be Ready`
+                        : upcomingBookings.length > 0
+                        ? `${upcomingBookings.length} Scheduled`
+                        : t('dashboard.scheduled', 'Scheduled')}
                     </Text>
                   </View>
-                  {upcomingBookings.length > 0 && (
-                    <View style={styles.heroTripCountBadgeBlue}>
-                      <Text style={styles.heroTripCountBadgeText}>{upcomingBookings.length}</Text>
+                  {/* Popup Number Icon for Upcoming Trips closer before 1 day */}
+                  {upcomingWithinOneDayTrips.length > 0 ? (
+                    <View style={styles.heroTripPopupBadgeBlue}>
+                      <Text style={styles.heroTripPopupBadgeText}>
+                        {upcomingWithinOneDayTrips.length > 9 ? '9+' : upcomingWithinOneDayTrips.length}
+                      </Text>
                     </View>
-                  )}
+                  ) : upcomingBookings.length > 0 ? (
+                    <View style={styles.heroTripPopupBadgeBlueSoft}>
+                      <Text style={styles.heroTripPopupBadgeText}>
+                        {upcomingBookings.length > 9 ? '9+' : upcomingBookings.length}
+                      </Text>
+                    </View>
+                  ) : null}
                   <Ionicons name="chevron-forward" size={16} color="#0284c7" style={{ marginLeft: 6 }} />
                 </TouchableOpacity>
               </View>
@@ -3348,16 +3377,7 @@ export default function DriverDashboardScreen() {
               {/* 1. New Trips (Warm Peach) */}
               <TouchableOpacity
                 style={[styles.heroTripWhiteCard, styles.heroTripCardPeach]}
-                onPress={() => {
-                  if (dispatches.length > 0) {
-                    setIsNotificationModalOpen(true);
-                  } else {
-                    Alert.alert(
-                      t('dashboard.new_trips', 'New Trips'),
-                      t('dashboard.no_new_trips_msg', 'No new dispatches right now. Stay online to receive rides!')
-                    );
-                  }
-                }}
+                onPress={() => setIsNewTripsModalOpen(true)}
                 activeOpacity={0.8}
               >
                 <View style={styles.heroTripIconBox}>
@@ -3368,12 +3388,17 @@ export default function DriverDashboardScreen() {
                     {t('dashboard.new_trips', 'New Trips')}
                   </Text>
                   <Text style={styles.heroTripSub} numberOfLines={1}>
-                    {dispatches.length > 0 ? `${dispatches.length} Available` : t('dashboard.live_rides', 'Live Rides')}
+                    {dispatches.length > 0
+                      ? `${dispatches.length} New Dispatched • Slide to Accept`
+                      : t('dashboard.live_rides', 'Live Rides')}
                   </Text>
                 </View>
+                {/* Popup Number Icon for New Dispatches */}
                 {dispatches.length > 0 && (
-                  <View style={styles.heroTripCountBadgeOrange}>
-                    <Text style={styles.heroTripCountBadgeText}>{dispatches.length}</Text>
+                  <View style={styles.heroTripPopupBadgeOrange}>
+                    <Text style={styles.heroTripPopupBadgeText}>
+                      {dispatches.length > 9 ? '9+' : dispatches.length}
+                    </Text>
                   </View>
                 )}
                 <Ionicons name="chevron-forward" size={16} color="#c2410c" style={{ marginLeft: 6 }} />
@@ -3382,7 +3407,7 @@ export default function DriverDashboardScreen() {
               {/* 2. Upcoming Trips (Sky Blue) */}
               <TouchableOpacity
                 style={[styles.heroTripWhiteCard, styles.heroTripCardSky]}
-                onPress={() => setActiveBottomTab('MY_TRIPS')}
+                onPress={() => setIsUpcomingTripsModalOpen(true)}
                 activeOpacity={0.8}
               >
                 <View style={styles.heroTripIconBox}>
@@ -3393,14 +3418,27 @@ export default function DriverDashboardScreen() {
                     {t('dashboard.upcoming_trips', 'Upcoming Trips')}
                   </Text>
                   <Text style={styles.heroTripSub} numberOfLines={1}>
-                    {upcomingBookings.length > 0 ? `${upcomingBookings.length} Scheduled` : t('dashboard.scheduled', 'Scheduled')}
+                    {upcomingWithinOneDayTrips.length > 0
+                      ? `${upcomingWithinOneDayTrips.length} Within 24h • Be Ready`
+                      : upcomingBookings.length > 0
+                      ? `${upcomingBookings.length} Scheduled`
+                      : t('dashboard.scheduled', 'Scheduled')}
                   </Text>
                 </View>
-                {upcomingBookings.length > 0 && (
-                  <View style={styles.heroTripCountBadgeBlue}>
-                    <Text style={styles.heroTripCountBadgeText}>{upcomingBookings.length}</Text>
+                {/* Popup Number Icon for Upcoming Trips closer before 1 day */}
+                {upcomingWithinOneDayTrips.length > 0 ? (
+                  <View style={styles.heroTripPopupBadgeBlue}>
+                    <Text style={styles.heroTripPopupBadgeText}>
+                      {upcomingWithinOneDayTrips.length > 9 ? '9+' : upcomingWithinOneDayTrips.length}
+                    </Text>
                   </View>
-                )}
+                ) : upcomingBookings.length > 0 ? (
+                  <View style={styles.heroTripPopupBadgeBlueSoft}>
+                    <Text style={styles.heroTripPopupBadgeText}>
+                      {upcomingBookings.length > 9 ? '9+' : upcomingBookings.length}
+                    </Text>
+                  </View>
+                ) : null}
                 <Ionicons name="chevron-forward" size={16} color="#0284c7" style={{ marginLeft: 6 }} />
               </TouchableOpacity>
             </View>
@@ -3734,6 +3772,30 @@ export default function DriverDashboardScreen() {
         onSelectDispatch={() => {
           setActiveBottomTab('HOME');
         }}
+        onSelectBooking={() => {
+          setActiveBottomTab('HOME');
+        }}
+      />
+
+      {/* Dedicated New Trips Dispatched Modal (With Slide to Accept) */}
+      <NewTripsModal
+        visible={isNewTripsModalOpen}
+        onClose={() => setIsNewTripsModalOpen(false)}
+        dispatches={dispatches}
+        onAcceptDispatch={handleAcceptDispatch}
+        onDeclineDispatch={handleDeclineDispatch}
+        acceptingId={acceptingId}
+        decliningId={decliningId}
+        driver={driver}
+      />
+
+      {/* Dedicated Upcoming Scheduled Trips Modal (With Closer Before 1 Day Highlight) */}
+      <UpcomingTripsModal
+        visible={isUpcomingTripsModalOpen}
+        onClose={() => setIsUpcomingTripsModalOpen(false)}
+        upcomingBookings={upcomingBookings}
+        activeBooking={activeBooking}
+        driver={driver}
         onSelectBooking={() => {
           setActiveBottomTab('HOME');
         }}
@@ -4129,6 +4191,67 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 10.5,
     fontWeight: '800',
+  },
+  heroTripPopupBadgeOrange: {
+    backgroundColor: '#ea580c',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#ea580c',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.4,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  heroTripPopupBadgeBlue: {
+    backgroundColor: '#2563eb',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#2563eb',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.4,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  heroTripPopupBadgeBlueSoft: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
+    elevation: 2,
+  },
+  heroTripPopupBadgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '900',
   },
   heroCardsGridInside: {
     flexDirection: 'row',
