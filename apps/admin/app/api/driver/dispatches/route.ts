@@ -51,9 +51,9 @@ export async function GET(req: NextRequest) {
               },
             },
             tripEvents: {
-              where: { type: 'BOOKING_CREATED' },
-              select: { payloadJson: true },
-              take: 1,
+              select: { id: true, type: true, payloadJson: true, createdAt: true },
+              orderBy: { createdAt: 'desc' },
+              take: 10,
             },
           },
         },

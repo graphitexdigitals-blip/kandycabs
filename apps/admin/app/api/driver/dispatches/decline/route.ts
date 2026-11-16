@@ -33,13 +33,21 @@ export async function POST(req: NextRequest) {
       return setCorsHeaders(res);
     }
 
-    // Check if the booking was already accepted by this driver
-    const currentBooking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+    // Check if the booking was already accepted by this driver (support matching by id or humanReadableRef)
+    const currentBooking = await prisma.booking.findFirst({
+      where: {
+        OR: [
+          { id: bookingId },
+          { humanReadableRef: bookingId },
+        ],
+      },
       select: { id: true, assignedDriverId: true, status: true, humanReadableRef: true },
     });
 
-    const isAlreadyAccepted = currentBooking?.assignedDriverId === session.driverId;
+    const targetBookingId = currentBooking?.id || bookingId;
+    const isAlreadyAccepted =
+      currentBooking?.assignedDriverId === session.driverId ||
+      currentBooking?.status === BookingStatus.DRIVER_ACCEPTED;
 
     if (isAlreadyAccepted) {
       // Driver is requesting cancellation of an accepted assignment.
@@ -48,13 +56,14 @@ export async function POST(req: NextRequest) {
         // Record TripEvent: DRIVER_CANCEL_REQUESTED
         await tx.tripEvent.create({
           data: {
-            bookingId,
+            bookingId: targetBookingId,
             type: 'DRIVER_CANCEL_REQUESTED',
             payloadJson: {
               driverId: session.driverId,
               driverName: session.user.fullName,
               driverPhone: session.user.phone,
               dispatchId,
+              bookingRef: currentBooking?.humanReadableRef || targetBookingId,
               reason: reason || 'Driver requested ride cancellation',
               timestamp: new Date().toISOString(),
               status: 'PENDING_ADMIN_ACCEPTANCE',
@@ -68,15 +77,16 @@ export async function POST(req: NextRequest) {
             actorUserId: session.userId,
             action: 'DRIVER_CANCEL_REQUESTED',
             entityType: 'Booking',
-            entityId: bookingId,
+            entityId: targetBookingId,
             reason: `Driver ${session.user.fullName} requested cancellation: ${reason || 'No reason specified'}`,
           },
         });
       });
 
       // Broadcast to Admin and booking channel
-      RealtimeEvents.emitToBooking(bookingId, 'BOOKING_STATUS', {
-        bookingId,
+      RealtimeEvents.emitToBooking(targetBookingId, 'BOOKING_STATUS', {
+        bookingId: targetBookingId,
+        bookingRef: currentBooking?.humanReadableRef || targetBookingId,
         driverCancelRequested: true,
         driverId: session.driverId,
         driverName: session.user.fullName,
@@ -85,7 +95,8 @@ export async function POST(req: NextRequest) {
       });
 
       RealtimeEvents.emitToAllDrivers('TRIP_STATUS', {
-        bookingId,
+        bookingId: targetBookingId,
+        bookingRef: currentBooking?.humanReadableRef || targetBookingId,
         driverCancelRequested: true,
         driverId: session.driverId,
       });
@@ -94,6 +105,8 @@ export async function POST(req: NextRequest) {
         {
           success: true,
           pendingApproval: true,
+          bookingId: targetBookingId,
+          bookingRef: currentBooking?.humanReadableRef || targetBookingId,
           message: 'Cancellation request sent to Admin. Please wait for Admin to accept your request.',
         },
         { status: 200 }

@@ -195,6 +195,7 @@ export function NewTripsModal({
                 const cancelAppEvent = b?.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_APPROVED');
                 const isCancelPending =
                   Boolean(d?.isCancelRequested) ||
+                  Boolean(b?.isCancelRequested) ||
                   (Boolean(cancelReqEvent) &&
                     (!cancelAppEvent || new Date(cancelReqEvent.createdAt) > new Date(cancelAppEvent.createdAt)));
 

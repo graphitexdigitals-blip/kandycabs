@@ -521,24 +521,39 @@ export default function DriverDashboardScreen() {
     });
   }, [upcomingBookings, t]);
 
+  // Helper to check if a booking is accepted or has a pending driver cancellation request
+  const isBookingAcceptedOrCancelPending = useCallback((b: any) => {
+    if (!b) return false;
+    const cancelReqEvent = b.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED');
+    const cancelAppEvent = b.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_APPROVED');
+    const hasCancelRequested =
+      Boolean(b.isCancelRequested) ||
+      (Boolean(cancelReqEvent) &&
+        (!cancelAppEvent || new Date(cancelReqEvent.createdAt) > new Date(cancelAppEvent.createdAt)));
+
+    return (
+      b.status === BookingStatus.DRIVER_ACCEPTED ||
+      b.status === 'DRIVER_ACCEPTED' ||
+      Boolean(acceptedDispatches[b.id]) ||
+      Boolean(acceptedDispatches[b.humanReadableRef]) ||
+      hasCancelRequested
+    );
+  }, [acceptedDispatches]);
+
   // Trips shown inside New Trips modal:
   // 1. All pending dispatches from admin
-  // 2. Any trips accepted by this driver that have not started yet (status: DRIVER_ACCEPTED)
+  // 2. Any trips accepted by this driver or pending admin cancellation approval
   const newTripsList = useMemo(() => {
     const list: any[] = [...dispatches];
 
-    // Add activeBooking if it's accepted by this driver and waiting for trip start
-    if (
-      activeBooking &&
-      (activeBooking.status === BookingStatus.DRIVER_ACCEPTED ||
-        activeBooking.status === 'DRIVER_ACCEPTED' ||
-        Boolean(acceptedDispatches[activeBooking.id]))
-    ) {
+    // Add activeBooking if it's accepted by this driver or pending admin cancellation
+    if (activeBooking && isBookingAcceptedOrCancelPending(activeBooking)) {
       const alreadyInList = list.some(
         (d) =>
           d.id === activeBooking.id ||
           d.bookingId === activeBooking.id ||
-          d.booking?.id === activeBooking.id
+          d.booking?.id === activeBooking.id ||
+          d.booking?.humanReadableRef === activeBooking.humanReadableRef
       );
       if (!alreadyInList) {
         list.push({
@@ -546,21 +561,22 @@ export default function DriverDashboardScreen() {
           bookingId: activeBooking.id,
           status: 'ACCEPTED',
           isAccepted: true,
+          isCancelRequested: Boolean(activeBooking.isCancelRequested),
+          cancelReason: activeBooking.cancelReason,
           booking: activeBooking,
         });
       }
     }
 
-    // Add upcomingBookings if accepted by this driver and waiting for trip start
+    // Add upcomingBookings if accepted by this driver or pending admin cancellation
     (upcomingBookings || []).forEach((b) => {
-      if (
-        b &&
-        (b.status === BookingStatus.DRIVER_ACCEPTED ||
-          b.status === 'DRIVER_ACCEPTED' ||
-          Boolean(acceptedDispatches[b.id]))
-      ) {
+      if (b && isBookingAcceptedOrCancelPending(b)) {
         const alreadyInList = list.some(
-          (d) => d.id === b.id || d.bookingId === b.id || d.booking?.id === b.id
+          (d) =>
+            d.id === b.id ||
+            d.bookingId === b.id ||
+            d.booking?.id === b.id ||
+            d.booking?.humanReadableRef === b.humanReadableRef
         );
         if (!alreadyInList) {
           list.push({
@@ -568,6 +584,8 @@ export default function DriverDashboardScreen() {
             bookingId: b.id,
             status: 'ACCEPTED',
             isAccepted: true,
+            isCancelRequested: Boolean(b.isCancelRequested),
+            cancelReason: b.cancelReason,
             booking: b,
           });
         }
@@ -575,7 +593,7 @@ export default function DriverDashboardScreen() {
     });
 
     return sortTripsByDateTimeAscending(list);
-  }, [dispatches, activeBooking, upcomingBookings, acceptedDispatches]);
+  }, [dispatches, activeBooking, upcomingBookings, acceptedDispatches, isBookingAcceptedOrCancelPending]);
 
   // Only count brand new dispatches assigned by admin that are awaiting driver action
   // Do NOT show count / badge if trip is accepted, declined, cancelled, or pending admin cancellation
@@ -778,8 +796,29 @@ export default function DriverDashboardScreen() {
             }),
           }).catch(() => {});
         }
-        setActiveBooking(statusRes.activeBooking);
-        setUpcomingBookings(sortTripsByDateTimeAscending(statusRes.upcomingBookings || []));
+        setActiveBooking((prev: any) => {
+          if (!statusRes.activeBooking) return null;
+          const prevHasPending =
+            prev?.isCancelRequested &&
+            (prev?.id === statusRes.activeBooking.id ||
+              prev?.humanReadableRef === statusRes.activeBooking.humanReadableRef);
+          return {
+            ...statusRes.activeBooking,
+            ...(prevHasPending ? { isCancelRequested: true, cancelReason: prev.cancelReason } : {}),
+          };
+        });
+        setUpcomingBookings((prev) => {
+          const fresh = sortTripsByDateTimeAscending(statusRes.upcomingBookings || []);
+          return fresh.map((b: any) => {
+            const match = prev.find(
+              (p) => p.id === b.id || (p.humanReadableRef && p.humanReadableRef === b.humanReadableRef)
+            );
+            if (match?.isCancelRequested) {
+              return { ...b, isCancelRequested: true, cancelReason: match.cancelReason };
+            }
+            return b;
+          });
+        });
 
         if (statusRes.activeBooking) {
           const isStarted =
@@ -955,6 +994,35 @@ export default function DriverDashboardScreen() {
     });
 
     const unsubTrip = driverRealtimeClient.on('TRIP_STATUS', (payload: any) => {
+      // Admin approved driver cancellation request -> unassign and remove from driver view
+      if (payload && (payload.status === 'DRIVER_CANCEL_APPROVED' || payload.unassigned)) {
+        const targetId = payload.bookingId;
+        setDispatches((prev) =>
+          prev.filter(
+            (d) =>
+              d.id !== targetId &&
+              d.bookingId !== targetId &&
+              d.booking?.id !== targetId &&
+              d.booking?.humanReadableRef !== targetId
+          )
+        );
+        setActiveBooking((prev: any) =>
+          prev?.id === targetId || prev?.humanReadableRef === targetId ? null : prev
+        );
+        setUpcomingBookings((prev) =>
+          prev.filter((b) => b.id !== targetId && b.humanReadableRef !== targetId)
+        );
+        setAcceptedDispatches((prev) => {
+          const next = { ...prev };
+          delete next[targetId];
+          return next;
+        });
+        Alert.alert(
+          'Cancellation Approved',
+          'Admin has accepted your cancellation request. The ride has been removed from your assignments.'
+        );
+      }
+
       // 0ms instant optimistic sync on phone release broadcast
       if (payload && payload.bookingId && typeof payload.customerPhoneReleased === 'boolean') {
         setActiveBooking((prev: any) => {
@@ -1160,37 +1228,87 @@ export default function DriverDashboardScreen() {
 
   const handleDeclineDispatch = async (dispatchId: string, bookingId: string, reason?: string) => {
     setDecliningId(dispatchId);
+
+    const isAcceptedRide =
+      Boolean(acceptedDispatches[bookingId]) ||
+      Boolean(acceptedDispatches[dispatchId]) ||
+      activeBooking?.id === bookingId ||
+      activeBooking?.humanReadableRef === bookingId ||
+      upcomingBookings?.some((b) => b.id === bookingId || b.humanReadableRef === bookingId);
+
     try {
       const res: any = await driverApiClient.fetch('/api/driver/dispatches/decline', {
         method: 'POST',
         body: JSON.stringify({ dispatchId, bookingId, reason: reason || 'Declined by driver' }),
       });
 
-      if (res && res.pendingApproval) {
-        // Driver requested cancellation of an accepted ride: keep in dispatches list marked as pending admin approval
+      if ((res && res.pendingApproval) || isAcceptedRide) {
+        // Driver requested cancellation of an accepted ride: keep in trips list marked as pending admin approval
+        const newEvent = {
+          type: 'DRIVER_CANCEL_REQUESTED',
+          payloadJson: { reason, timestamp: new Date().toISOString() },
+          createdAt: new Date().toISOString(),
+        };
+
         setDispatches((prev) =>
           prev.map((d) => {
-            if (d.id === dispatchId || d.bookingId === bookingId || d.booking?.id === bookingId) {
+            const match =
+              d.id === dispatchId ||
+              d.bookingId === bookingId ||
+              d.booking?.id === bookingId ||
+              d.booking?.humanReadableRef === bookingId;
+            if (match) {
               return {
                 ...d,
                 isCancelRequested: true,
                 cancelReason: reason,
                 booking: {
                   ...(d.booking || {}),
-                  tripEvents: [
-                    {
-                      type: 'DRIVER_CANCEL_REQUESTED',
-                      payloadJson: { reason, timestamp: new Date().toISOString() },
-                      createdAt: new Date().toISOString(),
-                    },
-                    ...(d.booking?.tripEvents || []),
-                  ],
+                  isCancelRequested: true,
+                  cancelReason: reason,
+                  tripEvents: [newEvent, ...(d.booking?.tripEvents || [])],
                 },
               };
             }
             return d;
           })
         );
+
+        setActiveBooking((prev: any) => {
+          if (
+            prev &&
+            (prev.id === bookingId ||
+              prev.humanReadableRef === bookingId ||
+              `dispatch-${prev.id}` === dispatchId)
+          ) {
+            return {
+              ...prev,
+              isCancelRequested: true,
+              cancelReason: reason,
+              tripEvents: [newEvent, ...(prev.tripEvents || [])],
+            };
+          }
+          return prev;
+        });
+
+        setUpcomingBookings((prev) =>
+          prev.map((b) => {
+            if (
+              b.id === bookingId ||
+              b.humanReadableRef === bookingId ||
+              `dispatch-${b.id}` === dispatchId
+            ) {
+              return {
+                ...b,
+                isCancelRequested: true,
+                cancelReason: reason,
+                tripEvents: [newEvent, ...(b.tripEvents || [])],
+              };
+            }
+            return b;
+          })
+        );
+
         fetchDriverData();
         return res;
       }
@@ -1208,7 +1326,13 @@ export default function DriverDashboardScreen() {
       fetchDriverData();
       return res;
     } catch (err: any) {
-      setDispatches((prev) => prev.filter((d) => d.id !== dispatchId));
+      if (isAcceptedRide) {
+        setActiveBooking((prev: any) =>
+          prev ? { ...prev, isCancelRequested: true, cancelReason: reason } : prev
+        );
+      } else {
+        setDispatches((prev) => prev.filter((d) => d.id !== dispatchId));
+      }
       fetchDriverData();
     } finally {
       setDecliningId(null);

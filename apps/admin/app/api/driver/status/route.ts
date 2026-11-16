@@ -53,9 +53,9 @@ export async function GET(req: NextRequest) {
         },
         vehicle: true,
         tripEvents: {
-          where: { type: 'BOOKING_CREATED' },
-          select: { payloadJson: true },
-          take: 1,
+          select: { id: true, type: true, payloadJson: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
         },
       },
       orderBy: { scheduledAt: 'asc' },
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
 
     const parsedAssignedBookings = assignedBookings.map((b) => {
       const bAny = b as any;
-      const createdPayload = (b?.tripEvents?.[0]?.payloadJson as any) || {};
+      const createdPayload = (b?.tripEvents?.find((e: any) => e.type === 'BOOKING_CREATED')?.payloadJson as any) || {};
       let viaStops: any[] = [];
       if (Array.isArray(createdPayload.viaStops) && createdPayload.viaStops.length > 0) {
         viaStops = createdPayload.viaStops;

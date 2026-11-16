@@ -19,12 +19,14 @@ export async function POST(
       );
     }
 
-    const bookingId = params.id;
+    const inputId = params.id;
     const body = await req.json().catch(() => ({}));
     const { note } = body;
 
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+    const booking = await prisma.booking.findFirst({
+      where: {
+        OR: [{ id: inputId }, { humanReadableRef: inputId }],
+      },
       include: {
         assignedDriver: {
           include: {
@@ -42,6 +44,8 @@ export async function POST(
     if (!booking) {
       return NextResponse.json({ success: false, message: 'Booking not found' }, { status: 404 });
     }
+
+    const bookingId = booking.id;
 
     const driverId = booking.assignedDriverId;
     const driverName = booking.assignedDriver?.user?.fullName || 'Driver';

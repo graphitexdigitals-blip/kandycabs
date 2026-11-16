@@ -3,12 +3,14 @@
 import React from 'react';
 import { AuthProvider } from '@/lib/AuthContext';
 import { BreakdownAlertModal } from './BreakdownAlertModal';
+import { CancellationAlertModal } from './CancellationAlertModal';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       {children}
       <BreakdownAlertModal />
+      <CancellationAlertModal />
     </AuthProvider>
   );
 }
