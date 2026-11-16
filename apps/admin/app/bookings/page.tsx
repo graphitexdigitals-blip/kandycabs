@@ -111,6 +111,25 @@ export default function AdminBookingsPage() {
     }));
   };
 
+  const handleDirectAcceptCancellation = async (bId: string) => {
+    if (!confirm('Are you sure you want to accept this driver cancellation request? The driver will be unassigned and the ride will become available for re-dispatch.')) return;
+    try {
+      const res = await fetch(`/api/admin/bookings/${bId}/accept-cancellation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(data.message || 'Driver cancellation accepted.');
+        fetchBookings(true);
+      } else {
+        alert(data.message || 'Failed to accept driver cancellation');
+      }
+    } catch (err: any) {
+      alert('Error: ' + (err.message || 'Network error'));
+    }
+  };
+
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const inFlightRef = useRef(false);
 
@@ -696,6 +715,40 @@ export default function AdminBookingsPage() {
                           </span>
                         )}
                       </div>
+
+                      {/* Driver Cancellation Request Alert & 1-Click Accept in Table */}
+                      {(() => {
+                        const latestCancelReq = b.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED');
+                        const latestCancelApp = b.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_APPROVED');
+                        const hasPendingCancel =
+                          Boolean(latestCancelReq) &&
+                          (!latestCancelApp || new Date(latestCancelReq.createdAt) > new Date(latestCancelApp.createdAt)) &&
+                          b.assignedDriver != null;
+
+                        if (!hasPendingCancel) return null;
+
+                        return (
+                          <div className="mt-1.5 p-1.5 bg-amber-50 border border-amber-300 rounded-lg">
+                            <span className="text-[11px] font-black text-amber-900 flex items-center gap-1">
+                              <IconAlert className="w-3 h-3 text-amber-600 shrink-0" />
+                              <span>Cancel Requested</span>
+                            </span>
+                            <span className="text-[10px] text-rose-700 font-bold block truncate max-w-[140px]" title={latestCancelReq?.payloadJson?.reason}>
+                              "{latestCancelReq?.payloadJson?.reason || 'Reason not specified'}"
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDirectAcceptCancellation(b.id);
+                              }}
+                              className="mt-1 w-full px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black rounded shadow-xs"
+                            >
+                              Accept Cancel
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 }
@@ -1045,6 +1098,11 @@ export default function AdminBookingsPage() {
                           Driver Declined
                         </span>
                       )}
+                      {b.tripEvents?.some((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED') && !b.tripEvents?.some((e: any) => e.type === 'DRIVER_CANCEL_APPROVED') && b.assignedDriver && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 animate-pulse text-center">
+                          Cancel Requested
+                        </span>
+                      )}
                       {b.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVAL_REQUESTED' || e.payloadJson?.requiresFleetApproval) && !b.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVED') && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse text-center">
                           Fleet Check Required
@@ -1088,6 +1146,11 @@ export default function AdminBookingsPage() {
                     {b.tripEvents?.some((e: any) => e.type === 'DRIVER_DECLINED') && (b.status === BookingStatus.DISPATCHED || b.status === BookingStatus.PENDING_ADMIN) && (
                       <span className="mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 text-center animate-pulse">
                         Driver Declined
+                      </span>
+                    )}
+                    {b.tripEvents?.some((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED') && !b.tripEvents?.some((e: any) => e.type === 'DRIVER_CANCEL_APPROVED') && b.assignedDriver && (
+                      <span className="mt-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 animate-pulse text-center">
+                        Cancel Requested
                       </span>
                     )}
                     {b.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVAL_REQUESTED' || e.payloadJson?.requiresFleetApproval) && !b.tripEvents?.some((e: any) => e.type === 'FLEET_APPROVED') && (

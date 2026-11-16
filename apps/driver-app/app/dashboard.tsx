@@ -1119,24 +1119,52 @@ export default function DriverDashboardScreen() {
   const handleDeclineDispatch = async (dispatchId: string, bookingId: string, reason?: string) => {
     setDecliningId(dispatchId);
     try {
-      await driverApiClient.fetch('/api/driver/dispatches/decline', {
+      const res: any = await driverApiClient.fetch('/api/driver/dispatches/decline', {
         method: 'POST',
         body: JSON.stringify({ dispatchId, bookingId, reason: reason || 'Declined by driver' }),
       });
-      // Remove from dispatches list
+
+      if (res && res.pendingApproval) {
+        // Driver requested cancellation of an accepted ride: keep in dispatches list marked as pending admin approval
+        setDispatches((prev) =>
+          prev.map((d) => {
+            if (d.id === dispatchId || d.bookingId === bookingId || d.booking?.id === bookingId) {
+              return {
+                ...d,
+                isCancelRequested: true,
+                cancelReason: reason,
+                booking: {
+                  ...(d.booking || {}),
+                  tripEvents: [
+                    {
+                      type: 'DRIVER_CANCEL_REQUESTED',
+                      payloadJson: { reason, timestamp: new Date().toISOString() },
+                      createdAt: new Date().toISOString(),
+                    },
+                    ...(d.booking?.tripEvents || []),
+                  ],
+                },
+              };
+            }
+            return d;
+          })
+        );
+        fetchDriverData();
+        return res;
+      }
+
+      // Normal decline (not yet accepted): remove immediately
       setDispatches((prev) => prev.filter((d) => d.id !== dispatchId && d.booking?.id !== bookingId));
-      // Remove from acceptedDispatches mapping
       setAcceptedDispatches((prev) => {
         const next = { ...prev };
         delete next[dispatchId];
         delete next[bookingId];
         return next;
       });
-      // Remove from activeBooking if it matches
       setActiveBooking((prev: any) => (prev?.id === bookingId ? null : prev));
-      // Remove from upcomingBookings if it matches
       setUpcomingBookings((prev) => prev.filter((b) => b.id !== bookingId));
       fetchDriverData();
+      return res;
     } catch (err: any) {
       setDispatches((prev) => prev.filter((d) => d.id !== dispatchId));
       fetchDriverData();

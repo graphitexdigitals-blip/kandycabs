@@ -33,7 +33,75 @@ export async function POST(req: NextRequest) {
       return setCorsHeaders(res);
     }
 
-    // Atomic Transaction for Driver Decline
+    // Check if the booking was already accepted by this driver
+    const currentBooking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: { id: true, assignedDriverId: true, status: true, humanReadableRef: true },
+    });
+
+    const isAlreadyAccepted = currentBooking?.assignedDriverId === session.driverId;
+
+    if (isAlreadyAccepted) {
+      // Driver is requesting cancellation of an accepted assignment.
+      // Admin MUST accept the cancellation request before unassigning!
+      await prisma.$transaction(async (tx) => {
+        // Record TripEvent: DRIVER_CANCEL_REQUESTED
+        await tx.tripEvent.create({
+          data: {
+            bookingId,
+            type: 'DRIVER_CANCEL_REQUESTED',
+            payloadJson: {
+              driverId: session.driverId,
+              driverName: session.user.fullName,
+              driverPhone: session.user.phone,
+              dispatchId,
+              reason: reason || 'Driver requested ride cancellation',
+              timestamp: new Date().toISOString(),
+              status: 'PENDING_ADMIN_ACCEPTANCE',
+            },
+          },
+        });
+
+        // Record AuditLog
+        await tx.auditLog.create({
+          data: {
+            actorUserId: session.userId,
+            action: 'DRIVER_CANCEL_REQUESTED',
+            entityType: 'Booking',
+            entityId: bookingId,
+            reason: `Driver ${session.user.fullName} requested cancellation: ${reason || 'No reason specified'}`,
+          },
+        });
+      });
+
+      // Broadcast to Admin and booking channel
+      RealtimeEvents.emitToBooking(bookingId, 'BOOKING_STATUS', {
+        bookingId,
+        driverCancelRequested: true,
+        driverId: session.driverId,
+        driverName: session.user.fullName,
+        driverPhone: session.user.phone,
+        reason: reason || 'Driver requested ride cancellation',
+      });
+
+      RealtimeEvents.emitToAllDrivers('TRIP_STATUS', {
+        bookingId,
+        driverCancelRequested: true,
+        driverId: session.driverId,
+      });
+
+      const res = NextResponse.json(
+        {
+          success: true,
+          pendingApproval: true,
+          message: 'Cancellation request sent to Admin. Please wait for Admin to accept your request.',
+        },
+        { status: 200 }
+      );
+      return setCorsHeaders(res);
+    }
+
+    // Atomic Transaction for Driver Decline (Pending offer not yet accepted)
     await prisma.$transaction(async (tx) => {
       // 1. Mark this driver's dispatch as EXPIRED/DECLINED
       await tx.bookingDispatch.updateMany({

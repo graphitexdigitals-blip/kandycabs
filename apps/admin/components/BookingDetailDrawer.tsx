@@ -65,9 +65,33 @@ export function BookingDetailDrawer({
   const [savingDriverPay, setSavingDriverPay] = useState<boolean>(false);
   const [approvingFleet, setApprovingFleet] = useState<boolean>(false);
   const [cancellingBooking, setCancellingBooking] = useState<boolean>(false);
+  const [acceptingCancellation, setAcceptingCancellation] = useState<boolean>(false);
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
   const isTogglingPhoneRef = useRef<boolean>(false);
   const lastPhoneToggledAtRef = useRef<number>(0);
+
+  const handleAcceptDriverCancellation = async (bId: string) => {
+    if (!confirm('Are you sure you want to accept this driver cancellation request? The driver will be unassigned and the ride will become available for re-dispatch.')) return;
+    setAcceptingCancellation(true);
+    try {
+      const res = await fetch(`/api/admin/bookings/${bId}/accept-cancellation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const resData = await res.json();
+      if (res.ok && resData.success) {
+        alert(resData.message || 'Driver cancellation accepted successfully.');
+        fetchDetail(bId);
+        onRefresh();
+      } else {
+        alert(resData.message || 'Failed to accept driver cancellation');
+      }
+    } catch (err: any) {
+      alert('Error accepting cancellation: ' + (err.message || 'Network error'));
+    } finally {
+      setAcceptingCancellation(false);
+    }
+  };
 
   const fetchDetail = async (id: string) => {
     setLoading(true);
@@ -640,6 +664,45 @@ Exclusions (If applicable):
                   </button>
                 </div>
               )}
+
+            {/* Driver Cancellation Request Box - Pending Admin Acceptance */}
+            {(() => {
+              const latestCancelReq = booking.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED');
+              const latestCancelApp = booking.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_APPROVED');
+              const hasPendingCancel =
+                Boolean(latestCancelReq) &&
+                (!latestCancelApp || new Date(latestCancelReq.createdAt) > new Date(latestCancelApp.createdAt)) &&
+                booking.assignedDriverId != null;
+
+              if (!hasPendingCancel) return null;
+
+              return (
+                <div className="p-3.5 bg-amber-50 border-2 border-amber-400 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-pulse">
+                  <div>
+                    <div className="flex items-center space-x-1.5">
+                      <IconAlert className="w-4 h-4 text-amber-700 shrink-0" />
+                      <span className="font-black text-xs text-amber-900 uppercase tracking-wide">
+                        Driver Requested Ride Cancellation
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-900 mt-0.5">
+                      Driver <span className="font-bold">{latestCancelReq?.payloadJson?.driverName || 'Assigned driver'}</span> requested to cancel this ride assignment.
+                    </p>
+                    <p className="text-[11px] font-bold text-rose-700 mt-0.5">
+                      Reason: "{latestCancelReq?.payloadJson?.reason || 'Reason not specified'}"
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleAcceptDriverCancellation(booking.id)}
+                    disabled={acceptingCancellation}
+                    className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black rounded-lg shadow-xs shrink-0 transition"
+                  >
+                    {acceptingCancellation ? 'Processing...' : 'Accept Cancellation & Re-dispatch'}
+                  </button>
+                </div>
+              );
+            })()}
 
             {/* Pending Driver Override Alert Box */}
             {booking.tripEvents?.some((e: any) => e.type === 'OVERRIDE_REQUESTED') &&

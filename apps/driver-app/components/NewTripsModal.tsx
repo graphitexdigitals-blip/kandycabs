@@ -90,11 +90,11 @@ export function NewTripsModal({
       setCancelModalVisible(false);
       setTargetCancelDispatch(null);
       Alert.alert(
-        'Ride Cancelled',
-        'The ride assignment has been cancelled and unassigned. Admin has been notified with your reason.'
+        'Cancellation Request Sent',
+        'Your cancellation request with the reason has been submitted to Admin. Please wait for Admin to accept your request.'
       );
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to cancel ride');
+      Alert.alert('Error', err?.message || 'Failed to submit cancellation request');
     } finally {
       setIsSubmittingCancel(false);
     }
@@ -191,12 +191,20 @@ export function NewTripsModal({
                 const reqs = parseCustomerRequirements(b, t);
                 const note = extractCustomerNotes(b);
 
+                const cancelReqEvent = b?.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED');
+                const cancelAppEvent = b?.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_APPROVED');
+                const isCancelPending =
+                  Boolean(d?.isCancelRequested) ||
+                  (Boolean(cancelReqEvent) &&
+                    (!cancelAppEvent || new Date(cancelReqEvent.createdAt) > new Date(cancelAppEvent.createdAt)));
+
                 const isAccepted =
                   d?.status === 'ACCEPTED' ||
                   d?.isAccepted ||
                   b?.status === 'DRIVER_ACCEPTED' ||
                   Boolean(bookingId && acceptedDispatches?.[bookingId]) ||
-                  Boolean(d.id && acceptedDispatches?.[d.id]);
+                  Boolean(d.id && acceptedDispatches?.[d.id]) ||
+                  isCancelPending;
 
                 return (
                   <View key={d.id || `dispatch-${index}`} style={styles.floatingDispatchCardWhite}>
@@ -204,7 +212,18 @@ export function NewTripsModal({
                     <View style={styles.dispatchHeaderBanner}>
                       <View style={styles.dispatchHeaderRow}>
                         <View>
-                          {isAccepted ? (
+                          {isCancelPending ? (
+                            <View style={styles.cancelPendingAlertBadge}>
+                              <Ionicons
+                                name="time"
+                                size={13}
+                                color="#b45309"
+                              />
+                              <Text style={styles.cancelPendingAlertText}>
+                                {t('dashboard.cancellation_requested', 'CANCELLATION REQUESTED')}
+                              </Text>
+                            </View>
+                          ) : isAccepted ? (
                             <View style={styles.acceptedAlertBadge}>
                               <Ionicons
                                 name="checkmark-circle"
@@ -357,8 +376,37 @@ export function NewTripsModal({
                       </Text>
                     </View>
 
-                    {/* Action Buttons Row: (Cancel Ride & Details) if accepted, or (Decline & Accept) if pending */}
-                    {isAccepted ? (
+                    {/* Action Buttons Row: (Pending Admin) if cancel requested, or (Cancel Ride & Details) if accepted, or (Decline & Accept) if pending */}
+                    {isCancelPending ? (
+                      <View style={styles.dispatchActionRow}>
+                        <View style={styles.cancelPendingBtn}>
+                          <Ionicons name="time-outline" size={16} color="#92400e" style={{ marginRight: 5 }} />
+                          <Text style={styles.cancelPendingBtnText}>
+                            PENDING ADMIN APPROVAL
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          style={styles.detailsRideBtn}
+                          onPress={() => {
+                            setSelectedTripDetails({
+                              booking: b,
+                              timing: tripTiming,
+                              payeeAmount,
+                              reqs,
+                              note,
+                            });
+                            setDetailsModalVisible(true);
+                          }}
+                          activeOpacity={0.85}
+                        >
+                          <Ionicons name="document-text-outline" size={17} color="#ffffff" style={{ marginRight: 5 }} />
+                          <Text style={styles.detailsRideBtnText}>
+                            {t('dashboard.details_btn', { defaultValue: 'DETAILS' })}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : isAccepted ? (
                       <View style={styles.dispatchActionRow}>
                         <TouchableOpacity
                           style={styles.cancelRideBtn}
@@ -1174,6 +1222,43 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#15803d',
     letterSpacing: 0.5,
+  },
+  cancelPendingAlertBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#fef3c7',
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginBottom: 3,
+    gap: 4,
+  },
+  cancelPendingAlertText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#92400e',
+    letterSpacing: 0.5,
+  },
+  cancelPendingBtn: {
+    flex: 1.35,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#fffbeb',
+    borderWidth: 1.5,
+    borderColor: '#f59e0b',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  cancelPendingBtnText: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: '#92400e',
+    letterSpacing: 0.3,
   },
   dispatchActionRowAccepted: {
     marginTop: 6,
