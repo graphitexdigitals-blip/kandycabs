@@ -50,11 +50,9 @@ import {
 import { getExpiringDocuments } from '../lib/documentExpiry';
 import {
   CAPTAIN_AVATAR_BASE64,
-  HERO_BANNER_INNOVA_BASE64,
   HERO_DRIVER_CARD_BASE64,
   getEmbeddedFleetImage,
 } from '../assets/embeddedAssets';
-import { FOGGY_OVERLAY_GRADIENT_BASE64 } from '../assets/foggyGradient';
 import { getAdminRegisteredDriver, MOHAN_PHOTO_URL } from '../lib/adminDrivers';
 import {
   formatTripDateTime,
@@ -1455,104 +1453,88 @@ export default function DriverDashboardScreen() {
         {/* ============================================================ */}
         {activeBottomTab === 'HOME' && (
           <View style={styles.homeTabWrapper}>
-            {/* 1. HERO DRIVER CARD (MATCHING REFERENCE DESIGN WITH SPACIOUS INNOVA & TRANSLUCENT FOG) */}
+            {/* 1. HERO DRIVER CARD (CLEAN WHITE CARD: PROFILE ICON ON LEFT, NAME & DETAILS ON RIGHT) */}
             <View style={styles.heroCardOuter}>
-              <ImageBackground
-                source={{ uri: HERO_BANNER_INNOVA_BASE64 }}
-                style={styles.heroCardBg}
-                imageStyle={{ borderRadius: 24, resizeMode: 'cover' }}
-              >
-                {/* Continuous 256x1 hardware-interpolated fog gradient: ZERO vertical lines, soft translucent fog with scenery visible */}
-                <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { borderRadius: 24, overflow: 'hidden' }]}>
+              <View style={styles.heroCardContent}>
+                {/* Profile Avatar on the LEFT */}
+                <TouchableOpacity
+                  style={styles.heroAvatarContainer}
+                  onPress={() => router.push('/documents')}
+                  activeOpacity={0.85}
+                >
                   <Image
-                    source={{ uri: FOGGY_OVERLAY_GRADIENT_BASE64 }}
-                    style={StyleSheet.absoluteFillObject}
-                    resizeMode="stretch"
+                    source={{ uri: driver?.profilePhotoUrl || CAPTAIN_AVATAR_BASE64 }}
+                    style={styles.heroAvatarImg}
+                    resizeMode="cover"
                   />
-                </View>
+                  <View style={[styles.heroAvatarStatusDot, { backgroundColor: onlineStatus ? '#22c55e' : '#94a3b8' }]} />
+                </TouchableOpacity>
 
-                <View style={styles.heroCardContent}>
-                  <View style={styles.heroCardLeft}>
-                    {/* Profile Avatar & Driver Name centered together */}
-                    <View style={styles.heroAvatarNameBlock}>
-                      <TouchableOpacity
-                        style={styles.heroAvatarContainer}
-                        onPress={() => router.push('/documents')}
-                        activeOpacity={0.85}
-                      >
-                        <Image
-                          source={{ uri: driver?.profilePhotoUrl || CAPTAIN_AVATAR_BASE64 }}
-                          style={styles.heroAvatarImg}
-                          resizeMode="cover"
-                        />
-                        <View style={[styles.heroAvatarStatusDot, { backgroundColor: onlineStatus ? '#22c55e' : '#94a3b8' }]} />
-                      </TouchableOpacity>
+                {/* Names and Content on the RIGHT */}
+                <View style={styles.heroCardRight}>
+                  <Text style={styles.heroCardName} numberOfLines={1}>
+                    {driver?.fullName || (driver?.phone ? `Partner (${driver.phone.replace(/\D/g, '').slice(-4)})` : 'Driver Partner')}
+                  </Text>
 
-                      <Text style={styles.heroCardName} numberOfLines={1}>
-                        {driver?.fullName || (driver?.phone ? `Partner (${driver.phone.replace(/\D/g, '').slice(-4)})` : 'Driver Partner')}
-                      </Text>
-                    </View>
+                  <View style={styles.heroCardPlateRow}>
+                    <Ionicons name="car" size={13} color="#475569" style={{ marginRight: 5 }} />
+                    <Text style={styles.heroCardPlate} numberOfLines={1}>
+                      {(activeFleetVeh?.plateNumber || driver?.vehicle?.plateNumber || (driver?.verificationStatus === 'APPROVED' ? 'KA-01-SD-2045' : 'PENDING')).toUpperCase()}
+                    </Text>
+                  </View>
 
-                    <View style={styles.heroCardPlateRow}>
-                      <Ionicons name="car" size={13} color="#0a192f" style={{ marginRight: 5 }} />
-                      <Text style={styles.heroCardPlate} numberOfLines={1}>
-                        {(activeFleetVeh?.plateNumber || driver?.vehicle?.plateNumber || (driver?.verificationStatus === 'APPROVED' ? 'KA-01-SD-2045' : 'PENDING')).toUpperCase()}
-                      </Text>
-                    </View>
-
-                    {/* Duty Toggle Bar: Segmented Online / Offline Switch */}
-                    <View style={styles.heroDutyToggleTrack}>
-                      <TouchableOpacity
+                  {/* Duty Toggle Bar: Segmented Online / Offline Switch */}
+                  <View style={styles.heroDutyToggleTrack}>
+                    <TouchableOpacity
+                      style={[
+                        styles.heroDutyToggleSegment,
+                        onlineStatus && styles.heroDutyToggleSegmentOnlineActive,
+                      ]}
+                      onPress={() => !onlineStatus && handleToggleOnline(true)}
+                      activeOpacity={0.8}
+                    >
+                      <View
                         style={[
-                          styles.heroDutyToggleSegment,
-                          onlineStatus && styles.heroDutyToggleSegmentOnlineActive,
+                          styles.heroDutyToggleDot,
+                          { backgroundColor: onlineStatus ? '#22c55e' : '#94a3b8' },
                         ]}
-                        onPress={() => !onlineStatus && handleToggleOnline(true)}
-                        activeOpacity={0.8}
-                      >
-                        <View
-                          style={[
-                            styles.heroDutyToggleDot,
-                            { backgroundColor: onlineStatus ? '#22c55e' : '#94a3b8' },
-                          ]}
-                        />
-                        <Text
-                          style={[
-                            styles.heroDutyToggleText,
-                            onlineStatus && styles.heroDutyToggleTextActive,
-                          ]}
-                        >
-                          {t('header.online')}
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
+                      />
+                      <Text
                         style={[
-                          styles.heroDutyToggleSegment,
-                          !onlineStatus && styles.heroDutyToggleSegmentOfflineActive,
+                          styles.heroDutyToggleText,
+                          onlineStatus && styles.heroDutyToggleTextActive,
                         ]}
-                        onPress={() => onlineStatus && handleToggleOnline(false)}
-                        activeOpacity={0.8}
                       >
-                        <View
-                          style={[
-                            styles.heroDutyToggleDot,
-                            { backgroundColor: !onlineStatus ? '#ef4444' : '#94a3b8' },
-                          ]}
-                        />
-                        <Text
-                          style={[
-                            styles.heroDutyToggleText,
-                            !onlineStatus && styles.heroDutyToggleTextActive,
-                          ]}
-                        >
-                          {t('header.offline')}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                        {t('header.online')}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.heroDutyToggleSegment,
+                        !onlineStatus && styles.heroDutyToggleSegmentOfflineActive,
+                      ]}
+                      onPress={() => onlineStatus && handleToggleOnline(false)}
+                      activeOpacity={0.8}
+                    >
+                      <View
+                        style={[
+                          styles.heroDutyToggleDot,
+                          { backgroundColor: !onlineStatus ? '#ef4444' : '#94a3b8' },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.heroDutyToggleText,
+                          !onlineStatus && styles.heroDutyToggleTextActive,
+                        ]}
+                      >
+                        {t('header.offline')}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
-              </ImageBackground>
+              </View>
             </View>
 
             {/* FLOATING CARD CONTAINER */}
@@ -3713,59 +3695,48 @@ const styles = StyleSheet.create({
   heroCardOuter: {
     marginHorizontal: 16,
     marginTop: 12,
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    borderRadius: 20,
     backgroundColor: '#ffffff',
-  },
-  heroCardBg: {
-    width: '100%',
-    height: 146,
-    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   heroCardContent: {
-    flex: 1,
-    paddingLeft: 14,
-    paddingRight: 12,
-    paddingVertical: 8,
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  heroCardLeft: {
-    maxWidth: '56%',
-  },
-  heroAvatarNameBlock: {
+    flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    minWidth: 50,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   heroAvatarContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#f97316',
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#0f2744',
-    shadowOpacity: 0.14,
-    shadowOffset: { width: 0, height: 1.5 },
-    shadowRadius: 3,
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
     elevation: 2,
-    marginBottom: 3,
+    position: 'relative',
   },
   heroAvatarImg: {
     width: '100%',
     height: '100%',
-    borderRadius: 25,
+    borderRadius: 27,
   },
   heroAvatarFallback: {
     width: '100%',
     height: '100%',
-    borderRadius: 25,
+    borderRadius: 27,
     backgroundColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
@@ -3774,54 +3745,53 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 13,
-    height: 13,
-    borderRadius: 6.5,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     borderWidth: 2,
     borderColor: '#ffffff',
   },
+  heroCardRight: {
+    flex: 1,
+    marginLeft: 14,
+    justifyContent: 'center',
+  },
   heroCardName: {
-    fontSize: 16.5,
+    fontSize: 17,
     fontWeight: '900',
     color: '#0a192f',
     letterSpacing: -0.2,
-    lineHeight: 20,
-    textAlign: 'center',
+    lineHeight: 22,
+    textAlign: 'left',
   },
   heroCardPlateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 1,
-    marginBottom: 4,
+    marginTop: 2,
+    marginBottom: 6,
   },
   heroCardPlate: {
-    fontSize: 12.5,
-    fontWeight: '800',
-    color: '#0a192f',
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
     letterSpacing: 0.3,
   },
   heroDutyToggleTrack: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderWidth: 1.2,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 20,
-    padding: 2,
-    marginTop: 2,
+    padding: 2.5,
     alignSelf: 'flex-start',
-    shadowColor: '#0f2744',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 1.5 },
-    shadowRadius: 3,
-    elevation: 2,
   },
   heroDutyToggleSegment: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 3,
-    paddingHorizontal: 9,
+    paddingVertical: 4,
+    paddingHorizontal: 11,
     borderRadius: 16,
   },
   heroDutyToggleSegmentOnlineActive: {
@@ -3847,7 +3817,7 @@ const styles = StyleSheet.create({
     marginRight: 4.5,
   },
   heroDutyToggleText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '800',
     color: '#64748b',
     letterSpacing: 0.2,

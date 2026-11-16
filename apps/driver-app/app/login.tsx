@@ -32,8 +32,8 @@ import { APP_FONT, APP_FONT_BOLD, APP_FONT_MEDIUM } from '../constants/typograph
 export default function DriverLoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 28) : insets.top;
-  const topPadding = Math.max(statusBarHeight + 52, insets.top + 52, 82);
+  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : insets.top;
+  const topPadding = Math.max(statusBarHeight + 84, insets.top + 84, 108);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [language, setLanguage] = useState<'en' | 'kn' | 'hi'>('en');
@@ -381,7 +381,7 @@ export default function DriverLoginScreen() {
               </View>
 
               {/* Row 2: Enter OTP */}
-              <View style={[styles.inputPillRow, { marginTop: 12 }]}>
+              <View style={[styles.inputPillRow, { marginTop: 10 }]}>
                 <Ionicons name="lock-closed-outline" size={20} color="#64748b" style={styles.inputLeadingIcon} />
                 <TextInput
                   style={styles.pillInput}
@@ -430,7 +430,7 @@ export default function DriverLoginScreen() {
                 ].map((d) => (
                   <TouchableOpacity
                     key={d.phone}
-                    style={[styles.demoCardOrange, { marginBottom: 10 }]}
+                    style={styles.demoCardOrange}
                     onPress={() => loginAsDriver(d.phone)}
                     disabled={loading}
                     activeOpacity={0.85}
@@ -476,8 +476,8 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? 68 : 58,
-    paddingBottom: Platform.OS === 'android' ? 24 : 18,
+    paddingTop: Platform.OS === 'android' ? 24 : 16,
+    paddingBottom: Platform.OS === 'android' ? 16 : 12,
     justifyContent: 'space-between',
   },
   mainContent: {
@@ -487,22 +487,22 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   header: {
-    marginTop: 10,
-    marginBottom: 12,
+    marginTop: 6,
+    marginBottom: 8,
     alignItems: 'center',
   },
   logoImage: {
-    width: 175,
-    height: 90,
+    width: 195,
+    height: 86,
     marginBottom: 4,
   },
   partnerTitle: {
     fontFamily: APP_FONT_BOLD,
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '800',
     color: '#0f2942',
-    letterSpacing: 2.0,
-    marginTop: 6,
+    letterSpacing: 1.8,
+    marginTop: 4,
     textAlign: 'center',
     textTransform: 'uppercase',
   },
@@ -510,8 +510,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
-    marginBottom: 28,
+    marginTop: 16,
+    marginBottom: 20,
   },
   langText: {
     fontFamily: APP_FONT_MEDIUM,
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     paddingHorizontal: 2,
-    marginTop: 22,
+    marginTop: 14,
   },
   inputPillRow: {
     flexDirection: 'row',
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#cbd5e1',
     borderRadius: 22,
-    height: 52,
+    height: 50,
     paddingHorizontal: 16,
   },
   inputLeadingIcon: {
@@ -580,22 +580,22 @@ const styles = StyleSheet.create({
   loginSubmitBtn: {
     backgroundColor: '#f05a22',
     borderRadius: 999,
-    height: 52,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 18,
+    marginTop: 12,
     shadowColor: '#f05a22',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
   },
   loginSubmitBtnDisabled: {
     opacity: 0.7,
   },
   loginSubmitBtnText: {
     fontFamily: APP_FONT_BOLD,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: '#ffffff',
     letterSpacing: 0.8,
@@ -619,7 +619,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    marginTop: 10,
+    marginTop: 8,
     marginBottom: 4,
     alignItems: 'center',
   },
@@ -629,18 +629,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   demoSection: {
-    marginTop: 16,
+    marginTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
-    paddingTop: 12,
+    paddingTop: 8,
   },
   demoHeading: {
     fontFamily: APP_FONT_BOLD,
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: '800',
     color: '#64748b',
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: 6,
     textAlign: 'center',
     letterSpacing: 0.6,
   },
@@ -649,8 +649,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#fde68a',
     borderRadius: 12,
-    padding: 10,
-    marginBottom: 8,
+    padding: 8,
+    marginBottom: 6,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
