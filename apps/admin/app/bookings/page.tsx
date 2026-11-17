@@ -714,26 +714,18 @@ export default function AdminBookingsPage() {
                       {driverPhone ? (
                         <span className="text-xs text-slate-500 font-mono block">{driverPhone}</span>
                       ) : null}
-                      <div className="mt-1 p-2 bg-rose-50 border border-rose-300 rounded-lg shadow-xs">
-                        <span className="text-[11px] font-black text-rose-900 flex items-center gap-1">
-                          <IconAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                          <span>Cancellation Requested</span>
-                        </span>
-                        <span className="text-[10px] text-rose-800 font-bold block mt-0.5 truncate max-w-[150px]" title={latestCancelReq?.payloadJson?.reason}>
-                          "{latestCancelReq?.payloadJson?.reason || 'Reason not specified'}"
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDirectAcceptCancellation(b.id);
-                          }}
-                          className="mt-1.5 w-full px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-[11px] font-black rounded-md shadow-sm transition flex items-center justify-center gap-1"
-                        >
-                          <span>✓</span>
-                          <span>Accept Cancellation</span>
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDirectAcceptCancellation(b.id);
+                        }}
+                        className="mt-1 w-full px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-[11px] font-black rounded-md shadow-xs transition flex items-center justify-center gap-1.5"
+                        title={latestCancelReq?.payloadJson?.reason ? `Cancellation Reason: ${latestCancelReq.payloadJson.reason}` : undefined}
+                      >
+                        <IconCheck className="w-3.5 h-3.5 text-white" />
+                        <span>Accept Cancellation</span>
+                      </button>
                     </div>
                   );
                 }
