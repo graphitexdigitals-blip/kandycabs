@@ -566,7 +566,7 @@ export function NewTripsModal({
             <View style={styles.cancelModalCard}>
               <View style={styles.cancelModalHeader}>
                 <View style={styles.cancelModalIconWrap}>
-                  <Ionicons name="alert-circle" size={24} color="#dc2626" />
+                  <Ionicons name="alert-circle" size={28} color="#dc2626" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cancelModalTitle}>Reason for Cancelling Ride</Text>
@@ -663,8 +663,8 @@ export function NewTripsModal({
           <View style={styles.cancelModalOverlay}>
             <View style={[styles.cancelModalCard, { maxHeight: '90%' }]}>
               <View style={styles.cancelModalHeader}>
-                <View style={[styles.cancelModalIconWrap, { backgroundColor: '#e0f2fe' }]}>
-                  <Ionicons name="document-text" size={24} color="#0284c7" />
+                <View style={styles.cancelModalIconWrap}>
+                  <Ionicons name="document-text" size={26} color="#0284c7" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cancelModalTitle}>
@@ -1395,10 +1395,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   cancelModalIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#fee2e2',
     alignItems: 'center',
     justifyContent: 'center',
   },
