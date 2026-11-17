@@ -643,10 +643,6 @@ export function BroadcastDispatchModal({
                         <p className="text-[11px] text-rose-700 font-bold mt-0.5">
                           ⚠️ Already same trip is assigned to same driver
                         </p>
-                      ) : isAlreadyDispatched ? (
-                        <p className="text-[11px] text-blue-800 font-bold mt-0.5">
-                          📡 Trip already dispatched to {driver.user.fullName} • Awaiting driver response
-                        </p>
                       ) : (
                         <p className="text-xs text-slate-500 truncate">
                           {driver.user.phone} •{' '}
