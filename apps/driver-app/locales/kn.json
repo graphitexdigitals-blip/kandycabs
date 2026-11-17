@@ -346,6 +346,7 @@
     "select_payment_method": "ಪಾವತಿ ವಿಧಾನವನ್ನು ಆಯ್ಕೆಮಾಡಿ",
     "admin_upi_qr": "ಅಡ್ಮಿನ್ ಯುಪಿಐ ಕ್ಯೂಆರ್",
     "cash_collected": "ನಗದು ಸಂಗ್ರಹಿಸಲಾಗಿದೆ",
+    "pay_later": "ನಂತರ ಪಾವತಿಸಿ",
     "scan_and_pay_admin": "ಸ್ಕ್ಯಾನ್ ಮಾಡಿ ಅಡ್ಮಿನ್‌ಗೆ ಪಾವತಿಸಿ",
     "amount_val": "ಮೊತ್ತ: ₹{{amount}}",
     "any_upi": "ಯಾವುದೇ UPI",

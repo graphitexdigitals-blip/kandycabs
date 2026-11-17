@@ -1671,16 +1671,20 @@ Exclusions (If applicable):
                     </div>
                   )}
 
-                  {/* Trip Completion Payment Method Badge (Admin UPI QR vs Cash Collected) */}
+                  {/* Trip Completion Payment Method Badge (Admin UPI QR vs Cash Collected vs Pay Later) */}
                   {(() => {
                     const completeEvent = booking.tripEvents?.find((e: any) => e.type === 'TRIP_COMPLETED');
                     const balancePayment = booking.payments?.find((p: any) => p.type === 'BALANCE');
+                    const hasPayLaterEvent = booking.tripEvents?.some((e: any) => e.type === 'CUSTOMER_PAY_LATER');
                     const method = balancePayment?.paymentMethod || completeEvent?.payloadJson?.paymentMethod;
-                    if (!method) return null;
+                    if (!method && !hasPayLaterEvent) return null;
+                    const isPayLater = method === 'PAY_LATER' || hasPayLaterEvent;
                     const isUpi = method === 'UPI_QR';
                     return (
                       <div className={`mt-2 p-2 rounded-lg border flex items-center justify-between text-xs font-bold ${
-                        isUpi
+                        isPayLater
+                          ? 'bg-amber-50 text-amber-950 border-amber-200'
+                          : isUpi
                           ? 'bg-sky-50 text-sky-950 border-sky-200'
                           : 'bg-emerald-50 text-emerald-950 border-emerald-200'
                       }`}>
@@ -1689,11 +1693,13 @@ Exclusions (If applicable):
                           <span>Balance Collection:</span>
                         </span>
                         <span className={`px-2 py-0.5 rounded-md border text-[10.5px] font-black uppercase tracking-wide ${
-                          isUpi
+                          isPayLater
+                            ? 'bg-amber-100 text-amber-900 border-amber-300'
+                            : isUpi
                             ? 'bg-sky-100 text-sky-900 border-sky-300'
                             : 'bg-emerald-100 text-emerald-900 border-emerald-300'
                         }`}>
-                          {isUpi ? 'Admin UPI QR (Direct)' : 'Cash Collected by Driver'}
+                          {isPayLater ? 'Customer Pays Later (Admin Pending)' : isUpi ? 'Admin UPI QR (Direct)' : 'Cash Collected by Driver'}
                         </span>
                       </div>
                     );

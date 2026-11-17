@@ -127,8 +127,7 @@ export async function GET(req: NextRequest) {
     if (status === 'PAID') {
       whereClause.advancePaymentStatus = PaymentStatus.PAID;
       whereClause.balancePaymentStatus = PaymentStatus.PAID;
-    } else if (status === 'PARTIALLY_PAID') {
-      whereClause.advancePaymentStatus = PaymentStatus.PAID;
+    } else if (status === 'PARTIALLY_PAID' || status === 'CUSTOMER_PENDING' || status === 'PAY_LATER') {
       whereClause.balancePaymentStatus = PaymentStatus.PENDING;
     } else if (status === 'PENDING') {
       whereClause.advancePaymentStatus = PaymentStatus.PENDING;
@@ -177,6 +176,11 @@ export async function GET(req: NextRequest) {
           payments: {
             orderBy: { verifiedAt: 'desc' },
           },
+          tripEvents: {
+            select: { id: true, type: true, payloadJson: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+          },
         },
       }),
     ]);
@@ -184,6 +188,10 @@ export async function GET(req: NextRequest) {
     const formattedBookings = bookings.map((b) => {
       const advancePayment = b.payments.find((p) => p.type === PaymentType.ADVANCE);
       const balancePayment = b.payments.find((p) => p.type === PaymentType.BALANCE);
+      const isPayLater =
+        b.tripEvents?.some((e) => e.type === 'CUSTOMER_PAY_LATER') ||
+        Boolean((b as any).customerPaysLater) ||
+        false;
 
       return {
         id: b.id,
@@ -198,6 +206,7 @@ export async function GET(req: NextRequest) {
         advancePaymentStatus: b.advancePaymentStatus,
         balanceAmount: Number(b.balanceAmount),
         balancePaymentStatus: b.balancePaymentStatus,
+        isPayLater,
         tollAmount: b.tollAmount ? Number(b.tollAmount) : 0,
         parkingAmount: b.parkingAmount ? Number(b.parkingAmount) : 0,
         driverAllowance: b.driverAllowance ? Number(b.driverAllowance) : 0,
@@ -277,6 +286,47 @@ export async function PATCH(req: NextRequest) {
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
+    // Toggle or set Pay Later status
+    if (body.action === 'SET_PAY_LATER' || body.customerPaysLater !== undefined) {
+      const shouldPayLater = body.customerPaysLater ?? true;
+      if (shouldPayLater) {
+        await prisma.tripEvent.create({
+          data: {
+            bookingId: booking.id,
+            type: 'CUSTOMER_PAY_LATER',
+            payloadJson: {
+              markedBy: 'ADMIN',
+              reason: notes || 'Admin marked customer to pay balance later',
+              customerPaysLater: true,
+              timestamp: new Date(),
+            },
+          },
+        });
+      } else {
+        // Remove or record reverted event
+        await prisma.tripEvent.create({
+          data: {
+            bookingId: booking.id,
+            type: 'CUSTOMER_PAY_LATER_REVERTED',
+            payloadJson: {
+              markedBy: 'ADMIN',
+              reason: notes || 'Admin reverted Pay Later status',
+              customerPaysLater: false,
+              timestamp: new Date(),
+            },
+          },
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: shouldPayLater
+          ? 'Customer marked to pay later. Driver app will reflect ₹0 collection.'
+          : 'Customer pay later status removed.',
+        isPayLater: shouldPayLater,
+      });
     }
 
     const payAmount = amount ? Number(amount) : Number(booking.balanceAmount);

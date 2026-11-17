@@ -24,6 +24,7 @@ import {
   IconUserSolid,
   IconFileText,
   IconEdit,
+  IconCash,
 } from '@/components/Icons';
 
 export const dynamic = 'force-dynamic';
@@ -264,6 +265,32 @@ Support: +91 9786452563`;
     setBalanceMethod('UPI_QR');
     setBalanceTxnRef('');
     setBalanceNotes('');
+  };
+
+  // Toggle Customer Pay Later Status
+  const handleToggleCustomerPayLater = async (bookingId: string, currentStatus: boolean) => {
+    try {
+      const res = await fetch('/api/admin/payments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId,
+          action: 'SET_PAY_LATER',
+          customerPaysLater: !currentStatus,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTransactions((prev) =>
+          prev.map((t) => (t.id === bookingId ? { ...t, isPayLater: !currentStatus } : t))
+        );
+      } else {
+        alert(data.message || data.error || 'Failed to update Pay Later status');
+      }
+    } catch (err) {
+      console.error('Error updating Pay Later status:', err);
+      alert('Network error updating Pay Later status');
+    }
   };
 
   // Save Balance Payment
@@ -656,6 +683,22 @@ Support: +91 9786452563`;
               <IconPayments className="w-3.5 h-3.5 text-slate-500" />
               <span>Customer Adv Received</span>
             </button>
+
+            {/* Customer Pending / Pay Later */}
+            <button
+              onClick={() => {
+                setStatusFilter('CUSTOMER_PENDING');
+                setPage(1);
+              }}
+              className={`px-3.5 py-2 rounded-full text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs shrink-0 whitespace-nowrap cursor-pointer ${
+                statusFilter === 'CUSTOMER_PENDING'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                  : 'bg-white hover:bg-amber-50 text-amber-900 border border-amber-200 font-bold'
+              }`}
+            >
+              <IconClock className="w-3.5 h-3.5 text-amber-600" />
+              <span>Customer Pending / Pay Later</span>
+            </button>
           </div>
 
           {/* Search Form */}
@@ -973,12 +1016,51 @@ Support: +91 9786452563`;
                               ₹{t.balanceAmount?.toLocaleString('en-IN')}
                             </div>
                             {t.balancePaymentStatus === PaymentStatus.PAID ? (
-                              <div className="text-[10px] text-emerald-700 font-bold mt-0.5">
-                                ✓ Paid ({t.balancePayment?.paymentMethod || 'Cash'})
+                              <div className="text-[10px] text-emerald-700 font-bold mt-0.5 flex items-center gap-1">
+                                <span>✓ Paid</span>
+                                <span className="text-slate-500 font-normal">({t.balancePayment?.paymentMethod || 'Cash'})</span>
                               </div>
                             ) : (
-                              <div className="text-[10px] text-slate-400 mt-0.5">
-                                Due at drop
+                              <div className="mt-1 space-y-1">
+                                <div>
+                                  <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
+                                    t.isPayLater
+                                      ? 'bg-amber-50 text-amber-900 border-amber-300'
+                                      : 'bg-slate-100 text-slate-600 border-slate-200'
+                                  }`}>
+                                    <IconClock className="w-3 h-3 text-amber-600" />
+                                    <span>{t.isPayLater ? 'Pay Later (Pending)' : 'Due at drop'}</span>
+                                  </span>
+                                </div>
+                                <div className="flex flex-col gap-1 pt-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenBalanceModal(t);
+                                    }}
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-md text-[10px] font-black shadow-2xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                    title="Admin: Pay / Record Customer Balance Amount"
+                                  >
+                                    <IconCash className="w-3 h-3 text-white" />
+                                    <span>Pay Amount / Settle</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleCustomerPayLater(t.id, Boolean(t.isPayLater));
+                                    }}
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold border transition text-center cursor-pointer ${
+                                      t.isPayLater
+                                        ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-rose-50 hover:text-rose-700'
+                                        : 'bg-white text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-800'
+                                    }`}
+                                    title={t.isPayLater ? 'Remove Pay Later status' : 'Designate customer to pay later (reflects ₹0 for driver)'}
+                                  >
+                                    {t.isPayLater ? '✓ Customer Pays Later' : '+ Mark Pay Later'}
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </td>
@@ -1279,7 +1361,26 @@ Support: +91 9786452563`;
                                   <span>✓</span> Paid ({t.balancePayment?.paymentMethod || 'Cash'})
                                 </span>
                               ) : (
-                                <span className="text-[10px] text-slate-400 mt-0.5 block">Due at drop</span>
+                                <div className="mt-1 space-y-1">
+                                  <span className={`text-[10px] font-bold block ${t.isPayLater ? 'text-amber-800' : 'text-slate-500'}`}>
+                                    {t.isPayLater ? 'Pay Later (Pending)' : 'Due at drop'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenBalanceModal(t)}
+                                    className="w-full py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold shadow-2xs transition flex items-center justify-center gap-1"
+                                  >
+                                    <IconCash className="w-3 h-3 text-white" />
+                                    <span>Pay Amount</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleCustomerPayLater(t.id, Boolean(t.isPayLater))}
+                                    className="w-full py-0.5 bg-slate-50 border border-slate-200 hover:bg-amber-50 text-slate-700 hover:text-amber-900 rounded text-[9px] font-bold transition text-center"
+                                  >
+                                    {t.isPayLater ? '✓ Customer Pays Later' : '+ Mark Pay Later'}
+                                  </button>
+                                </div>
                               )}
                             </div>
                           </div>

@@ -346,6 +346,7 @@
     "select_payment_method": "SELECT PAYMENT METHOD",
     "admin_upi_qr": "Admin UPI QR",
     "cash_collected": "Cash Collected",
+    "pay_later": "Pay Later",
     "scan_and_pay_admin": "Scan & Pay to Admin",
     "amount_val": "Amount: ₹{{amount}}",
     "any_upi": "Any UPI",

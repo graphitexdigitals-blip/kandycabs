@@ -346,6 +346,7 @@
     "select_payment_method": "भुगतान विधि चुनें",
     "admin_upi_qr": "व्यवस्थापक यूपीआई क्यूआर",
     "cash_collected": "नकद संग्रह",
+    "pay_later": "बाद में भुगतान",
     "scan_and_pay_admin": "स्कैन करें और व्यवस्थापक को भुगतान करें",
     "amount_val": "राशि: ₹{{amount}}",
     "any_upi": "कोई भी UPI",

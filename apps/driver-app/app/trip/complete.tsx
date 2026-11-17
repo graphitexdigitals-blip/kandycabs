@@ -60,7 +60,7 @@ export default function DriverTripCompleteScreen() {
 
   // Payment Collection Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'UPI_QR' | 'CASH'>('UPI_QR');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'UPI_QR' | 'CASH' | 'PAY_LATER'>('UPI_QR');
   const [tripSuccess, setTripSuccess] = useState(false);
   const [successData, setSuccessData] = useState<{ distance: number; totalAmount: number; paymentMethod: string } | null>(null);
   const [paymentError, setPaymentError] = useState('');
@@ -238,12 +238,28 @@ export default function DriverTripCompleteScreen() {
 
   const isOdometerComplete = Boolean(odometerImageUri && finalOdometer.trim());
 
+  const isBookingPayLater =
+    Boolean(booking?.isPayLater) ||
+    Boolean(booking?.customerPaysLater) ||
+    Boolean(booking?.tripEvents?.some((e: any) => e.type === 'CUSTOMER_PAY_LATER'));
+
+  useEffect(() => {
+    if (isBookingPayLater) {
+      setSelectedPaymentMethod('PAY_LATER');
+    }
+  }, [isBookingPayLater]);
+
+  const isCurrentPayLater = isBookingPayLater || selectedPaymentMethod === 'PAY_LATER';
+
   const baseBalance = parseFloat(booking?.balanceAmount) || 0;
   const parsedNhToll = parseFloat(nhTollAmount) || 0;
   const parsedNiceRoadToll = parseFloat(niceRoadTollAmount) || 0;
   const parsedParking = parseFloat(parkingAmount) || 0;
   const totalExtraCharges = parsedNhToll + parsedNiceRoadToll + parsedParking;
-  const totalRemainingAmount = Math.max(0, Math.round(baseBalance + totalExtraCharges));
+  const actualRemainingAmount = Math.max(0, Math.round(baseBalance + totalExtraCharges));
+  
+  // If customer pays later, amount reflects 0 for the driver
+  const totalRemainingAmount = isCurrentPayLater ? 0 : actualRemainingAmount;
 
   const adminUpiId = process.env.EXPO_PUBLIC_ADMIN_UPI_ID || 'kandycabs@icici';
   const adminUpiName = process.env.EXPO_PUBLIC_ADMIN_UPI_NAME || 'Kandy Cabs';
@@ -278,10 +294,13 @@ export default function DriverTripCompleteScreen() {
 
     setError('');
     setPaymentError('');
+    if (isBookingPayLater) {
+      setSelectedPaymentMethod('PAY_LATER');
+    }
     setShowPaymentModal(true);
   };
 
-  const handleConfirmPayment = async (method: 'UPI_QR' | 'CASH') => {
+  const handleConfirmPayment = async (method: 'UPI_QR' | 'CASH' | 'PAY_LATER') => {
     const endOdo = parseFloat(finalOdometer);
     const parsedNhTollVal = parseFloat(nhTollAmount) || 0;
     const parsedNiceRoadTollVal = parseFloat(niceRoadTollAmount) || 0;
@@ -712,6 +731,12 @@ export default function DriverTripCompleteScreen() {
                           size={14}
                           color="#0f172a"
                         />
+                      ) : successData?.paymentMethod === 'PAY_LATER' ? (
+                        <Ionicons
+                          name="time-outline"
+                          size={14}
+                          color="#008860"
+                        />
                       ) : (
                         <Image
                           source={CASH_RUPEE_ICON}
@@ -722,6 +747,8 @@ export default function DriverTripCompleteScreen() {
                       <Text style={styles.methodBadgeText}>
                         {successData?.paymentMethod === 'UPI_QR'
                           ? t('complete_trip.admin_upi_qr', 'Admin UPI QR')
+                          : successData?.paymentMethod === 'PAY_LATER'
+                          ? 'Customer Pays Later (Admin)'
                           : t('complete_trip.cash_collected', 'Cash Collected')}
                       </Text>
                     </View>
@@ -815,7 +842,30 @@ export default function DriverTripCompleteScreen() {
                         selectedPaymentMethod === 'CASH' ? styles.paymentTabTextActive : null,
                       ]}
                     >
-                      {t('complete_trip.cash_collected', 'Cash Collected')}
+                      {t('complete_trip.cash_collected', 'Cash')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentTabBtn,
+                      selectedPaymentMethod === 'PAY_LATER' ? styles.paymentTabBtnActive : null,
+                    ]}
+                    onPress={() => setSelectedPaymentMethod('PAY_LATER')}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons
+                      name="time-outline"
+                      size={18}
+                      color={selectedPaymentMethod === 'PAY_LATER' ? '#008860' : '#64748b'}
+                    />
+                    <Text
+                      style={[
+                        styles.paymentTabText,
+                        selectedPaymentMethod === 'PAY_LATER' ? styles.paymentTabTextActive : null,
+                      ]}
+                    >
+                      {t('complete_trip.pay_later', 'Pay Later')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -895,7 +945,7 @@ export default function DriverTripCompleteScreen() {
                       )}
                     </TouchableOpacity>
                   </View>
-                ) : (
+                ) : selectedPaymentMethod === 'CASH' ? (
                   /* TAB 2: CASH COLLECTED BY DRIVER */
                   <View style={styles.cashContentCard}>
                     <View style={styles.cashIconCircle}>
@@ -944,6 +994,57 @@ export default function DriverTripCompleteScreen() {
                             adjustsFontSizeToFit
                           >
                             {t('complete_trip.confirm_cash_collected', 'Confirm Cash')}
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  /* TAB 3: CUSTOMER PAYS LATER TO ADMIN (COLLECT ₹0) */
+                  <View style={styles.cashContentCard}>
+                    <View style={[styles.cashIconCircle, { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }]}>
+                      <Ionicons name="time" size={32} color="#008860" />
+                    </View>
+
+                    <Text style={styles.cashHeaderTitle}>Customer Pays Later</Text>
+                    <Text style={[styles.cashAmountDisplay, { color: '#008860' }]}>₹0</Text>
+                    <Text style={{ fontSize: 13, color: '#64748b', fontWeight: '700', textAlign: 'center', marginTop: -4, marginBottom: 14 }}>
+                      Driver Collection: ₹0
+                    </Text>
+
+                    <View style={styles.cashInstructionsBox}>
+                      <View style={styles.bulletRow}>
+                        <Ionicons name="information-circle-outline" size={18} color="#008860" style={{ marginTop: 2 }} />
+                        <Text style={styles.bulletText}>
+                          The customer will pay the balance fare (₹{actualRemainingAmount}) directly to Kandy Cabs Admin / Office later.
+                        </Text>
+                      </View>
+                      <View style={styles.bulletRow}>
+                        <Ionicons name="checkmark-circle-outline" size={18} color="#16a34a" style={{ marginTop: 2 }} />
+                        <Text style={styles.bulletText}>
+                          You do not need to collect any payment from the customer now. Your driver payout and allowance are fully safe and guaranteed.
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Pay Later Confirmation Button */}
+                    <TouchableOpacity
+                      style={[styles.confirmCashBtn, { backgroundColor: '#008860' }, loading && styles.completeButtonDisabled]}
+                      onPress={() => handleConfirmPayment('PAY_LATER')}
+                      disabled={loading}
+                      activeOpacity={0.88}
+                    >
+                      {loading ? (
+                        <ActivityIndicator color="#ffffff" size="small" />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark-done-circle-outline" size={20} color="#ffffff" />
+                          <Text
+                            style={styles.confirmPaymentBtnText}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                          >
+                            Complete Ride (₹0 to Collect)
                           </Text>
                         </>
                       )}
@@ -1952,19 +2053,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 7,
-    paddingHorizontal: 10,
+    paddingHorizontal: 4,
     borderRadius: 12,
     backgroundColor: '#f8fafc',
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    gap: 6,
+    gap: 4,
   },
   paymentTabBtnActive: {
     backgroundColor: '#f0fdf4',
     borderColor: '#008860',
   },
   paymentTabText: {
-    fontSize: 13,
+    fontSize: 11.5,
     fontWeight: '700',
     color: '#64748b',
   },

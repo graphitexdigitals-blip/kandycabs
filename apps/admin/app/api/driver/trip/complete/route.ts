@@ -52,6 +52,11 @@ export async function POST(req: NextRequest) {
         id: bookingId,
         assignedDriverId: session.driverId,
       },
+      include: {
+        tripEvents: {
+          select: { id: true, type: true, payloadJson: true },
+        },
+      },
     });
 
     if (!booking) {
@@ -86,6 +91,11 @@ export async function POST(req: NextRequest) {
     const parsedToll = Math.max(0, parseFloat(String(tollAmount)) || 0);
     const parsedParking = Math.max(0, parseFloat(String(parkingAmount)) || 0);
 
+    const isPayLater =
+      paymentMethod === 'PAY_LATER' ||
+      booking.tripEvents?.some((e: any) => e.type === 'CUSTOMER_PAY_LATER') ||
+      false;
+
     const baseBalance = Number(booking.balanceAmount);
     const totalBalanceCollected = baseBalance + parsedToll + parsedParking;
 
@@ -102,7 +112,7 @@ export async function POST(req: NextRequest) {
             actualDistanceKm,
             tollAmount: parsedToll,
             parkingAmount: parsedParking,
-            balancePaymentStatus: PaymentStatus.PAID,
+            balancePaymentStatus: isPayLater ? PaymentStatus.PENDING : PaymentStatus.PAID,
             actualDropAddress: resolvedDropAddress || booking.dropAddress,
             actualDropLat: resolvedDropLat ?? booking.dropLat,
             actualDropLng: resolvedDropLng ?? booking.dropLng,
@@ -110,18 +120,38 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        // 2. Insert Final Balance Payment row
-        await tx.payment.create({
-          data: {
-            bookingId,
-            type: PaymentType.BALANCE,
-            amount: totalBalanceCollected,
-            paymentMethod,
-            razorpayPaymentId: `${paymentMethod.toLowerCase()}_pay_${Date.now()}`,
-            status: PaymentStatus.PAID,
-            verifiedAt: now,
-          },
-        });
+        // 2. Insert Final Balance Payment row only if collected by driver.
+        // If customer is paying later to Admin, balance remains pending for Admin collection.
+        if (isPayLater) {
+          await tx.tripEvent.create({
+            data: {
+              bookingId,
+              type: 'CUSTOMER_PAY_LATER',
+              payloadJson: {
+                driverId: session.driverId,
+                driverCollectedAmount: 0,
+                pendingBalanceDue: totalBalanceCollected,
+                baseBalance,
+                tollAmount: parsedToll,
+                parkingAmount: parsedParking,
+                reason: 'Customer will pay balance later to Admin/Office. Driver collected ₹0.',
+                timestamp: now.toISOString(),
+              },
+            },
+          });
+        } else {
+          await tx.payment.create({
+            data: {
+              bookingId,
+              type: PaymentType.BALANCE,
+              amount: totalBalanceCollected,
+              paymentMethod,
+              razorpayPaymentId: `${paymentMethod.toLowerCase()}_pay_${Date.now()}`,
+              status: PaymentStatus.PAID,
+              verifiedAt: now,
+            },
+          });
+        }
 
         // 3. Insert TripEvent
         await tx.tripEvent.create({
@@ -135,8 +165,10 @@ export async function POST(req: NextRequest) {
               actualDistanceKm,
               tollAmount: parsedToll,
               parkingAmount: parsedParking,
-              totalBalanceCollected,
-              paymentMethod,
+              totalBalanceCollected: isPayLater ? 0 : totalBalanceCollected,
+              pendingBalanceDue: isPayLater ? totalBalanceCollected : 0,
+              isPayLater,
+              paymentMethod: isPayLater ? 'PAY_LATER' : paymentMethod,
               hasFinalImage: !!storedFinalOdometerPath,
               actualDropAddress: resolvedDropAddress || booking.dropAddress,
               actualDropLat: resolvedDropLat ?? booking.dropLat,

@@ -228,16 +228,24 @@ export async function GET(req: NextRequest) {
     const maskBookingForDriver = (b: any) => {
       if (!b) return null;
       const isPhoneReleased = isBookingPhoneReleased(b);
+      const isPayLater =
+        b.tripEvents?.some((e: any) => e.type === 'CUSTOMER_PAY_LATER') ||
+        Boolean(b.customerPaysLater) ||
+        false;
 
       if (isPhoneReleased) {
         return {
           ...b,
+          isPayLater,
+          customerPaysLater: isPayLater,
           customerPhoneReleased: true,
         };
       }
 
       return {
         ...b,
+        isPayLater,
+        customerPaysLater: isPayLater,
         customerPhoneReleased: false,
         customer: b.customer
           ? {

@@ -78,6 +78,7 @@ export function resolveDefaultApiUrl(): string {
 }
 
 export const DEFAULT_LAN_URL = resolveDefaultApiUrl();
+export const DEFAULT_PROD_URL = DEFAULT_LAN_URL;
 
 let activeBaseUrl: string = resolveDefaultApiUrl();
 
