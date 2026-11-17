@@ -639,18 +639,12 @@ export function BroadcastDispatchModal({
                           </span>
                         )}
                       </div>
-                      {isThisTripDriver ? (
-                        <p className="text-[11px] text-rose-700 font-bold mt-0.5">
-                          ⚠️ Already same trip is assigned to same driver
-                        </p>
-                      ) : (
-                        <p className="text-xs text-slate-500 truncate">
-                          {driver.user.phone} •{' '}
-                          {vehicle
-                            ? `${vehicle.category} (${vehicle.plateNumber || 'No Plate'})`
-                            : 'No Vehicle Assigned'}
-                        </p>
-                      )}
+                      <p className="text-xs text-slate-500 truncate">
+                        {driver.user.phone} •{' '}
+                        {vehicle
+                          ? `${vehicle.category} (${vehicle.plateNumber || 'No Plate'})`
+                          : 'No Vehicle Assigned'}
+                      </p>
                     </div>
                   </div>
                 </div>
