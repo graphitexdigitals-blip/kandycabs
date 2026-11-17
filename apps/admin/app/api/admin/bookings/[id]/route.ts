@@ -80,8 +80,15 @@ export async function GET(
       },
     });
 
+    const payLaterEvent = booking.tripEvents?.find(
+      (e: any) => e.type === 'CUSTOMER_PAY_LATER' || e.type === 'CUSTOMER_PAY_LATER_REVERTED'
+    );
+    const isPayLater = payLaterEvent ? payLaterEvent.type === 'CUSTOMER_PAY_LATER' : false;
+
     const formattedBooking = {
       ...booking,
+      isPayLater,
+      customerPaysLater: isPayLater,
       startingOdometerImagePath: resolveImageUrl(booking.startingOdometerImagePath) || null,
       finalOdometerImagePath: resolveImageUrl(booking.finalOdometerImagePath) || null,
       vehicleInspectionPhotos: Array.isArray(booking.vehicleInspectionPhotos)

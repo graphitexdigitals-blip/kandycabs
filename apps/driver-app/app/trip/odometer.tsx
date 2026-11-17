@@ -64,16 +64,46 @@ export default function DriverOdometerScreen() {
     return () => sub.remove();
   }, [router]);
 
-  // If odometer was already completed, block access and redirect forward to OTP screen
+  // If odometer was already completed or trip is started/completed, redirect immediately to the right screen
   useEffect(() => {
     if (!bookingId) return;
     const checkAlreadyDone = async () => {
-      const isDone = isTripOdometerCompletedSync(bookingId) || (await isTripOdometerCompleted(bookingId));
-      if (isDone) {
-        router.replace({
-          pathname: '/trip/start',
-          params: { bookingId, step: '2', arrived: 'true' },
-        });
+      // 1. Check in-memory / local storage
+      const isDoneLocally = isTripOdometerCompletedSync(bookingId) || (await isTripOdometerCompleted(bookingId));
+
+      // 2. Check live status from database so mobile restart / app reopen doesn't re-show submitted odometer
+      try {
+        const res = await driverApiClient.fetch('/api/driver/status');
+        if (res.success && res.activeBooking) {
+          const b = res.activeBooking;
+          if (b.status === 'COMPLETED' || b.status === 'TRIP_COMPLETED' || b.status === 'TRIP_ENDED') {
+            router.replace('/dashboard');
+            return;
+          }
+          if (b.status === 'TRIP_STARTED' || b.status === 'ON_TRIP' || b.status === 'IN_PROGRESS') {
+            router.replace({
+              pathname: '/trip/active',
+              params: { bookingId },
+            });
+            return;
+          }
+          if (b.startingOdometer != null || isDoneLocally) {
+            await setTripOdometerCompleted(bookingId, true);
+            router.replace({
+              pathname: '/trip/start',
+              params: { bookingId, step: '2', arrived: 'true' },
+            });
+            return;
+          }
+        }
+      } catch (e) {
+        // Fallback to local state if offline
+        if (isDoneLocally) {
+          router.replace({
+            pathname: '/trip/start',
+            params: { bookingId, step: '2', arrived: 'true' },
+          });
+        }
       }
     };
     checkAlreadyDone();
@@ -433,19 +463,32 @@ export default function DriverOdometerScreen() {
       return;
     }
 
-    if (bookingId) {
-      setTripStartDraft(bookingId, {
+    const targetBookingId = bookingId || booking?.id;
+    if (targetBookingId) {
+      setTripStartDraft(targetBookingId, {
         driverSelfieUri,
         odometerImageUri,
         startingOdometer: startingOdometer.trim(),
         photoLocation,
       });
-      setTripOdometerCompleted(bookingId, true);
+      setTripOdometerCompleted(targetBookingId, true);
+
+      // Persist directly to database so restart/power off will remember it permanently
+      driverApiClient.fetch('/api/driver/trip/odometer', {
+        method: 'POST',
+        body: JSON.stringify({
+          bookingId: targetBookingId,
+          startingOdometer: startingOdometer.trim(),
+          startingOdometerImagePath: odometerImageUri,
+          driverSelfie: driverSelfieUri,
+          photoLocation,
+        }),
+      }).catch((err) => console.warn('Sync starting odometer to DB error:', err));
     }
 
     router.replace({
       pathname: '/trip/start',
-      params: { bookingId: bookingId || booking?.id, step: '2', arrived: 'true' },
+      params: { bookingId: targetBookingId, step: '2', arrived: 'true' },
     });
   };
 

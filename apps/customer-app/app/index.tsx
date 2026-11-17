@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
-  Text as RNText,
+  Text,
   View,
   ScrollView,
   TouchableOpacity,
@@ -40,16 +40,7 @@ import {
   changeAppLanguage,
   saveUserLanguagePreference,
 } from '../lib/i18n';
-import { APP_FONT, resolveRobotoStyle, formatTitleCase } from '../constants/typography';
-
-// Roboto Typography Configuration (Universal Clean Sans-Serif)
-const ROBOTO_FONT = APP_FONT;
-
-// Home Screen Roboto Text Wrapper - ensures exact Roboto font variant is applied
-const Text = React.forwardRef<any, React.ComponentProps<typeof RNText>>(({ style, ...props }, ref) => {
-  const robotoOverride = resolveRobotoStyle(style);
-  return <RNText ref={ref} style={robotoOverride ? [style, robotoOverride] : style} {...props} />;
-});
+import { formatTitleCase } from '../constants/typography';
 
 const { width, height } = Dimensions.get('window');
 const isSmallScreen = height < 700 || width < 380;
@@ -432,9 +423,10 @@ export default function HomeScreen() {
         locationValueSize: 14.2,
         swapButtonSize: 31,
         swapIconSize: 16,
-        addStopPaddingVertical: 3.2,
-        addStopTextSize: 12,
-        addStopIconSize: 15,
+        addStopPaddingVertical: 6,
+        addStopPaddingHorizontal: 24,
+        addStopTextSize: 12.5,
+        addStopIconSize: 16,
         dateTimePaddingVertical: 7,
         dateTimeMinHeight: 46,
         dateTimeMarginTop: 8,
@@ -485,9 +477,10 @@ export default function HomeScreen() {
         locationValueSize: 13.5,
         swapButtonSize: 28,
         swapIconSize: 15,
-        addStopPaddingVertical: 2.8,
-        addStopTextSize: 11.5,
-        addStopIconSize: 14,
+        addStopPaddingVertical: 5.2,
+        addStopPaddingHorizontal: 22,
+        addStopTextSize: 12,
+        addStopIconSize: 15,
         dateTimePaddingVertical: 5.5,
         dateTimeMinHeight: 39,
         dateTimeMarginTop: 6,
@@ -538,7 +531,8 @@ export default function HomeScreen() {
         locationValueSize: 11.8,
         swapButtonSize: 24,
         swapIconSize: 12,
-        addStopPaddingVertical: 1.8,
+        addStopPaddingVertical: 3.8,
+        addStopPaddingHorizontal: 15,
         addStopTextSize: 10,
         addStopIconSize: 12,
         dateTimePaddingVertical: 3,
@@ -1498,7 +1492,13 @@ export default function HomeScreen() {
             {/* Add a Stop Pill Button (up to 12 stops) */}
             {viaStops.length < 12 && (
               <TouchableOpacity
-                style={[styles.addStopPill, { paddingVertical: responsiveSizes.addStopPaddingVertical }]}
+                style={[
+                  styles.addStopPill,
+                  {
+                    paddingVertical: responsiveSizes.addStopPaddingVertical,
+                    paddingHorizontal: responsiveSizes.addStopPaddingHorizontal,
+                  },
+                ]}
                 onPress={() => openLocationModal('STOP', viaStops.length)}
                 activeOpacity={0.75}
               >
@@ -2576,14 +2576,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    marginTop: 5,
-    paddingVertical: 3.5,
-    paddingHorizontal: 8,
-    borderRadius: 14,
+    marginTop: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 24,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    backgroundColor: '#ffffff',
-    gap: 3,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+    gap: 4,
   },
   addStopPillText: {
     color: 'rgb(22, 34, 50)',

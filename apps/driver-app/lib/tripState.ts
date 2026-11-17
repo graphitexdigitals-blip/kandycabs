@@ -300,6 +300,14 @@ export async function isTripVerificationCompleted(bookingId: string): Promise<bo
   return false;
 }
 
+export async function clearTripVerificationCompleted(bookingId: string) {
+  if (!bookingId) return;
+  delete memoryVerifiedBookings[bookingId];
+  try {
+    await SecureStore.deleteItemAsync(`kandy_trip_verified_${bookingId}`);
+  } catch {}
+}
+
 const memoryReachedBookings: Record<string, boolean> = {};
 
 export async function setTripPickupReached(bookingId: string, reached = true) {
@@ -337,6 +345,46 @@ export async function clearTripPickupReached(bookingId: string) {
   delete memoryReachedBookings[bookingId];
   try {
     await SecureStore.deleteItemAsync(`kandy_trip_reached_${bookingId}`);
+  } catch {}
+}
+
+const memoryDestinationReachedBookings: Record<string, boolean> = {};
+
+export async function setTripDestinationReached(bookingId: string, reached = true) {
+  if (!bookingId) return;
+  memoryDestinationReachedBookings[bookingId] = reached;
+  try {
+    if (reached) {
+      await SecureStore.setItemAsync(`kandy_trip_destination_reached_${bookingId}`, 'true');
+    } else {
+      await SecureStore.deleteItemAsync(`kandy_trip_destination_reached_${bookingId}`);
+    }
+  } catch {}
+}
+
+export function isTripDestinationReachedSync(bookingId: string): boolean {
+  if (!bookingId) return false;
+  return Boolean(memoryDestinationReachedBookings[bookingId]);
+}
+
+export async function isTripDestinationReached(bookingId: string): Promise<boolean> {
+  if (!bookingId) return false;
+  if (memoryDestinationReachedBookings[bookingId]) return true;
+  try {
+    const val = await SecureStore.getItemAsync(`kandy_trip_destination_reached_${bookingId}`);
+    if (val === 'true') {
+      memoryDestinationReachedBookings[bookingId] = true;
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
+export async function clearTripDestinationReached(bookingId: string) {
+  if (!bookingId) return;
+  delete memoryDestinationReachedBookings[bookingId];
+  try {
+    await SecureStore.deleteItemAsync(`kandy_trip_destination_reached_${bookingId}`);
   } catch {}
 }
 

@@ -342,6 +342,9 @@ export default function BookingFunnelScreen() {
 
   // Estimated Distance & Time
   const estimatedKm = useMemo(() => {
+    if (params.exactDistanceKm && Number(params.exactDistanceKm) > 0) {
+      return Number(params.exactDistanceKm);
+    }
     if (tripTypeParam === 'LOCAL') {
       return localHours === 4 ? 40 : localHours === 8 ? 80 : 120;
     }
@@ -360,7 +363,7 @@ export default function BookingFunnelScreen() {
       return Math.max(15, total);
     }
     return calculateDistanceKm(pickupLat, pickupLng, dropLat, dropLng);
-  }, [tripTypeParam, localHours, pickupLat, pickupLng, dropLat, dropLng, viaStops]);
+  }, [params.exactDistanceKm, tripTypeParam, localHours, pickupLat, pickupLng, dropLat, dropLng, viaStops]);
 
   const estimatedHours = useMemo(() => {
     if (tripTypeParam === 'LOCAL') return `${localHours} hrs`;
@@ -1613,9 +1616,15 @@ export default function BookingFunnelScreen() {
 
   // Calculate final totals
   const nightFee = isNightChargeApplicable ? (nightChargeAmount || 250) : 0;
-  const subtotal = Math.max(0, baseEstimatedFare + petFee + nightFee - couponDiscount);
+  const driverAllowance = params.driverAllowance !== undefined && !isNaN(Number(params.driverAllowance))
+    ? Number(params.driverAllowance)
+    : (tripTypeParam === 'ONEWAY' || tripTypeParam === 'ROUND' ? 300 : 0);
+  const subtotal = Math.max(0, baseEstimatedFare + driverAllowance + petFee + nightFee - couponDiscount);
   const gstAmount = Math.round(subtotal * 0.05);
-  const totalFare = subtotal + gstAmount;
+  const calculatedTotalFare = subtotal + gstAmount;
+  const totalFare = (params.exactTotalFare && Number(params.exactTotalFare) > 0 && !couponApplied && !isPetFriendly)
+    ? Number(params.exactTotalFare)
+    : calculatedTotalFare;
   const advanceAmount = Math.round(totalFare * 0.30);
   const balanceAmount = totalFare - advanceAmount;
 
@@ -1691,8 +1700,11 @@ export default function BookingFunnelScreen() {
             lng: s?.lng,
           })),
           category: vehicleInfo.category,
-          fuelType: FuelType.DIESEL,
+          fuelType: (params.fuelType as string)?.toUpperCase() || (vehicleInfo.category === VehicleCategory.HATCHBACK ? FuelType.CNG : FuelType.DIESEL),
           tripType: tripTypeParam as TripType,
+          exactDistanceKm: estimatedKm,
+          exactTotalFare: totalFare,
+          exactAdvanceAmount: payableAmount,
           scheduledAt,
           durationDays: 1,
           packageHours: localHours,
@@ -2778,7 +2790,9 @@ export default function BookingFunnelScreen() {
 
                   <View style={styles.fareLineItem}>
                     <Text style={styles.fareLineLabel}>{t('bookingReview.chauffeurAllowance', { defaultValue: 'Chauffeur Allowance' })}</Text>
-                    <Text style={[styles.fareLineVal, { color: '#16a34a' }]}>{t('bookingReview.included', { defaultValue: 'Included' })}</Text>
+                    <Text style={[styles.fareLineVal, { color: driverAllowance > 0 ? '#1e293b' : '#16a34a', fontWeight: driverAllowance > 0 ? '700' : '600' }]}>
+                      {driverAllowance > 0 ? `₹ ${driverAllowance.toLocaleString('en-IN')}` : t('bookingReview.included', { defaultValue: 'Included' })}
+                    </Text>
                   </View>
 
                   <View style={styles.fareLineItem}>

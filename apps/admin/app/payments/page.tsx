@@ -63,6 +63,14 @@ export default function AdminPaymentsPage() {
   const [balanceNotes, setBalanceNotes] = useState<string>('');
   const [savingBalance, setSavingBalance] = useState<boolean>(false);
 
+  // Cancellation Refund Modal States
+  const [refundModalBooking, setRefundModalBooking] = useState<any | null>(null);
+  const [refundAmountVal, setRefundAmountVal] = useState<string>('0');
+  const [refundMethodVal, setRefundMethodVal] = useState<string>('UPI');
+  const [refundTxnRefVal, setRefundTxnRefVal] = useState<string>('');
+  const [refundNotesVal, setRefundNotesVal] = useState<string>('');
+  const [savingRefund, setSavingRefund] = useState<boolean>(false);
+
   // Accordion state for mobile/tablet payment transaction cards
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
   const toggleCardExpand = (id: string) => {
@@ -336,6 +344,78 @@ Support: +91 9786452563`;
       alert('Network error while recording balance payment');
     } finally {
       setSavingBalance(false);
+    }
+  };
+
+  // Open Refund Modal
+  const handleOpenRefundModal = (t: any) => {
+    setRefundModalBooking(t);
+    const due = t.cancellationData?.refundDue ?? Math.max(0, Number(t.advanceAmount || 0) - Number(t.cancellationData?.cancellationCharge || 0));
+    setRefundAmountVal(String(due));
+    setRefundMethodVal('UPI');
+    setRefundTxnRefVal('');
+    setRefundNotesVal('');
+  };
+
+  // Process / Record Refund Payment Done
+  const handleProcessRefund = async () => {
+    if (!refundModalBooking) return;
+    const parsed = parseFloat(refundAmountVal);
+    if (isNaN(parsed) || parsed <= 0) {
+      alert('Please enter a valid refund amount');
+      return;
+    }
+    setSavingRefund(true);
+    try {
+      const res = await fetch(`/api/admin/bookings/${refundModalBooking.id}/refund`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'RECORD_REFUND',
+          refundAmount: parsed,
+          refundMethod: refundMethodVal,
+          refundTxnRef: refundTxnRefVal,
+          notes: refundNotesVal,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(data.message || 'Refund recorded successfully');
+        setRefundModalBooking(null);
+        fetchPayments();
+      } else {
+        alert(data.message || data.error || 'Failed to record refund');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Network error while recording refund');
+    } finally {
+      setSavingRefund(false);
+    }
+  };
+
+  // Waive cancellation charge and allow 100% full advance refund
+  const handleWaiveCancellationFee = async (bookingId: string) => {
+    if (!window.confirm('Are you sure you want to waive the cancellation charge and grant 100% full advance refund to the customer?')) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/bookings/${bookingId}/refund`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'WAIVE_CANCELLATION_FEE',
+          notes: 'Waived by Admin in Booking Ledger',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(data.message || 'Cancellation fee waived successfully');
+        fetchPayments();
+      } else {
+        alert(data.message || data.error || 'Failed to waive cancellation fee');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Network error waiving cancellation fee');
     }
   };
 
@@ -922,6 +1002,7 @@ Support: +91 9786452563`;
                       <th className="py-3.5 px-4 font-bold">Total Fare</th>
                       <th className="py-3.5 px-4 font-bold">Advance</th>
                       <th className="py-3.5 px-4 font-bold">Balance</th>
+                      <th className="py-3.5 px-4 font-bold text-rose-800">Refund</th>
                       <th className="py-3.5 px-4 font-bold">Tolls /<br /><span className="text-[11px] text-slate-400 font-normal">Parking</span></th>
                       <th className="py-3.5 px-4 font-bold">Driver Payout</th>
                       <th className="py-3.5 px-4 font-bold">Ride Status</th>
@@ -933,6 +1014,11 @@ Support: +91 9786452563`;
                       const isDriverPaid = t.driverPaymentStatus === 'PAID';
                       const isProcessing = actionLoadingId === t.id;
                       const totalDriverEarning = (t.driverAllowance || 0) + (t.driverPayeeAmount || 0);
+                      const isTripDone = t.status === 'TRIP_COMPLETED' || t.status === 'COMPLETED';
+                      const isFullyPaid =
+                        Number(t.balanceAmount || 0) <= 0 ||
+                        t.balancePaymentStatus === PaymentStatus.PAID ||
+                        (Number(t.advanceAmount || 0) >= Number(t.estimatedFare || 0) && t.advancePaymentStatus === PaymentStatus.PAID);
 
                       return (
                         <tr key={t.id} className="hover:bg-slate-50/80 transition">
@@ -941,8 +1027,7 @@ Support: +91 9786452563`;
                             <div className="font-extrabold text-slate-900 font-mono text-xs">
                               {t.humanReadableRef}
                             </div>
-                            <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                              <IconClock className="w-3 h-3 text-slate-400 shrink-0" />
+                            <div className="text-[11px] text-slate-500 mt-0.5">
                               <span>
                                 {new Date(t.createdAt).toLocaleDateString('en-IN', {
                                   day: 'numeric',
@@ -1012,56 +1097,161 @@ Support: +91 9786452563`;
 
                           {/* 6. Balance */}
                           <td className="py-3.5 px-4 align-top">
-                            <div className="font-semibold text-slate-800 text-xs">
-                              ₹{t.balanceAmount?.toLocaleString('en-IN')}
-                            </div>
-                            {t.balancePaymentStatus === PaymentStatus.PAID ? (
-                              <div className="text-[10px] text-emerald-700 font-bold mt-0.5 flex items-center gap-1">
-                                <span>✓ Paid</span>
-                                <span className="text-slate-500 font-normal">({t.balancePayment?.paymentMethod || 'Cash'})</span>
+                            {t.status === 'CANCELLED' ? (
+                              <div>
+                                <div className="font-semibold text-slate-400 text-xs line-through">
+                                  ₹{t.balanceAmount?.toLocaleString('en-IN')}
+                                </div>
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 mt-0.5">
+                                  Cancelled
+                                </span>
+                              </div>
+                            ) : isFullyPaid ? (
+                              <div>
+                                <div className="font-semibold text-slate-800 text-xs">
+                                  ₹{t.balanceAmount?.toLocaleString('en-IN') || 0}
+                                </div>
+                                <div className="text-[10px] text-emerald-700 font-bold mt-0.5 flex items-center gap-1">
+                                  <span>✓ Paid in Full</span>
+                                  {t.balancePayment?.paymentMethod && (
+                                    <span className="text-slate-500 font-normal">({t.balancePayment.paymentMethod})</span>
+                                  )}
+                                </div>
                               </div>
                             ) : (
-                              <div className="mt-1 space-y-1">
-                                <div>
-                                  <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
-                                    t.isPayLater
-                                      ? 'bg-amber-50 text-amber-900 border-amber-300'
-                                      : 'bg-slate-100 text-slate-600 border-slate-200'
+                              <>
+                                <div className="font-semibold text-slate-800 text-xs">
+                                  ₹{t.balanceAmount?.toLocaleString('en-IN')}
+                                </div>
+                                <div className="mt-1 space-y-1">
+                                  <div>
+                                    <span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
+                                      isTripDone
+                                        ? 'bg-amber-50 text-amber-900 border-amber-300'
+                                        : t.isPayLater
+                                        ? 'bg-amber-50 text-amber-900 border-amber-300'
+                                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                                    }`}>
+                                      <span>
+                                        {isTripDone
+                                          ? 'Balance Pending'
+                                          : t.isPayLater
+                                          ? 'Pay Later (Pending)'
+                                          : 'Due at drop'}
+                                      </span>
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-col gap-1 pt-0.5">
+                                    {isTripDone && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenBalanceModal(t);
+                                        }}
+                                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-md text-[10px] font-black shadow-2xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                        title="Admin: Pay / Record Customer Balance Amount"
+                                      >
+                                        <IconCash className="w-3 h-3 text-white" />
+                                        <span>Pay Amount / Settle</span>
+                                      </button>
+                                    )}
+                                    {!isTripDone && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleToggleCustomerPayLater(t.id, Boolean(t.isPayLater));
+                                        }}
+                                        className={`px-1.5 py-0.5 rounded text-[9px] font-bold border transition text-center cursor-pointer ${
+                                          t.isPayLater
+                                            ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-rose-50 hover:text-rose-700'
+                                            : 'bg-white text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-800'
+                                        }`}
+                                        title={t.isPayLater ? 'Remove Pay Later status' : 'Designate customer to pay later (reflects ₹0 for driver)'}
+                                      >
+                                        {t.isPayLater ? '✓ Customer Pays Later' : '+ Mark Pay Later'}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </td>
+
+                          {/* 7. Refund (Separate Column) */}
+                          <td className="py-3.5 px-4 align-top">
+                            {t.status === 'CANCELLED' || t.cancellationData || t.advancePaymentStatus === PaymentStatus.REFUNDED ? (
+                              <div className="space-y-1.5 text-[11px] min-w-[155px]">
+                                {/* Cancellation Charge Display */}
+                                <div className="flex items-center justify-between gap-1 text-[10px]">
+                                  <span className="text-slate-500 font-medium">Cancellation Fee:</span>
+                                  <span className={`font-black px-1.5 py-0.5 rounded ${
+                                    (t.cancellationData?.cancellationCharge ?? 0) > 0
+                                      ? 'bg-rose-50 text-rose-800 border border-rose-200'
+                                      : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                                   }`}>
-                                    <IconClock className="w-3 h-3 text-amber-600" />
-                                    <span>{t.isPayLater ? 'Pay Later (Pending)' : 'Due at drop'}</span>
+                                    {(t.cancellationData?.cancellationCharge ?? 0) > 0
+                                      ? `₹${Number(t.cancellationData?.cancellationCharge).toLocaleString('en-IN')}`
+                                      : '₹0 (Waived/Free)'}
                                   </span>
                                 </div>
-                                <div className="flex flex-col gap-1 pt-0.5">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenBalanceModal(t);
-                                    }}
-                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-md text-[10px] font-black shadow-2xs transition flex items-center justify-center gap-1 cursor-pointer"
-                                    title="Admin: Pay / Record Customer Balance Amount"
-                                  >
-                                    <IconCash className="w-3 h-3 text-white" />
-                                    <span>Pay Amount / Settle</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleToggleCustomerPayLater(t.id, Boolean(t.isPayLater));
-                                    }}
-                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold border transition text-center cursor-pointer ${
-                                      t.isPayLater
-                                        ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-rose-50 hover:text-rose-700'
-                                        : 'bg-white text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-800'
-                                    }`}
-                                    title={t.isPayLater ? 'Remove Pay Later status' : 'Designate customer to pay later (reflects ₹0 for driver)'}
-                                  >
-                                    {t.isPayLater ? '✓ Customer Pays Later' : '+ Mark Pay Later'}
-                                  </button>
+
+                                {/* Refund Due Display */}
+                                <div className="flex items-center justify-between gap-1 text-[10px]">
+                                  <span className="text-slate-500 font-medium">Refund Amount:</span>
+                                  <span className="font-extrabold text-slate-900 text-xs">
+                                    ₹{Number(t.cancellationData?.refundDue ?? Math.max(0, Number(t.advanceAmount || 0) - Number(t.cancellationData?.cancellationCharge || 0))).toLocaleString('en-IN')}
+                                  </span>
                                 </div>
+
+                                {/* Refund Status & Admin Action */}
+                                {t.cancellationData?.isRefundDone ? (
+                                  <div className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                    <span>✓ Refund Done</span>
+                                    {t.cancellationData.refundDetails?.method && (
+                                      <span className="font-normal text-emerald-600">({t.cancellationData.refundDetails.method})</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="space-y-1 pt-0.5">
+                                    {(t.cancellationData?.refundDue ?? Math.max(0, Number(t.advanceAmount || 0) - Number(t.cancellationData?.cancellationCharge || 0))) > 0 ? (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenRefundModal(t);
+                                        }}
+                                        className="w-full px-2 py-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded text-[10px] font-black shadow-2xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                        title="Record refund sent to customer"
+                                      >
+                                        <span>Process Refund</span>
+                                      </button>
+                                    ) : (
+                                      <span className="text-[10px] text-slate-400 font-medium block">
+                                        No refund due
+                                      </span>
+                                    )}
+
+                                    {/* Option to waive cancellation fee & refund full advance */}
+                                    {(t.cancellationData?.cancellationCharge ?? 0) > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleWaiveCancellationFee(t.id);
+                                        }}
+                                        className="w-full px-1.5 py-0.5 bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 rounded text-[9px] font-bold transition text-center cursor-pointer"
+                                        title="Waive the cancellation charge and grant full advance refund"
+                                      >
+                                        + Waive Fee & Full Refund
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
                               </div>
+                            ) : (
+                              <span className="text-slate-400 text-xs">—</span>
                             )}
                           </td>
 
@@ -1213,6 +1403,11 @@ Support: +91 9786452563`;
                   const isProcessing = actionLoadingId === t.id;
                   const totalDriverEarning = (t.driverAllowance || 0) + (t.driverPayeeAmount || 0);
                   const isExpanded = !!expandedCards[t.id];
+                  const isTripDone = t.status === 'TRIP_COMPLETED' || t.status === 'COMPLETED';
+                  const isFullyPaid =
+                    Number(t.balanceAmount || 0) <= 0 ||
+                    t.balancePaymentStatus === PaymentStatus.PAID ||
+                    (Number(t.advanceAmount || 0) >= Number(t.estimatedFare || 0) && t.advancePaymentStatus === PaymentStatus.PAID);
 
                   return (
                     <div key={t.id} className="p-3.5 sm:p-4 transition hover:bg-slate-50/50">
@@ -1227,8 +1422,7 @@ Support: +91 9786452563`;
                               {t.tripType || 'ONEWAY'}
                             </span>
                           </div>
-                          <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                            <IconClock className="w-3 h-3 text-slate-400 shrink-0" />
+                          <div className="text-[11px] text-slate-400 mt-0.5">
                             <span>
                               {new Date(t.createdAt).toLocaleDateString('en-IN', {
                                 day: 'numeric',
@@ -1355,35 +1549,93 @@ Support: +91 9786452563`;
 
                             <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
                               <span className="text-[10px] text-slate-400 uppercase font-bold block">Balance</span>
-                              <div className="font-extrabold text-slate-900 text-sm mt-0.5">₹{t.balanceAmount?.toLocaleString('en-IN')}</div>
-                              {t.balancePaymentStatus === PaymentStatus.PAID ? (
+                              <div className={`font-extrabold text-sm mt-0.5 ${t.status === 'CANCELLED' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                                ₹{t.balanceAmount?.toLocaleString('en-IN')}
+                              </div>
+                              {t.status === 'CANCELLED' ? (
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 mt-1">
+                                  Cancelled
+                                </span>
+                              ) : isFullyPaid ? (
                                 <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1 mt-0.5">
-                                  <span>✓</span> Paid ({t.balancePayment?.paymentMethod || 'Cash'})
+                                  <span>✓</span> Paid in Full {t.balancePayment?.paymentMethod ? `(${t.balancePayment.paymentMethod})` : ''}
                                 </span>
                               ) : (
                                 <div className="mt-1 space-y-1">
-                                  <span className={`text-[10px] font-bold block ${t.isPayLater ? 'text-amber-800' : 'text-slate-500'}`}>
-                                    {t.isPayLater ? 'Pay Later (Pending)' : 'Due at drop'}
+                                  <span className={`text-[10px] font-bold block ${isTripDone || t.isPayLater ? 'text-amber-800' : 'text-slate-500'}`}>
+                                    {isTripDone ? 'Balance Pending' : t.isPayLater ? 'Pay Later (Pending)' : 'Due at drop'}
                                   </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenBalanceModal(t)}
-                                    className="w-full py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold shadow-2xs transition flex items-center justify-center gap-1"
-                                  >
-                                    <IconCash className="w-3 h-3 text-white" />
-                                    <span>Pay Amount</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleToggleCustomerPayLater(t.id, Boolean(t.isPayLater))}
-                                    className="w-full py-0.5 bg-slate-50 border border-slate-200 hover:bg-amber-50 text-slate-700 hover:text-amber-900 rounded text-[9px] font-bold transition text-center"
-                                  >
-                                    {t.isPayLater ? '✓ Customer Pays Later' : '+ Mark Pay Later'}
-                                  </button>
+                                  {isTripDone && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenBalanceModal(t)}
+                                      className="w-full py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold shadow-2xs transition flex items-center justify-center gap-1 cursor-pointer"
+                                    >
+                                      <IconCash className="w-3 h-3 text-white" />
+                                      <span>Pay Amount</span>
+                                    </button>
+                                  )}
+                                  {!isTripDone && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleCustomerPayLater(t.id, Boolean(t.isPayLater))}
+                                      className="w-full py-0.5 bg-slate-50 border border-slate-200 hover:bg-amber-50 text-slate-700 hover:text-amber-900 rounded text-[9px] font-bold transition text-center cursor-pointer"
+                                    >
+                                      {t.isPayLater ? '✓ Customer Pays Later' : '+ Mark Pay Later'}
+                                    </button>
+                                  )}
                                 </div>
                               )}
                             </div>
                           </div>
+
+                          {/* 2. Separate Refund Card (Mobile - if cancelled or refund due) */}
+                          {(t.status === 'CANCELLED' || t.cancellationData || t.advancePaymentStatus === PaymentStatus.REFUNDED) && (
+                            <div className="bg-rose-50/70 p-2.5 rounded-xl border border-rose-200/90 shadow-2xs text-xs space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] text-rose-800 uppercase font-black tracking-wider">Refund Column</span>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                  (t.cancellationData?.cancellationCharge ?? 0) > 0
+                                    ? 'bg-rose-100 text-rose-800'
+                                    : 'bg-emerald-100 text-emerald-800'
+                                }`}>
+                                  Fee: ₹{t.cancellationData?.cancellationCharge ?? 0}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-slate-700">
+                                <span className="text-[11px] font-medium">Refund Amount:</span>
+                                <span className="font-black text-slate-900 text-xs">
+                                  ₹{Number(t.cancellationData?.refundDue ?? Math.max(0, Number(t.advanceAmount || 0) - Number(t.cancellationData?.cancellationCharge || 0))).toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                              {t.cancellationData?.isRefundDone ? (
+                                <span className="text-[10px] font-black text-emerald-800 bg-emerald-100/80 border border-emerald-300 px-2 py-0.5 rounded block text-center">
+                                  ✓ Refund Done ({t.cancellationData.refundDetails?.method || 'UPI'})
+                                </span>
+                              ) : (
+                                <div className="flex gap-2 pt-1">
+                                  {(t.cancellationData?.refundDue ?? 0) > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenRefundModal(t)}
+                                      className="flex-1 py-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded text-[10px] font-bold shadow-2xs transition text-center cursor-pointer"
+                                    >
+                                      Process Refund
+                                    </button>
+                                  )}
+                                  {(t.cancellationData?.cancellationCharge ?? 0) > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleWaiveCancellationFee(t.id)}
+                                      className="py-1 px-2 bg-white hover:bg-rose-100 text-rose-700 border border-rose-300 rounded text-[9px] font-bold transition text-center cursor-pointer"
+                                    >
+                                      + Waive Fee
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* 2. Tolls & Parking (if any) */}
                           {(t.tollAmount > 0 || t.parkingAmount > 0) && (
@@ -1699,6 +1951,130 @@ Support: +91 9786452563`;
                 className="px-5 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 text-xs font-black rounded-xl transition shadow-xs flex items-center gap-1.5"
               >
                 {savingBalance ? <span>Recording...</span> : <span>✓ Confirm & Generate Receipt</span>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Record Customer Refund Modal */}
+      {refundModalBooking && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl text-slate-900">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-200">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <span>Process Customer Refund</span>
+                <span className="font-mono text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                  {refundModalBooking.humanReadableRef}
+                </span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setRefundModalBooking(null)}
+                className="text-slate-400 hover:text-slate-700 p-1 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* Financial Breakdown */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
+                <div className="text-slate-600 flex justify-between">
+                  <span>Customer:</span>
+                  <span className="font-bold text-slate-900">{refundModalBooking.customerName}</span>
+                </div>
+                <div className="text-slate-600 flex justify-between">
+                  <span>Customer Phone:</span>
+                  <span className="font-mono font-medium text-slate-900">{refundModalBooking.customerPhone || '—'}</span>
+                </div>
+                <div className="text-slate-600 flex justify-between">
+                  <span>Advance Paid:</span>
+                  <span className="font-bold text-emerald-700">₹{Number(refundModalBooking.advanceAmount || 0).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="text-slate-600 flex justify-between">
+                  <span>Cancellation Fee:</span>
+                  <span className="font-bold text-rose-700">
+                    -₹{Number(refundModalBooking.cancellationData?.cancellationCharge ?? 0).toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-sm">
+                  <span className="font-bold text-slate-900">Refund Amount Due:</span>
+                  <span className="font-black text-emerald-700 text-base">
+                    ₹{Number(refundModalBooking.cancellationData?.refundDue ?? Math.max(0, Number(refundModalBooking.advanceAmount || 0) - Number(refundModalBooking.cancellationData?.cancellationCharge || 0))).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Refund Amount Input */}
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Refund Amount to Customer (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={refundAmountVal}
+                  onChange={(e) => setRefundAmountVal(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="e.g. 1506"
+                />
+              </div>
+
+              {/* Refund Method */}
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Refund Method</label>
+                <select
+                  value={refundMethodVal}
+                  onChange={(e) => setRefundMethodVal(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="UPI">UPI Transfer (GPay / PhonePe / Paytm)</option>
+                  <option value="BANK_TRANSFER">Bank NEFT / IMPS / RTGS</option>
+                  <option value="ORIGINAL_GATEWAY">Razorpay / Original Gateway</option>
+                  <option value="CASH">Cash Refund</option>
+                </select>
+              </div>
+
+              {/* Transaction Reference / UTR */}
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Transaction Reference / UTR (Optional)</label>
+                <input
+                  type="text"
+                  value={refundTxnRefVal}
+                  onChange={(e) => setRefundTxnRefVal(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="e.g. UPI Ref #426789123456"
+                />
+              </div>
+
+              {/* Internal Notes */}
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Internal Note (Optional)</label>
+                <input
+                  type="text"
+                  value={refundNotesVal}
+                  onChange={(e) => setRefundNotesVal(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="e.g. Sent via UPI to customer's GPay number"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setRefundModalBooking(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={savingRefund}
+                onClick={handleProcessRefund}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                {savingRefund ? <span>Processing...</span> : <span>✓ Confirm Refund Done</span>}
               </button>
             </div>
           </div>

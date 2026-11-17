@@ -33,6 +33,9 @@ import {
   setTripWaitingState,
   getTripWaitingState,
   clearTripWaitingState,
+  setTripDestinationReached,
+  isTripDestinationReached,
+  isTripDestinationReachedSync,
   WaitingSession,
 } from '../../lib/tripState';
 
@@ -83,11 +86,33 @@ export default function DriverTripActiveScreen() {
     try {
       const res = await driverApiClient.fetch('/api/driver/status');
       if (res.success && res.activeBooking && res.activeBooking.id === bookingId) {
-        if (res.activeBooking.status !== 'TRIP_STARTED' && res.activeBooking.status !== 'IN_PROGRESS') {
+        const s = res.activeBooking.status;
+        // If already completed in DB, go home — don't re-show trip screen
+        if (s === 'COMPLETED' || s === 'TRIP_COMPLETED' || s === 'TRIP_ENDED') {
+          router.replace('/dashboard');
+          return;
+        }
+        // If destination was already reached & confirmed, advance to complete/drop screen
+        const hasReachedDest =
+          res.activeBooking.isDestinationReached ||
+          isTripDestinationReachedSync(bookingId) ||
+          (await isTripDestinationReached(bookingId)) ||
+          res.activeBooking.tripEvents?.some(
+            (e: any) => e.type === 'DRIVER_ARRIVED_AT_DESTINATION' || e.type === 'DESTINATION_REACHED'
+          );
+        if (hasReachedDest) {
+          router.replace({ pathname: '/trip/complete', params: { bookingId } });
+          return;
+        }
+        // If not on-trip yet, redirect back to pickup/OTP screen
+        if (s !== 'TRIP_STARTED' && s !== 'IN_PROGRESS' && s !== 'ON_TRIP') {
           router.replace({ pathname: '/trip/start', params: { bookingId } });
           return;
         }
         setBooking(res.activeBooking);
+      } else if (res.success && !res.activeBooking) {
+        // No active booking — trip must be done, go home
+        router.replace('/dashboard');
       }
     } catch (err) {
       console.error('Failed to fetch active trip:', err);
@@ -140,10 +165,10 @@ export default function DriverTripActiveScreen() {
   };
 
   const handleProceedToComplete = () => {
-    const dropLoc = booking?.dropAddress || 'Destination Drop Location';
+    const targetBookingId = bookingId || booking?.id;
     Alert.alert(
-      t('active_trip.confirm_destination_title'),
-      t('active_trip.confirm_destination_msg', { dropLoc }),
+      t('active_trip.confirm_destination_title', 'Confirm Destination Reached'),
+      t('active_trip.confirm_destination_msg', 'Please confirm that you have reached the drop-off location.'),
       [
         {
           text: t('active_trip.cancel'),
@@ -151,10 +176,22 @@ export default function DriverTripActiveScreen() {
         },
         {
           text: t('active_trip.confirm_and_complete'),
-          onPress: () => {
-            router.push({
+          onPress: async () => {
+            if (targetBookingId) {
+              await setTripDestinationReached(targetBookingId, true);
+              driverApiClient.fetch('/api/driver/trip/reach-destination', {
+                method: 'POST',
+                body: JSON.stringify({
+                  bookingId: targetBookingId,
+                  lat: currentCoords?.lat ?? booking?.dropLat,
+                  lng: currentCoords?.lng ?? booking?.dropLng,
+                  address: booking?.dropAddress,
+                }),
+              }).catch((e) => console.warn('Destination reach log error:', e));
+            }
+            router.replace({
               pathname: '/trip/complete',
-              params: { bookingId: bookingId || booking?.id },
+              params: { bookingId: targetBookingId },
             });
           },
         },
@@ -283,6 +320,12 @@ export default function DriverTripActiveScreen() {
       if (lat != null && lng != null) {
         setCurrentCoords({ lat, lng });
 
+        // Auto-lock waiting starting location if not set yet
+        if (isWaitingActive && !isWaitingPaused && !waitingStartCoordsRef.current) {
+          waitingStartCoordsRef.current = { lat, lng };
+          return;
+        }
+
         // Check if vehicle is moving while waiting is running
         if (isWaitingActive && !isWaitingPaused && waitingStartCoordsRef.current) {
           const dist = getDistanceInMeters(
@@ -292,18 +335,21 @@ export default function DriverTripActiveScreen() {
             lng
           );
 
-          // If moved > 80m from stop location
-          if (dist > 80) {
+          // If moved > 40m from waiting stop location
+          if (dist > 40) {
             setIsMovingWhileWaiting(true);
             const now = Date.now();
 
-            // 1st Popup reminder
-            if (movementAlertCountRef.current === 0) {
-              movementAlertCountRef.current = 1;
+            // Popup reminder: Trigger immediately on first movement, and repeat every 30s while moving if not stopped
+            if (
+              movementAlertCountRef.current === 0 ||
+              now - lastMovementAlertTimeRef.current >= 30000
+            ) {
+              movementAlertCountRef.current += 1;
               lastMovementAlertTimeRef.current = now;
               Alert.alert(
-                '⚠️ Vehicle is Moving',
-                'Your vehicle is moving! Please stop the waiting timer if customer waiting is over.',
+                '⚠️ Waiting in Progress',
+                'Your waiting is still in progress, dont forget to stop.',
                 [
                   {
                     text: 'Stop Waiting & Record',
@@ -319,31 +365,8 @@ export default function DriverTripActiveScreen() {
                 ]
               );
             }
-            // 2nd Popup reminder (after a period of time, e.g. 50s, if not stopped but still moving)
-            else if (
-              movementAlertCountRef.current === 1 &&
-              now - lastMovementAlertTimeRef.current >= 50000
-            ) {
-              movementAlertCountRef.current = 2;
-              lastMovementAlertTimeRef.current = now;
-              Alert.alert(
-                '⚠️ Reminder: Stop Waiting Timer',
-                'Vehicle is still moving and waiting timer is still active. Would you like to stop and record waiting now?',
-                [
-                  {
-                    text: 'Stop Waiting Now',
-                    style: 'default',
-                    onPress: () => {
-                      executeStopWaiting();
-                    },
-                  },
-                  {
-                    text: 'Dismiss',
-                    style: 'cancel',
-                  },
-                ]
-              );
-            }
+          } else {
+            setIsMovingWhileWaiting(false);
           }
         }
       }
@@ -807,51 +830,21 @@ export default function DriverTripActiveScreen() {
                       <Text style={styles.waitingStopBtnTextCompact}>Stop</Text>
                     </TouchableOpacity>
                   ) : (
-                    <>
-                      <TouchableOpacity
-                        style={styles.waitingStartBtnCompact}
-                        onPress={handleStartWaiting}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name="play" size={13} color="#ffffff" style={{ marginRight: 4 }} />
-                        <Text style={styles.waitingStartBtnTextCompact}>
-                          {waitingSessions.length === 0
-                            ? 'Start'
-                            : `Start ${getOrdinal(waitingSessions.length + 1)}`}
-                        </Text>
-                      </TouchableOpacity>
-                      {waitingSessions.length > 0 && (
-                        <TouchableOpacity
-                          style={styles.waitingResetBtnCompact}
-                          onPress={handleResetWaiting}
-                          activeOpacity={0.8}
-                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                        >
-                          <Ionicons name="refresh" size={13} color="#64748b" />
-                        </TouchableOpacity>
-                      )}
-                    </>
+                    <TouchableOpacity
+                      style={styles.waitingStartBtnCompact}
+                      onPress={handleStartWaiting}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="play" size={13} color="#ffffff" style={{ marginRight: 4 }} />
+                      <Text style={styles.waitingStartBtnTextCompact}>
+                        {waitingSessions.length === 0
+                          ? 'Start'
+                          : `Start ${getOrdinal(waitingSessions.length + 1)}`}
+                      </Text>
+                    </TouchableOpacity>
                   )}
                 </View>
               </View>
-
-              {/* Movement Reminder Alert Banner */}
-              {isMovingWhileWaiting && isWaitingActive && !isWaitingPaused && (
-                <View style={styles.movingAlertBanner}>
-                  <Ionicons name="warning" size={15} color="#b45309" style={{ marginRight: 6 }} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.movingAlertTitle}>Vehicle is moving!</Text>
-                    <Text style={styles.movingAlertSub}>Stop waiting timer if waiting is over.</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.movingAlertBtn}
-                    onPress={() => executeStopWaiting()}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.movingAlertBtnText}>Stop Waiting</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
 
               {/* Recorded Sessions Breakdown (shows 1, 2, 3 instead of 1st waiting, etc.) */}
               {waitingSessions.length > 0 && (

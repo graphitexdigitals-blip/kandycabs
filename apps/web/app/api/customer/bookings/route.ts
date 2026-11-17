@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       dropLat,
       dropLng,
       category = VehicleCategory.SEDAN,
-      fuelType,
+      fuelType: passedFuelType,
       tripType = TripType.ONEWAY,
       scheduledAt = new Date().toISOString(),
       durationDays = 1,
@@ -164,6 +164,7 @@ export async function POST(req: NextRequest) {
     );
     const petType = body.petType ? String(body.petType).toLowerCase() : 'dog';
     const petFee = hasPet ? (Number(body.petFee) || 500) : 0;
+    const fuelType = ((passedFuelType ? String(passedFuelType).toUpperCase() : undefined) as FuelType) || (category === VehicleCategory.HATCHBACK ? FuelType.CNG : FuelType.DIESEL);
 
     // Fetch dynamic pricing rule & system settings for night charge, airport rates, and chauffeur allowance
     const [dbRule, nightSettingRow, airportRatesRow, chauffeurSettingRow] = await Promise.all([
@@ -230,9 +231,18 @@ export async function POST(req: NextRequest) {
     const isPayOnDrop = paymentMode === 'PAY_ON_DROP' || paymentMode === 'CASH';
     const isPayOnApproval = Boolean(paymentMode === 'PAY_ON_APPROVAL' || body.isFleetApprovalRequired || category === VehicleCategory.TEMPO_TRAVELER || category === 'TEMPO_TRAVELER' || category === 'URBANIA');
     const isFullPayment = paymentMode === 'FULL';
-    const advanceAmount = isPayOnDrop ? 0 : isFullPayment ? pricing.totalFare : pricing.advanceAmount;
+
+    // Honor exact quoted total fare and advance amount from the Review screen if provided
+    const effectiveTotalFare = (typeof body.exactTotalFare === 'number' && body.exactTotalFare > 0)
+      ? Number(body.exactTotalFare)
+      : pricing.totalFare;
+
+    let advanceAmount = isPayOnDrop ? 0 : isFullPayment ? effectiveTotalFare : pricing.advanceAmount;
+    if (!isPayOnDrop && !isFullPayment && typeof body.exactAdvanceAmount === 'number' && body.exactAdvanceAmount > 0) {
+      advanceAmount = Number(body.exactAdvanceAmount);
+    }
     const advancePaymentStatus = (isPayOnDrop || isPayOnApproval) ? PaymentStatus.PENDING : PaymentStatus.PAID;
-    const balanceAmount = isPayOnDrop ? pricing.totalFare : isFullPayment ? 0 : pricing.balanceAmount;
+    const balanceAmount = isPayOnDrop ? effectiveTotalFare : isFullPayment ? 0 : Math.max(0, effectiveTotalFare - advanceAmount);
 
     const humanReadableRef = generateBookingReference();
     const pickupOtp = generateOtp(4);
@@ -252,8 +262,8 @@ export async function POST(req: NextRequest) {
           dropLat,
           dropLng,
           scheduledAt: parseSafeIsoDate(scheduledAt),
-          distanceKm: pricing.billableDistanceKm,
-          estimatedFare: pricing.totalFare,
+          distanceKm: (typeof body.exactDistanceKm === 'number' && body.exactDistanceKm > 0) ? body.exactDistanceKm : pricing.billableDistanceKm,
+          estimatedFare: effectiveTotalFare,
           advanceAmount: advanceAmount,
           advancePaymentStatus: advancePaymentStatus,
           balanceAmount: balanceAmount,

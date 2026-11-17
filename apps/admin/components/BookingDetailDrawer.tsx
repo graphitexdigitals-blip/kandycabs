@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { BookingStatus, calculateTripChauffeurAllowance } from '@kandy-cabs/shared';
+import { BookingStatus, PaymentStatus, calculateTripChauffeurAllowance } from '@kandy-cabs/shared';
 import { reverseGeocodeLocation } from '@/lib/geocoding';
 import {
   parseIntermediateStops,
@@ -68,6 +68,19 @@ export function BookingDetailDrawer({
   const [cancellingBooking, setCancellingBooking] = useState<boolean>(false);
   const [acceptingCancellation, setAcceptingCancellation] = useState<boolean>(false);
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
+  const [togglingPayLater, setTogglingPayLater] = useState<boolean>(false);
+  const [showRecordPaymentModal, setShowRecordPaymentModal] = useState<boolean>(false);
+  const [recordPaymentMethod, setRecordPaymentMethod] = useState<'UPI_QR' | 'CASH' | 'NET_BANKING'>('UPI_QR');
+  const [recordPaymentTxnRef, setRecordPaymentTxnRef] = useState<string>('');
+  const [recordPaymentNotes, setRecordPaymentNotes] = useState<string>('');
+  const [recordingPayment, setRecordingPayment] = useState<boolean>(false);
+  const [showDrawerRefundModal, setShowDrawerRefundModal] = useState<boolean>(false);
+  const [drawerRefundAmount, setDrawerRefundAmount] = useState<string>('');
+  const [drawerRefundMethod, setDrawerRefundMethod] = useState<string>('UPI');
+  const [drawerRefundTxnRef, setDrawerRefundTxnRef] = useState<string>('');
+  const [drawerRefundNotes, setDrawerRefundNotes] = useState<string>('');
+  const [processingDrawerRefund, setProcessingDrawerRefund] = useState<boolean>(false);
+  const [waivingDrawerFee, setWaivingDrawerFee] = useState<boolean>(false);
   const isTogglingPhoneRef = useRef<boolean>(false);
   const lastPhoneToggledAtRef = useRef<number>(0);
 
@@ -330,6 +343,20 @@ Exclusions (If applicable):
     });
   }, [booking]);
 
+  const isPayLater = useMemo(() => {
+    if (!booking) return false;
+    if (booking.isPayLater || booking.customerPaysLater) return true;
+    if (Array.isArray(booking.tripEvents)) {
+      const payLaterEvent = booking.tripEvents.find(
+        (e: any) => e.type === 'CUSTOMER_PAY_LATER' || e.type === 'CUSTOMER_PAY_LATER_REVERTED'
+      );
+      if (payLaterEvent) {
+        return payLaterEvent.type === 'CUSTOMER_PAY_LATER';
+      }
+    }
+    return false;
+  }, [booking]);
+
   if (!isOpen || !bookingId) return null;
 
   const auditLogs = data?.auditLogs || [];
@@ -344,6 +371,89 @@ Exclusions (If applicable):
   const cancelEventData = cancelEvent?.payloadJson
     ? (typeof cancelEvent.payloadJson === 'string' ? JSON.parse(cancelEvent.payloadJson) : cancelEvent.payloadJson)
     : null;
+
+  const refundEvent = booking?.tripEvents?.find((e: any) => e.type === 'CANCELLATION_REFUND_PROCESSED');
+  const refundEventData = refundEvent?.payloadJson
+    ? (typeof refundEvent.payloadJson === 'string' ? JSON.parse(refundEvent.payloadJson) : refundEvent.payloadJson)
+    : null;
+
+  const feeWaivedEvent = booking?.tripEvents?.find((e: any) => e.type === 'CANCELLATION_FEE_WAIVED');
+  const isFeeWaived = Boolean(cancelEventData?.waiveCharge || feeWaivedEvent);
+  const cancellationCharge = isFeeWaived ? 0 : Number(cancelEventData?.cancellationCharge ?? 0);
+  const advancePaid = Number(cancelEventData?.advancePaid ?? booking?.advanceAmount ?? 0);
+  const refundDue = Math.max(0, isFeeWaived ? advancePaid : (cancelEventData?.refundAmount != null ? Number(cancelEventData.refundAmount) : advancePaid - cancellationCharge));
+  const isRefundDone = Boolean(refundEventData || booking?.advancePaymentStatus === 'REFUNDED');
+
+  const handleDrawerWaiveFee = async () => {
+    if (!booking || waivingDrawerFee) return;
+    if (!window.confirm(`Waive the cancellation charge for booking ${booking.humanReadableRef}?\n\nThis will remove the ₹${cancellationCharge} fee and allow a 100% full advance refund of ₹${advancePaid} to the customer.`)) {
+      return;
+    }
+    setWaivingDrawerFee(true);
+    try {
+      const res = await fetch(`/api/admin/bookings/${booking.id}/refund`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'WAIVE_CANCELLATION_FEE' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || 'Cancellation fee waived successfully!');
+        fetchDetail(booking.id);
+        onRefresh();
+      } else {
+        alert(data.message || 'Failed to waive fee');
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error waiving cancellation fee');
+    } finally {
+      setWaivingDrawerFee(false);
+    }
+  };
+
+  const handleOpenDrawerRefundModal = () => {
+    setDrawerRefundAmount(String(refundDue));
+    setDrawerRefundMethod('UPI');
+    setDrawerRefundTxnRef('');
+    setDrawerRefundNotes('');
+    setShowDrawerRefundModal(true);
+  };
+
+  const handleDrawerProcessRefund = async () => {
+    if (!booking || processingDrawerRefund) return;
+    const numAmt = parseFloat(drawerRefundAmount);
+    if (isNaN(numAmt) || numAmt <= 0) {
+      alert('Please enter a valid refund amount');
+      return;
+    }
+    setProcessingDrawerRefund(true);
+    try {
+      const res = await fetch(`/api/admin/bookings/${booking.id}/refund`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'RECORD_REFUND',
+          refundAmount: numAmt,
+          refundMethod: drawerRefundMethod,
+          refundTxnRef: drawerRefundTxnRef.trim(),
+          notes: drawerRefundNotes.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || 'Customer refund recorded successfully!');
+        setShowDrawerRefundModal(false);
+        fetchDetail(booking.id);
+        onRefresh();
+      } else {
+        alert(data.message || 'Failed to record refund');
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error processing refund');
+    } finally {
+      setProcessingDrawerRefund(false);
+    }
+  };
 
   const handleAdminCancelBooking = async () => {
     if (!booking || cancellingBooking) return;
@@ -465,6 +575,74 @@ Exclusions (If applicable):
     }
   };
 
+  const handleTogglePayLater = async () => {
+    if (!booking || togglingPayLater) return;
+    const targetState = !isPayLater;
+    const confirmMsg = targetState
+      ? `Allow Customer Pay Later for booking ${booking.humanReadableRef}?\n\n- The remaining payment amount on the driver app will immediately update to ₹0.\n- Driver will not collect any cash or QR payment from passenger.\n- Admin will collect the remaining payment later.\n- Trip will be tracked in Payments & Ledger.`
+      : `Revert Pay Later for booking ${booking.humanReadableRef}?\n\n- Driver will be required to collect the remaining payment (₹${booking.balanceAmount}).`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    setTogglingPayLater(true);
+    try {
+      const res = await fetch('/api/admin/payments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: booking.id,
+          action: 'SET_PAY_LATER',
+          customerPaysLater: targetState,
+          notes: targetState ? 'Admin authorized customer to pay balance later' : 'Admin reverted Pay Later status',
+        }),
+      });
+      const resData = await res.json();
+      if (res.ok && resData.success) {
+        await fetchDetail(booking.id);
+        onRefresh();
+      } else {
+        alert(resData.error || resData.message || 'Failed to update Pay Later status');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error updating Pay Later status');
+    } finally {
+      setTogglingPayLater(false);
+    }
+  };
+
+  const handleSaveRecordPayment = async () => {
+    if (!booking || recordingPayment) return;
+    setRecordingPayment(true);
+    try {
+      const res = await fetch('/api/admin/payments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: booking.id,
+          paymentMethod: recordPaymentMethod,
+          transactionRef: recordPaymentTxnRef.trim(),
+          amount: booking.balanceAmount,
+          notes: recordPaymentNotes.trim() || 'Balance payment collected by Admin',
+        }),
+      });
+      const resData = await res.json();
+      if (res.ok && resData.success) {
+        alert(`Payment of ₹${booking.balanceAmount} successfully recorded! The ledger and payments status have been updated.`);
+        setShowRecordPaymentModal(false);
+        setRecordPaymentTxnRef('');
+        setRecordPaymentNotes('');
+        await fetchDetail(booking.id);
+        onRefresh();
+      } else {
+        alert(resData.error || resData.message || 'Failed to record payment');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error recording balance payment');
+    } finally {
+      setRecordingPayment(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/40 backdrop-blur-xs flex justify-end">
       <div className="w-full max-w-2xl bg-white h-full shadow-2xl overflow-y-auto flex flex-col animate-slide-left">
@@ -575,6 +753,29 @@ Exclusions (If applicable):
               >
                 {isPhoneReleased ? 'Phone Released' : 'Release Customer Phone'}
               </button>
+
+              {/* Pay Later Toggle Button - Only when balance remains to be paid */}
+              {booking.status !== BookingStatus.CANCELLED &&
+                booking.status !== 'CANCELLED' &&
+                Number(booking.balanceAmount || 0) > 0 &&
+                booking.balancePaymentStatus !== 'PAID' &&
+                booking.balancePaymentStatus !== PaymentStatus.PAID &&
+                !(Number(booking.advanceAmount || 0) >= Number(booking.estimatedFare || 0) && (booking.advancePaymentStatus === 'PAID' || booking.advancePaymentStatus === PaymentStatus.PAID)) && (
+                <button
+                  type="button"
+                  disabled={togglingPayLater}
+                  onClick={handleTogglePayLater}
+                  className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition inline-flex items-center gap-1.5 ${
+                    isPayLater
+                      ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 shadow-xs'
+                  }`}
+                  title={isPayLater ? 'Pay Later approved: Driver collects ₹0. Click to revert.' : 'Authorize customer to pay balance later directly to Admin'}
+                >
+                  <span className={`w-2 h-2 rounded-full ${isPayLater ? 'bg-amber-500 animate-pulse' : 'bg-slate-300'}`} />
+                  <span>{togglingPayLater ? 'Updating...' : isPayLater ? 'Pay Later Approved (₹0 to Driver)' : 'Allow Pay Later'}</span>
+                </button>
+              )}
 
               {booking.status !== BookingStatus.TRIP_STARTED &&
                 booking.status !== BookingStatus.TRIP_COMPLETED &&
@@ -733,7 +934,7 @@ Exclusions (If applicable):
 
             {/* Trip Cancelled Alert Box */}
             {booking.status === BookingStatus.CANCELLED && (
-              <div className="p-3.5 bg-rose-50 border-2 border-rose-300 rounded-xl space-y-2 shadow-xs">
+              <div className="p-3.5 bg-rose-50 border-2 border-rose-300 rounded-xl space-y-2.5 shadow-xs">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
@@ -741,17 +942,23 @@ Exclusions (If applicable):
                       Booking Cancelled
                     </span>
                   </div>
-                  <span className="text-xs font-black px-2.5 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-200">
-                    {cancelEventData?.cancellationCharge && cancelEventData.cancellationCharge > 0
-                      ? `Cancellation Fee: ₹${cancelEventData.cancellationCharge}`
-                      : 'Free Cancellation (₹0)'}
+                  <span className={`text-xs font-black px-2.5 py-0.5 rounded-md border ${
+                    cancellationCharge > 0
+                      ? 'bg-rose-100 text-rose-800 border-rose-200'
+                      : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                  }`}>
+                    {cancellationCharge > 0
+                      ? `Cancellation Fee: ₹${cancellationCharge}`
+                      : 'Fee Waived / Free (₹0)'}
                   </span>
                 </div>
+
                 {cancelEventData?.reason && (
                   <p className="text-xs text-rose-800 font-medium">
                     Reason: {cancelEventData.reason}
                   </p>
                 )}
+
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-rose-200/60 text-[11px]">
                   <div>
                     <span className="text-rose-600 font-medium">Cancelled By:</span>{' '}
@@ -759,15 +966,67 @@ Exclusions (If applicable):
                   </div>
                   <div>
                     <span className="text-rose-600 font-medium">Cancellation Fee:</span>{' '}
-                    <span className="font-bold text-rose-950">₹{cancelEventData?.cancellationCharge ?? 0}</span>
+                    <span className="font-bold text-rose-950">₹{cancellationCharge}</span>
                   </div>
                   <div>
                     <span className="text-rose-600 font-medium">Advance Paid:</span>{' '}
-                    <span className="font-bold text-rose-950">₹{cancelEventData?.advancePaid ?? Number(booking.advanceAmount || 0)}</span>
+                    <span className="font-bold text-rose-950">₹{advancePaid}</span>
                   </div>
                   <div>
                     <span className="text-rose-600 font-medium">Refund Amount:</span>{' '}
-                    <span className="font-bold text-emerald-700">₹{cancelEventData?.refundAmount ?? 0}</span>
+                    <span className="font-bold text-emerald-700">₹{refundDue}</span>
+                  </div>
+                </div>
+
+                {/* Refund Status & Admin Controls */}
+                <div className="pt-2 border-t border-rose-200/60 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    {isRefundDone ? (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-black shadow-xs">
+                        <span>✓ Refund Completed:</span>
+                        <span className="font-bold">₹{refundEventData?.refundAmount ?? refundDue}</span>
+                        {refundEventData?.refundMethod && (
+                          <span className="font-medium text-emerald-700">via {refundEventData.refundMethod}</span>
+                        )}
+                        {refundEventData?.refundTxnRef && (
+                          <span className="font-mono text-[10px] text-emerald-600">({refundEventData.refundTxnRef})</span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black shadow-xs">
+                        <IconClock className="w-3.5 h-3.5 text-amber-700" />
+                        <span>Pending Refund:</span>
+                        <span className="font-bold">₹{refundDue}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Waive cancellation fee option */}
+                    {cancellationCharge > 0 && (
+                      <button
+                        type="button"
+                        disabled={waivingDrawerFee}
+                        onClick={handleDrawerWaiveFee}
+                        className="px-3 py-1.5 bg-white hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+                        title="Waive the cancellation charge and grant full advance refund"
+                      >
+                        {waivingDrawerFee ? 'Waiving...' : '+ Waive Fee & Refund Full'}
+                      </button>
+                    )}
+
+                    {/* Process Refund Action */}
+                    {!isRefundDone && refundDue > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleOpenDrawerRefundModal}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-black transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        title="Open refund form to record refund transaction"
+                      >
+                        <IconPayments className="w-3.5 h-3.5 text-white" />
+                        <span>Process Customer Refund</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1675,32 +1934,76 @@ Exclusions (If applicable):
                   {(() => {
                     const completeEvent = booking.tripEvents?.find((e: any) => e.type === 'TRIP_COMPLETED');
                     const balancePayment = booking.payments?.find((p: any) => p.type === 'BALANCE');
-                    const hasPayLaterEvent = booking.tripEvents?.some((e: any) => e.type === 'CUSTOMER_PAY_LATER');
                     const method = balancePayment?.paymentMethod || completeEvent?.payloadJson?.paymentMethod;
-                    if (!method && !hasPayLaterEvent) return null;
-                    const isPayLater = method === 'PAY_LATER' || hasPayLaterEvent;
+                    const hasPayLater = isPayLater || method === 'PAY_LATER';
                     const isUpi = method === 'UPI_QR';
+
+                    if (!method && !hasPayLater) return null;
+
                     return (
-                      <div className={`mt-2 p-2 rounded-lg border flex items-center justify-between text-xs font-bold ${
-                        isPayLater
-                          ? 'bg-amber-50 text-amber-950 border-amber-200'
-                          : isUpi
-                          ? 'bg-sky-50 text-sky-950 border-sky-200'
-                          : 'bg-emerald-50 text-emerald-950 border-emerald-200'
-                      }`}>
-                        <span className="flex items-center gap-1.5">
-                          <IconPayments className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                          <span>Balance Collection:</span>
-                        </span>
-                        <span className={`px-2 py-0.5 rounded-md border text-[10.5px] font-black uppercase tracking-wide ${
-                          isPayLater
-                            ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      <div className="space-y-2 mt-2">
+                        <div className={`p-2 rounded-lg border flex items-center justify-between text-xs font-bold ${
+                          hasPayLater
+                            ? 'bg-amber-50 text-amber-950 border-amber-200'
                             : isUpi
-                            ? 'bg-sky-100 text-sky-900 border-sky-300'
-                            : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                            ? 'bg-sky-50 text-sky-950 border-sky-200'
+                            : 'bg-emerald-50 text-emerald-950 border-emerald-200'
                         }`}>
-                          {isPayLater ? 'Customer Pays Later (Admin Pending)' : isUpi ? 'Admin UPI QR (Direct)' : 'Cash Collected by Driver'}
-                        </span>
+                          <span className="flex items-center gap-1.5">
+                            <IconPayments className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                            <span>Balance Collection:</span>
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-md border text-[10.5px] font-black uppercase tracking-wide ${
+                            hasPayLater
+                              ? 'bg-amber-100 text-amber-900 border-amber-300'
+                              : isUpi
+                              ? 'bg-sky-100 text-sky-900 border-sky-300'
+                              : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                          }`}>
+                            {hasPayLater ? 'Customer Pays Later (Admin Pending)' : isUpi ? 'Admin UPI QR (Direct)' : 'Cash Collected by Driver'}
+                          </span>
+                        </div>
+
+                        {/* Admin Action Box for Pay Later */}
+                        {hasPayLater && booking.balancePaymentStatus !== 'PAID' && booking.status !== BookingStatus.CANCELLED && booking.status !== 'CANCELLED' && (
+                          <div className="p-3 bg-amber-50 rounded-xl border-2 border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-xs">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                <span className="font-extrabold text-amber-900 text-xs uppercase tracking-wide">
+                                  Customer Pay Later Active
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-amber-800 mt-0.5">
+                                Driver collected ₹0. Remaining balance to collect from passenger: <strong className="text-amber-950 font-black">₹{Number(booking.balanceAmount).toLocaleString('en-IN')}</strong>
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRecordPaymentTxnRef('');
+                                setRecordPaymentNotes('');
+                                setShowRecordPaymentModal(true);
+                              }}
+                              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg shadow-xs inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition cursor-pointer"
+                            >
+                              <IconPayments className="w-3.5 h-3.5" />
+                              <span>Record Balance Payment</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {hasPayLater && booking.balancePaymentStatus === 'PAID' && (
+                          <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-300 flex items-center justify-between text-xs shadow-xs">
+                            <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                              <span>Admin Collected Balance (₹{Number(booking.balanceAmount).toLocaleString('en-IN')})</span>
+                            </span>
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded font-black text-[10px] uppercase tracking-wider">
+                              Payment Reconciled in Ledger
+                            </span>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
@@ -1976,6 +2279,136 @@ Exclusions (If applicable):
         )}
       </div>
 
+      {/* Record Customer Balance Payment Modal */}
+      {showRecordPaymentModal && booking && (
+        <div
+          className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setShowRecordPaymentModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl relative border border-slate-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base flex items-center gap-2">
+                  <IconPayments className="w-5 h-5 text-amber-400" />
+                  <span>Record Customer Balance Payment</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Booking #{booking.humanReadableRef} • {booking.customer?.user?.fullName || 'Customer'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRecordPaymentModal(false)}
+                className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition"
+              >
+                <IconX className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-amber-800 font-bold block">Balance Fare Due:</span>
+                  <span className="text-2xl font-black text-amber-950 font-mono">₹{Number(booking.balanceAmount).toLocaleString('en-IN')}</span>
+                </div>
+                <span className="px-2.5 py-1 bg-amber-100 text-amber-800 border border-amber-300 rounded-md font-bold text-[11px] uppercase tracking-wider">
+                  Pay Later
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Collection Method
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRecordPaymentMethod('UPI_QR')}
+                    className={`py-2 px-2 rounded-xl border text-xs font-bold text-center transition ${
+                      recordPaymentMethod === 'UPI_QR'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs ring-2 ring-emerald-500/20'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Admin UPI QR
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecordPaymentMethod('CASH')}
+                    className={`py-2 px-2 rounded-xl border text-xs font-bold text-center transition ${
+                      recordPaymentMethod === 'CASH'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs ring-2 ring-emerald-500/20'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Direct Cash
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecordPaymentMethod('NET_BANKING')}
+                    className={`py-2 px-2 rounded-xl border text-xs font-bold text-center transition ${
+                      recordPaymentMethod === 'NET_BANKING'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs ring-2 ring-emerald-500/20'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Net Banking
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Transaction / UTR Reference
+                </label>
+                <input
+                  type="text"
+                  value={recordPaymentTxnRef}
+                  onChange={(e) => setRecordPaymentTxnRef(e.target.value)}
+                  placeholder="e.g. UPI Ref / Bank UTR / Receipt No."
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Reconciliation Notes
+                </label>
+                <input
+                  type="text"
+                  value={recordPaymentNotes}
+                  onChange={(e) => setRecordPaymentNotes(e.target.value)}
+                  placeholder="e.g. Paid by passenger to Admin QR at office"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowRecordPaymentModal(false)}
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={recordingPayment}
+                  onClick={handleSaveRecordPayment}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-xs transition inline-flex items-center gap-1.5"
+                >
+                  <IconPayments className="w-4 h-4" />
+                  <span>{recordingPayment ? 'Recording...' : `Confirm & Reconcile (₹${Number(booking.balanceAmount).toLocaleString('en-IN')})`}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Fullscreen Photo Lightbox Modal */}
       {previewImage && (
         <div
@@ -2005,6 +2438,132 @@ Exclusions (If applicable):
                 alt={previewImage.title}
                 className="max-h-[65vh] w-auto max-w-full rounded-lg object-contain shadow-lg"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Record Customer Refund Modal (From Details Drawer) */}
+      {showDrawerRefundModal && (
+        <div
+          className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setShowDrawerRefundModal(false)}
+        >
+          <div
+            className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <IconPayments className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-sm font-bold text-slate-900">
+                  Process Customer Refund — {booking.humanReadableRef}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDrawerRefundModal(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
+                <div className="flex justify-between text-slate-600">
+                  <span>Customer:</span>
+                  <span className="font-bold text-slate-900">{booking.customer?.user?.fullName || 'Customer'}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Advance Paid:</span>
+                  <span className="font-bold text-emerald-700">₹{advancePaid}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Cancellation Fee:</span>
+                  <span className="font-bold text-rose-700">-₹{cancellationCharge}</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-sm">
+                  <span className="font-bold text-slate-900">Refund Due:</span>
+                  <span className="font-black text-emerald-700 text-base">₹{refundDue}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Refund Amount to Customer (₹)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={drawerRefundAmount}
+                  onChange={(e) => setDrawerRefundAmount(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-bold"
+                  placeholder="e.g. 1506"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Refund Method
+                </label>
+                <select
+                  value={drawerRefundMethod}
+                  onChange={(e) => setDrawerRefundMethod(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
+                >
+                  <option value="UPI">UPI Transfer (GPay / PhonePe / Paytm)</option>
+                  <option value="BANK_TRANSFER">Bank NEFT / IMPS / RTGS</option>
+                  <option value="ORIGINAL_GATEWAY">Razorpay / Original Gateway</option>
+                  <option value="CASH">Cash Refund</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Transaction Reference / UTR (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={drawerRefundTxnRef}
+                  onChange={(e) => setDrawerRefundTxnRef(e.target.value)}
+                  placeholder="e.g. UPI Ref #426789123456"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Reconciliation Notes (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={drawerRefundNotes}
+                  onChange={(e) => setDrawerRefundNotes(e.target.value)}
+                  placeholder="e.g. Sent via UPI to customer's GPay number"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowDrawerRefundModal(false)}
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={processingDrawerRefund}
+                  onClick={handleDrawerProcessRefund}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-xs transition inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <IconPayments className="w-4 h-4" />
+                  <span>{processingDrawerRefund ? 'Processing...' : `Confirm Refund (₹${drawerRefundAmount || refundDue})`}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

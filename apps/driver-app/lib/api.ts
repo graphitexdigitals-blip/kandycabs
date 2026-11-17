@@ -72,9 +72,29 @@ export const DEFAULT_LOCAL_URL = 'http://127.0.0.1:3001';
 export function resolveDefaultApiUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
   if (envUrl && envUrl.startsWith('http')) {
+    if (__DEV__ && (envUrl.includes('127.0.0.1') || envUrl.includes('localhost'))) {
+      const hostUri = Constants.expoConfig?.hostUri || (Constants as any)?.manifest?.debuggerHost;
+      if (hostUri) {
+        const host = hostUri.split(':')[0];
+        if (host && host !== '127.0.0.1' && host !== 'localhost') {
+          return envUrl.replace(/127\.0\.0\.1|localhost/, host).replace(/\/+$/, '');
+        }
+      }
+    }
     return envUrl.replace(/\/+$/, '');
   }
-  return DEFAULT_LOCAL_URL;
+
+  if (__DEV__) {
+    const hostUri = Constants.expoConfig?.hostUri || (Constants as any)?.manifest?.debuggerHost;
+    if (hostUri) {
+      const host = hostUri.split(':')[0];
+      if (host) {
+        return `http://${host}:3001`;
+      }
+    }
+  }
+
+  return 'http://192.168.1.3:3001';
 }
 
 export const DEFAULT_LAN_URL = resolveDefaultApiUrl();

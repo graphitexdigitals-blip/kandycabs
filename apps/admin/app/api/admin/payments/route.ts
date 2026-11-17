@@ -179,7 +179,7 @@ export async function GET(req: NextRequest) {
           tripEvents: {
             select: { id: true, type: true, payloadJson: true, createdAt: true },
             orderBy: { createdAt: 'desc' },
-            take: 10,
+            take: 20,
           },
         },
       }),
@@ -192,6 +192,56 @@ export async function GET(req: NextRequest) {
         b.tripEvents?.some((e) => e.type === 'CUSTOMER_PAY_LATER') ||
         Boolean((b as any).customerPaysLater) ||
         false;
+
+      // Extract cancellation and refund records
+      const cancelEvent = b.tripEvents?.find((e) => e.type === 'BOOKING_CANCELLED');
+      const refundEvent = b.tripEvents?.find((e) => e.type === 'CANCELLATION_REFUND_PROCESSED');
+      const feeWaivedEvent = b.tripEvents?.find((e) => e.type === 'CANCELLATION_FEE_WAIVED');
+
+      let cancellationData: any = null;
+      if (b.status === 'CANCELLED' || cancelEvent) {
+        let cPayload: any = {};
+        if (cancelEvent?.payloadJson) {
+          cPayload = typeof cancelEvent.payloadJson === 'string'
+            ? JSON.parse(cancelEvent.payloadJson)
+            : cancelEvent.payloadJson;
+        }
+
+        let rPayload: any = null;
+        if (refundEvent?.payloadJson) {
+          rPayload = typeof refundEvent.payloadJson === 'string'
+            ? JSON.parse(refundEvent.payloadJson)
+            : refundEvent.payloadJson;
+        }
+
+        const advancePaid = Number(advancePayment && advancePayment.status === PaymentStatus.PAID ? advancePayment.amount : (cPayload.advancePaid ?? b.advanceAmount ?? 0));
+        const originalCharge = Number(cPayload.cancellationCharge ?? 0);
+        const isFeeWaived = Boolean(cPayload.waiveCharge || feeWaivedEvent);
+        const cancellationCharge = isFeeWaived ? 0 : originalCharge;
+        const refundDue = Math.max(0, isFeeWaived ? advancePaid : (cPayload.refundAmount != null ? Number(cPayload.refundAmount) : advancePaid - cancellationCharge));
+        const isRefundDone = Boolean(rPayload || b.advancePaymentStatus === PaymentStatus.REFUNDED);
+
+        cancellationData = {
+          cancelledAt: cancelEvent?.createdAt?.toISOString() || b.createdAt.toISOString(),
+          reason: cPayload.reason || 'Cancelled',
+          cancelledBy: cPayload.cancelledBy || 'CUSTOMER',
+          advancePaid,
+          originalCharge,
+          cancellationCharge,
+          isFeeWaived,
+          isWithinWindow: Boolean(cPayload.isWithinWindow),
+          hoursUntilPickup: cPayload.hoursUntilPickup ?? null,
+          refundDue,
+          isRefundDone,
+          refundDetails: rPayload ? {
+            amount: Number(rPayload.refundAmount || refundDue),
+            method: rPayload.refundMethod || 'UPI',
+            txnRef: rPayload.refundTxnRef || '',
+            notes: rPayload.notes || '',
+            processedAt: rPayload.processedAt || refundEvent?.createdAt?.toISOString(),
+          } : null,
+        };
+      }
 
       return {
         id: b.id,
@@ -237,6 +287,7 @@ export async function GET(req: NextRequest) {
               verifiedAt: balancePayment.verifiedAt?.toISOString(),
             }
           : null,
+        cancellationData,
       };
     });
 

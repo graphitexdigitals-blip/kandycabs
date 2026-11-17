@@ -158,18 +158,35 @@ export default function DriverTripStartScreen() {
     try {
       const res = await driverApiClient.fetch('/api/driver/status');
       if (res.success && res.activeBooking) {
-        setBooking(res.activeBooking);
-        if (res.activeBooking.status === 'TRIP_STARTED') {
-          setIsAdminAuthorized(true);
+        const b = res.activeBooking;
+        // If trip already completed in DB, go to dashboard
+        if (b.status === 'COMPLETED' || b.status === 'TRIP_COMPLETED' || b.status === 'TRIP_ENDED') {
+          router.replace('/dashboard');
+          return;
         }
-        if (res.activeBooking.isOtpVerified) {
+
+        // If trip already started in DB, go directly to active trip
+        if (b.status === 'TRIP_STARTED' || b.status === 'ON_TRIP' || b.status === 'IN_PROGRESS') {
+          router.replace({ pathname: '/trip/active', params: { bookingId: b.id } });
+          return;
+        }
+
+        setBooking(b);
+        if (b.isOtpVerified) {
           setIsOtpVerified(true);
-          if (res.activeBooking.verifiedPickupOtp) {
-            setPickupOtp(res.activeBooking.verifiedPickupOtp);
+          if (b.verifiedPickupOtp) {
+            setPickupOtp(b.verifiedPickupOtp);
             if (bookingId) {
-              setVerifiedPickupOtp(bookingId, res.activeBooking.verifiedPickupOtp);
+              setVerifiedPickupOtp(bookingId, b.verifiedPickupOtp);
             }
           }
+        }
+        if (b.startingOdometer != null) {
+          setStartingOdometer(String(b.startingOdometer));
+        }
+        if (b.startingOdometerImagePath) {
+          setOdometerImageUri(b.startingOdometerImagePath);
+          setOdometerPhotoAttached(true);
         }
         if (
           (Array.isArray(res.activeBooking.vehicleInspectionPhotos) && res.activeBooking.vehicleInspectionPhotos.length > 0) ||

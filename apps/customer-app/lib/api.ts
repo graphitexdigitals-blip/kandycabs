@@ -159,8 +159,30 @@ import Constants from 'expo-constants';
 export function getDynamicBaseUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
   if (envUrl && envUrl.startsWith('http')) {
+    // If running in development on a physical device, replace 127.0.0.1 / localhost with the Metro host IP
+    if (__DEV__ && (envUrl.includes('127.0.0.1') || envUrl.includes('localhost'))) {
+      const hostUri = Constants.expoConfig?.hostUri || (Constants as any)?.manifest?.debuggerHost;
+      if (hostUri) {
+        const host = hostUri.split(':')[0];
+        if (host && host !== '127.0.0.1' && host !== 'localhost') {
+          return envUrl.replace(/127\.0\.0\.1|localhost/, host).replace(/\/+$/, '');
+        }
+      }
+    }
     return envUrl.replace(/\/+$/, '');
   }
+
+  // Dynamic dev fallback to Metro host machine port 3001
+  if (__DEV__) {
+    const hostUri = Constants.expoConfig?.hostUri || (Constants as any)?.manifest?.debuggerHost;
+    if (hostUri) {
+      const host = hostUri.split(':')[0];
+      if (host) {
+        return `http://${host}:3001`;
+      }
+    }
+  }
+
   return 'https://kandycabs-8kew.vercel.app';
 }
 

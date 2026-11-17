@@ -615,6 +615,41 @@ export default function SelectCabScreen() {
     }
   }, []);
 
+  const [liveQuoteData, setLiveQuoteData] = useState<{
+    distanceKm: number;
+    durationMins: number;
+    quotesByCategory: Record<string, any>;
+  } | null>(null);
+
+  // Fetch live server-authoritative route quotes and rates from Admin Pricing Engine
+  const loadLiveQuotes = React.useCallback(async () => {
+    if (!pickupLat || !dropLat) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/customer/quote?t=${Date.now()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pickupLat,
+          pickupLng,
+          dropLat,
+          dropLng,
+          viaStops,
+          tripType,
+          scheduledAt: pickupDate ? `${pickupDate}T12:00:00Z` : undefined,
+          packageHours: localHours,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && data.quotesByCategory) {
+          setLiveQuoteData(data);
+        }
+      }
+    } catch (err) {
+      console.log('Using local distance/pricing calculations:', err);
+    }
+  }, [pickupLat, pickupLng, dropLat, dropLng, viaStops, tripType, pickupDate, localHours]);
+
   const loadLivePricingSettings = React.useCallback(async () => {
     try {
       const [airportRes, nightRes] = await Promise.all([
@@ -641,6 +676,7 @@ export default function SelectCabScreen() {
   useEffect(() => {
     loadLiveFleets();
     loadLivePricingSettings();
+    loadLiveQuotes();
     trackAppEvent('VIEW_RATES', {
       tripType,
       pickup: typeof pickup === 'string' ? pickup : '',
@@ -650,14 +686,18 @@ export default function SelectCabScreen() {
     const interval = setInterval(() => {
       loadLiveFleets();
       loadLivePricingSettings();
+      loadLiveQuotes();
     }, 5000);
     return () => clearInterval(interval);
-  }, [loadLiveFleets, loadLivePricingSettings]);
+  }, [loadLiveFleets, loadLivePricingSettings, loadLiveQuotes]);
 
   // Distance estimate across all waypoints
   const estimatedKm = useMemo(() => {
     if (tripType === 'LOCAL') {
       return localHours === 4 ? 40 : localHours === 8 ? 80 : 120;
+    }
+    if (liveQuoteData?.distanceKm && liveQuoteData.distanceKm > 0) {
+      return liveQuoteData.distanceKm;
     }
     if (viaStops && viaStops.length > 0) {
       let total = 0;
@@ -674,10 +714,17 @@ export default function SelectCabScreen() {
       return Math.max(15, total);
     }
     return calculateDistanceKm(pickupLat, pickupLng, dropLat, dropLng);
-  }, [tripType, localHours, pickupLat, pickupLng, dropLat, dropLng, viaStops]);
+  }, [tripType, localHours, liveQuoteData, pickupLat, pickupLng, dropLat, dropLng, viaStops]);
 
   const estimatedHours = useMemo(() => {
     if (tripType === 'LOCAL') return `${localHours} hrs`;
+    if (liveQuoteData?.durationMins && liveQuoteData.durationMins > 0) {
+      const hours = Math.floor(liveQuoteData.durationMins / 60);
+      const mins = liveQuoteData.durationMins % 60;
+      if (hours === 0) return `${mins} mins approx`;
+      if (mins === 0) return `${hours} hr${hours > 1 ? 's' : ''} approx`;
+      return `${hours} hr${hours > 1 ? 's' : ''} ${mins} mins approx`;
+    }
     const totalMinutes = Math.round((estimatedKm / 45) * 60);
     if (totalMinutes < 60) {
       return `${Math.max(5, totalMinutes)} mins approx`;
@@ -688,7 +735,7 @@ export default function SelectCabScreen() {
       return `${hours} hr${hours > 1 ? 's' : ''} approx`;
     }
     return `${hours} hr${hours > 1 ? 's' : ''} ${mins} mins approx`;
-  }, [tripType, localHours, estimatedKm]);
+  }, [tripType, localHours, liveQuoteData, estimatedKm]);
 
   const selectedVehicle = useMemo(() => {
     return fleetList.find((f) => f.id === selectedVehicleId) || fleetList[0];
@@ -760,6 +807,9 @@ export default function SelectCabScreen() {
     let fixedAirportFare = 0;
     let airportRouteName = '';
 
+    const liveQuote = liveQuoteData?.quotesByCategory?.[item.id] ||
+      liveQuoteData?.quotesByCategory?.[item.id === 'SWIFT_DZIRE' ? 'SEDAN' : item.id === 'SUV_ERTIGA' ? 'SUV' : item.id];
+
     const nightChargeAddon = (isNightTime && isNightTripTypeEligible) ? 250 : 0;
 
     safeNavigate(() => {
@@ -785,6 +835,9 @@ export default function SelectCabScreen() {
           localHours: String(localHours),
           category: item.id,
           selectedVehicleName: displayName,
+          exactDistanceKm: String(estimatedKm),
+          exactTotalFare: liveQuote?.totalFare ? String(Math.round(Number(liveQuote.totalFare))) : '',
+          driverAllowance: liveQuote?.driverAllowance ? String(Number(liveQuote.driverAllowance)) : (tripType === 'ONEWAY' || tripType === 'ROUND' ? '300' : '0'),
           ratePerKm: String(effectiveRatePerKm),
           extraKmRate: String(effectiveExtraKmRate),
           extraKmThreshold: String(effectiveThreshold),
@@ -992,18 +1045,50 @@ export default function SelectCabScreen() {
             const isSelected = selectedVehicleId ? selectedVehicleId === item.id : isRecommended;
             const isUrbania = item.id === 'URBANIA';
             const isTempoOrUrbania = item.id === 'TEMPO_TRAVELER' || item.id === 'TRAVELLER' || item.id === 'URBANIA' || Boolean(item.isContactOnly);
-            const effectiveRatePerKm = isUrbania ? selectedUrbaniaSeater.baseRatePerKm : item.ratePerKm;
-            const effectiveExtraKmRate = isUrbania ? selectedUrbaniaSeater.extraKmRate : item.ratePerKm;
+            const liveQuote = liveQuoteData?.quotesByCategory?.[item.id] ||
+              liveQuoteData?.quotesByCategory?.[item.id === 'SWIFT_DZIRE' ? 'SEDAN' : item.id === 'SUV_ERTIGA' ? 'SUV' : item.id];
+
+            const effectiveRatePerKm = isUrbania
+              ? selectedUrbaniaSeater.baseRatePerKm
+              : (liveQuote ? Number(liveQuote.ratePerKm) : item.ratePerKm);
+            const effectiveExtraKmRate = isUrbania ? selectedUrbaniaSeater.extraKmRate : effectiveRatePerKm;
             const effectiveSeats = isUrbania ? selectedUrbaniaSeater.seats : item.passengers;
             const effectiveLuggage = isUrbania ? selectedUrbaniaSeater.luggageBags : item.luggage;
             const hasThreshold = isUrbania && typeof selectedUrbaniaSeater.extraKmThreshold === 'number' && selectedUrbaniaSeater.extraKmThreshold > 0;
             const isBeyondThreshold = Boolean(hasThreshold && selectedUrbaniaSeater.extraKmThreshold && estimatedKm > selectedUrbaniaSeater.extraKmThreshold);
 
-            let totalFare: number;
+            let totalFareWithGst: number;
+            let gstAmount: number;
+            let baseSubtotal: number;
             let calculationBreakdown = '';
 
-            if (tripType === 'AIRPORT') {
-              if (isBeyondThreshold && selectedUrbaniaSeater.extraKmThreshold) {
+            if (liveQuote && !isUrbania && typeof liveQuote.totalFare === 'number' && liveQuote.totalFare > 0) {
+              totalFareWithGst = Math.round(Number(liveQuote.totalFare));
+              gstAmount = Math.round(Number(liveQuote.gstAmount));
+              baseSubtotal = Math.round(Number(liveQuote.subtotal));
+              const rateUsed = Number(liveQuote.ratePerKm || effectiveRatePerKm);
+              const bataUsed = Number(liveQuote.driverAllowance || 0);
+              calculationBreakdown = `${Math.round(estimatedKm)} km @ ₹${rateUsed}/km`;
+              if (bataUsed > 0) calculationBreakdown += ` + ₹${bataUsed} Driver Bata`;
+              if (liveQuote.nightFee > 0) calculationBreakdown += ` + ₹${liveQuote.nightFee} Night Surcharge`;
+              calculationBreakdown += ` + 5% GST = ₹${totalFareWithGst.toLocaleString('en-IN')}`;
+            } else {
+              let totalFare: number;
+              if (tripType === 'AIRPORT') {
+                if (isBeyondThreshold && selectedUrbaniaSeater.extraKmThreshold) {
+                  const threshold = selectedUrbaniaSeater.extraKmThreshold;
+                  const baseFare = threshold * effectiveRatePerKm;
+                  const extraKm = estimatedKm - threshold;
+                  const extraFare = extraKm * effectiveExtraKmRate;
+                  totalFare = Math.round(baseFare + extraFare);
+                  calculationBreakdown = `₹${baseFare.toLocaleString('en-IN')} (first ${threshold} km) + ₹${extraFare.toLocaleString('en-IN')} (${extraKm} extra km @ ₹${effectiveExtraKmRate}/km)`;
+                } else {
+                  const minAirportKm = item.minKm || 35;
+                  const billableKm = Math.max(minAirportKm, estimatedKm);
+                  totalFare = Math.round(billableKm * effectiveRatePerKm);
+                  calculationBreakdown = `${billableKm} km @ ₹${effectiveRatePerKm}/km`;
+                }
+              } else if (isBeyondThreshold && selectedUrbaniaSeater.extraKmThreshold) {
                 const threshold = selectedUrbaniaSeater.extraKmThreshold;
                 const baseFare = threshold * effectiveRatePerKm;
                 const extraKm = estimatedKm - threshold;
@@ -1011,38 +1096,34 @@ export default function SelectCabScreen() {
                 totalFare = Math.round(baseFare + extraFare);
                 calculationBreakdown = `₹${baseFare.toLocaleString('en-IN')} (first ${threshold} km) + ₹${extraFare.toLocaleString('en-IN')} (${extraKm} extra km @ ₹${effectiveExtraKmRate}/km)`;
               } else {
-                const minAirportKm = item.minKm || 35;
-                const billableKm = Math.max(minAirportKm, estimatedKm);
-                totalFare = Math.round(billableKm * effectiveRatePerKm);
-                calculationBreakdown = `${billableKm} km @ ₹${effectiveRatePerKm}/km`;
+                totalFare = Math.round(
+                  Math.max(item.minKm, estimatedKm) * effectiveRatePerKm
+                );
+                // Add driver allowance for outstation one-way / round trips
+                const driverBata = (tripType === 'ONEWAY' || tripType === 'ROUND') ? 300 : 0;
+                if (driverBata > 0) {
+                  totalFare += driverBata;
+                  calculationBreakdown = `${Math.max(item.minKm, Math.round(estimatedKm))} km @ ₹${effectiveRatePerKm}/km + ₹${driverBata} Driver Bata`;
+                } else {
+                  calculationBreakdown = `${Math.max(item.minKm, Math.round(estimatedKm))} km @ ₹${effectiveRatePerKm}/km`;
+                }
               }
-            } else if (isBeyondThreshold && selectedUrbaniaSeater.extraKmThreshold) {
-              const threshold = selectedUrbaniaSeater.extraKmThreshold;
-              const baseFare = threshold * effectiveRatePerKm;
-              const extraKm = estimatedKm - threshold;
-              const extraFare = extraKm * effectiveExtraKmRate;
-              totalFare = Math.round(baseFare + extraFare);
-              calculationBreakdown = `₹${baseFare.toLocaleString('en-IN')} (first ${threshold} km) + ₹${extraFare.toLocaleString('en-IN')} (${extraKm} extra km @ ₹${effectiveExtraKmRate}/km)`;
-            } else {
-              totalFare = Math.round(
-                Math.max(item.minKm, estimatedKm) * effectiveRatePerKm
-              );
-            }
 
-            // Night Surcharge if applicable for this trip type and time
-            const nightChargeAddon = (isNightTime && isNightTripTypeEligible) ? 250 : 0;
-            if (nightChargeAddon > 0) {
-              totalFare += nightChargeAddon;
-              calculationBreakdown += ` + ₹250 (Night Charge)`;
-            }
+              // Night Surcharge if applicable for this trip type and time
+              const nightChargeAddon = (isNightTime && isNightTripTypeEligible) ? 250 : 0;
+              if (nightChargeAddon > 0) {
+                totalFare += nightChargeAddon;
+                calculationBreakdown += ` + ₹250 (Night Charge)`;
+              }
 
-            // Include 5% GST directly so customer sees true total trip fare upfront
-            const baseSubtotal = totalFare;
-            const gstAmount = Math.round(baseSubtotal * 0.05);
-            const totalFareWithGst = baseSubtotal + gstAmount;
+              // Include 5% GST directly so customer sees true total trip fare upfront
+              baseSubtotal = totalFare;
+              gstAmount = Math.round(baseSubtotal * 0.05);
+              totalFareWithGst = baseSubtotal + gstAmount;
 
-            if (calculationBreakdown) {
-              calculationBreakdown += ` + 5% GST (₹${gstAmount.toLocaleString('en-IN')}) = ₹${totalFareWithGst.toLocaleString('en-IN')}`;
+              if (calculationBreakdown) {
+                calculationBreakdown += ` + 5% GST (₹${gstAmount.toLocaleString('en-IN')}) = ₹${totalFareWithGst.toLocaleString('en-IN')}`;
+              }
             }
 
             const seatsLabel = item.id === 'TEMPO_TRAVELER'

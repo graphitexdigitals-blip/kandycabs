@@ -83,8 +83,15 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      const payLaterEvent = b?.tripEvents?.find(
+        (e: any) => e.type === 'CUSTOMER_PAY_LATER' || e.type === 'CUSTOMER_PAY_LATER_REVERTED'
+      );
+      const isPayLater = payLaterEvent ? payLaterEvent.type === 'CUSTOMER_PAY_LATER' : false;
+
       return {
         ...b,
+        isPayLater,
+        customerPaysLater: isPayLater,
         viaStops,
         stops: viaStops,
         notes: createdPayload.notes || bAny.notes || null,
@@ -151,6 +158,20 @@ export async function GET(req: NextRequest) {
           ...activeBooking,
           isOtpVerified: true,
           verifiedPickupOtp: payload.otp || activeBooking.pickupOtp || '',
+        };
+      }
+
+      const destEvent = await prisma.tripEvent.findFirst({
+        where: {
+          bookingId: activeBooking.id,
+          type: { in: ['DRIVER_ARRIVED_AT_DESTINATION', 'DESTINATION_REACHED'] },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (destEvent) {
+        activeBookingWithOtp = {
+          ...activeBookingWithOtp,
+          isDestinationReached: true,
         };
       }
     }

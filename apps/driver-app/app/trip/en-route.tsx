@@ -20,7 +20,11 @@ import { getDistanceInMeters } from '@kandy-cabs/shared';
 import { driverApiClient } from '../../lib/api';
 import { locationTracker } from '../../lib/location-tracker';
 import { SlideToAccept } from '../../components/SlideToAccept';
-import { setTripPickupReached } from '../../lib/tripState';
+import {
+  setTripPickupReached,
+  isTripPickupReached,
+  isTripOdometerCompleted,
+} from '../../lib/tripState';
 import { TripFlowHeader } from '../../components/TripFlowHeader';
 import { LinearGradient } from '../../components/SafeLinearGradient';
 import { formatTripDateTime } from '../../lib/tripRequirements';
@@ -74,6 +78,30 @@ export default function DriverEnRouteScreen() {
           found = res.driver.assignedBookings[0];
         }
         if (found) {
+          // If already completed in DB, go to dashboard
+          if (found.status === 'COMPLETED' || found.status === 'TRIP_COMPLETED' || found.status === 'TRIP_ENDED') {
+            router.replace('/dashboard');
+            return;
+          }
+          // If already started in DB, go directly to active trip screen
+          if (found.status === 'TRIP_STARTED' || found.status === 'ON_TRIP' || found.status === 'IN_PROGRESS') {
+            router.replace({ pathname: '/trip/active', params: { bookingId: found.id } });
+            return;
+          }
+          // If starting odometer already recorded in DB, go to OTP screen
+          const isOdoDone = found.startingOdometer != null || (await isTripOdometerCompleted(found.id));
+          if (isOdoDone) {
+            router.replace({ pathname: '/trip/start', params: { bookingId: found.id, step: '2', arrived: 'true' } });
+            return;
+          }
+          // If pickup was already reached, go to odometer screen
+          const hasReachedPickup = (await isTripPickupReached(found.id)) ||
+            found.tripEvents?.some((e: any) => e.type === 'DRIVER_ARRIVED_AT_PICKUP');
+          if (hasReachedPickup) {
+            router.replace({ pathname: '/trip/odometer', params: { bookingId: found.id } });
+            return;
+          }
+
           setBooking(found);
           setLoading(false);
           return;
@@ -85,6 +113,14 @@ export default function DriverEnRouteScreen() {
       if (tripsRes.success && Array.isArray(tripsRes.trips)) {
         const found = tripsRes.trips.find((b: any) => b.id === bookingId) || tripsRes.trips[0];
         if (found) {
+          if (found.status === 'COMPLETED' || found.status === 'TRIP_COMPLETED' || found.status === 'TRIP_ENDED') {
+            router.replace('/dashboard');
+            return;
+          }
+          if (found.status === 'TRIP_STARTED' || found.status === 'ON_TRIP' || found.status === 'IN_PROGRESS') {
+            router.replace({ pathname: '/trip/active', params: { bookingId: found.id } });
+            return;
+          }
           setBooking(found);
         }
       }

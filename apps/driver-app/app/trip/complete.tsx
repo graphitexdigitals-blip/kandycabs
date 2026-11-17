@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -32,6 +32,11 @@ import {
   clearTripCompletionDraft,
   getTripWaitingState,
   clearTripWaitingState,
+  clearTripDestinationReached,
+  clearTripPickupReached,
+  clearTripOdometerCompleted,
+  clearTripVerificationCompleted,
+  clearTripStartDraft,
 } from '../../lib/tripState';
 
 const ODOMETER_SAMPLE = require('../../assets/images/inspection/odometer_sample.jpg');
@@ -86,17 +91,28 @@ export default function DriverTripCompleteScreen() {
     return () => sub.remove();
   }, [router]);
 
-  // Fetch active booking details
+  // Fetch active booking details — also guard: if already COMPLETED, go home
   const fetchBookingDetails = useCallback(async () => {
     try {
       const res = await driverApiClient.fetch('/api/driver/status');
-      if (res.success && res.activeBooking) {
-        setBooking(res.activeBooking);
+      if (res.success) {
+        const b = res.activeBooking;
+        if (b) {
+          // If trip is already completed in DB, don't show the form again — go to dashboard
+          if (b.status === 'COMPLETED' || b.status === 'TRIP_COMPLETED' || b.status === 'TRIP_ENDED') {
+            router.replace('/dashboard');
+            return;
+          }
+          setBooking(b);
+        } else {
+          // No active booking at all — also means trip is done, go home
+          router.replace('/dashboard');
+        }
       }
     } catch (_) {
       // Ignore background fetch error
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     fetchBookingDetails();
@@ -238,18 +254,29 @@ export default function DriverTripCompleteScreen() {
 
   const isOdometerComplete = Boolean(odometerImageUri && finalOdometer.trim());
 
-  const isBookingPayLater =
-    Boolean(booking?.isPayLater) ||
-    Boolean(booking?.customerPaysLater) ||
-    Boolean(booking?.tripEvents?.some((e: any) => e.type === 'CUSTOMER_PAY_LATER'));
+  const isBookingPayLater = useMemo(() => {
+    if (!booking) return false;
+    if (booking.isPayLater || booking.customerPaysLater) return true;
+    if (Array.isArray(booking.tripEvents)) {
+      const payLaterEvent = booking.tripEvents.find(
+        (e: any) => e.type === 'CUSTOMER_PAY_LATER' || e.type === 'CUSTOMER_PAY_LATER_REVERTED'
+      );
+      if (payLaterEvent) {
+        return payLaterEvent.type === 'CUSTOMER_PAY_LATER';
+      }
+    }
+    return false;
+  }, [booking]);
 
   useEffect(() => {
     if (isBookingPayLater) {
       setSelectedPaymentMethod('PAY_LATER');
+    } else if (selectedPaymentMethod === 'PAY_LATER') {
+      setSelectedPaymentMethod('UPI_QR');
     }
   }, [isBookingPayLater]);
 
-  const isCurrentPayLater = isBookingPayLater || selectedPaymentMethod === 'PAY_LATER';
+  const isCurrentPayLater = isBookingPayLater;
 
   const baseBalance = parseFloat(booking?.balanceAmount) || 0;
   const parsedNhToll = parseFloat(nhTollAmount) || 0;
@@ -267,6 +294,7 @@ export default function DriverTripCompleteScreen() {
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(upiPayUrl)}`;
 
   const handleOpenPaymentModal = () => {
+    fetchBookingDetails();
     if (!finalOdometer) {
       setError(t('complete_trip.enter_final_error', 'Please enter final odometer reading'));
       return;
@@ -349,12 +377,17 @@ export default function DriverTripCompleteScreen() {
 
       if (res.success) {
         if (bId) {
-          await setTripInProcess(bId, false);
-          clearTripCompletionDraft(bId);
-          clearTripWaitingState(bId);
+          try { await setTripInProcess(bId, false); } catch (_) {}
+          try { clearTripCompletionDraft(bId); } catch (_) {}
+          try { clearTripWaitingState(bId); } catch (_) {}
+          try { if (typeof clearTripDestinationReached === 'function') await clearTripDestinationReached(bId); } catch (_) {}
+          try { if (typeof clearTripPickupReached === 'function') await clearTripPickupReached(bId); } catch (_) {}
+          try { if (typeof clearTripOdometerCompleted === 'function') await clearTripOdometerCompleted(bId); } catch (_) {}
+          try { if (typeof clearTripVerificationCompleted === 'function') await clearTripVerificationCompleted(bId); } catch (_) {}
+          try { clearTripStartDraft(bId); } catch (_) {}
         }
-        await locationTracker.sendFinalTrackingPoint(bookingId || booking?.id);
-        await locationTracker.stopTracking();
+        try { await locationTracker.sendFinalTrackingPoint(bookingId || booking?.id); } catch (_) {}
+        try { await locationTracker.stopTracking(); } catch (_) {}
 
         setTripSuccess(true);
         setSuccessData({
@@ -794,213 +827,8 @@ export default function DriverTripCompleteScreen() {
                   </View>
                 ) : null}
 
-                {/* Payment Option Selector Tabs */}
-                <Text style={styles.sectionHeaderTitle}>{t('complete_trip.select_payment_method', 'SELECT PAYMENT METHOD')}</Text>
-                <View style={styles.paymentTabsRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.paymentTabBtn,
-                      selectedPaymentMethod === 'UPI_QR' ? styles.paymentTabBtnActive : null,
-                    ]}
-                    onPress={() => setSelectedPaymentMethod('UPI_QR')}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons
-                      name="qr-code-outline"
-                      size={20}
-                      color={selectedPaymentMethod === 'UPI_QR' ? '#008860' : '#64748b'}
-                    />
-                    <Text
-                      style={[
-                        styles.paymentTabText,
-                        selectedPaymentMethod === 'UPI_QR' ? styles.paymentTabTextActive : null,
-                      ]}
-                    >
-                      {t('complete_trip.admin_upi_qr', 'Admin UPI QR')}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.paymentTabBtn,
-                      selectedPaymentMethod === 'CASH' ? styles.paymentTabBtnActive : null,
-                    ]}
-                    onPress={() => setSelectedPaymentMethod('CASH')}
-                    activeOpacity={0.85}
-                  >
-                    <Image
-                      source={CASH_RUPEE_ICON}
-                      style={[
-                        styles.cashTabIcon,
-                        { tintColor: selectedPaymentMethod === 'CASH' ? '#008860' : '#64748b' },
-                      ]}
-                      resizeMode="contain"
-                    />
-                    <Text
-                      style={[
-                        styles.paymentTabText,
-                        selectedPaymentMethod === 'CASH' ? styles.paymentTabTextActive : null,
-                      ]}
-                    >
-                      {t('complete_trip.cash_collected', 'Cash')}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.paymentTabBtn,
-                      selectedPaymentMethod === 'PAY_LATER' ? styles.paymentTabBtnActive : null,
-                    ]}
-                    onPress={() => setSelectedPaymentMethod('PAY_LATER')}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons
-                      name="time-outline"
-                      size={18}
-                      color={selectedPaymentMethod === 'PAY_LATER' ? '#008860' : '#64748b'}
-                    />
-                    <Text
-                      style={[
-                        styles.paymentTabText,
-                        selectedPaymentMethod === 'PAY_LATER' ? styles.paymentTabTextActive : null,
-                      ]}
-                    >
-                      {t('complete_trip.pay_later', 'Pay Later')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* TAB 1: ADMIN UPI QR CODE */}
-                {selectedPaymentMethod === 'UPI_QR' ? (
-                  <View style={styles.qrContentCard}>
-                    <Text style={styles.qrHeaderTitle}>{t('complete_trip.scan_and_pay_admin', 'Scan & Pay to Admin')}</Text>
-
-                    {/* QR Code Container */}
-                    <View style={styles.qrCodeWrapper}>
-                      <Image
-                        source={{ uri: qrCodeUrl }}
-                        style={styles.qrCodeImage}
-                        resizeMode="contain"
-                      />
-                      <View style={styles.qrAmountTag}>
-                        <Text style={styles.qrAmountTagText}>
-                          {t('complete_trip.amount_val', { amount: totalRemainingAmount, defaultValue: `Amount: ₹${totalRemainingAmount}` })}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Accepted UPI Apps Row */}
-                    <View style={styles.upiBadgesRow}>
-                      <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>GPay</Text></View>
-                      <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>PhonePe</Text></View>
-                      <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>Paytm</Text></View>
-                      <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>BHIM</Text></View>
-                      <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>{t('complete_trip.any_upi', 'Any UPI')}</Text></View>
-                    </View>
-
-                    {/* Admin UPI ID Box */}
-                    <View style={styles.upiIdCard}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.upiIdLabel}>{t('complete_trip.admin_upi_id_label', 'ADMIN UPI ID')}</Text>
-                        <Text style={styles.upiIdText} selectable>{adminUpiId}</Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.copyBtn}
-                        onPress={() => {
-                          setCopiedUpi(true);
-                          setTimeout(() => setCopiedUpi(false), 2500);
-                        }}
-                      >
-                        <Ionicons
-                          name={copiedUpi ? 'checkmark-circle' : 'copy-outline'}
-                          size={16}
-                          color={copiedUpi ? '#16a34a' : '#2563eb'}
-                        />
-                        <Text style={[styles.copyBtnText, copiedUpi && { color: '#16a34a' }]}>
-                          {copiedUpi ? t('complete_trip.verified', 'Verified') : t('complete_trip.verify_id', 'Verify ID')}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* QR Payment Confirmation Button */}
-                    <TouchableOpacity
-                      style={[styles.confirmPaymentBtn, loading && styles.completeButtonDisabled]}
-                      onPress={() => handleConfirmPayment('UPI_QR')}
-                      disabled={loading}
-                      activeOpacity={0.88}
-                    >
-                      {loading ? (
-                        <ActivityIndicator color="#ffffff" size="small" />
-                      ) : (
-                        <>
-                          <Ionicons name="checkmark-circle-outline" size={20} color="#ffffff" />
-                          <Text
-                            style={styles.confirmPaymentBtnText}
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                          >
-                            {t('complete_trip.confirm_qr_payment', 'Confirm Payment')}
-                          </Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                ) : selectedPaymentMethod === 'CASH' ? (
-                  /* TAB 2: CASH COLLECTED BY DRIVER */
-                  <View style={styles.cashContentCard}>
-                    <View style={styles.cashIconCircle}>
-                      <Image
-                        source={CASH_RUPEE_ICON}
-                        style={styles.cashCardLargeIcon}
-                        resizeMode="contain"
-                      />
-                    </View>
-
-                    <Text style={styles.cashHeaderTitle}>{t('complete_trip.cash_collection_by_driver', 'Cash Collection by Driver')}</Text>
-                    <Text style={styles.cashAmountDisplay}>₹{totalRemainingAmount}</Text>
-
-                    <View style={styles.cashInstructionsBox}>
-                      <View style={styles.bulletRow}>
-                        <Ionicons name="checkbox-outline" size={18} color="#16a34a" style={{ marginTop: 2 }} />
-                        <Text style={styles.bulletText}>
-                          {t('complete_trip.collect_cash_prefix', 'Collect ')}
-                          <Text style={{ fontWeight: '800', color: '#0f172a' }}>₹{totalRemainingAmount}</Text>
-                          {t('complete_trip.collect_cash_suffix', ' in physical cash directly from the passenger.')}
-                        </Text>
-                      </View>
-                      <View style={styles.bulletRow}>
-                        <Ionicons name="shield-checkmark-outline" size={18} color="#2563eb" style={{ marginTop: 2 }} />
-                        <Text style={styles.bulletText}>
-                          {t('complete_trip.cash_settlement_note', 'This cash will be recorded against your driver account and settled in your weekly payout statement.')}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Cash Collection Confirmation Button */}
-                    <TouchableOpacity
-                      style={[styles.confirmCashBtn, loading && styles.completeButtonDisabled]}
-                      onPress={() => handleConfirmPayment('CASH')}
-                      disabled={loading}
-                      activeOpacity={0.88}
-                    >
-                      {loading ? (
-                        <ActivityIndicator color="#ffffff" size="small" />
-                      ) : (
-                        <>
-                          <Ionicons name="hand-right-outline" size={20} color="#ffffff" />
-                          <Text
-                            style={styles.confirmPaymentBtnText}
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                          >
-                            {t('complete_trip.confirm_cash_collected', 'Confirm Cash')}
-                          </Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  /* TAB 3: CUSTOMER PAYS LATER TO ADMIN (COLLECT ₹0) */
+                {isBookingPayLater ? (
+                  /* ADMIN APPROVED PAY LATER: DRIVER COLLECTS ₹0 */
                   <View style={styles.cashContentCard}>
                     <View style={[styles.cashIconCircle, { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }]}>
                       <Ionicons name="time" size={32} color="#008860" />
@@ -1008,21 +836,21 @@ export default function DriverTripCompleteScreen() {
 
                     <Text style={styles.cashHeaderTitle}>Customer Pays Later</Text>
                     <Text style={[styles.cashAmountDisplay, { color: '#008860' }]}>₹0</Text>
-                    <Text style={{ fontSize: 13, color: '#64748b', fontWeight: '700', textAlign: 'center', marginTop: -4, marginBottom: 14 }}>
-                      Driver Collection: ₹0
+                    <Text style={{ fontSize: 13, color: '#16a34a', fontWeight: '700', textAlign: 'center', marginTop: -4, marginBottom: 14 }}>
+                      Driver Collection: ₹0 (Approved by Admin)
                     </Text>
 
                     <View style={styles.cashInstructionsBox}>
                       <View style={styles.bulletRow}>
                         <Ionicons name="information-circle-outline" size={18} color="#008860" style={{ marginTop: 2 }} />
                         <Text style={styles.bulletText}>
-                          The customer will pay the balance fare (₹{actualRemainingAmount}) directly to Kandy Cabs Admin / Office later.
+                          Admin has authorized the customer to pay the balance fare (₹{actualRemainingAmount}) directly to Kandy Cabs Admin / Office later.
                         </Text>
                       </View>
                       <View style={styles.bulletRow}>
-                        <Ionicons name="checkmark-circle-outline" size={18} color="#16a34a" style={{ marginTop: 2 }} />
+                        <Ionicons name="shield-checkmark-outline" size={18} color="#16a34a" style={{ marginTop: 2 }} />
                         <Text style={styles.bulletText}>
-                          You do not need to collect any payment from the customer now. Your driver payout and allowance are fully safe and guaranteed.
+                          You do not need to collect any payment from the customer. Your driver payout and allowance are fully safe and guaranteed.
                         </Text>
                       </View>
                     </View>
@@ -1050,6 +878,192 @@ export default function DriverTripCompleteScreen() {
                       )}
                     </TouchableOpacity>
                   </View>
+                ) : (
+                  <>
+                    {/* Payment Option Selector Tabs */}
+                    <Text style={styles.sectionHeaderTitle}>{t('complete_trip.select_payment_method', 'SELECT PAYMENT METHOD')}</Text>
+                    <View style={styles.paymentTabsRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.paymentTabBtn,
+                          selectedPaymentMethod === 'UPI_QR' ? styles.paymentTabBtnActive : null,
+                        ]}
+                        onPress={() => setSelectedPaymentMethod('UPI_QR')}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons
+                          name="qr-code-outline"
+                          size={20}
+                          color={selectedPaymentMethod === 'UPI_QR' ? '#008860' : '#64748b'}
+                        />
+                        <Text
+                          style={[
+                            styles.paymentTabText,
+                            selectedPaymentMethod === 'UPI_QR' ? styles.paymentTabTextActive : null,
+                          ]}
+                        >
+                          {t('complete_trip.admin_upi_qr', 'Admin UPI QR')}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.paymentTabBtn,
+                          selectedPaymentMethod === 'CASH' ? styles.paymentTabBtnActive : null,
+                        ]}
+                        onPress={() => setSelectedPaymentMethod('CASH')}
+                        activeOpacity={0.85}
+                      >
+                        <Image
+                          source={CASH_RUPEE_ICON}
+                          style={[
+                            styles.cashTabIcon,
+                            { tintColor: selectedPaymentMethod === 'CASH' ? '#008860' : '#64748b' },
+                          ]}
+                          resizeMode="contain"
+                        />
+                        <Text
+                          style={[
+                            styles.paymentTabText,
+                            selectedPaymentMethod === 'CASH' ? styles.paymentTabTextActive : null,
+                          ]}
+                        >
+                          {t('complete_trip.cash_collected', 'Cash')}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* TAB 1: ADMIN UPI QR CODE */}
+                    {selectedPaymentMethod === 'UPI_QR' ? (
+                      <View style={styles.qrContentCard}>
+                        <Text style={styles.qrHeaderTitle}>{t('complete_trip.scan_and_pay_admin', 'Scan & Pay to Admin')}</Text>
+
+                        {/* QR Code Container */}
+                        <View style={styles.qrCodeWrapper}>
+                          <Image
+                            source={{ uri: qrCodeUrl }}
+                            style={styles.qrCodeImage}
+                            resizeMode="contain"
+                          />
+                          <View style={styles.qrAmountTag}>
+                            <Text style={styles.qrAmountTagText}>
+                              {t('complete_trip.amount_val', { amount: totalRemainingAmount, defaultValue: `Amount: ₹${totalRemainingAmount}` })}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Accepted UPI Apps Row */}
+                        <View style={styles.upiBadgesRow}>
+                          <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>GPay</Text></View>
+                          <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>PhonePe</Text></View>
+                          <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>Paytm</Text></View>
+                          <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>BHIM</Text></View>
+                          <View style={styles.upiBadgePill}><Text style={styles.upiBadgeText}>{t('complete_trip.any_upi', 'Any UPI')}</Text></View>
+                        </View>
+
+                        {/* Admin UPI ID Box */}
+                        <View style={styles.upiIdCard}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.upiIdLabel}>{t('complete_trip.admin_upi_id_label', 'ADMIN UPI ID')}</Text>
+                            <Text style={styles.upiIdText} selectable>{adminUpiId}</Text>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.copyBtn}
+                            onPress={() => {
+                              setCopiedUpi(true);
+                              setTimeout(() => setCopiedUpi(false), 2500);
+                            }}
+                          >
+                            <Ionicons
+                              name={copiedUpi ? 'checkmark-circle' : 'copy-outline'}
+                              size={16}
+                              color={copiedUpi ? '#16a34a' : '#2563eb'}
+                            />
+                            <Text style={[styles.copyBtnText, copiedUpi && { color: '#16a34a' }]}>
+                              {copiedUpi ? t('complete_trip.verified', 'Verified') : t('complete_trip.verify_id', 'Verify ID')}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        {/* QR Payment Confirmation Button */}
+                        <TouchableOpacity
+                          style={[styles.confirmPaymentBtn, loading && styles.completeButtonDisabled]}
+                          onPress={() => handleConfirmPayment('UPI_QR')}
+                          disabled={loading}
+                          activeOpacity={0.88}
+                        >
+                          {loading ? (
+                            <ActivityIndicator color="#ffffff" size="small" />
+                          ) : (
+                            <>
+                              <Ionicons name="checkmark-circle-outline" size={20} color="#ffffff" />
+                              <Text
+                                style={styles.confirmPaymentBtnText}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                              >
+                                {t('complete_trip.confirm_qr_payment', 'Confirm Payment')}
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      /* TAB 2: CASH COLLECTED BY DRIVER */
+                      <View style={styles.cashContentCard}>
+                        <View style={styles.cashIconCircle}>
+                          <Image
+                            source={CASH_RUPEE_ICON}
+                            style={styles.cashCardLargeIcon}
+                            resizeMode="contain"
+                          />
+                        </View>
+
+                        <Text style={styles.cashHeaderTitle}>{t('complete_trip.cash_collection_by_driver', 'Cash Collection by Driver')}</Text>
+                        <Text style={styles.cashAmountDisplay}>₹{totalRemainingAmount}</Text>
+
+                        <View style={styles.cashInstructionsBox}>
+                          <View style={styles.bulletRow}>
+                            <Ionicons name="checkbox-outline" size={18} color="#16a34a" style={{ marginTop: 2 }} />
+                            <Text style={styles.bulletText}>
+                              {t('complete_trip.collect_cash_prefix', 'Collect ')}
+                              <Text style={{ fontWeight: '800', color: '#0f172a' }}>₹{totalRemainingAmount}</Text>
+                              {t('complete_trip.collect_cash_suffix', ' in physical cash directly from the passenger.')}
+                            </Text>
+                          </View>
+                          <View style={styles.bulletRow}>
+                            <Ionicons name="shield-checkmark-outline" size={18} color="#2563eb" style={{ marginTop: 2 }} />
+                            <Text style={styles.bulletText}>
+                              {t('complete_trip.cash_settlement_note', 'This cash will be recorded against your driver account and settled in your weekly payout statement.')}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Cash Collection Confirmation Button */}
+                        <TouchableOpacity
+                          style={[styles.confirmCashBtn, loading && styles.completeButtonDisabled]}
+                          onPress={() => handleConfirmPayment('CASH')}
+                          disabled={loading}
+                          activeOpacity={0.88}
+                        >
+                          {loading ? (
+                            <ActivityIndicator color="#ffffff" size="small" />
+                          ) : (
+                            <>
+                              <Ionicons name="hand-right-outline" size={20} color="#ffffff" />
+                              <Text
+                                style={styles.confirmPaymentBtnText}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                              >
+                                {t('complete_trip.confirm_cash_collected', 'Confirm Cash')}
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </>
                 )}
               </ScrollView>
             )}

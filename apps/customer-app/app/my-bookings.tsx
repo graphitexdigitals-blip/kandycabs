@@ -944,7 +944,7 @@ export default function MyBookingsScreen() {
                           </View>
                         </View>
                         {(booking.cancellationDetails?.isAdvanceNonRefundable || booking.cancellationDetails?.mode === 'ADVANCE_NON_REFUNDABLE') && (
-                          <Text style={[styles.cancellationBannerRefundText, { color: '#b45309' }]}>
+                          <Text style={styles.cancellationBannerRefundText}>
                             Advance payment is non-refundable as per policy.
                           </Text>
                         )}
@@ -1993,9 +1993,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   cancellationBannerBox: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     borderRadius: 12,
     padding: 10,
     marginTop: 8,
@@ -2028,12 +2028,12 @@ const styles = StyleSheet.create({
   cancellationBannerRefundText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#15803d',
+    color: '#000000',
     marginTop: 4,
   },
   cancellationBannerReasonText: {
     fontSize: 10.5,
-    color: '#7f1d1d',
+    color: '#000000',
     marginTop: 2,
   },
 });

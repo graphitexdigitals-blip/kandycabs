@@ -23,6 +23,8 @@ import { driverApiClient } from '../../lib/api';
 import {
   setTripVerificationCompleted,
   isTripVerificationCompleted,
+  isTripPickupReached,
+  isTripOdometerCompleted,
   setVerifiedSelfie,
   getVerifiedSelfie,
   setTripStartDraft,
@@ -174,11 +176,47 @@ export default function DriverVehicleInspectionScreen() {
               initialPhotos[0] = savedSelfie.uri;
             }
 
+            // If trip already completed, go to dashboard
+            if (b.status === 'COMPLETED' || b.status === 'TRIP_COMPLETED' || b.status === 'TRIP_ENDED') {
+              router.replace('/dashboard');
+              return;
+            }
+
+            // If trip already started, go straight to active trip screen
+            if (b.status === 'TRIP_STARTED' || b.status === 'ON_TRIP' || b.status === 'IN_PROGRESS') {
+              router.replace({
+                pathname: '/trip/active',
+                params: { bookingId: targetId },
+              });
+              return;
+            }
+
+            // If starting odometer was already recorded, skip to OTP screen
+            const isOdoDone = b.startingOdometer != null || (await isTripOdometerCompleted(targetId));
+            if (isOdoDone) {
+              router.replace({
+                pathname: '/trip/start',
+                params: { bookingId: targetId, step: '2', arrived: 'true' },
+              });
+              return;
+            }
+
+            // If pickup already reached, skip to odometer screen
+            const hasReachedPickup = (await isTripPickupReached(targetId)) ||
+              b.tripEvents?.some((e: any) => e.type === 'DRIVER_ARRIVED_AT_PICKUP');
+            if (hasReachedPickup) {
+              router.replace({
+                pathname: '/trip/odometer',
+                params: { bookingId: targetId },
+              });
+              return;
+            }
+
             // If verification was already saved or all 4 photos are already uploaded/saved, DO NOT make driver upload again!
             const isVerified = (await isTripVerificationCompleted(targetId)) ||
               (Array.isArray(b.vehicleInspectionPhotos) && b.vehicleInspectionPhotos.filter(Boolean).length >= 4) ||
               initialPhotos.filter(Boolean).length === 4 ||
-              ['EN_ROUTE', 'ARRIVED', 'ON_TRIP', 'COMPLETED'].includes(b.status);
+              ['EN_ROUTE', 'DRIVER_EN_ROUTE', 'ARRIVED'].includes(b.status);
 
             if (isVerified) {
               await setTripVerificationCompleted(targetId, true);
@@ -239,7 +277,7 @@ export default function DriverVehicleInspectionScreen() {
     }
 
     // Advance to next angle if not at last
-    if (index < 4) {
+    if (index < inspectionAngleConfigs.length - 1) {
       setCurrentAngleIndex(index + 1);
     }
   };
@@ -441,9 +479,10 @@ export default function DriverVehicleInspectionScreen() {
       >
         {/* Focused Hero Angle Card (One by One) */}
         {(() => {
-          const currentAngle = inspectionAngleConfigs[currentAngleIndex];
-          const isCurrentAttached = Boolean(photos[currentAngleIndex]);
-          const currentPhotoUri = photos[currentAngleIndex];
+          const safeIndex = Math.min(Math.max(0, currentAngleIndex), inspectionAngleConfigs.length - 1);
+          const currentAngle = inspectionAngleConfigs[safeIndex];
+          const isCurrentAttached = Boolean(photos[safeIndex]);
+          const currentPhotoUri = photos[safeIndex];
 
           return (
             <View style={styles.heroAngleCard}>
@@ -574,11 +613,7 @@ export default function DriverVehicleInspectionScreen() {
               {t('inspection.tap_to_jump', { defaultValue: 'Tap any angle to jump' })}
             </Text>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.stripRow}
-          >
+          <View style={styles.stripRow}>
             {inspectionAngleConfigs.map((angle, idx) => {
               const photoUrl = photos[idx];
               const isSelected = idx === currentAngleIndex;
@@ -627,7 +662,7 @@ export default function DriverVehicleInspectionScreen() {
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </View>
         </View>
       </ScrollView>
 
@@ -659,14 +694,14 @@ export default function DriverVehicleInspectionScreen() {
               </Text>
               <Ionicons name="arrow-forward" size={17} color="#ffffff" />
             </>
-          ) : !photos[currentAngleIndex] ? (
+          ) : !photos[Math.min(currentAngleIndex, inspectionAngleConfigs.length - 1)] ? (
             <>
               <View style={styles.btnLeftGroup}>
-                <Ionicons name={inspectionAngleConfigs[currentAngleIndex].isFrontCamera ? 'person' : 'camera'} size={20} color="#0f172a" />
+                <Ionicons name={inspectionAngleConfigs[Math.min(currentAngleIndex, inspectionAngleConfigs.length - 1)].isFrontCamera ? 'person' : 'camera'} size={20} color="#0f172a" />
                 <Text style={styles.yellowPrimaryButtonText} numberOfLines={1}>
                   {t('inspection.capture_btn', {
-                    defaultValue: `Capture ${inspectionAngleConfigs[currentAngleIndex].title}`,
-                    title: inspectionAngleConfigs[currentAngleIndex].title,
+                    defaultValue: `Capture ${inspectionAngleConfigs[Math.min(currentAngleIndex, inspectionAngleConfigs.length - 1)].title}`,
+                    title: inspectionAngleConfigs[Math.min(currentAngleIndex, inspectionAngleConfigs.length - 1)].title,
                   })}
                 </Text>
               </View>
@@ -675,14 +710,15 @@ export default function DriverVehicleInspectionScreen() {
           ) : (
             <>
               <Text style={styles.submitButtonText}>
-                {currentAngleIndex < 4
+                {currentAngleIndex < inspectionAngleConfigs.length - 1
                   ? t('inspection.next_btn', {
-                      defaultValue: `NEXT: ${inspectionAngleConfigs[currentAngleIndex + 1].shortTitle.toUpperCase()}`,
-                      shortTitle: inspectionAngleConfigs[currentAngleIndex + 1].shortTitle.toUpperCase(),
+                      defaultValue: `NEXT: ${inspectionAngleConfigs[currentAngleIndex + 1]?.shortTitle.toUpperCase() || 'NEXT'}`,
+                      shortTitle: inspectionAngleConfigs[currentAngleIndex + 1]?.shortTitle.toUpperCase() || 'NEXT',
                     })
                   : t('inspection.proceed_to_pickup_count', {
-                      defaultValue: `PROCEED TO PICKUP (${attachedCount}/5)`,
+                      defaultValue: `PROCEED TO PICKUP (${attachedCount}/${inspectionAngleConfigs.length})`,
                       attachedCount,
+                      total: inspectionAngleConfigs.length,
                     })}
               </Text>
               <Ionicons name="arrow-forward" size={17} color="#ffffff" />
@@ -1231,13 +1267,14 @@ const styles = StyleSheet.create({
   stripRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
     paddingVertical: 2,
-    paddingHorizontal: 2,
+    width: '100%',
   },
   stripCard: {
-    width: 76,
-    height: 76,
+    flex: 1,
+    aspectRatio: 1,
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: '#cbd5e1',
