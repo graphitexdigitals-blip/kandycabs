@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { IconAlert, IconCheck } from '@/components/Icons';
+import { IconAlert, IconCheck, IconX } from '@/components/Icons';
 
 export interface DriverCancelRequest {
   bookingId: string;
@@ -93,25 +93,35 @@ export function CancellationAlertModal() {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border-2 border-red-500 overflow-hidden">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
         {/* Header Banner */}
-        <div className="bg-gradient-to-r from-red-600 to-rose-700 px-6 py-4 text-white flex items-center justify-between">
+        <div className="bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white shadow-inner">
-              <IconAlert className="w-5 h-5 text-white" strokeWidth={2.5} />
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-100 shrink-0">
+              <IconAlert className="w-5 h-5 text-rose-600" strokeWidth={2.5} />
             </span>
             <div>
-              <h2 className="text-lg font-black tracking-wide uppercase">Driver Cancellation Request</h2>
-              <p className="text-xs text-red-100">
+              <h2 className="text-base font-black tracking-wide uppercase text-slate-900">Driver Cancellation Request</h2>
+              <p className="text-xs text-slate-500 font-medium">
                 Action Required: Driver cannot proceed with this assigned trip
               </p>
             </div>
           </div>
-          {visibleRequests.length > 1 && (
-            <span className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold">
-              {currentIndex + 1} of {visibleRequests.length}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {visibleRequests.length > 1 && (
+              <span className="rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 text-xs font-bold">
+                {currentIndex + 1} of {visibleRequests.length}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => handleDismiss(current.bookingId)}
+              className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition"
+              title="Close alert"
+            >
+              <IconX className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Content Body */}
