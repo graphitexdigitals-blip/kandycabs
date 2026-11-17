@@ -778,13 +778,42 @@ export default function AdminBookingsPage() {
                     );
                   }
                   if (b.status === BookingStatus.DISPATCHED) {
+                    const activeDispatches = b.dispatches?.filter((d: any) => d.status === 'PENDING' || d.status === 'ACCEPTED') || [];
+                    const displayDispatches = activeDispatches.length > 0 ? activeDispatches : (b.dispatches || []);
+                    const driverNames = Array.from(
+                      new Set(
+                        displayDispatches
+                          .map((d: any) => d.driver?.user?.fullName)
+                          .filter(Boolean)
+                      )
+                    );
+
                     return (
                       <div className="space-y-1">
-                        <span className="text-blue-600 font-semibold text-xs flex items-center gap-1">
-                          <IconRadio className="w-3.5 h-3.5 text-blue-500" />
-                          <span>Dispatched ({b.dispatches?.length || 0})</span>
+                        <span className="text-blue-600 font-bold text-xs flex items-center gap-1">
+                          <IconRadio className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                          <span>Dispatched ({displayDispatches.length})</span>
                         </span>
-                        <span className="text-xs text-slate-400 italic block">Awaiting driver response</span>
+                        {driverNames.length > 0 ? (
+                          <div className="space-y-0.5">
+                            <div className="flex flex-wrap gap-1">
+                              {driverNames.map((name: any, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-black bg-blue-50 text-blue-800 border border-blue-200"
+                                  title={`Dispatched to ${name}`}
+                                >
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                            <span className="text-[10px] text-slate-400 italic block">
+                              Awaiting driver response
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic block">Awaiting driver response</span>
+                        )}
                       </div>
                     );
                   }

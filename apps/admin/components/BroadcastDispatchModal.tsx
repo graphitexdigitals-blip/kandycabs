@@ -133,9 +133,22 @@ export function BroadcastDispatchModal({
     return false;
   };
 
+  const isDriverAlreadyDispatched = (driverId: string) => {
+    if (!driverId) return false;
+    return Boolean(
+      bookingData?.dispatches?.some(
+        (d: any) => d.driverId === driverId && (d.status === 'PENDING' || d.status === 'ACCEPTED')
+      )
+    );
+  };
+
   const toggleDriver = (id: string) => {
     if (isDriverAssignedToThisTrip(id)) {
       setError('Already same trip is assigned to same driver');
+      return;
+    }
+    if (isDriverAlreadyDispatched(id)) {
+      setError('Trip has already been dispatched to this driver and is awaiting their response.');
       return;
     }
     setError('');
@@ -146,7 +159,7 @@ export function BroadcastDispatchModal({
 
   const selectAllFiltered = () => {
     const validFilteredIds = filteredDrivers
-      .filter((d) => !isDriverAssignedToThisTrip(d.id))
+      .filter((d) => !isDriverAssignedToThisTrip(d.id) && !isDriverAlreadyDispatched(d.id))
       .map((d) => d.id);
     const allFilteredSelected =
       validFilteredIds.length > 0 &&
@@ -215,9 +228,12 @@ export function BroadcastDispatchModal({
 
   const onlineCount = onlineDrivers.filter((d) => d.onlineStatus).length;
   const offlineCount = onlineDrivers.length - onlineCount;
+  const selectableFilteredDrivers = filteredDrivers.filter(
+    (d) => !isDriverAssignedToThisTrip(d.id) && !isDriverAlreadyDispatched(d.id)
+  );
   const isAllFilteredSelected =
-    filteredDrivers.length > 0 &&
-    filteredDrivers.every((d) => selectedDriverIds.includes(d.id));
+    selectableFilteredDrivers.length > 0 &&
+    selectableFilteredDrivers.every((d) => selectedDriverIds.includes(d.id));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
@@ -536,10 +552,11 @@ export function BroadcastDispatchModal({
               });
 
               const isThisTripDriver = isDriverAssignedToThisTrip(driver.id);
-              const isOnTrip = !isThisTripDriver && activeBookingsOnDate.some(
+              const isAlreadyDispatched = isDriverAlreadyDispatched(driver.id);
+              const isOnTrip = !isThisTripDriver && !isAlreadyDispatched && activeBookingsOnDate.some(
                 (b: any) => b.status === 'TRIP_STARTED' || b.status === 'IN_PROGRESS'
               );
-              const isAssigned = !isThisTripDriver && !isOnTrip && activeBookingsOnDate.length > 0;
+              const isAssigned = !isThisTripDriver && !isAlreadyDispatched && !isOnTrip && activeBookingsOnDate.length > 0;
 
               return (
                 <div
@@ -548,19 +565,30 @@ export function BroadcastDispatchModal({
                   className={`flex items-center justify-between p-3 rounded-xl border transition ${
                     isThisTripDriver
                       ? 'border-rose-300 bg-rose-50/50 cursor-not-allowed opacity-90'
+                      : isAlreadyDispatched
+                      ? 'border-blue-200 bg-blue-50/40 cursor-not-allowed opacity-90'
                       : isSelected
                       ? 'border-indigo-500 bg-indigo-50/50 shadow-xs cursor-pointer'
                       : 'border-slate-200 hover:border-slate-300 bg-white cursor-pointer'
                   }`}
                 >
                   <div className="flex items-center space-x-3 min-w-0">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      disabled={isThisTripDriver}
-                      onChange={() => toggleDriver(driver.id)}
-                      className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 disabled:opacity-40"
-                    />
+                    {isAlreadyDispatched ? (
+                      <div
+                        className="w-4 h-4 flex items-center justify-center shrink-0"
+                        title="Trip already dispatched to this driver"
+                      >
+                        <span className="w-2.5 h-2.5 rounded-full bg-blue-600 ring-4 ring-blue-100" />
+                      </div>
+                    ) : (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        disabled={isThisTripDriver}
+                        onChange={() => toggleDriver(driver.id)}
+                        className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 disabled:opacity-40 cursor-pointer"
+                      />
+                    )}
                     <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
                       {driver.profilePhotoUrl ? (
                         <img
@@ -582,6 +610,11 @@ export function BroadcastDispatchModal({
                         {isThisTripDriver ? (
                           <span className="text-[10px] bg-rose-100 text-rose-800 border border-rose-300 px-1.5 py-0.5 rounded font-bold">
                             Assigned to this trip
+                          </span>
+                        ) : isAlreadyDispatched ? (
+                          <span className="text-[10px] bg-blue-100 text-blue-900 border border-blue-300 px-1.5 py-0.5 rounded font-black flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                            <span>Already Dispatched</span>
                           </span>
                         ) : isOnTrip ? (
                           <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">
@@ -609,6 +642,10 @@ export function BroadcastDispatchModal({
                       {isThisTripDriver ? (
                         <p className="text-[11px] text-rose-700 font-bold mt-0.5">
                           ⚠️ Already same trip is assigned to same driver
+                        </p>
+                      ) : isAlreadyDispatched ? (
+                        <p className="text-[11px] text-blue-800 font-bold mt-0.5">
+                          📡 Trip already dispatched to {driver.user.fullName} • Awaiting driver response
                         </p>
                       ) : (
                         <p className="text-xs text-slate-500 truncate">

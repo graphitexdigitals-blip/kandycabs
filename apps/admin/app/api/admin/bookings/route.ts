@@ -102,7 +102,23 @@ export async function GET(req: NextRequest) {
           orderBy: { createdAt: 'desc' },
         },
         dispatches: {
-          select: { id: true },
+          select: {
+            id: true,
+            driverId: true,
+            status: true,
+            broadcastAt: true,
+            respondedAt: true,
+            driver: {
+              select: {
+                id: true,
+                user: {
+                  select: { fullName: true, phone: true },
+                },
+              },
+            },
+          },
+          orderBy: { broadcastAt: 'desc' },
+          take: 20,
         },
       },
     });
