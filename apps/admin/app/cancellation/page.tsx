@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { AdminNavbar } from '@/components/AdminNavbar';
+import { IconCash, IconCar, IconShield } from '@/components/Icons';
 import {
   DEFAULT_CANCELLATION_CONFIG,
   CancellationRatesConfig,
@@ -342,7 +343,9 @@ export default function CancellationPage() {
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xl">💰</span>
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                      <IconCash className="w-5 h-5 text-amber-700" />
+                    </div>
                     <span
                       className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
                         currentMode === 'ADVANCE_NON_REFUNDABLE'
@@ -386,7 +389,9 @@ export default function CancellationPage() {
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xl">🚗</span>
+                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <IconCar className="w-5 h-5 text-blue-700" />
+                    </div>
                     <span
                       className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
                         currentMode === 'FIXED_RATE'
@@ -430,7 +435,9 @@ export default function CancellationPage() {
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xl">🛡️</span>
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <IconShield className="w-5 h-5 text-emerald-700" />
+                    </div>
                     <span
                       className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
                         currentMode === 'FREE'

@@ -30,6 +30,7 @@ import {
   IconCar,
   IconCalendar,
   IconMapPin,
+  IconClock,
 } from '@/components/Icons';
 
 interface BookingDetailDrawerProps {
@@ -1488,8 +1489,9 @@ Exclusions (If applicable):
 
                     {timingData.isWaitingActive && (
                       <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded bg-amber-100 border border-amber-300 animate-pulse">
-                        <span className="text-amber-900 font-semibold text-[11px]">
-                          🕒 Currently waiting for customer...
+                        <span className="text-amber-900 font-semibold text-[11px] flex items-center gap-1">
+                          <IconClock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                          <span>Currently waiting for customer...</span>
                         </span>
                         <span className="text-amber-950 font-bold text-[11px]">In Progress</span>
                       </div>

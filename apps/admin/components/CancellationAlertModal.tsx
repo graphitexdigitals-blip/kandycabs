@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { IconAlert, IconCheck } from '@/components/Icons';
 
 export interface DriverCancelRequest {
   bookingId: string;
@@ -96,8 +97,8 @@ export function CancellationAlertModal() {
         {/* Header Banner */}
         <div className="bg-gradient-to-r from-red-600 to-rose-700 px-6 py-4 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-2xl animate-pulse">
-              🚨
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white shadow-inner">
+              <IconAlert className="w-5 h-5 text-white" strokeWidth={2.5} />
             </span>
             <div>
               <h2 className="text-lg font-black tracking-wide uppercase">Driver Cancellation Request</h2>
@@ -146,7 +147,7 @@ export function CancellationAlertModal() {
           </div>
 
           <div className="rounded-xl bg-amber-50/70 border border-amber-200/70 p-3 text-xs text-amber-800 flex items-start gap-2">
-            <span className="text-base leading-none">ℹ️</span>
+            <IconAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <span>
               Accepting will release <strong>{current.driverName}</strong> from this ride and mark the booking ready for re-dispatch to another available driver.
             </span>
@@ -182,7 +183,8 @@ export function CancellationAlertModal() {
                 <>Processing...</>
               ) : (
                 <>
-                  <span>✓</span> Accept Cancellation
+                  <IconCheck className="w-4 h-4 text-white" />
+                  <span>Accept Cancellation</span>
                 </>
               )}
             </button>
