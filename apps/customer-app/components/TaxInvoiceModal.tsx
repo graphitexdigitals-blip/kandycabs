@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Linking from 'expo-linking';
 import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { KANDY_LOGO_BASE64, generateKandyInvoiceHtml } from '@kandy-cabs/shared';
 import { customerApiClient, getDynamicBaseUrl, customerTokenStorage } from '../lib/api';
 
@@ -435,6 +436,7 @@ export function TaxInvoiceModal({
     try {
       setSharing(true);
       const viewPdfUrl = getInvoicePdfViewUrl();
+      const downloadUrl = getInvoiceDownloadUrl();
 
       // Web Environment: use Web Share API or open viewable PDF in new browser tab
       if (Platform.OS === 'web') {
@@ -456,12 +458,40 @@ export function TaxInvoiceModal({
         }
       }
 
-      // Native Mobile (Android & iOS): Use React Native built-in Share to share PDF link
-      await Share.share({
-        title: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber} (PDF)`,
-        message: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}\nBooking: ${invoice.humanReadableRef || bookingId}\nCustomer: ${invoice.customer?.name || 'Customer'}\nTotal: ₹${invoice.financials?.grandTotal?.toFixed(2) || '0.00'}\n\nView Official Tax Invoice (PDF):\n${viewPdfUrl}`,
-        url: viewPdfUrl,
-      });
+      // Native Mobile (Android & iOS): Share as an actual PDF document
+      const fileName = `Kandy_Cabs_Tax_Invoice_${invoice.invoiceNumber || bookingId}.pdf`;
+      const localUri = `${FileSystem.documentDirectory}${fileName}`;
+
+      // 1. Ensure file is downloaded and present locally
+      try {
+        await FileSystem.downloadAsync(downloadUrl, localUri);
+      } catch (fsErr) {
+        console.warn('[TaxInvoice] Local file sync before share:', fsErr);
+      }
+
+      // 2. Share as actual PDF file using expo-sharing (shows WhatsApp PDF document card)
+      let sharedAsFile = false;
+      try {
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(localUri, {
+            mimeType: 'application/pdf',
+            dialogTitle: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}`,
+            UTI: 'com.adobe.pdf',
+          });
+          sharedAsFile = true;
+        }
+      } catch (sharingErr) {
+        console.warn('[TaxInvoice] expo-sharing error, falling back:', sharingErr);
+      }
+
+      // 3. Fallback to text link if native file sharing is unavailable
+      if (!sharedAsFile) {
+        await Share.share({
+          title: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber} (PDF)`,
+          message: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}\nBooking: ${invoice.humanReadableRef || bookingId}\nCustomer: ${invoice.customer?.name || 'Customer'}\nTotal: ₹${invoice.financials?.grandTotal?.toFixed(2) || '0.00'}\n\nView Official Tax Invoice (PDF):\n${viewPdfUrl}`,
+          url: viewPdfUrl,
+        });
+      }
     } catch (err: any) {
       console.error('[TaxInvoice] Share PDF error:', err);
       Alert.alert('Share Error', err.message || 'Unable to share invoice at this time.');

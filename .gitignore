@@ -90,3 +90,4 @@ scripts/inspect-*.ps1
 scripts/update-apk.ps1
 scripts/list-db-drivers.js
 scripts/terms-multilingual.html
+.gradle/
