@@ -526,73 +526,77 @@ export default function DriverWalletScreen() {
           {/* 2. 4-PILLAR BREAKDOWN GRID (EARNINGS, PAYOUTS, FINES, DEPOSIT)*/}
           {/* ============================================================ */}
           <View style={styles.statGrid}>
-            {/* Card 1: Trip Earnings */}
-            <TouchableOpacity
-              style={[styles.statCard, activeTab === 'EARNINGS' && styles.statCardActive]}
-              onPress={() => setActiveTab('EARNINGS')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="trending-up" size={24} color="#16a34a" style={styles.statCardIcon} />
-              <View style={styles.statCardTextGroup}>
-                <Text style={styles.statLabel} numberOfLines={1}>
-                  {t('wallet.trip_earnings', 'Trip Earnings')}
-                </Text>
-                <Text style={[styles.statValue, { color: '#16a34a' }]} numberOfLines={1}>
-                  +₹{driverEarnings.toLocaleString('en-IN')}
-                </Text>
-              </View>
-            </TouchableOpacity>
+            <View style={styles.statRow}>
+              {/* Card 1: Trip Earnings */}
+              <TouchableOpacity
+                style={[styles.statCard, activeTab === 'EARNINGS' && styles.statCardActive]}
+                onPress={() => setActiveTab('EARNINGS')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="trending-up" size={20} color="#16a34a" style={styles.statCardIcon} />
+                <View style={styles.statCardTextGroup}>
+                  <Text style={styles.statLabel} numberOfLines={1}>
+                    {t('wallet.trip_earnings', 'Trip Earnings')}
+                  </Text>
+                  <Text style={[styles.statValue, { color: '#16a34a' }]} numberOfLines={1}>
+                    +₹{driverEarnings.toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              </TouchableOpacity>
 
-            {/* Card 2: Settled Payouts */}
-            <TouchableOpacity
-              style={[styles.statCard, activeTab === 'SETTLEMENTS' && styles.statCardActive]}
-              onPress={() => setActiveTab('SETTLEMENTS')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="business" size={24} color="#4338ca" style={styles.statCardIcon} />
-              <View style={styles.statCardTextGroup}>
-                <Text style={styles.statLabel} numberOfLines={1}>
-                  {t('wallet.payouts_settled', 'Payouts Settled')}
-                </Text>
-                <Text style={[styles.statValue, { color: '#4338ca' }]} numberOfLines={1}>
-                  ₹{settledPayouts.toLocaleString('en-IN')}
-                </Text>
-              </View>
-            </TouchableOpacity>
+              {/* Card 2: Settled Payouts */}
+              <TouchableOpacity
+                style={[styles.statCard, activeTab === 'SETTLEMENTS' && styles.statCardActive]}
+                onPress={() => setActiveTab('SETTLEMENTS')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="business" size={20} color="#4338ca" style={styles.statCardIcon} />
+                <View style={styles.statCardTextGroup}>
+                  <Text style={styles.statLabel} numberOfLines={1}>
+                    {t('wallet.payouts_settled', 'Payouts Settled')}
+                  </Text>
+                  <Text style={[styles.statValue, { color: '#4338ca' }]} numberOfLines={1}>
+                    ₹{settledPayouts.toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
 
-            {/* Card 3: Security Deposit */}
-            <TouchableOpacity
-              style={[styles.statCard, activeTab === 'DEPOSITS' && styles.statCardActive]}
-              onPress={() => setActiveTab('DEPOSITS')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="shield-checkmark" size={24} color="#2563eb" style={styles.statCardIcon} />
-              <View style={styles.statCardTextGroup}>
-                <Text style={styles.statLabel} numberOfLines={1}>
-                  {t('wallet.security_deposit', 'Security Deposit')}
-                </Text>
-                <Text style={[styles.statValue, { color: '#2563eb' }]}>
-                  ₹{securityDeposit.toLocaleString('en-IN')}
-                </Text>
-              </View>
-            </TouchableOpacity>
+            <View style={styles.statRow}>
+              {/* Card 3: Security Deposit */}
+              <TouchableOpacity
+                style={[styles.statCard, activeTab === 'DEPOSITS' && styles.statCardActive]}
+                onPress={() => setActiveTab('DEPOSITS')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="shield-checkmark" size={20} color="#2563eb" style={styles.statCardIcon} />
+                <View style={styles.statCardTextGroup}>
+                  <Text style={styles.statLabel} numberOfLines={1}>
+                    {t('wallet.security_deposit', 'Security Deposit')}
+                  </Text>
+                  <Text style={[styles.statValue, { color: '#2563eb' }]} numberOfLines={1}>
+                    ₹{securityDeposit.toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              </TouchableOpacity>
 
-            {/* Card 4: Fines & Deductions */}
-            <TouchableOpacity
-              style={[styles.statCard, activeTab === 'FINES' && styles.statCardActiveFine]}
-              onPress={() => setActiveTab('FINES')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="alert-circle" size={24} color="#dc2626" style={styles.statCardIcon} />
-              <View style={styles.statCardTextGroup}>
-                <Text style={styles.statLabel} numberOfLines={1}>
-                  {t('wallet.fines_deductions', 'Fines & Penalties')}
-                </Text>
-                <Text style={[styles.statValue, { color: '#dc2626' }]} numberOfLines={1}>
-                  -₹{totalFines.toLocaleString('en-IN')}
-                </Text>
-              </View>
-            </TouchableOpacity>
+              {/* Card 4: Fines & Deductions */}
+              <TouchableOpacity
+                style={[styles.statCard, activeTab === 'FINES' && styles.statCardActiveFine]}
+                onPress={() => setActiveTab('FINES')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="alert-circle" size={20} color="#dc2626" style={styles.statCardIcon} />
+                <View style={styles.statCardTextGroup}>
+                  <Text style={styles.statLabel} numberOfLines={1}>
+                    {t('wallet.fines_deductions', 'Fines & Penalties')}
+                  </Text>
+                  <Text style={[styles.statValue, { color: '#dc2626' }]} numberOfLines={1}>
+                    -₹{totalFines.toLocaleString('en-IN')}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* ============================================================ */}
@@ -1516,17 +1520,19 @@ const styles = StyleSheet.create({
 
   /* 4-Pillar Breakdown Stat Grid */
   statGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
     marginBottom: 14,
   },
+  statRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   statCard: {
-    width: '48.5%',
+    flex: 1,
     backgroundColor: '#ffffff',
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
     flexDirection: 'row',
@@ -1534,8 +1540,8 @@ const styles = StyleSheet.create({
     shadowColor: '#64748b',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 3,
+    elevation: 1.5,
   },
   statCardActive: {
     borderColor: '#0f2744',
@@ -1546,20 +1552,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff7f7',
   },
   statCardIcon: {
-    marginRight: 8,
+    marginRight: 6,
   },
   statCardTextGroup: {
     flex: 1,
     justifyContent: 'center',
+    minWidth: 0,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
     color: '#64748b',
     marginBottom: 2,
   },
   statValue: {
-    fontSize: 16,
+    fontSize: 14.5,
     fontWeight: '900',
     letterSpacing: -0.2,
   },
