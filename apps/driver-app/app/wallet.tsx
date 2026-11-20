@@ -1730,7 +1730,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#e2e8f0',
