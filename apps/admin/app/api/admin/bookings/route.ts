@@ -27,8 +27,28 @@ export async function GET(req: NextRequest) {
       deletedAt: null,
     };
 
-    if (statusParam && statusParam !== 'ALL' && Object.values(BookingStatus).includes(statusParam as any)) {
-      where.status = statusParam as BookingStatus;
+    if (statusParam && statusParam !== 'ALL') {
+      const now = new Date();
+      if (statusParam === 'MISSED') {
+        where.scheduledAt = { lt: now };
+        where.status = {
+          in: [BookingStatus.PENDING_ADMIN, BookingStatus.DISPATCHED, BookingStatus.DRIVER_ACCEPTED],
+        };
+      } else if (statusParam === 'DECLINED') {
+        where.tripEvents = { some: { type: 'DRIVER_DECLINED' } };
+        where.status = { in: [BookingStatus.PENDING_ADMIN, BookingStatus.DISPATCHED] };
+        where.assignedDriverId = null;
+      } else if (statusParam === BookingStatus.PENDING_ADMIN || statusParam === 'PENDING') {
+        where.status = BookingStatus.PENDING_ADMIN;
+        where.scheduledAt = { gte: now };
+      } else if (statusParam === BookingStatus.DISPATCHED) {
+        where.status = BookingStatus.DISPATCHED;
+      } else if (statusParam === BookingStatus.DRIVER_ACCEPTED || statusParam === 'ACCEPTED') {
+        where.status = BookingStatus.DRIVER_ACCEPTED;
+        where.scheduledAt = { gte: now };
+      } else if (Object.values(BookingStatus).includes(statusParam as any)) {
+        where.status = statusParam as BookingStatus;
+      }
     }
 
     if (search) {

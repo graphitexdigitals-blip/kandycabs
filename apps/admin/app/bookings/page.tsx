@@ -48,6 +48,7 @@ const STATUS_FILTERS = [
   BookingStatus.PENDING_ADMIN,
   BookingStatus.DISPATCHED,
   BookingStatus.DRIVER_ACCEPTED,
+  'DECLINED',
   'MISSED',
   BookingStatus.DRIVER_EN_ROUTE,
   BookingStatus.TRIP_STARTED,
@@ -74,6 +75,8 @@ export default function AdminBookingsPage() {
     switch (s) {
       case 'ALL':
         return 'ALL';
+      case 'DECLINED':
+        return 'DECLINED';
       case 'MISSED':
         return 'MISSED';
       case BookingStatus.PENDING_ADMIN:
@@ -290,13 +293,45 @@ export default function AdminBookingsPage() {
     };
   }, [fetchBookings]);
 
+  // Helper to detect if a booking is currently in a driver declined state awaiting re-dispatch
+  const isDeclinedBooking = useCallback((b: any) => {
+    if (!b) return false;
+    if (b.status === BookingStatus.TRIP_COMPLETED || b.status === BookingStatus.TRIP_STARTED || b.status === BookingStatus.CANCELLED) {
+      return false;
+    }
+    const latestDeclined = b.tripEvents?.find((e: any) => e.type === 'DRIVER_DECLINED' || e.type === 'DRIVER_DECLINED_DISPATCH');
+    if (!latestDeclined) return false;
+    if (b.assignedDriverId && (b.status === BookingStatus.DRIVER_ACCEPTED || b.status === BookingStatus.DRIVER_EN_ROUTE || b.status === BookingStatus.TRIP_STARTED)) {
+      return false;
+    }
+    const latestCancelReq = b.tripEvents?.find((e: any) => e.type === 'CUSTOMER_CANCEL_REQUESTED');
+    if (latestCancelReq && new Date(latestCancelReq.createdAt) > new Date(latestDeclined.createdAt)) {
+      return false;
+    }
+    return !b.assignedDriverId && (b.status === BookingStatus.DISPATCHED || b.status === BookingStatus.PENDING_ADMIN);
+  }, []);
+
   // Instant client-side filtering for 0ms UI response while server query syncs
   const displayedBookings = React.useMemo(() => {
     if (!bookings || bookings.length === 0) return [];
     return bookings.filter((b) => {
+      const isMissed = isBookingMissed(b);
+      const isDeclined = isDeclinedBooking(b);
+
       if (statusFilter !== 'ALL') {
         if (statusFilter === 'MISSED') {
-          if (!isBookingMissed(b)) return false;
+          if (!isMissed) return false;
+        } else if (statusFilter === 'DECLINED') {
+          if (!isDeclined) return false;
+        } else if (statusFilter === BookingStatus.PENDING_ADMIN || statusFilter === 'PENDING') {
+          // In PENDING, ONLY show genuine pending (NOT missed, NOT declined)
+          if (b.status !== BookingStatus.PENDING_ADMIN || isMissed || isDeclined) return false;
+        } else if (statusFilter === BookingStatus.DISPATCHED) {
+          // In DISPATCHED, ONLY show active dispatches (NOT missed, NOT declined)
+          if (b.status !== BookingStatus.DISPATCHED || isMissed || isDeclined) return false;
+        } else if (statusFilter === BookingStatus.DRIVER_ACCEPTED || statusFilter === 'ACCEPTED') {
+          // In ACCEPTED, ONLY show accepted (NOT missed)
+          if (b.status !== BookingStatus.DRIVER_ACCEPTED || isMissed) return false;
         } else if (b.status !== statusFilter) {
           return false;
         }
@@ -318,7 +353,7 @@ export default function AdminBookingsPage() {
       }
       return true;
     });
-  }, [bookings, statusFilter, search]);
+  }, [bookings, statusFilter, search, isDeclinedBooking]);
 
   const handleOpenDrawer = (id: string) => {
     setSelectedBookingId(id);
@@ -521,23 +556,36 @@ export default function AdminBookingsPage() {
         <div className="bg-white p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-xs border border-slate-200 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 sm:gap-4">
           {/* Status Pills */}
           <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 flex-1 min-w-0">
-            {STATUS_FILTERS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => {
-                  setStatusFilter(s);
-                  setPage(1);
-                }}
-                className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition active:scale-95 whitespace-nowrap ${
-                  statusFilter === s
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {getStatusFilterLabel(s)}
-              </button>
-            ))}
+            {STATUS_FILTERS.map((s) => {
+              const isActive = statusFilter === s;
+              let btnClass = isActive
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200';
+
+              if (s === 'DECLINED') {
+                btnClass = isActive
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/80';
+              } else if (s === 'MISSED') {
+                btnClass = isActive
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200/80';
+              }
+
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter(s);
+                    setPage(1);
+                  }}
+                  className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition active:scale-95 whitespace-nowrap ${btnClass}`}
+                >
+                  {getStatusFilterLabel(s)}
+                </button>
+              );
+            })}
           </div>
 
           {/* Search Bar (never shrinks or overlaps) */}
