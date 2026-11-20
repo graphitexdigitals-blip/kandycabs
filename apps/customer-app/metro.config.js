@@ -6,8 +6,11 @@ const monorepoRoot = path.resolve(projectRoot, '../..');
 
 const config = getDefaultConfig(projectRoot);
 
-// 1. Watch all files within the monorepo
-config.watchFolders = [monorepoRoot, ...(config.watchFolders || [])];
+// 1. Only watch necessary folders (avoid watching apps/admin/.next, apps/web/.next, .git)
+config.watchFolders = [
+  path.resolve(monorepoRoot, 'packages/shared'),
+  path.resolve(monorepoRoot, 'node_modules'),
+];
 
 // 2. Let Metro know where to resolve packages and in what order
 config.resolver.nodeModulesPaths = [
@@ -16,11 +19,12 @@ config.resolver.nodeModulesPaths = [
 ];
 
 config.resolver.blockList = [
-  /.*\/apps\/customer-app\/dist\/.*/,
-  /.*\/android\/app\/build\/.*/,
-  /.*\/android\/\.gradle\/.*/,
-  /.*\/apps\/web\/\.next\/.*/,
-  /.*\/apps\/admin\/\.next\/.*/,
+  /[\\\/]apps[\\\/]customer-app[\\\/]dist[\\\/]/,
+  /[\\\/]dist_bundle[\\\/]/,
+  /[\\\/]android[\\\/]app[\\\/]build[\\\/]/,
+  /[\\\/]android[\\\/]\.gradle[\\\/]/,
+  /[\\\/]apps[\\\/]web[\\\/]\.next[\\\/]/,
+  /[\\\/]apps[\\\/]admin[\\\/]\.next[\\\/]/,
 ];
 
 const projectReact = path.resolve(projectRoot, 'node_modules/react');

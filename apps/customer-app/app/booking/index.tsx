@@ -1955,7 +1955,7 @@ export default function BookingFunnelScreen() {
                     >
                       ₹ {totalFare.toLocaleString('en-IN')}
                     </Text>
-                    <Text style={styles.topSummaryGst} numberOfLines={1}>(Total Trip Fare)</Text>
+                    <Text style={styles.topSummaryGst} numberOfLines={1}>Full Payment (Total Fare)</Text>
                   </View>
                 </View>
 
@@ -2516,7 +2516,7 @@ export default function BookingFunnelScreen() {
                     >
                       ₹ {totalFare.toLocaleString('en-IN')}
                     </Text>
-                    <Text style={styles.topSummaryGst} numberOfLines={1}>(Total Trip Fare)</Text>
+                    <Text style={styles.topSummaryGst} numberOfLines={1}>Full Payment (Total Fare)</Text>
                   </View>
                 </View>
 
@@ -2873,6 +2873,26 @@ export default function BookingFunnelScreen() {
                       </Text>
                     </View>
                     <Text style={styles.partPaymentPillAmount}>₹ {payableAmount.toLocaleString('en-IN')}</Text>
+                  </View>
+
+                  {/* Bottom Driver Payment Section */}
+                  <View style={{ marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <Ionicons name="car-outline" size={16} color="#b45309" />
+                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#92400e' }}>
+                          Driver Payment Section
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 13, fontWeight: '900', color: '#92400e' }}>
+                        ₹{dueToDriver.toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 10.5, color: '#78350f', fontWeight: '500' }}>
+                      {paymentOption === 'FULL'
+                        ? 'Customer opted for Full Online Payment. Zero cash collection required at drop.'
+                        : `Payable to driver upon drop: ₹${dueToDriver.toLocaleString('en-IN')} cash / UPI.`}
+                    </Text>
                   </View>
 
                   {/* Optional Promo Code Toggle Button with Background and Border */}

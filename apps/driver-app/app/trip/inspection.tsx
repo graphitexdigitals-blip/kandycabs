@@ -282,6 +282,53 @@ export default function DriverVehicleInspectionScreen() {
     }
   };
 
+  const handleGalleryPick = async (index: number) => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync().catch(() => ({ status: 'denied' }));
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Photo library access is required to select photos.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.4,
+        base64: true,
+        allowsEditing: false,
+      });
+      if (result && !result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        applyCapturedPhoto(index, dataUri);
+      }
+    } catch (err: any) {
+      Alert.alert('Gallery Error', err?.message || 'Could not select photo from gallery');
+    }
+  };
+
+  const handleChoosePhotoSource = (index: number) => {
+    Alert.alert(
+      'Attach Verification Photo',
+      `Capture or select ${inspectionAngleConfigs[index]?.title || 'photo'}:`,
+      [
+        {
+          text: '📷 Open Camera',
+          onPress: () => handleCameraCapture(index),
+        },
+        {
+          text: '🖼️ Choose from Gallery',
+          onPress: () => handleGalleryPick(index),
+        },
+        {
+          text: '⚡ Use Sample Photo',
+          onPress: () => {
+            applyCapturedPhoto(index, `demo_${inspectionAngleConfigs[index]?.id || index}`);
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
   const handleCameraCapture = async (index: number) => {
     try {
       const isFront = inspectionAngleConfigs[index]?.isFrontCamera;
@@ -297,7 +344,14 @@ export default function DriverVehicleInspectionScreen() {
             }
           );
           if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-            Alert.alert('Permission Denied', 'Camera permission is required to capture photos.');
+            Alert.alert(
+              'Camera Permission Denied',
+              'Camera permission was not granted. Would you like to select from gallery instead?',
+              [
+                { text: '🖼️ Choose from Gallery', onPress: () => handleGalleryPick(index) },
+                { text: 'Cancel', style: 'cancel' },
+              ]
+            );
             return;
           }
         } catch (_) {}
@@ -305,7 +359,14 @@ export default function DriverVehicleInspectionScreen() {
 
       const { status } = await ImagePicker.requestCameraPermissionsAsync().catch(() => ({ status: 'denied' }));
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Camera access is required to capture photos.');
+        Alert.alert(
+          'Permission Required',
+          'Camera access is required. Would you like to select a photo from your gallery instead?',
+          [
+            { text: '🖼️ Choose from Gallery', onPress: () => handleGalleryPick(index) },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
         return;
       }
 
@@ -327,7 +388,19 @@ export default function DriverVehicleInspectionScreen() {
             base64: true,
           });
         } catch (camErr2: any) {
-          Alert.alert('Camera Error', camErr2?.message || 'Could not launch camera');
+          console.warn('launchCameraAsync failed:', camErr2);
+          Alert.alert(
+            'Camera Unavailable',
+            'Camera could not be launched on this device. Would you like to choose a photo from your gallery instead?',
+            [
+              { text: '🖼️ Choose from Gallery', onPress: () => handleGalleryPick(index) },
+              {
+                text: '⚡ Use Sample Photo',
+                onPress: () => applyCapturedPhoto(index, `demo_${inspectionAngleConfigs[index]?.id || index}`),
+              },
+              { text: 'Cancel', style: 'cancel' },
+            ]
+          );
           return;
         }
       }
@@ -338,7 +411,14 @@ export default function DriverVehicleInspectionScreen() {
         applyCapturedPhoto(index, dataUri);
       }
     } catch (err: any) {
-      Alert.alert('Camera Error', err?.message || 'Could not capture photo');
+      Alert.alert(
+        'Camera Error',
+        'Could not capture photo. Would you like to select from gallery instead?',
+        [
+          { text: '🖼️ Choose from Gallery', onPress: () => handleGalleryPick(index) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     }
   };
 
@@ -365,7 +445,7 @@ export default function DriverVehicleInspectionScreen() {
     if (isAllAttached) {
       handleSaveInspection();
     } else if (!photos[currentAngleIndex]) {
-      handleCameraCapture(currentAngleIndex);
+      handleChoosePhotoSource(currentAngleIndex);
     } else if (currentAngleIndex < inspectionAngleConfigs.length - 1) {
       setCurrentAngleIndex(currentAngleIndex + 1);
     } else {
@@ -526,7 +606,7 @@ export default function DriverVehicleInspectionScreen() {
                   styles.photoBox,
                   !isCurrentAttached && styles.photoBoxBlank,
                 ]}
-                onPress={() => handleCameraCapture(currentAngleIndex)}
+                onPress={() => handleChoosePhotoSource(currentAngleIndex)}
                 activeOpacity={0.88}
               >
                 {isCurrentAttached ? (
@@ -584,7 +664,7 @@ export default function DriverVehicleInspectionScreen() {
                 </View>
                 <TouchableOpacity
                   style={styles.referenceImageBox}
-                  onPress={() => handleCameraCapture(currentAngleIndex)}
+                  onPress={() => handleChoosePhotoSource(currentAngleIndex)}
                   activeOpacity={0.9}
                 >
                   <Image

@@ -73,10 +73,10 @@ export default function AdminOdometerEvidencePage() {
   const displayedItems = discrepancyOnly ? items.filter((i) => i.hasDiscrepancy) : items;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+    <div className="min-h-screen bg-[#f4f7fc] text-slate-900 flex flex-col font-sans">
       <AdminNavbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:pl-6 lg:pr-24 py-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>

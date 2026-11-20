@@ -215,15 +215,17 @@ export function DriverProfileModal({
                 onPress={handlePickPhoto}
                 activeOpacity={0.8}
               >
-                <Image
-                  source={
-                    profilePhoto
-                      ? { uri: profilePhoto }
-                      : require('../assets/images/captain-avatar.png')
-                  }
-                  style={styles.avatarImg}
-                  resizeMode="cover"
-                />
+                {profilePhoto && !profilePhoto.includes('base64,iVBORw0KGgoAAAANSUhEUgAAAIQAAACECA') ? (
+                  <Image
+                    source={{ uri: profilePhoto }}
+                    style={styles.avatarImg}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.avatarFallback}>
+                    <Ionicons name="person" size={44} color="#94a3b8" />
+                  </View>
+                )}
                 <View style={styles.avatarCameraBadge}>
                   <Ionicons name="camera" size={14} color="#ffffff" />
                 </View>
@@ -564,6 +566,16 @@ const styles = StyleSheet.create({
     borderRadius: 45,
     borderWidth: 3,
     borderColor: '#f0750f',
+  },
+  avatarFallback: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 3,
+    borderColor: '#f0750f',
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarCameraBadge: {
     position: 'absolute',

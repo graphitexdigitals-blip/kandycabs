@@ -169,19 +169,19 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#f4f7fc] text-slate-900 flex flex-col font-sans">
       <AdminNavbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-2.5 sm:py-4 space-y-2.5 sm:space-y-3.5">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:pl-6 lg:pr-24 py-5 sm:py-6 space-y-4">
         {/* Top Header & Quick Action Bar */}
-        <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-xs">
+        <div className="bg-white border border-[#E2E8F0] rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-xs">
           <div className="flex items-center justify-between gap-1.5">
-            <div className="flex items-center space-x-1.5 min-w-0">
-              <IconSparkles className="w-4 h-4 text-[#f97316] shrink-0" />
-              <h1 className="text-[13.5px] sm:text-base font-bold text-slate-900 tracking-tight truncate">Operations Control Center</h1>
+            <div className="flex items-center space-x-2 min-w-0">
+              <IconSparkles className="w-4 h-4 text-[#F95700] shrink-0" />
+              <h1 className="text-[13.5px] sm:text-base font-bold text-[#0F172A] tracking-tight truncate">Operations Control Center</h1>
             </div>
 
-            <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-slate-100/90 border border-slate-200/60 text-slate-700 text-[10px] sm:text-xs font-mono font-medium shrink-0">
+            <div className="flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-slate-100/90 border border-[#E2E8F0] text-slate-700 text-[10px] sm:text-xs font-mono font-medium shrink-0">
               <span className={`w-1.5 h-1.5 rounded-full ${realtimeActive ? 'bg-emerald-500 animate-ping' : 'bg-emerald-500'}`} />
               <span suppressHydrationWarning>
                 {mounted && lastRefreshed ? lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : 'Syncing...'}
@@ -193,7 +193,7 @@ export default function AdminDashboardPage() {
             <button
               onClick={() => fetchDashboardStats(false)}
               disabled={loading || refreshing}
-              className="px-2.5 py-1 rounded-lg border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-[11px] sm:text-xs flex items-center space-x-1.5 shadow-2xs transition disabled:opacity-50"
+              className="px-2.5 py-1 rounded-lg border border-[#E2E8F0] bg-white hover:bg-slate-50 text-slate-700 font-semibold text-[11px] sm:text-xs flex items-center space-x-1.5 shadow-2xs transition disabled:opacity-50"
             >
               <IconRefresh className={`w-3 h-3 text-slate-600 ${refreshing ? 'animate-spin' : ''}`} />
               <span>{refreshing ? '...' : 'Refresh'}</span>
@@ -202,7 +202,7 @@ export default function AdminDashboardPage() {
             <button
               type="button"
               onClick={() => fetchDashboardStats(true)}
-              className="px-2.5 py-1 rounded-lg bg-[#ea580c] hover:bg-[#c2410c] text-white font-semibold text-[11px] sm:text-xs flex items-center space-x-1.5 shadow-xs transition"
+              className="px-2.5 py-1 rounded-lg bg-[#F95700] hover:bg-[#e04e00] text-white font-semibold text-[11px] sm:text-xs flex items-center space-x-1.5 shadow-xs transition"
             >
               <IconRefresh className="w-3 h-3 text-white" />
               <span>Realtime</span>
@@ -343,91 +343,91 @@ export default function AdminDashboardPage() {
             {/* 1. Bookings Management */}
             <Link
               href="/bookings"
-              className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
+              className="bg-white border border-[#E2E8F0] hover:border-[#F95700]/40 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-3 shrink-0 min-w-[130px] lg:min-w-0 flex-1"
               title="Bookings & Dispatch"
             >
-              <IconBookings className="w-4 h-4 text-slate-800 shrink-0" />
+              <IconBookings className="w-7 h-7 sm:w-8 sm:h-8 text-[#0F172A] group-hover:text-[#F95700] shrink-0 transition-all duration-200 group-hover:scale-110" />
               <div className="min-w-0 flex-1">
-                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Bookings</h4>
-                <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.bookings.total} total</p>
+                <h4 className="text-xs sm:text-[13px] font-bold text-[#0F172A] group-hover:text-[#F95700] transition-colors truncate">Bookings</h4>
+                <p className="text-[10px] sm:text-[11px] font-medium text-slate-400 truncate">{stats.bookings.total} total</p>
               </div>
             </Link>
 
             {/* 2. Live Map */}
             <Link
               href="/live-map"
-              className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
+              className="bg-white border border-[#E2E8F0] hover:border-[#F95700]/40 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-3 shrink-0 min-w-[130px] lg:min-w-0 flex-1"
               title="Live GPS Fleet Map"
             >
-              <IconMap className="w-4 h-4 text-slate-800 shrink-0" />
+              <IconMap className="w-7 h-7 sm:w-8 sm:h-8 text-[#0F172A] group-hover:text-[#F95700] shrink-0 transition-all duration-200 group-hover:scale-110" />
               <div className="min-w-0 flex-1">
-                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Live Map</h4>
-                <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.drivers.online} online</p>
+                <h4 className="text-xs sm:text-[13px] font-bold text-[#0F172A] group-hover:text-[#F95700] transition-colors truncate">Live Map</h4>
+                <p className="text-[10px] sm:text-[11px] font-medium text-slate-400 truncate">{stats.drivers.online} online</p>
               </div>
             </Link>
 
             {/* 3. Payments */}
             <Link
               href="/payments"
-              className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
+              className="bg-white border border-[#E2E8F0] hover:border-[#F95700]/40 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-3 shrink-0 min-w-[130px] lg:min-w-0 flex-1"
               title="Payments & Settlements"
             >
-              <IconPayments className="w-4 h-4 text-slate-800 shrink-0" />
+              <IconPayments className="w-7 h-7 sm:w-8 sm:h-8 text-[#0F172A] group-hover:text-[#F95700] shrink-0 transition-all duration-200 group-hover:scale-110" />
               <div className="min-w-0 flex-1">
-                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Payments</h4>
-                <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">Ledger</p>
+                <h4 className="text-xs sm:text-[13px] font-bold text-[#0F172A] group-hover:text-[#F95700] transition-colors truncate">Payments</h4>
+                <p className="text-[10px] sm:text-[11px] font-medium text-slate-400 truncate">Ledger</p>
               </div>
             </Link>
 
             {/* 4. Vehicle KYC */}
             <Link
               href="/vehicle-evidence"
-              className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
+              className="bg-white border border-[#E2E8F0] hover:border-[#F95700]/40 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-3 shrink-0 min-w-[130px] lg:min-w-0 flex-1"
               title="Vehicle & Driver KYC"
             >
-              <IconShield className="w-4 h-4 text-slate-800 shrink-0" />
+              <IconShield className="w-7 h-7 sm:w-8 sm:h-8 text-[#0F172A] group-hover:text-[#F95700] shrink-0 transition-all duration-200 group-hover:scale-110" />
               <div className="min-w-0 flex-1">
-                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Driver KYC</h4>
-                <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.drivers.pendingKyc} pending</p>
+                <h4 className="text-xs sm:text-[13px] font-bold text-[#0F172A] group-hover:text-[#F95700] transition-colors truncate">Driver KYC</h4>
+                <p className="text-[10px] sm:text-[11px] font-medium text-slate-400 truncate">{stats.drivers.pendingKyc} pending</p>
               </div>
             </Link>
 
             {/* 5. Fleets */}
             <Link
               href="/fleets"
-              className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
+              className="bg-white border border-[#E2E8F0] hover:border-[#F95700]/40 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-3 shrink-0 min-w-[130px] lg:min-w-0 flex-1"
               title="Fleet Categories"
             >
-              <IconCar className="w-4 h-4 text-slate-800 shrink-0" />
+              <IconCar className="w-7 h-7 sm:w-8 sm:h-8 text-[#0F172A] group-hover:text-[#F95700] shrink-0 transition-all duration-200 group-hover:scale-110" />
               <div className="min-w-0 flex-1">
-                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Fleets</h4>
-                <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.fleets.categoriesCount} fleets</p>
+                <h4 className="text-xs sm:text-[13px] font-bold text-[#0F172A] group-hover:text-[#F95700] transition-colors truncate">Fleets</h4>
+                <p className="text-[10px] sm:text-[11px] font-medium text-slate-400 truncate">{stats.fleets.categoriesCount} fleets</p>
               </div>
             </Link>
 
             {/* 6. Pricing Rules */}
             <Link
               href="/pricing"
-              className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
+              className="bg-white border border-[#E2E8F0] hover:border-[#F95700]/40 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-3 shrink-0 min-w-[130px] lg:min-w-0 flex-1"
               title="Pricing Rules"
             >
-              <IconTag className="w-4 h-4 text-slate-800 shrink-0" />
+              <IconTag className="w-7 h-7 sm:w-8 sm:h-8 text-[#0F172A] group-hover:text-[#F95700] shrink-0 transition-all duration-200 group-hover:scale-110" />
               <div className="min-w-0 flex-1">
-                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Pricing</h4>
-                <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">{stats.fleets.pricingRulesCount} tariffs</p>
+                <h4 className="text-xs sm:text-[13px] font-bold text-[#0F172A] group-hover:text-[#F95700] transition-colors truncate">Pricing</h4>
+                <p className="text-[10px] sm:text-[11px] font-medium text-slate-400 truncate">{stats.fleets.pricingRulesCount} tariffs</p>
               </div>
             </Link>
 
             {/* 7. Audit Logs */}
             <Link
               href="/audit-logs"
-              className="bg-white border border-slate-200/80 hover:border-slate-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-2 shrink-0 min-w-[120px] lg:min-w-0 flex-1"
+              className="bg-white border border-[#E2E8F0] hover:border-[#F95700]/40 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-3 shrink-0 min-w-[130px] lg:min-w-0 flex-1"
               title="Audit Trail"
             >
-              <IconFileText className="w-4 h-4 text-slate-800 shrink-0" />
+              <IconFileText className="w-7 h-7 sm:w-8 sm:h-8 text-[#0F172A] group-hover:text-[#F95700] shrink-0 transition-all duration-200 group-hover:scale-110" />
               <div className="min-w-0 flex-1">
-                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 truncate">Audit Trail</h4>
-                <p className="text-[9.5px] sm:text-[10.5px] text-slate-400 truncate">Logs</p>
+                <h4 className="text-xs sm:text-[13px] font-bold text-[#0F172A] group-hover:text-[#F95700] transition-colors truncate">Audit Trail</h4>
+                <p className="text-[10px] sm:text-[11px] font-medium text-slate-400 truncate">Logs</p>
               </div>
             </Link>
           </div>

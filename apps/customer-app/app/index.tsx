@@ -634,8 +634,8 @@ export default function HomeScreen() {
       const endpoints = [
         () => customerApiClient.fetch('/api/banners'),
         () => fetch(`${getDynamicBaseUrl().replace(/\/+$/, '')}/api/banners`).then((r) => r.json()),
-        () => fetch('http://192.168.1.3:3001/api/banners').then((r) => r.json()),
-        () => fetch('http://192.168.1.3:3000/api/banners').then((r) => r.json()),
+        () => fetch('http://192.168.29.207:3001/api/banners').then((r) => r.json()),
+        () => fetch('http://192.168.29.207:3000/api/banners').then((r) => r.json()),
         () => fetch('http://localhost:3001/api/banners').then((r) => r.json()),
         () => fetch('http://localhost:3000/api/banners').then((r) => r.json()),
         () => fetch('http://10.0.2.2:3001/api/banners').then((r) => r.json()),

@@ -23,6 +23,7 @@ interface DbPricingCache {
   nightSettings: any;
   airportRates: any;
   chauffeurSettings: any;
+  driverPricingRules: any;
   expiresAt: number;
 }
 
@@ -38,6 +39,7 @@ async function getCachedPricingData() {
       nightSettings: dbPricingCache.nightSettings,
       airportRates: dbPricingCache.airportRates,
       chauffeurSettings: dbPricingCache.chauffeurSettings,
+      driverPricingRules: dbPricingCache.driverPricingRules,
     };
   }
 
@@ -45,17 +47,19 @@ async function getCachedPricingData() {
     prisma.pricingRule.findMany({ where: { isActive: true } }).catch(() => []),
     prisma.fleetCategory.findMany({ where: { isActive: true } }).catch(() => []),
     prisma.systemSetting.findMany({
-      where: { key: { in: ['night_charge_settings', 'airport_city_rates', 'chauffeur_allowance_settings'] } },
+      where: { key: { in: ['night_charge_settings', 'airport_city_rates', 'chauffeur_allowance_settings', 'driver_pricing_rules'] } },
     }).catch(() => []),
   ]);
 
   let nightSettings: any = null;
   let airportRates: any = null;
   let chauffeurSettings: any = null;
+  let driverPricingRules: any = {};
   for (const s of systemSettings) {
     if (s.key === 'night_charge_settings') nightSettings = s.value;
     if (s.key === 'airport_city_rates') airportRates = s.value;
     if (s.key === 'chauffeur_allowance_settings') chauffeurSettings = s.value;
+    if (s.key === 'driver_pricing_rules') driverPricingRules = (s.value as any) || {};
   }
 
   dbPricingCache = {
@@ -64,6 +68,7 @@ async function getCachedPricingData() {
     nightSettings,
     airportRates,
     chauffeurSettings,
+    driverPricingRules,
     expiresAt: now + DB_PRICING_CACHE_TTL_MS,
   };
 
@@ -73,6 +78,7 @@ async function getCachedPricingData() {
     nightSettings,
     airportRates,
     chauffeurSettings,
+    driverPricingRules,
   };
 }
 
@@ -153,6 +159,7 @@ export async function POST(req: NextRequest) {
       nightSettings,
       airportRates,
       chauffeurSettings,
+      driverPricingRules = {},
     } = await getCachedPricingData();
 
     const fleetMap = new Map<string, any>();
@@ -219,6 +226,7 @@ export async function POST(req: NextRequest) {
         .map((f) => {
           const dbRuleKey = `${cat}_${tripType}_${f.fuelType}`;
           const dbRule = pricingRuleMap.get(dbRuleKey);
+          const dRule = driverPricingRules[dbRuleKey] || {};
 
           const overrides: any = {
             ratePerKm: dbRule ? Number(dbRule.baseRatePerKm) : f.defaultRate,
@@ -242,6 +250,10 @@ export async function POST(req: NextRequest) {
             localPackage12hrKm: dbRule?.localPackage12hrKm ? Number(dbRule.localPackage12hrKm) : dbFleet?.localPackage12hrKm ? Number(dbFleet.localPackage12hrKm) : 120,
             localPackage12hrExtraKmRate: dbRule?.localPackage12hrExtraKmRate ? Number(dbRule.localPackage12hrExtraKmRate) : undefined,
             extraHourRate: dbRule?.extraHourRate ? Number(dbRule.extraHourRate) : dbFleet?.extraHourRate ? Number(dbFleet.extraHourRate) : undefined,
+            driverBaseRatePerKm: dRule.driverBaseRatePerKm !== undefined && dRule.driverBaseRatePerKm !== null ? Number(dRule.driverBaseRatePerKm) : undefined,
+            driverExtraKmRate: dRule.driverExtraKmRate !== undefined && dRule.driverExtraKmRate !== null ? Number(dRule.driverExtraKmRate) : undefined,
+            driverAllowanceDaily: dRule.driverAllowanceDaily !== undefined && dRule.driverAllowanceDaily !== null ? Number(dRule.driverAllowanceDaily) : undefined,
+            driverNightCharge: dRule.driverNightCharge !== undefined && dRule.driverNightCharge !== null ? Number(dRule.driverNightCharge) : undefined,
             chauffeurConfig: chauffeurSettings,
           };
 

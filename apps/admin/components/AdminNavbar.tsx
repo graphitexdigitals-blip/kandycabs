@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
@@ -21,6 +21,7 @@ import {
   IconX,
   IconXCircle,
   IconSteeringWheel,
+  IconScale,
 } from './Icons';
 
 interface NavItem {
@@ -34,8 +35,10 @@ interface NavItem {
 export function AdminNavbar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const [expiringDocsCount, setExpiringDocsCount] = useState<number>(0);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -123,6 +126,13 @@ export function AdminNavbar() {
       section: 'FLEET & DRIVERS',
     },
     {
+      href: '/deposits-fines',
+      label: 'Security Deposit & Fines',
+      description: 'Driver security deposits, violation penalties & deductions',
+      icon: IconScale,
+      section: 'FLEET & DRIVERS',
+    },
+    {
       href: '/coupons',
       label: 'Coupons & Promos',
       description: 'Flat amount (₹) & percentage (%) discount promo codes',
@@ -155,229 +165,328 @@ export function AdminNavbar() {
   // Close drawer on ESC key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsOpen(false);
+      if (e.key === 'Escape') {
+        setIsMobileOpen(false);
+        setIsHovered(false);
+      }
     };
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
-  // Close drawer on route change
+  // Close on route change
   useEffect(() => {
-    setIsOpen(false);
+    setIsMobileOpen(false);
+    setIsHovered(false);
   }, [pathname]);
 
-  // Find currently active page title for the header bar
   const activeItem = navLinks.find(
     (item) => pathname === item.href || (item.href !== '/bookings' && pathname.startsWith(item.href))
   );
 
+  const handleMouseEnter = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsHovered(false);
+    }, 150);
+  };
+
   return (
     <>
-      {/* Top Header Bar */}
-      <header className="bg-white border-b border-slate-200/90 text-slate-900 sticky top-0 z-40 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 gap-3 sm:gap-4">
-            {/* Left: Brand Logo + ADMIN Pill + Current Page Breadcrumb */}
-            <div className="flex items-center space-x-2.5 sm:space-x-3.5 min-w-0">
-              <Link href="/dashboard" className="flex items-center space-x-2 group shrink-0 py-1">
+      {/* 1. Top Header Bar - Full Width with Reduced Side Padding */}
+      <header className="bg-white border-b border-[#E2E8F0] text-[#0F172A] sticky top-0 z-30 shadow-2xs transition-all w-full">
+        <div className="w-full px-3 sm:px-6 lg:pl-6 lg:pr-24">
+          <div className="flex items-center justify-between h-16 gap-3">
+            {/* Left: Brand Logo + ADMIN Pill + Breadcrumbs */}
+            <div className="flex items-center space-x-3 shrink-0">
+              <Link href="/dashboard" className="flex items-center group shrink-0">
                 <img
                   src="/images/logo.png"
                   alt="Kandy Cabs"
-                  className="h-8 sm:h-8.5 w-auto object-contain transition-transform group-hover:scale-102"
+                  className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-102"
                   style={{ height: 32, maxHeight: 36, width: 'auto', display: 'block' }}
                 />
-                <span className="text-[9.5px] sm:text-[10px] font-bold bg-amber-500/15 text-amber-900 border border-amber-500/30 px-2 py-0.5 rounded-md tracking-wider uppercase">
-                  Admin
-                </span>
               </Link>
 
-              {/* Current Active Page Pill in Header */}
               {activeItem && (
-                <div className="hidden sm:flex items-center space-x-2 pl-3 border-l border-slate-200 truncate">
-                  <span className="text-xs font-semibold text-slate-400">/</span>
-                  <span className="text-xs font-bold text-slate-800 truncate">{activeItem.label}</span>
+                <div className="hidden sm:flex items-center space-x-2 pl-3 border-l border-[#E2E8F0] truncate">
+                  <span className="text-xs font-semibold text-slate-300">/</span>
+                  <span className="text-xs font-bold text-[#0F172A] truncate">{activeItem.label}</span>
                 </div>
               )}
             </div>
 
-            {/* Right: User Profile, Logout & Hamburger Menu Button */}
-            <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+            {/* Right: Logout & Mobile Toggle */}
+            <div className="flex items-center space-x-2.5 shrink-0">
               {user ? (
-                <>
-                  <div className="hidden md:block text-right pr-1">
-                    <div className="text-xs font-bold text-slate-900 leading-tight">
-                      {user.fullName || 'Master Admin'}
-                    </div>
-                    <div className="text-[10.5px] text-slate-500 font-mono font-medium">{user.phone}</div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => logout()}
-                    className="inline-flex items-center space-x-1.5 p-2 sm:px-3 sm:py-1.5 text-xs font-semibold text-slate-600 hover:text-rose-600 hover:bg-rose-50/80 rounded-xl border border-slate-200 transition-colors shadow-2xs"
-                    title="Sign out of Admin"
-                  >
-                    <IconLogout className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Logout</span>
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => logout()}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-[#E2E8F0] transition-colors shadow-2xs cursor-pointer"
+                  title="Sign out of Admin"
+                >
+                  <IconLogout className="w-3.5 h-3.5" />
+                  <span>Logout</span>
+                </button>
               ) : (
                 <Link
                   href="/login"
-                  className="px-3.5 py-1.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition shadow-xs"
+                  className="px-3.5 py-1.5 text-xs font-bold text-white bg-[#F95700] hover:bg-[#e04e00] rounded-xl transition shadow-xs"
                 >
                   Login
                 </Link>
               )}
 
-              {/* Hamburger Menu Button (Right-aligned) */}
+              {/* Mobile menu button (screens < lg) */}
               <button
                 type="button"
-                onClick={() => setIsOpen(true)}
-                className="inline-flex items-center justify-center space-x-1.5 p-2 lg:px-3 lg:py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 hover:border-slate-300 shadow-2xs transition-all active:scale-95 group focus:outline-hidden focus:ring-2 focus:ring-amber-500/50"
+                onClick={() => setIsMobileOpen(true)}
+                className="lg:hidden inline-flex items-center justify-center p-1.5 rounded-lg text-slate-700 hover:text-[#F95700] hover:bg-slate-100/80 transition active:scale-95 cursor-pointer"
                 aria-label="Open Navigation Menu"
-                title="Open Navigation Menu"
               >
-                <IconMenu className="w-4 h-4 text-amber-500 transition-transform group-hover:scale-110" />
-                <span className="hidden lg:inline text-xs font-bold tracking-wide text-slate-800">Menu</span>
+                <IconMenu className="w-6 h-6 text-[#0F172A] hover:text-[#F95700] transition-colors" />
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Slidable Off-Canvas Navigation Drawer (Right to Left) */}
-      {/* Backdrop */}
+      {/* 2. Desktop/Laptop Right-Side Menu: Slim Icon Dock that Expands on Hover */}
       <div
-        className={`fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs transition-opacity duration-300 ${
-          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-        onClick={() => setIsOpen(false)}
-        aria-hidden="true"
-      />
-
-      {/* Slide-out Panel from Right */}
-      <aside
-        className={`fixed top-0 bottom-0 right-0 z-50 w-full max-w-sm sm:max-w-md bg-white shadow-2xl border-l border-slate-200 flex flex-col transition-transform duration-300 ease-out transform ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-        aria-label="Admin Navigation Drawer"
+        className="hidden lg:block fixed top-0 bottom-0 right-0 z-50 pointer-events-auto"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
-        {/* Drawer Top Header with generous top padding for logo visibility */}
-        <div className="flex items-center justify-between px-6 pt-8 pb-5 border-b border-slate-100 bg-linear-to-b from-slate-50/90 to-white">
-          <div className="flex items-center space-x-3">
-            <img
-              src="/images/logo.png"
-              alt="Kandy Cabs"
-              className="h-9 w-auto max-h-9 object-contain"
-              style={{ height: 36, maxHeight: 36, width: 'auto', display: 'block' }}
-            />
-            <span className="text-[10px] font-extrabold bg-amber-500/15 text-amber-900 border border-amber-500/30 px-2.5 py-1 rounded-md tracking-wider uppercase shadow-2xs">
-              Admin Console
-            </span>
+        <aside
+          className={`h-full bg-[#0F172A] text-white shadow-2xl border-l border-slate-800 flex flex-col transition-all duration-300 ease-out overflow-hidden ${
+            isHovered ? 'w-72 shadow-[0_0_50px_rgba(0,0,0,0.5)]' : 'w-[68px]'
+          }`}
+        >
+          {/* Top Brand Area of the Right Dock */}
+          <div className="h-16 border-b border-slate-800/90 flex items-center px-2.5 shrink-0 bg-[#0b1120]">
+            <Link
+              href="/dashboard"
+              className="flex items-center space-x-2.5 w-full group overflow-hidden"
+              title="Kandy Cabs Admin"
+            >
+              {isHovered ? (
+                <div className="flex items-center space-x-2.5 min-w-0 transition-opacity duration-200">
+                  <img
+                    src="/images/logo-white.png"
+                    alt="Kandy Cabs"
+                    className="h-8 w-auto object-contain shrink-0"
+                    style={{ maxHeight: 32 }}
+                  />
+                  <span className="text-[9px] font-extrabold bg-[#F95700]/20 text-[#F95700] border border-[#F95700]/30 px-1.5 py-0.5 rounded uppercase shrink-0">
+                    Admin
+                  </span>
+                </div>
+              ) : (
+                <div className="w-full flex items-center justify-center">
+                  <img
+                    src="/images/logo-white.png"
+                    alt="Kandy Cabs"
+                    className="h-6 w-auto max-w-[48px] object-contain shrink-0"
+                  />
+                </div>
+              )}
+            </Link>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsOpen(false)}
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-950 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition"
-            aria-label="Close menu"
-          >
-            <IconX className="w-5 h-5" />
-          </button>
-        </div>
+          {/* Navigation Links Column */}
+          <div className="flex-1 overflow-y-auto py-3 space-y-4 no-scrollbar px-2">
+            {(['OPERATIONS', 'FLEET & DRIVERS', 'SYSTEM & ANALYTICS'] as const).map((section) => {
+              const sectionLinks = navLinks.filter((l) => l.section === section);
 
-        {/* Scrollable Navigation Options List */}
-        <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
-          {(['OPERATIONS', 'FLEET & DRIVERS', 'SYSTEM & ANALYTICS'] as const).map((section) => {
-            const sectionLinks = navLinks.filter((l) => l.section === section);
+              return (
+                <div key={section} className="space-y-1">
+                  {isHovered && (
+                    <div className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500 pb-1 truncate animate-fadeIn">
+                      {section}
+                    </div>
+                  )}
 
-            return (
-              <div key={section} className="space-y-1.5">
-                <div className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                  {section}
-                </div>
+                  <div className="space-y-1">
+                    {sectionLinks.map((link) => {
+                      const isActive =
+                        pathname === link.href ||
+                        (link.href !== '/bookings' && pathname.startsWith(link.href));
+                      const IconComponent = link.icon;
 
-                <div className="space-y-1">
-                  {sectionLinks.map((link) => {
-                    const isActive =
-                      pathname === link.href ||
-                      (link.href !== '/bookings' && pathname.startsWith(link.href));
-                    const IconComponent = link.icon;
-
-                    return (
-                      <Link
-                        key={link.href}
-                        href={link.href}
-                        onClick={() => setIsOpen(false)}
-                        className={`flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-150 group ${
-                          isActive
-                            ? 'bg-amber-500 text-slate-950 shadow-xs ring-1 ring-amber-600/30 font-bold'
-                            : 'text-slate-700 hover:text-slate-950 hover:bg-slate-100/80 font-medium'
-                        }`}
-                      >
-                        <IconComponent
-                          className={`w-5 h-5 shrink-0 transition-colors ${
-                            isActive ? 'text-slate-950' : 'text-slate-500 group-hover:text-slate-900'
+                      return (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          prefetch={false}
+                          title={!isHovered ? link.label : undefined}
+                          className={`flex items-center rounded-xl transition-all duration-150 group cursor-pointer ${
+                            isHovered ? 'px-3 py-2 space-x-3 w-full' : 'w-11 h-11 justify-center mx-auto'
+                          } ${
+                            isActive
+                              ? 'bg-[#F95700] text-white font-bold shadow-md shadow-[#F95700]/30'
+                              : 'text-slate-400 hover:text-white hover:bg-white/[0.08] font-medium'
                           }`}
-                        />
-
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between">
-                            <span className="flex items-center gap-1.5">
-                              <span>{link.label}</span>
-                              {link.href === '/vehicle-evidence' && expiringDocsCount > 0 && (
-                                <span className="px-1.5 py-0.5 rounded-full text-[9.5px] font-black bg-amber-500 text-white shadow-2xs">
-                                  {expiringDocsCount}
-                                </span>
-                              )}
-                            </span>
-                            {isActive && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-slate-950 ml-2 shrink-0" />
+                        >
+                          <div className="relative shrink-0 flex items-center justify-center">
+                            <IconComponent
+                              className={`w-5 h-5 transition-colors ${
+                                isActive ? 'text-white' : 'text-slate-400 group-hover:text-[#F95700]'
+                              }`}
+                            />
+                            {!isHovered && link.href === '/vehicle-evidence' && expiringDocsCount > 0 && (
+                              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-[#0F172A] animate-pulse" />
                             )}
                           </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
 
-        {/* Drawer Bottom Profile & Sign Out */}
-        {user && (
-          <div className="p-4 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between">
-            <div className="min-w-0">
-              <div className="text-xs font-bold text-slate-900 truncate">
-                {user.fullName || 'Master Admin'}
+                          {isHovered && (
+                            <div className="min-w-0 flex-1 truncate animate-fadeIn">
+                              <div className="text-xs font-semibold leading-tight flex items-center justify-between">
+                                <span className="truncate">{link.label}</span>
+                                {link.href === '/vehicle-evidence' && expiringDocsCount > 0 && (
+                                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-black bg-rose-500 text-white shadow-2xs">
+                                    {expiringDocsCount}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Drawer Bottom Profile Area */}
+          {user && (
+            <div className={`border-t border-slate-800 bg-[#0b1120] transition-all ${isHovered ? 'p-3' : 'p-2'}`}>
+              <div className="flex items-center justify-between min-w-0">
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#F95700] to-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0 mx-auto">
+                    {user.fullName ? user.fullName.substring(0, 2).toUpperCase() : 'MA'}
+                  </div>
+                  {isHovered && (
+                    <div className="min-w-0 flex-1 truncate">
+                      <div className="text-xs font-bold text-white truncate">
+                        {user.fullName || 'Master Admin'}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono truncate">{user.phone}</div>
+                    </div>
+                  )}
+                </div>
+                {isHovered && (
+                  <button
+                    type="button"
+                    onClick={() => logout()}
+                    className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800/80 rounded-lg transition shrink-0 cursor-pointer"
+                    title="Sign out of Admin"
+                  >
+                    <IconLogout className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
-              <div className="text-[11px] text-slate-500 font-mono">{user.phone}</div>
+            </div>
+          )}
+        </aside>
+      </div>
+
+      {/* 3. Mobile Slide-Over Drawer (< lg screens) */}
+      {isMobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div
+            className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity"
+            onClick={() => setIsMobileOpen(false)}
+          />
+
+          <aside className="fixed top-0 bottom-0 right-0 w-72 sm:w-80 bg-[#0F172A] text-white shadow-2xl border-l border-slate-800 flex flex-col z-50 animate-in slide-in-from-right duration-200">
+            <div className="h-16 border-b border-slate-800 flex items-center justify-between px-4 bg-[#0b1120]">
+              <div className="flex items-center space-x-2.5">
+                <img
+                  src="/images/logo-white.png"
+                  alt="Kandy Cabs"
+                  className="h-7 w-auto object-contain"
+                  style={{ maxHeight: 28 }}
+                />
+                <span className="text-[9px] font-extrabold bg-[#F95700]/20 text-[#F95700] border border-[#F95700]/30 px-1.5 py-0.5 rounded uppercase">
+                  Admin
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMobileOpen(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
+              >
+                <IconX className="w-5 h-5" />
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setIsOpen(false);
-                logout();
-              }}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl border border-rose-200 transition"
-            >
-              <IconLogout className="w-3.5 h-3.5" />
-              <span>Sign Out</span>
-            </button>
-          </div>
-        )}
-      </aside>
+            <div className="flex-1 overflow-y-auto p-3 space-y-4 no-scrollbar">
+              {(['OPERATIONS', 'FLEET & DRIVERS', 'SYSTEM & ANALYTICS'] as const).map((section) => {
+                const sectionLinks = navLinks.filter((l) => l.section === section);
+
+                return (
+                  <div key={section} className="space-y-1">
+                    <div className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500 pb-1">
+                      {section}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {sectionLinks.map((link) => {
+                        const isActive =
+                          pathname === link.href ||
+                          (link.href !== '/bookings' && pathname.startsWith(link.href));
+                        const IconComponent = link.icon;
+
+                        return (
+                          <Link
+                            key={link.href}
+                            href={link.href}
+                            prefetch={false}
+                            onClick={() => setIsMobileOpen(false)}
+                            className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-semibold ${
+                              isActive
+                                ? 'bg-[#F95700] text-white shadow-md shadow-[#F95700]/30'
+                                : 'text-slate-400 hover:text-white hover:bg-white/10'
+                            }`}
+                          >
+                            <IconComponent className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                            <span className="truncate">{link.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {user && (
+              <div className="p-4 border-t border-slate-800 bg-[#0b1120] flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-white truncate">{user.fullName || 'Master Admin'}</div>
+                  <div className="text-[10px] text-slate-400 font-mono">{user.phone}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileOpen(false);
+                    logout();
+                  }}
+                  className="px-2.5 py-1.5 text-xs font-bold text-rose-400 hover:bg-rose-600/20 rounded-lg border border-rose-500/30"
+                >
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </aside>
+        </div>
+      )}
     </>
   );
 }

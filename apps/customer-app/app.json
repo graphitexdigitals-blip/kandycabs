@@ -25,14 +25,29 @@
       },
       "package": "com.kandycabs.customer",
       "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow Kandy Cabs Customer to take photos for your profile.",
+          "photosPermission": "Allow Kandy Cabs Customer to select photos from your library."
+        }
+      ],
       [
         "expo-font",
         {

@@ -65,10 +65,10 @@ export default function AdminAnalyticsPage() {
   const startFormRate = summary.visitors > 0 ? Math.min((summary.startedBooking / summary.visitors) * 100, 100).toFixed(1) : '0.0';
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col">
+    <div className="min-h-screen bg-[#f4f7fc] text-slate-900 flex flex-col font-sans">
       <AdminNavbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-3 sm:py-6 space-y-3 sm:space-y-4">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:pl-6 lg:pr-24 py-5 sm:py-6 space-y-4">
         {/* Top Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-slate-200">
           <div>

@@ -47,7 +47,7 @@ export function CancellationAlertModal() {
     };
 
     checkCancellations();
-    const interval = setInterval(checkCancellations, 4000);
+    const interval = setInterval(checkCancellations, 20000);
 
     return () => {
       isMounted = false;

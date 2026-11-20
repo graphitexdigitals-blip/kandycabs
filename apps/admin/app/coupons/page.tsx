@@ -239,7 +239,7 @@ export default function AdminCouponsPage() {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-3 sm:py-6 space-y-3 sm:space-y-4">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:pl-6 lg:pr-24 py-4 sm:py-6 space-y-4">
         {/* Top Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 pb-2.5 border-b border-slate-200">
           <div>

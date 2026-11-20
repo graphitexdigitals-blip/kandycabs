@@ -64,53 +64,61 @@ class MobileTokenStorage implements TokenStorage {
 export const driverTokenStorage = new MobileTokenStorage();
 
 const SECURE_API_URL_KEY = 'kandy_driver_api_url_v2';
+export const PROD_API_URL = 'https://kandycabs-8kew.vercel.app';
 export const DEFAULT_DEV_PORT = '3001';
-export const DEFAULT_LAN_HOST = '192.168.1.5';
+export const DEFAULT_LAN_HOST = '192.168.29.207';
 export const DEFAULT_EMULATOR_HOST = '10.0.2.2';
 export const DEFAULT_LOCAL_URL = 'http://127.0.0.1:3001';
 
 export function resolveDefaultApiUrl(): string {
-  const envUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (envUrl && envUrl.startsWith('http')) {
-    if (__DEV__ && (envUrl.includes('127.0.0.1') || envUrl.includes('localhost'))) {
-      const hostUri = Constants.expoConfig?.hostUri || (Constants as any)?.manifest?.debuggerHost;
-      if (hostUri) {
-        const host = hostUri.split(':')[0];
-        if (host && host !== '127.0.0.1' && host !== 'localhost') {
-          return envUrl.replace(/127\.0\.0\.1|localhost/, host).replace(/\/+$/, '');
-        }
-      }
-    }
-    return envUrl.replace(/\/+$/, '');
-  }
-
+  // 1. In Expo dev client / Expo Go, dynamically detect the host machine IP
   if (__DEV__) {
-    const hostUri = Constants.expoConfig?.hostUri || (Constants as any)?.manifest?.debuggerHost;
+    const hostUri = Constants.expoConfig?.hostUri || (Constants as any)?.manifest?.debuggerHost || (Constants as any)?.expoGoConfig?.debuggerHost;
     if (hostUri) {
       const host = hostUri.split(':')[0];
-      if (host) {
+      if (host && host !== '127.0.0.1' && host !== 'localhost') {
         return `http://${host}:3001`;
       }
     }
   }
 
-  return 'http://192.168.1.3:3001';
+  // 2. EXPO_PUBLIC_API_URL if valid and not an outdated dead IP
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envUrl && envUrl.startsWith('http')) {
+    if (!envUrl.includes('192.168.1.3') && !envUrl.includes('192.168.1.5')) {
+      if (__DEV__ && (envUrl.includes('127.0.0.1') || envUrl.includes('localhost'))) {
+        const hostUri = Constants.expoConfig?.hostUri || (Constants as any)?.manifest?.debuggerHost;
+        if (hostUri) {
+          const host = hostUri.split(':')[0];
+          if (host && host !== '127.0.0.1' && host !== 'localhost') {
+            return envUrl.replace(/127\.0\.0\.1|localhost/, host).replace(/\/+$/, '');
+          }
+        }
+      }
+      return envUrl.replace(/\/+$/, '');
+    }
+  }
+
+  // 3. Fallback: Production Vercel endpoint (enables drivers on 4G cellular data to always connect)
+  return PROD_API_URL;
 }
 
 export const DEFAULT_LAN_URL = resolveDefaultApiUrl();
-export const DEFAULT_PROD_URL = DEFAULT_LAN_URL;
+export const DEFAULT_PROD_URL = PROD_API_URL;
 
 let activeBaseUrl: string = resolveDefaultApiUrl();
 
 // Hydrate saved custom API URL asynchronously
 SecureStore.getItemAsync(SECURE_API_URL_KEY)
   .then((stored) => {
-    if (stored && stored.startsWith('http') && !stored.includes('vercel.app')) {
+    // Purge outdated/dead IPs from SecureStore
+    if (stored && (stored.includes('192.168.1.3') || stored.includes('192.168.1.5'))) {
+      SecureStore.deleteItemAsync(SECURE_API_URL_KEY).catch(() => {});
+      stored = null;
+    }
+    if (stored && stored.startsWith('http')) {
       activeBaseUrl = stored.replace(/\/+$/, '');
     } else {
-      if (stored && stored.includes('vercel.app')) {
-        SecureStore.deleteItemAsync(SECURE_API_URL_KEY).catch(() => {});
-      }
       activeBaseUrl = resolveDefaultApiUrl();
     }
     console.log('[driverApiClient] Active API Base URL:', activeBaseUrl);
@@ -144,7 +152,43 @@ export async function resetApiUrlToLan(): Promise<string> {
   return DEFAULT_LAN_URL;
 }
 
-export const driverApiClient = new KandyApiClient({
+class ResilientDriverApiClient extends KandyApiClient {
+  async fetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    try {
+      return await super.fetch<T>(endpoint, options);
+    } catch (err: any) {
+      const current = this.getBaseUrl();
+      const isLocal = current.includes('192.168.') || current.includes('10.0.') || current.includes('localhost') || current.includes('127.0.0.1');
+
+      // If local server timed out or failed (e.g. driver switched from Wi-Fi to 4G cellular), fail over to production
+      if (isLocal) {
+        console.warn(`[driverApiClient] Primary local API (${current}) failed, trying fallback to ${PROD_API_URL}...`);
+        const fallbackUrl = `${PROD_API_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+        try {
+          const res = await super.fetch<T>(fallbackUrl, options);
+          activeBaseUrl = PROD_API_URL;
+          return res;
+        } catch (_) {
+          throw err;
+        }
+      } else if (current.includes('vercel.app')) {
+        // If production fails, try local LAN as fallback if available
+        const localLanUrl = `http://${DEFAULT_LAN_HOST}:3001`;
+        const fallbackUrl = `${localLanUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+        try {
+          const res = await super.fetch<T>(fallbackUrl, { ...options, timeoutMs: 3000 } as any);
+          activeBaseUrl = localLanUrl;
+          return res;
+        } catch (_) {
+          throw err;
+        }
+      }
+      throw err;
+    }
+  }
+}
+
+export const driverApiClient = new ResilientDriverApiClient({
   baseUrl: getDynamicBaseUrl,
   tokenStorage: driverTokenStorage,
 });

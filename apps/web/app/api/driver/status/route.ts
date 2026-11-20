@@ -67,15 +67,26 @@ export async function GET(req: NextRequest) {
       return d;
     };
 
+    // Filter out unstarted bookings whose scheduled pickup date/time is in the past (Missed Trips - not active upcoming)
+    const activeAssignedBookings = assignedBookings.filter((b) => {
+      if (b.status === BookingStatus.TRIP_STARTED || b.status === BookingStatus.DRIVER_EN_ROUTE) {
+        return true;
+      }
+      if (!b.scheduledAt) return true;
+      const schedTime = new Date(b.scheduledAt).getTime();
+      if (isNaN(schedTime)) return true;
+      return schedTime >= Date.now();
+    });
+
     // Primary active booking selection:
     // 1. Prioritize live trip in progress (TRIP_STARTED / DRIVER_EN_ROUTE)
-    const liveTrip = assignedBookings.find(
+    const liveTrip = activeAssignedBookings.find(
       (b) => b.status === BookingStatus.TRIP_STARTED || b.status === BookingStatus.DRIVER_EN_ROUTE
     );
 
     // 2. Prioritize trip with vehicle inspection completed or odometer entered
     const inPrepTrip = !liveTrip
-      ? assignedBookings.find(
+      ? activeAssignedBookings.find(
           (b) =>
             b.startingOdometer != null ||
             (Array.isArray(b.vehicleInspectionPhotos) &&
@@ -84,9 +95,9 @@ export async function GET(req: NextRequest) {
       : null;
 
     // 3. Fallback to the first assigned booking
-    const activeBooking = liveTrip || inPrepTrip || assignedBookings[0] || null;
+    const activeBooking = liveTrip || inPrepTrip || activeAssignedBookings[0] || null;
     const upcomingBookings = activeBooking
-      ? assignedBookings.filter((b) => b.id !== activeBooking.id)
+      ? activeAssignedBookings.filter((b) => b.id !== activeBooking.id)
       : [];
 
     let activeBookingWithOtp: any = activeBooking;

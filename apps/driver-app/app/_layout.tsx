@@ -26,7 +26,7 @@ if (typeof global !== 'undefined' && (global as any).Response) {
 
 import '@kandy-cabs/shared';
 import React, { useEffect } from 'react';
-import { LogBox, Platform, PermissionsAndroid, Text as RNText, TextInput as RNTextInput } from 'react-native';
+import { LogBox, Platform, PermissionsAndroid } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import * as SplashScreen from 'expo-splash-screen';
@@ -34,52 +34,14 @@ import { useFonts } from 'expo-font';
 import '../lib/location-tracker';
 import '../lib/i18n';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { APP_FONT, resolveRobotoStyle } from '../constants/typography';
 
-// Keep splash screen visible until custom Roboto fonts are loaded
+// Keep splash screen visible until fonts are loaded
 SplashScreen.preventAutoHideAsync().catch(() => {});
-
-// Globally intercept RNText & RNTextInput to apply universal clean Roboto sans-serif typography
-// This prevents OEM themes (e.g., OnePlus Serif font settings) from overriding app styles.
-const originalTextRender = (RNText as any).__originalRender || (RNText as any).render;
-if (typeof originalTextRender === 'function') {
-  (RNText as any).__originalRender = originalTextRender;
-  (RNText as any).render = function (props: any, ref: any) {
-    const robotoOverride = resolveRobotoStyle(props?.style);
-    if (!robotoOverride) {
-      return originalTextRender.call(this, props, ref);
-    }
-    const mergedProps = {
-      ...props,
-      style: [props?.style, robotoOverride],
-    };
-    return originalTextRender.call(this, mergedProps, ref);
-  };
-}
-
-const originalInputRender = (RNTextInput as any).__originalRender || (RNTextInput as any).render;
-if (typeof originalInputRender === 'function') {
-  (RNTextInput as any).__originalRender = originalInputRender;
-  (RNTextInput as any).render = function (props: any, ref: any) {
-    const robotoOverride = resolveRobotoStyle(props?.style);
-    if (!robotoOverride) {
-      return originalInputRender.call(this, props, ref);
-    }
-    const mergedProps = {
-      ...props,
-      style: [props?.style, robotoOverride],
-    };
-    return originalInputRender.call(this, mergedProps, ref);
-  };
-}
-
-console.log('[DEBUG_DRIVER] _layout.tsx loaded at top level');
 
 // Suppress development yellow box overlays so they do not block driver workflow
 LogBox.ignoreAllLogs(true);
 
 export default function RootLayout() {
-  console.log('[DEBUG_DRIVER] RootLayout component rendered');
   const router = useRouter();
 
   const [fontsLoaded, fontError] = useFonts({
@@ -89,13 +51,11 @@ export default function RootLayout() {
     'Roboto-Bold': require('../assets/fonts/Roboto-Bold.ttf'),
   });
 
-  console.log('[DEBUG_DRIVER] fontsLoaded status:', fontsLoaded, 'fontError:', fontError);
-
   useEffect(() => {
-    if (fontsLoaded) {
+    if (fontsLoaded || fontError) {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, fontError]);
 
   // Request Notification permission immediately on app startup (Android 13+ / API 33+)
   useEffect(() => {
@@ -138,22 +98,15 @@ export default function RootLayout() {
     return () => sub.remove();
   }, [router]);
 
-  const [ready, setReady] = React.useState(false);
+  const isLoaded = fontsLoaded || !!fontError;
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      setReady(true);
+    if (isLoaded) {
       SplashScreen.hideAsync().catch(() => {});
     }
-    const t = setTimeout(() => {
-      console.log('[DEBUG_DRIVER] Force-showing app layout via timeout fallback');
-      setReady(true);
-      SplashScreen.hideAsync().catch(() => {});
-    }, 400);
-    return () => clearTimeout(t);
-  }, [fontsLoaded, fontError]);
+  }, [isLoaded]);
 
-  if (!ready && !fontsLoaded) {
+  if (!isLoaded) {
     return null;
   }
 
@@ -166,6 +119,7 @@ export default function RootLayout() {
         <Stack.Screen name="dashboard" options={{ title: 'Driver Dashboard', contentStyle: { backgroundColor: '#ffffff' } }} />
         <Stack.Screen name="documents" options={{ title: 'Driver Documents', contentStyle: { backgroundColor: '#ffffff' } }} />
         <Stack.Screen name="payout-details" options={{ title: 'Settlement & Bank Details', contentStyle: { backgroundColor: '#ffffff' } }} />
+        <Stack.Screen name="wallet" options={{ title: 'Driver Wallet', contentStyle: { backgroundColor: '#ffffff' } }} />
         <Stack.Screen name="notifications" options={{ title: 'Notifications', contentStyle: { backgroundColor: '#ffffff' } }} />
         <Stack.Screen name="terms" options={{ title: 'Terms & Conditions', contentStyle: { backgroundColor: '#ffffff' } }} />
         <Stack.Screen name="trip" options={{ contentStyle: { backgroundColor: '#ffffff' } }} />

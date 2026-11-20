@@ -1148,10 +1148,10 @@ function AdminVehicleEvidenceContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#f4f7fc] text-slate-900 flex flex-col font-sans">
       <AdminNavbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-2.5 sm:py-6 space-y-2.5 sm:space-y-5">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:pl-6 lg:pr-24 py-4 sm:py-6 space-y-4">
         {/* Page Header: Single aligned row on all devices */}
         <div className="flex items-center justify-between gap-1.5 sm:gap-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">

@@ -489,6 +489,73 @@ export function calculateFare(input: PricingCalculationInput): PricingBreakdown 
   const advanceAmount = Math.round(totalFare * 0.30);
   const balanceAmount = Math.round((totalFare - advanceAmount) * 100) / 100;
 
+  // Driver Payout Calculation
+  const driverBaseKmRate = overrides?.driverBaseRatePerKm !== undefined && overrides.driverBaseRatePerKm !== null && Number(overrides.driverBaseRatePerKm) > 0
+    ? Number(overrides.driverBaseRatePerKm)
+    : Math.max(8, Math.round(ratePerKm * 0.77 * 10) / 10);
+
+  const driverExtraKmRateVal = overrides?.driverExtraKmRate !== undefined && overrides.driverExtraKmRate !== null && Number(overrides.driverExtraKmRate) > 0
+    ? Number(overrides.driverExtraKmRate)
+    : Math.max(8, Math.round(extraKmRate * 0.77 * 10) / 10);
+
+  const driverAllowanceDailyVal = overrides?.driverAllowanceDaily !== undefined && overrides.driverAllowanceDaily !== null
+    ? Number(overrides.driverAllowanceDaily)
+    : driverAllowance;
+
+  const driverNightChargeVal = overrides?.driverNightCharge !== undefined && overrides.driverNightCharge !== null
+    ? Number(overrides.driverNightCharge)
+    : (nightCharge > 0 ? Math.round(nightCharge * 0.8) : 0);
+
+  let driverBaseFare = 0;
+  let driverExtraKmCharge = 0;
+
+  switch (tripType) {
+    case TripType.ROUND: {
+      const dailyMin = extraKmThreshold || minRoundTripKmPerDay;
+      const minRequiredKm = days * dailyMin;
+      const totalEstimatedKm = distanceKm * 2;
+      if (totalEstimatedKm > minRequiredKm) {
+        driverBaseFare = minRequiredKm * driverBaseKmRate;
+        driverExtraKmCharge = (totalEstimatedKm - minRequiredKm) * driverExtraKmRateVal;
+      } else {
+        driverBaseFare = minRequiredKm * driverBaseKmRate;
+      }
+      break;
+    }
+    case TripType.ONEWAY: {
+      if (extraKmThreshold && distanceKm > extraKmThreshold) {
+        driverBaseFare = extraKmThreshold * driverBaseKmRate;
+        driverExtraKmCharge = (distanceKm - extraKmThreshold) * driverExtraKmRateVal;
+      } else {
+        driverBaseFare = billableDistanceKm * driverBaseKmRate;
+      }
+      break;
+    }
+    case TripType.AIRPORT: {
+      if (extraKmThreshold && distanceKm > extraKmThreshold) {
+        driverBaseFare = extraKmThreshold * driverBaseKmRate;
+        driverExtraKmCharge = (distanceKm - extraKmThreshold) * driverExtraKmRateVal;
+      } else {
+        driverBaseFare = billableDistanceKm * driverBaseKmRate;
+      }
+      break;
+    }
+    case TripType.LOCAL:
+    case TripType.PACKAGE: {
+      driverBaseFare = Math.round(baseFare * (driverBaseKmRate / (ratePerKm || 1)));
+      driverExtraKmCharge = extraKmCharge > 0 ? Math.round(extraKmCharge * (driverExtraKmRateVal / (extraKmRate || 1))) : 0;
+      break;
+    }
+    default: {
+      driverBaseFare = billableDistanceKm * driverBaseKmRate;
+    }
+  }
+
+  const driverAllowancePayout = driverAllowanceDailyVal;
+  const driverNightChargePayout = nightCharge > 0 ? driverNightChargeVal : 0;
+  const driverPayeeAmount = Math.round((driverBaseFare + driverExtraKmCharge + driverAllowancePayout + driverNightChargePayout) * 100) / 100;
+  const companyProfit = Math.round((subtotal - driverPayeeAmount) * 100) / 100;
+
   return {
     category,
     fuelType,
@@ -510,5 +577,13 @@ export function calculateFare(input: PricingCalculationInput): PricingBreakdown 
     ratePerKm,
     hasPet,
     petCharge,
+    driverBaseRatePerKm: driverBaseKmRate,
+    driverExtraKmRate: driverExtraKmRateVal,
+    driverBaseFare: Math.round(driverBaseFare * 100) / 100,
+    driverExtraKmCharge: Math.round(driverExtraKmCharge * 100) / 100,
+    driverAllowancePayout: Math.round(driverAllowancePayout * 100) / 100,
+    driverNightChargePayout: Math.round(driverNightChargePayout * 100) / 100,
+    driverPayeeAmount,
+    companyProfit,
   };
 }

@@ -321,4 +321,50 @@ export function sortTripsByDateTimeAscending<T>(trips: T[]): T[] {
   });
 }
 
+/**
+ * Check if customer phone is released for a trip (allowing driver to call/message and slide to start trip)
+ * 1. Explicitly released by Admin/Customer (customerPhoneReleased === true)
+ * 2. Trip is already in progress / started
+ * 3. Immediate trip or pickup is within 5 hours
+ */
+export function isTripPhoneReleased(trip: any, activeBooking?: any): boolean {
+  if (!trip) return false;
+  if (trip.customerPhoneReleased) return true;
+
+  const isMatchingActive = Boolean(
+    activeBooking &&
+      (activeBooking.id === trip.id ||
+        (trip.humanReadableRef && activeBooking.humanReadableRef === trip.humanReadableRef))
+  );
+  const effectiveStatus = (isMatchingActive && activeBooking?.status) || trip?.status;
+
+  const isStatusStarted = [
+    'TRIP_STARTED',
+    'ON_TRIP',
+    'COMPLETED',
+    'IN_PROGRESS',
+    'STARTED',
+    'DRIVER_EN_ROUTE',
+    'ARRIVED',
+    'DRIVER_ARRIVED',
+    'OTP_VERIFIED',
+  ].includes(effectiveStatus);
+
+  if (
+    isStatusStarted ||
+    trip?.startedAt ||
+    (isMatchingActive && activeBooking?.startedAt) ||
+    trip?.isTripStarted ||
+    (isMatchingActive && activeBooking?.isTripStarted)
+  ) {
+    return true;
+  }
+
+  if (!trip?.scheduledAt) return true;
+  const d = new Date(trip.scheduledAt);
+  if (isNaN(d.getTime())) return false;
+  const diffHours = (d.getTime() - Date.now()) / (1000 * 60 * 60);
+  return diffHours <= 5 && diffHours >= -4;
+}
+
 

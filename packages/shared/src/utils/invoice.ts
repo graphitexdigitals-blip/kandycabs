@@ -57,8 +57,12 @@ export interface KandyInvoiceFinancials {
   extraKmAmount?: number;
   advancePaid: number;
   advanceStatus: string;
+  advancePaidDate?: string | null;
   balanceDue: number;
   balanceStatus: string;
+  balancePaidDate?: string | null;
+  fullPaymentDate?: string | null;
+  balanceDueDate?: string | null;
 }
 
 export interface KandyInvoiceCancellation {
@@ -498,6 +502,32 @@ export function buildKandyInvoiceData(booking: any): KandyInvoiceData {
     remarks = `Trip Cancelled. Advance Paid: ₹${advPaid.toFixed(2)}, Cancellation Charge Applied: ₹${cancelCharge.toFixed(2)}, Excess Amount to be Refunded: ₹${refAmt.toFixed(2)} (${refundStatus}).`;
   }
 
+  // Calculate payment milestone dates
+  const advancePayment = booking.payments?.find((p: any) => p.type === 'ADVANCE');
+  const balancePayment = booking.payments?.find((p: any) => p.type === 'BALANCE');
+
+  const isAdvPaid = booking.advancePaymentStatus === 'PAID';
+  const advPaidDateRaw = isAdvPaid
+    ? (advancePayment?.verifiedAt || advancePayment?.createdAt || booking.createdAt)
+    : null;
+  const advancePaidDate = advPaidDateRaw ? formatOrdinalDate(advPaidDateRaw) : null;
+
+  const isFullUpfront = Number(advanceAmount || 0) >= Number(estimatedFare || 0) && isAdvPaid;
+  const isBalPaid = booking.balancePaymentStatus === 'PAID';
+
+  let fullPaymentDate: string | null = null;
+  let balancePaidDate: string | null = null;
+
+  if (isFullUpfront) {
+    fullPaymentDate = advancePaidDate;
+  } else if (isBalPaid) {
+    const balPaidRaw = balancePayment?.verifiedAt || (booking as any).updatedAt || booking.createdAt;
+    balancePaidDate = balPaidRaw ? formatOrdinalDate(balPaidRaw) : null;
+    fullPaymentDate = balancePaidDate;
+  }
+
+  const balanceDueDate = scheduledDate ? formatOrdinalDate(scheduledDate) : null;
+
   return {
     invoiceNumber,
     invoiceDate: invoiceDate.toISOString(),
@@ -539,8 +569,12 @@ export function buildKandyInvoiceData(booking: any): KandyInvoiceData {
       extraKmAmount,
       advancePaid: advanceAmount,
       advanceStatus: booking.advancePaymentStatus || 'COMPLETED',
+      advancePaidDate,
       balanceDue: balanceAmount + tollAmount + parkingAmount,
       balanceStatus: booking.balancePaymentStatus || 'PENDING',
+      balancePaidDate,
+      fullPaymentDate,
+      balanceDueDate,
     },
     amountInWords: numberToWordsINR(estimatedFare),
     remarks,
@@ -1205,8 +1239,10 @@ export function generateKandyInvoiceHtml(invoice: KandyInvoiceData, options?: { 
         Cancellation Fee: ₹${invoice.cancellation.cancellationCharge.toFixed(2)} &nbsp;|&nbsp; 
         <strong>Excess Refund: ₹${invoice.cancellation.refundAmount.toFixed(2)} (${invoice.cancellation.refundStatus})</strong>
         ` : `
-        Advance Paid: ₹${invoice.financials.advancePaid.toFixed(2)} (${invoice.financials.advanceStatus}) &nbsp;|&nbsp; 
-        Balance Payable: ₹${invoice.financials.balanceDue.toFixed(2)} (${invoice.financials.balanceStatus})
+        Advance Paid: ₹${invoice.financials.advancePaid.toFixed(2)} (${invoice.financials.advanceStatus}${invoice.financials.advancePaidDate ? ` &bull; Paid: ${invoice.financials.advancePaidDate}` : ''}) &nbsp;|&nbsp; 
+        ${invoice.financials.balanceDue <= 0 || invoice.financials.balanceStatus === 'PAID'
+          ? `Balance: ₹${invoice.financials.balanceDue.toFixed(2)} (PAID IN FULL${invoice.financials.fullPaymentDate ? ` &bull; ${invoice.financials.fullPaymentDate}` : ''})`
+          : `Balance Payable: ₹${invoice.financials.balanceDue.toFixed(2)} (${invoice.financials.balanceStatus}${invoice.financials.balanceDueDate ? ` &bull; Due: ${invoice.financials.balanceDueDate}` : ''})`}
         `}
       </div>
     </div>

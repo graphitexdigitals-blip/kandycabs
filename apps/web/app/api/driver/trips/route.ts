@@ -162,13 +162,23 @@ export async function GET(req: NextRequest) {
         cancellationReason = rawJson.reason || 'Cancelled';
       }
 
+      const isCompleted = b.status === BookingStatus.TRIP_COMPLETED;
+      const isCancelled = b.status === BookingStatus.CANCELLED;
+      const isStarted = b.status === BookingStatus.TRIP_STARTED || b.status === BookingStatus.DRIVER_EN_ROUTE;
+
+      // Check if this trip was missed: scheduled pickup time is past, but trip was never started
+      const schedTime = b.scheduledAt ? new Date(b.scheduledAt).getTime() : 0;
+      const isMissed = !isCompleted && !isCancelled && !isStarted && schedTime > 0 && schedTime < Date.now();
+
+      const displayStatus = isMissed ? 'MISSED' : b.status;
+      // For missed trips, never reveal customer phone number (customer name only)
+      const finalCustomerPhone = isMissed ? null : (isCustomerPhoneReleased ? b.customer?.user?.phone : null);
+
       return {
         id: b.id,
         humanReadableRef: b.humanReadableRef,
         customerName: b.customer?.user?.fullName || 'Customer',
-        customerPhone: isCustomerPhoneReleased
-          ? b.customer?.user?.phone
-          : null,
+        customerPhone: finalCustomerPhone,
         tripType: b.tripType,
         pickupAddress: b.pickupAddress,
         dropAddress: b.dropAddress,
@@ -178,11 +188,12 @@ export async function GET(req: NextRequest) {
         finalOdometer: b.finalOdometer,
         tollAmount: b.tollAmount ? Number(b.tollAmount) : 0,
         parkingAmount: b.parkingAmount ? Number(b.parkingAmount) : 0,
-        driverAllowance: allowance,
-        driverPayeeAmount: payee,
-        totalEarnings: totalEarnedForTrip,
-        driverPaymentStatus: b.driverPaymentStatus || 'PENDING',
-        status: b.status,
+        driverAllowance: isMissed ? 0 : allowance,
+        driverPayeeAmount: isMissed ? 0 : payee,
+        totalEarnings: isMissed ? 0 : totalEarnedForTrip,
+        driverPaymentStatus: isMissed ? 'MISSED' : (b.driverPaymentStatus || 'PENDING'),
+        status: displayStatus,
+        isMissed,
         cancellationCharge,
         cancellationReason,
         createdAt: b.createdAt.toISOString(),

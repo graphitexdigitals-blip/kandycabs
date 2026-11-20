@@ -22,4 +22,5 @@ export * from './utils/invoice';
 export * from './types/coupon';
 export * from './utils/dateTime';
 export * from './pricing/cancellationPolicy';
+export * from './pricing/depositsAndFines';
 

@@ -9,6 +9,7 @@ import {
   getTripVerificationPhotos,
   getTripTimingMilestones,
   formatPickupDateTime,
+  isBookingMissed,
 } from '@/lib/bookingHelpers';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import {
@@ -659,6 +660,8 @@ Exclusions (If applicable):
                     booking.status === BookingStatus.DRIVER_EN_ROUTE ||
                     booking.status === BookingStatus.TRIP_STARTED
                       ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      : isBookingMissed(booking)
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300 font-bold'
                       : booking.status === BookingStatus.DRIVER_ACCEPTED
                       ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
                       : 'bg-slate-100 text-slate-700 border border-slate-200'
@@ -667,6 +670,8 @@ Exclusions (If applicable):
                   {booking.status === BookingStatus.DRIVER_EN_ROUTE ||
                   booking.status === BookingStatus.TRIP_STARTED
                     ? 'ON TRIP'
+                    : isBookingMissed(booking)
+                    ? 'MISSED TRIP'
                     : String(booking.status).replace(/_/g, ' ')}
                 </span>
               )}
@@ -871,10 +876,20 @@ Exclusions (If applicable):
             {(() => {
               const latestCancelReq = booking.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED');
               const latestCancelApp = booking.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_APPROVED');
+              const latestDeclined = booking.tripEvents?.find((e: any) => e.type === 'DRIVER_DECLINED');
+              const hasAcceptedEvt = booking.tripEvents?.some((e: any) => e.type === 'DRIVER_ACCEPTED');
+              const isActuallyAccepted =
+                Boolean(hasAcceptedEvt) ||
+                booking.status === BookingStatus.DRIVER_ACCEPTED ||
+                booking.status === BookingStatus.DRIVER_EN_ROUTE ||
+                booking.status === BookingStatus.TRIP_STARTED;
+
               const hasPendingCancel =
                 Boolean(latestCancelReq) &&
+                isActuallyAccepted &&
+                booking.assignedDriverId != null &&
                 (!latestCancelApp || new Date(latestCancelReq.createdAt) > new Date(latestCancelApp.createdAt)) &&
-                booking.assignedDriverId != null;
+                (!latestDeclined || new Date(latestCancelReq.createdAt) > new Date(latestDeclined.createdAt));
 
               if (!hasPendingCancel) return null;
 

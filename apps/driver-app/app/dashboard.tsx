@@ -17,6 +17,7 @@ import {
   AppState,
   AppStateStatus,
   Animated,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
@@ -61,6 +62,7 @@ import {
   parseCustomerRequirements,
   extractCustomerNotes,
   sortTripsByDateTimeAscending,
+  isTripPhoneReleased,
 } from '../lib/tripRequirements';
 
 export function parseViaStops(booking: any): string[] {
@@ -101,8 +103,11 @@ export default function DriverDashboardScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ openNotifications?: string; inspectionSaved?: string }>();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const isSmallDevice = windowWidth < 375;
   const { t, i18n } = useTranslation();
   const [driver, setDriver] = useState<any>(null);
+  const [payoutInfo, setPayoutInfo] = useState<any>(null);
   const [onlineStatus, setOnlineStatus] = useState(false);
   const [activeBooking, setActiveBooking] = useState<any>(null);
   const [upcomingBookings, setUpcomingBookings] = useState<any[]>([]);
@@ -188,6 +193,18 @@ export default function DriverDashboardScreen() {
 
     return false;
   }, [driver, hasVehiclePendingDocs]);
+
+  const hasBankPendingDetails = React.useMemo(() => {
+    const source = payoutInfo || driver;
+    if (!source) return true;
+    const method = source.payoutMethod || 'BANK';
+    if (method === 'UPI') {
+      return !source.payoutUpiId || !String(source.payoutUpiId).trim();
+    }
+    const hasAcc = Boolean(source.bankAccountNumber && String(source.bankAccountNumber).trim());
+    const hasIfsc = Boolean(source.bankIfsc && String(source.bankIfsc).trim());
+    return !(hasAcc && hasIfsc);
+  }, [payoutInfo, driver]);
 
   // If opened via notification intent / deep-link query parameter
   useEffect(() => {
@@ -398,6 +415,28 @@ export default function DriverDashboardScreen() {
     return false;
   }, [driver]);
 
+  // Aggregate pending status across Vehicle, KYC, Bank Payout, and Documents
+  const hasAnyProfilePending = useMemo(() => {
+    return Boolean(
+      hasVehiclePendingDocs ||
+      hasKycPendingDocs ||
+      hasBankPendingDetails ||
+      hasPendingDocuments
+    );
+  }, [hasVehiclePendingDocs, hasKycPendingDocs, hasBankPendingDetails, hasPendingDocuments]);
+
+  // Check if driver has a valid real profile photo (disallowing cartoon/emoji pilot avatar)
+  const hasValidProfilePhoto = useMemo(() => {
+    const url = driver?.profilePhotoUrl;
+    if (!url || typeof url !== 'string') return false;
+    const trimmed = url.trim();
+    if (!trimmed) return false;
+    if (trimmed.includes('base64,iVBORw0KGgoAAAANSUhEUgAAAIQAAACECA') || trimmed === CAPTAIN_AVATAR_BASE64) {
+      return false;
+    }
+    return true;
+  }, [driver?.profilePhotoUrl]);
+
   // Documents expiring within 5 days or already expired
   const expiringDocuments = useMemo(() => {
     if (Array.isArray(driver?.expiringDocuments) && driver.expiringDocuments.length > 0) {
@@ -530,15 +569,35 @@ export default function DriverDashboardScreen() {
     return diffHours <= 24;
   }, []);
 
-  // Combined list of all assigned upcoming bookings for this driver (including activeBooking if not finished)
+  // Combined list of all assigned upcoming bookings for this driver (excluding past unstarted missed trips)
   const allUpcomingTrips = useMemo(() => {
     const list: any[] = [];
+    const isPastUnstartedTrip = (b: any) => {
+      if (!b) return false;
+      const isStarted = [
+        'TRIP_STARTED',
+        'ON_TRIP',
+        'IN_PROGRESS',
+        'STARTED',
+        'DRIVER_EN_ROUTE',
+        'EN_ROUTE',
+        'ARRIVED',
+        'DRIVER_ARRIVED',
+        'OTP_VERIFIED',
+      ].includes(b.status);
+      if (isStarted || b.startedAt || b.isTripStarted) return false;
+      if (!b.scheduledAt) return false;
+      const t = new Date(b.scheduledAt).getTime();
+      return !isNaN(t) && t < Date.now();
+    };
+
     if (
       activeBooking &&
       activeBooking.status !== BookingStatus.TRIP_COMPLETED &&
       activeBooking.status !== 'COMPLETED' &&
       activeBooking.status !== BookingStatus.CANCELLED &&
-      activeBooking.status !== 'CANCELLED'
+      activeBooking.status !== 'CANCELLED' &&
+      !isPastUnstartedTrip(activeBooking)
     ) {
       list.push(activeBooking);
     }
@@ -549,7 +608,8 @@ export default function DriverDashboardScreen() {
         ub.status !== BookingStatus.TRIP_COMPLETED &&
         ub.status !== 'COMPLETED' &&
         ub.status !== BookingStatus.CANCELLED &&
-        ub.status !== 'CANCELLED'
+        ub.status !== 'CANCELLED' &&
+        !isPastUnstartedTrip(ub)
       ) {
         list.push(ub);
       }
@@ -561,6 +621,11 @@ export default function DriverDashboardScreen() {
   const upcomingWithinOneDayTrips = useMemo(() => {
     return allUpcomingTrips.filter((trip) => isWithinOneDayOfPickup(trip?.scheduledAt));
   }, [allUpcomingTrips, isWithinOneDayOfPickup]);
+
+  // Trips where customer phone is released (ready to start with slide to start trip)
+  const phoneReleasedTrips = useMemo(() => {
+    return allUpcomingTrips.filter((trip) => isTripPhoneReleased(trip, activeBooking));
+  }, [allUpcomingTrips, activeBooking]);
 
   // Helper to check if a booking is accepted or has a pending driver cancellation request
   const isBookingAcceptedOrCancelPending = useCallback((b: any) => {
@@ -721,10 +786,15 @@ export default function DriverDashboardScreen() {
       setConnectionError(null);
     }
     try {
-      const [statusRes, dispatchRes] = await Promise.all([
+      const [statusRes, dispatchRes, payoutRes] = await Promise.all([
         driverApiClient.fetch('/api/driver/status', { timeoutMs: 20000 } as any),
         driverApiClient.fetch('/api/driver/dispatches', { timeoutMs: 20000 } as any).catch(() => ({ success: false, dispatches: [] })),
+        driverApiClient.fetch('/api/driver/payout', { timeoutMs: 15000 } as any).catch(() => null),
       ]);
+
+      if (payoutRes && payoutRes.success && payoutRes.payout) {
+        setPayoutInfo(payoutRes.payout);
+      }
 
       if (statusRes && statusRes.success && statusRes.driver) {
         const d = statusRes.driver;
@@ -993,8 +1063,8 @@ export default function DriverDashboardScreen() {
         if (prev.some((d) => d.id === newDispatch.id)) return prev;
         return sortTripsByDateTimeAscending([newDispatch, ...prev]);
       });
-      // Admin dispatched trip: pop up modal with Slide to Accept
-      setIsNewTripsModalOpen(true);
+      // Admin dispatched trip: rendered directly on home screen below driver profile
+      // Modal is reserved for Assigned Booking (trips ready to start)
     });
 
     const unsubRevoke = driverRealtimeClient.on('DISPATCH_REVOKED', (data: any) => {
@@ -1252,7 +1322,7 @@ export default function DriverDashboardScreen() {
         body: JSON.stringify({ dispatchId, bookingId, reason: reason || 'Declined by driver' }),
       });
 
-      if ((res && res.pendingApproval) || isAcceptedRide) {
+      if (res && res.pendingApproval) {
         // Driver requested cancellation of an accepted ride: keep in trips list marked as pending admin approval
         const newEvent = {
           type: 'DRIVER_CANCEL_REQUESTED',
@@ -1324,15 +1394,27 @@ export default function DriverDashboardScreen() {
       }
 
       // Normal decline (not yet accepted): remove immediately
-      setDispatches((prev) => prev.filter((d) => d.id !== dispatchId && d.booking?.id !== bookingId));
+      setDispatches((prev) =>
+        prev.filter(
+          (d) =>
+            d.id !== dispatchId &&
+            d.bookingId !== bookingId &&
+            d.booking?.id !== bookingId &&
+            d.booking?.humanReadableRef !== bookingId
+        )
+      );
       setAcceptedDispatches((prev) => {
         const next = { ...prev };
         delete next[dispatchId];
         delete next[bookingId];
         return next;
       });
-      setActiveBooking((prev: any) => (prev?.id === bookingId ? null : prev));
-      setUpcomingBookings((prev) => prev.filter((b) => b.id !== bookingId));
+      setActiveBooking((prev: any) =>
+        prev?.id === bookingId || prev?.humanReadableRef === bookingId ? null : prev
+      );
+      setUpcomingBookings((prev) =>
+        prev.filter((b) => b.id !== bookingId && b.humanReadableRef !== bookingId)
+      );
       fetchDriverData();
       return res;
     } catch (err: any) {
@@ -1665,7 +1747,7 @@ export default function DriverDashboardScreen() {
   const currentTrip = isLiveActiveTrip ? activeBooking : null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, activeBottomTab === 'PROFILE' && { backgroundColor: '#ffffff' }]}>
       <StatusBar
         barStyle="light-content"
         backgroundColor="#162232"
@@ -1673,7 +1755,7 @@ export default function DriverDashboardScreen() {
       />
 
       {/* TOP APP BAR IN BRAND DARK BLUE (#162232) */}
-      <View style={[styles.mainHeaderWhite, { paddingTop: Platform.OS === 'android' ? 6 : Math.max(insets.top, 8) }]}>
+      <View style={[styles.mainHeaderWhite, { paddingTop: Platform.OS === 'android' ? 8 : Math.max(insets.top, 8) }]}>
         <View style={styles.headerBarInner}>
           <View style={styles.headerLogoContainer}>
             <Image
@@ -1681,6 +1763,11 @@ export default function DriverDashboardScreen() {
               style={styles.driverHeaderLogo}
               resizeMode="contain"
             />
+            <View style={styles.headerLogoDivider} />
+            <View style={styles.headerPartnerBadge}>
+              <Text style={styles.headerPartnerTitle}>{t('header.partner', 'Partner')}</Text>
+              <Text style={styles.headerDriverAppTitle}>{t('header.driver_app', 'Driver App')}</Text>
+            </View>
           </View>
 
           <View style={styles.headerRightGroup}>
@@ -1744,6 +1831,7 @@ export default function DriverDashboardScreen() {
         style={[
           styles.mainScrollView,
           activeBottomTab === 'HOME' && styles.mainScrollViewHome,
+          activeBottomTab === 'PROFILE' && styles.mainScrollViewProfile,
         ]}
         contentContainerStyle={[
           styles.scrollContent,
@@ -1759,34 +1847,50 @@ export default function DriverDashboardScreen() {
         {activeBottomTab === 'HOME' && (
           <View style={styles.homeTabWrapper}>
             {/* 1. HERO DRIVER CARD (CLEAN WHITE CARD: AVATAR & NAME ON LEFT, ONLINE/OFFLINE TOGGLE ON RIGHT) */}
-            <View style={styles.heroCardOuter}>
-              <View style={styles.heroCardContent}>
+            <View style={[styles.heroCardOuter, isSmallDevice && styles.heroCardOuterSmall]}>
+              <View style={[styles.heroCardContent, isSmallDevice && styles.heroCardContentSmall]}>
                 {/* Left Section: Avatar + Driver Name & Plate */}
                 <View style={styles.heroDriverGroupLeft}>
                   <TouchableOpacity
-                    style={styles.heroAvatarContainer}
+                    style={[styles.heroAvatarContainer, isSmallDevice && styles.heroAvatarContainerSmall]}
                     onPress={() => router.push('/documents')}
                     activeOpacity={0.85}
                   >
-                    <Image
-                      source={{ uri: driver?.profilePhotoUrl || CAPTAIN_AVATAR_BASE64 }}
-                      style={styles.heroAvatarImg}
-                      resizeMode="cover"
-                    />
+                    {hasValidProfilePhoto ? (
+                      <Image
+                        source={{ uri: driver.profilePhotoUrl }}
+                        style={styles.heroAvatarImg}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.heroAvatarFallback}>
+                        <Ionicons name="person" size={isSmallDevice ? 24 : 28} color="#94a3b8" />
+                      </View>
+                    )}
                     <View style={[styles.heroAvatarStatusDot, { backgroundColor: onlineStatus ? '#22c55e' : '#94a3b8' }]} />
                   </TouchableOpacity>
 
-                  <View style={styles.heroInfoBlock}>
-                    <Text style={styles.heroGreetingText}>
+                  <View style={[styles.heroInfoBlock, isSmallDevice && { marginLeft: 8 }]}>
+                    <Text style={[styles.heroGreetingText, isSmallDevice && styles.heroGreetingTextSmall]} numberOfLines={1}>
                       {t('header.welcome', 'Welcome')}
                     </Text>
-                    <Text style={styles.heroCardName} numberOfLines={1}>
+                    <Text
+                      style={[styles.heroCardName, isSmallDevice && styles.heroCardNameSmall]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.82}
+                    >
                       {driver?.fullName || (driver?.phone ? `Partner (${driver.phone.replace(/\D/g, '').slice(-4)})` : 'Driver Partner')}
                     </Text>
 
                     <View style={styles.heroCardPlateRow}>
-                      <Ionicons name="car" size={13} color="#475569" style={{ marginRight: 5 }} />
-                      <Text style={styles.heroCardPlate} numberOfLines={1}>
+                      <Ionicons name="car" size={isSmallDevice ? 12 : 13.5} color="#475569" style={{ marginRight: 4, flexShrink: 0 }} />
+                      <Text
+                        style={[styles.heroCardPlate, isSmallDevice && styles.heroCardPlateSmall]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.8}
+                      >
                         {(activeFleetVeh?.plateNumber || driver?.vehicle?.plateNumber || (driver?.verificationStatus === 'APPROVED' ? 'KA-01-SD-2045' : 'PENDING')).toUpperCase()}
                       </Text>
                     </View>
@@ -1794,7 +1898,7 @@ export default function DriverDashboardScreen() {
                 </View>
 
                 {/* Right Section: Duty Toggle Bar (Segmented Online / Offline Switch) */}
-                <View style={styles.heroDutyToggleTrack}>
+                <View style={[styles.heroDutyToggleTrack, isSmallDevice && styles.heroDutyToggleTrackSmall]}>
                   <TouchableOpacity
                     style={[
                       styles.heroDutyToggleSegment,
@@ -1845,252 +1949,423 @@ export default function DriverDashboardScreen() {
                 </View>
               </View>
 
-              {/* Inside the profile section below it: Trips row and 2-column feature cards */}
+              {/* Inside the profile section below it: If admin dispatched trip(s) pending acceptance, show Accept / Decline card and hide menu cards */}
               <View style={styles.heroCardDivider} />
 
-              {/* Trips: New Trips & Upcoming Trips (Pastel Color Backgrounds) */}
-              <View style={styles.heroTripsSummaryRow}>
-                {/* 1. New Trips (Warm Peach) */}
-                <TouchableOpacity
-                  style={[styles.heroTripWhiteCard, styles.heroTripCardPeach]}
-                  onPress={() => setIsNewTripsModalOpen(true)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.heroTripIconBox}>
-                    <NewTripsPinIcon size={23} color="#ea580c" dotColor="#fff7ed" />
-                  </View>
-                  <View style={styles.heroTripInfoBox}>
-                    <Text style={styles.heroTripTitle} numberOfLines={1}>
-                      {t('dashboard.new_trips', 'New Trips')}
-                    </Text>
-                    <Text style={styles.heroTripSub} numberOfLines={1}>
-                      {pendingNewTripsCount > 0
-                        ? `${pendingNewTripsCount} ${pendingNewTripsCount === 1 ? 'New Trip' : 'New Trips'} • Tap to View`
-                        : newTripsList.length > 0
-                        ? `${newTripsList.length} ${newTripsList.length === 1 ? 'Trip' : 'Trips'} • Tap to View`
-                        : t('dashboard.live_rides', 'Live Rides')}
-                    </Text>
-                  </View>
-                  {/* Popup Number Icon: ONLY show numbers when new trip is assigned (not if accepted or declined) */}
-                  {pendingNewTripsCount > 0 && (
-                    <View style={styles.heroTripPopupBadgeOrange}>
-                      <Text style={styles.heroTripPopupBadgeText}>
-                        {pendingNewTripsCount > 9 ? '9+' : pendingNewTripsCount}
-                      </Text>
-                    </View>
-                  )}
-                  <Ionicons name="chevron-forward" size={16} color="#c2410c" style={{ marginLeft: 6 }} />
-                </TouchableOpacity>
+              {newTripsList.length > 0 ? (
+                <View style={styles.homeDirectDispatchSection}>
+                  {newTripsList.map((d: any, index: number) => {
+                    const b = d?.booking || {};
+                    const bookingId = d.bookingId || b.id || d.id;
+                    const isAccepting = acceptingId === d.id || acceptingId === bookingId;
+                    const isDeclining = decliningId === d.id || decliningId === bookingId;
+                    const tripTiming = formatTripDateTime(b?.scheduledAt, t);
+                    const payeeAmount = Math.round(
+                      Number(d.payeeAmount || 0) > 0
+                        ? Number(d.payeeAmount)
+                        : Number(b?.driverPayeeAmount || 0) > 0
+                        ? Number(b.driverPayeeAmount)
+                        : (Number(b?.distanceKm || 0) > 0 ? Number(b.distanceKm) * 10 + (Number(b?.driverAllowance) || 300) : Number(b?.estimatedFare || b?.totalPrice || 0))
+                    );
+                    const reqs = parseCustomerRequirements(b, t);
+                    const note = extractCustomerNotes(b);
 
-                {/* 2. Upcoming Trips (Sky Blue) */}
-                <TouchableOpacity
-                  style={[styles.heroTripWhiteCard, styles.heroTripCardSky]}
-                  onPress={() => setIsUpcomingTripsModalOpen(true)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.heroTripIconBox}>
-                    <Ionicons name="calendar" size={20} color="#2563eb" />
-                  </View>
-                  <View style={styles.heroTripInfoBox}>
-                    <Text style={styles.heroTripTitle} numberOfLines={1}>
-                      {t('dashboard.upcoming_trips', 'Upcoming Trips')}
-                    </Text>
-                    <Text style={styles.heroTripSub} numberOfLines={1}>
-                      {upcomingWithinOneDayTrips.length > 0
-                        ? `${upcomingWithinOneDayTrips.length} Within 24h • Be Ready`
-                        : allUpcomingTrips.length > 0
-                        ? `${allUpcomingTrips.length} Scheduled`
-                        : t('dashboard.scheduled', 'Scheduled')}
-                    </Text>
-                  </View>
-                  {/* Popup Number Icon for Upcoming Trips closer before 1 day */}
-                  {upcomingWithinOneDayTrips.length > 0 ? (
-                    <View style={styles.heroTripPopupBadgeBlue}>
-                      <Text style={styles.heroTripPopupBadgeText}>
-                        {upcomingWithinOneDayTrips.length > 9 ? '9+' : upcomingWithinOneDayTrips.length}
-                      </Text>
-                    </View>
-                  ) : allUpcomingTrips.length > 0 ? (
-                    <View style={styles.heroTripPopupBadgeBlueSoft}>
-                      <Text style={styles.heroTripPopupBadgeText}>
-                        {allUpcomingTrips.length > 9 ? '9+' : allUpcomingTrips.length}
-                      </Text>
-                    </View>
-                  ) : null}
-                  <Ionicons name="chevron-forward" size={16} color="#0284c7" style={{ marginLeft: 6 }} />
-                </TouchableOpacity>
-              </View>
+                    return (
+                      <View key={d.id || `home-dispatch-${index}`} style={styles.homeDirectDispatchCard}>
+                        {/* Header Banner: NEW RIDE + Ref + Distance */}
+                        <View style={styles.dispatchHeaderBanner}>
+                          <View style={styles.dispatchHeaderRow}>
+                            <View>
+                              <View style={styles.newAlertBadge}>
+                                <Ionicons name="radio-button-on" size={13} color="#2563eb" />
+                                <Text style={styles.newAlertText}>
+                                  {t('dashboard.new_ride', 'NEW RIDE')}
+                                </Text>
+                              </View>
+                              <Text style={styles.dispatchRefText}>
+                                {b?.humanReadableRef || 'RIDE'}
+                              </Text>
+                            </View>
+                            <View style={styles.distanceBadgeLight}>
+                              <Text style={styles.distanceBadgeTextLight}>
+                                📍 {b?.distanceKm || '--'} km
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
 
-              <View style={styles.heroCardsGridInside}>
-                {/* 1. Profile */}
-                <TouchableOpacity
-                  style={styles.heroCardGridItem}
-                  onPress={() => setIsProfileModalOpen(true)}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="person" size={22} color="#0f2744" />
-                  </View>
-                  <View style={styles.heroCardGridTextBox}>
-                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_profile', 'Profile')}
-                    </Text>
-                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_profile_sub', 'Personal Details')}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                        {/* Trip Date & Pickup Time Banner */}
+                        <View style={styles.tripDateBanner}>
+                          <View style={styles.tripDateBannerLeft}>
+                            <Ionicons name="calendar" size={14} color="#0284c7" />
+                            <Text style={styles.tripDateBannerLabel}>
+                              {t('dashboard.pickup_date_time_banner', { defaultValue: 'PICKUP DATE & TIME:' })}
+                            </Text>
+                            <Text style={styles.tripDateBannerValue}>
+                              {tripTiming.fullText}
+                            </Text>
+                          </View>
+                          {tripTiming.isToday ? (
+                            <View style={styles.todayTagPill}>
+                              <Text style={styles.todayTagText}>
+                                {t('dashboard.today_tag', { defaultValue: 'TODAY' })}
+                              </Text>
+                            </View>
+                          ) : tripTiming.isTomorrow ? (
+                            <View style={styles.tomorrowTagPill}>
+                              <Text style={styles.tomorrowTagText}>
+                                {t('dashboard.tomorrow_tag', { defaultValue: 'TOMORROW' })}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
 
-                {/* 2. My Vehicle */}
-                <TouchableOpacity
-                  style={styles.heroCardGridItem}
-                  onPress={() => setIsVehicleModalOpen(true)}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="car" size={22} color="#0f2744" />
-                  </View>
-                  <View style={styles.heroCardGridTextBox}>
-                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_vehicle', 'My Vehicle')}
-                    </Text>
-                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_vehicle_sub', 'Fleet & Cabs')}
-                    </Text>
-                  </View>
-                  {hasVehiclePendingDocs && (
-                    <View style={styles.dashboardCardAlertBadge}>
-                      <Ionicons name="alert-circle" size={15} color="#ef4444" />
-                    </View>
-                  )}
-                </TouchableOpacity>
+                        {/* Stepper Route */}
+                        <View style={styles.stepperContainer}>
+                          <View style={styles.stepperLeft}>
+                            <View style={styles.stepPoint}>
+                              <Ionicons name="location-sharp" size={16} color="#16a34a" style={styles.pickupPin} />
+                              <View style={styles.stepTextGroup}>
+                                <Text style={styles.locationTitle}>{b?.pickupAddress || 'Pickup Location'}</Text>
+                              </View>
+                            </View>
+                            <View style={styles.dashedTrail} />
+                            <View style={styles.stepPoint}>
+                              <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
+                              <View style={styles.stepTextGroup}>
+                                <Text style={styles.locationTitle}>{b?.dropAddress || 'Drop Location'}</Text>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
 
-                {/* 3. KYC */}
-                <TouchableOpacity
-                  style={styles.heroCardGridItem}
-                  onPress={() => router.push('/documents')}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="document-text" size={22} color="#0f2744" />
-                  </View>
-                  <View style={styles.heroCardGridTextBox}>
-                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_kyc', 'KYC')}
-                    </Text>
-                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_kyc_sub', 'Documents & Verify')}
-                    </Text>
-                  </View>
-                  {hasKycPendingDocs && (
-                    <View style={styles.dashboardCardAlertBadge}>
-                      <Ionicons name="alert-circle" size={15} color="#ef4444" />
-                    </View>
-                  )}
-                </TouchableOpacity>
+                        {/* Customer Requirements & Preferences Pills if present */}
+                        {(reqs.length > 0 || note) && (
+                          <View style={styles.dispatchReqsSection}>
+                            <View style={styles.dispatchReqsHeaderRow}>
+                              <Ionicons name="options-outline" size={12} color="#64748b" />
+                              <Text style={styles.dispatchReqsHeading}>
+                                {t('dashboard.customer_requirements', { defaultValue: 'CUSTOMER REQUIREMENTS' })}
+                              </Text>
+                            </View>
+                            <View style={styles.dispatchReqsRow}>
+                              {reqs.map((r, rIdx) => (
+                                <React.Fragment key={`home-req-${rIdx}`}>
+                                  {rIdx > 0 && <View style={styles.reqLineSeparator} />}
+                                  <View style={styles.reqPill}>
+                                    <Ionicons
+                                      name={r.icon as any}
+                                      size={12}
+                                      color={
+                                        r.type === 'highlight'
+                                          ? '#c2410c'
+                                          : r.type === 'warning'
+                                          ? '#b45309'
+                                          : r.type === 'info'
+                                          ? '#2563eb'
+                                          : '#334155'
+                                      }
+                                    />
+                                    <Text
+                                      style={[
+                                        styles.reqPillText,
+                                        r.type === 'highlight' && styles.reqPillTextHighlight,
+                                        r.type === 'warning' && styles.reqPillTextWarning,
+                                        r.type === 'info' && styles.reqPillTextInfo,
+                                      ]}
+                                    >
+                                      {r.label}
+                                    </Text>
+                                  </View>
+                                </React.Fragment>
+                              ))}
+                            </View>
+                            {note ? (
+                              <View style={styles.dispatchNotesBox}>
+                                <Ionicons name="chatbubble-ellipses-outline" size={12} color="#475569" style={{ marginTop: 1 }} />
+                                <Text style={styles.dispatchNotesText} numberOfLines={2}>
+                                  Note: "{note}"
+                                </Text>
+                              </View>
+                            ) : null}
+                          </View>
+                        )}
 
-                {/* 4. My Trips */}
-                <TouchableOpacity
-                  style={styles.heroCardGridItem}
-                  onPress={() => setActiveBottomTab('MY_TRIPS')}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="receipt" size={22} color="#0f2744" />
-                  </View>
-                  <View style={styles.heroCardGridTextBox}>
-                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_trips', 'My Trips')}
-                    </Text>
-                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_trips_sub', 'History & Earnings')}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                        {/* Passenger, Amount, Trip Type */}
+                        <View style={styles.dispatchPassengerRowLight}>
+                          <View style={styles.passengerGroupLeft}>
+                            <Ionicons name="person" size={12} color="#2563eb" style={{ marginRight: 5 }} />
+                            <Text style={styles.dispatchPassengerNameDark} numberOfLines={1}>
+                              {b?.customer?.user?.fullName || 'Customer'}
+                            </Text>
+                          </View>
+                          <Text style={styles.dispatchVendorAmountCenter}>
+                            ₹{payeeAmount.toLocaleString('en-IN')}
+                          </Text>
+                          <Text style={styles.dispatchTripTypeOrange}>
+                            {b?.tripType ? (b.tripType === 'ONE_WAY' ? 'ONEWAY' : b.tripType.replace(/_/g, ' ')) : 'ONEWAY'}
+                          </Text>
+                        </View>
 
-                {/* 5. Payment */}
-                <TouchableOpacity
-                  style={styles.heroCardGridItem}
-                  onPress={() => router.push('/payout-details')}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="wallet" size={22} color="#0f2744" />
-                  </View>
-                  <View style={styles.heroCardGridTextBox}>
-                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('profile.payment', 'Payment')}
-                    </Text>
-                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('profile.payment_sub', 'Bank & Payouts')}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                        {/* Action Buttons: DECLINE & ACCEPT RIDE */}
+                        <View style={styles.dispatchActionRow}>
+                          <TouchableOpacity
+                            style={styles.declineDispatchBtn}
+                            onPress={() => {
+                              Alert.alert(
+                                t('dashboard.decline_confirm_title', 'Decline Trip Request'),
+                                t('dashboard.decline_confirm_desc', 'Are you sure you want to decline this trip?'),
+                                [
+                                  { text: t('common.cancel', 'Cancel'), style: 'cancel' },
+                                  {
+                                    text: t('dashboard.decline_btn', 'DECLINE'),
+                                    style: 'destructive',
+                                    onPress: () => handleDeclineDispatch(d.id, bookingId, 'Driver unavailable'),
+                                  },
+                                ]
+                              );
+                            }}
+                            disabled={isAccepting || isDeclining}
+                            activeOpacity={0.8}
+                          >
+                            {isDeclining ? (
+                              <ActivityIndicator size="small" color="#ffffff" />
+                            ) : (
+                              <>
+                                <Ionicons name="close-circle-outline" size={17} color="#ffffff" style={{ marginRight: 4 }} />
+                                <Text style={styles.declineDispatchBtnText}>
+                                  {t('dashboard.decline_btn', { defaultValue: 'DECLINE' })}
+                                </Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
 
-                {/* 6. Notifications */}
-                <TouchableOpacity
-                  style={styles.heroCardGridItem}
-                  onPress={() => router.push('/notifications')}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="notifications" size={22} color="#0f2744" />
-                  </View>
-                  <View style={styles.heroCardGridTextBox}>
-                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_notifications', 'Notifications')}
-                    </Text>
-                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_notifications_sub', 'Alerts & Updates')}
-                    </Text>
-                  </View>
-                  {unreadUpdatesCount > 0 && (
-                    <View style={styles.dashboardCardNotifBadge}>
-                      <Text style={styles.dashboardCardNotifBadgeText}>
-                        {unreadUpdatesCount > 9 ? '9+' : unreadUpdatesCount}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.acceptDispatchBtn}
+                            onPress={async () => {
+                              await handleAcceptDispatch(d.id, bookingId);
+                            }}
+                            disabled={isAccepting || isDeclining}
+                            activeOpacity={0.85}
+                          >
+                            {isAccepting ? (
+                              <ActivityIndicator size="small" color="#ffffff" />
+                            ) : (
+                              <>
+                                <Ionicons name="checkmark-circle" size={17} color="#ffffff" style={{ marginRight: 4 }} />
+                                <Text style={styles.acceptDispatchBtnText}>
+                                  {t('dashboard.accept_ride_btn', { defaultValue: 'ACCEPT RIDE' })}
+                                </Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : (
+                <>
+                  {/* Trips: New Trips & Upcoming Trips (1 Section Per Row, White Card) */}
+                  <View style={styles.heroTripsSummaryRow}>
+                    {/* 1. Assigned Trips */}
+                    <TouchableOpacity
+                      style={styles.heroCardGridItem}
+                      onPress={() => setIsNewTripsModalOpen(true)}
+                      activeOpacity={0.75}
+                    >
+                      <View style={styles.cardDarkIconBox}>
+                        <Ionicons name="navigate" size={20} color="#ffffff" />
+                      </View>
+                      <View style={styles.cardOrangeDivider} />
+                      <View style={styles.dashboardCardTextBox}>
+                        <Text style={styles.dashboardCardTitle} numberOfLines={1}>
+                          {t('dashboard.assigned_booking', 'Assigned Booking')}
+                        </Text>
+                        <Text style={styles.dashboardCardSub} numberOfLines={1}>
+                          {t('dashboard.assigned_booking_sub', 'View and start your trip')}
+                        </Text>
+                      </View>
+                      <View style={styles.cardRightGroup}>
+                        {phoneReleasedTrips.length > 0 && (
+                          <View style={styles.cardNotifCountBadge}>
+                            <Text style={styles.cardNotifCountText}>
+                              {phoneReleasedTrips.length > 9 ? '9+' : phoneReleasedTrips.length}
+                            </Text>
+                          </View>
+                        )}
+                        <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                      </View>
+                    </TouchableOpacity>
 
-                {/* 7. Help & Support */}
-                <TouchableOpacity
-                  style={styles.heroCardGridItem}
-                  onPress={() => setActiveBottomTab('SUPPORT')}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="headset" size={22} color="#0f2744" />
+                    {/* 2. Upcoming Trips */}
+                    <TouchableOpacity
+                      style={styles.heroCardGridItem}
+                      onPress={() => setIsUpcomingTripsModalOpen(true)}
+                      activeOpacity={0.75}
+                    >
+                      <View style={styles.cardDarkIconBox}>
+                        <Ionicons name="calendar" size={20} color="#ffffff" />
+                      </View>
+                      <View style={styles.cardOrangeDivider} />
+                      <View style={styles.dashboardCardTextBox}>
+                        <Text style={styles.dashboardCardTitle} numberOfLines={1}>
+                          {t('dashboard.accepted_booking', 'Accepted Booking')}
+                        </Text>
+                        <Text style={styles.dashboardCardSub} numberOfLines={1}>
+                          {t('dashboard.accepted_booking_sub', 'Accepted and scheduled trips')}
+                        </Text>
+                      </View>
+                      <View style={styles.cardRightGroup}>
+                        {upcomingWithinOneDayTrips.length > 0 ? (
+                          <View style={styles.cardNotifCountBadge}>
+                            <Text style={styles.cardNotifCountText}>
+                              {upcomingWithinOneDayTrips.length > 9 ? '9+' : upcomingWithinOneDayTrips.length}
+                            </Text>
+                          </View>
+                        ) : allUpcomingTrips.length > 0 ? (
+                          <View style={[styles.cardNotifCountBadge, { backgroundColor: '#3b82f6' }]}>
+                            <Text style={styles.cardNotifCountText}>
+                              {allUpcomingTrips.length > 9 ? '9+' : allUpcomingTrips.length}
+                            </Text>
+                          </View>
+                        ) : null}
+                        <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                      </View>
+                    </TouchableOpacity>
                   </View>
-                  <View style={styles.heroCardGridTextBox}>
-                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_support', 'Help & Support')}
-                    </Text>
-                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_support_sub', '24/7 Helpline')}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
 
-                {/* 8. Terms & Conditions */}
-                <TouchableOpacity
-                  style={styles.heroCardGridItem}
-                  onPress={() => router.push('/terms')}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.heroCardGridIconBox}>
-                    <Ionicons name="shield-checkmark" size={22} color="#0f2744" />
+                  <View style={styles.heroCardsGridInside}>
+                    {/* 1. My Vehicle */}
+                    <TouchableOpacity
+                      style={styles.heroCardGridItem}
+                      onPress={() => setIsVehicleModalOpen(true)}
+                      activeOpacity={0.75}
+                    >
+                      <View style={styles.cardDarkIconBox}>
+                        <Ionicons name="car" size={20} color="#ffffff" />
+                      </View>
+                      <View style={styles.cardOrangeDivider} />
+                      <View style={styles.dashboardCardTextBox}>
+                        <Text style={styles.dashboardCardTitle} numberOfLines={1}>
+                          {t('dashboard.card_vehicle', 'My Vehicle')}
+                        </Text>
+                        <Text style={styles.dashboardCardSub} numberOfLines={1}>
+                          {t('dashboard.card_vehicle_sub', 'Manage your vehicle details')}
+                        </Text>
+                      </View>
+                      <View style={styles.cardRightGroup}>
+                        {hasVehiclePendingDocs && (
+                          <View style={styles.cardOrangeAlertBadge}>
+                            <Text style={styles.cardOrangeAlertText}>!</Text>
+                          </View>
+                        )}
+                        <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* 2. KYC */}
+                    <TouchableOpacity
+                      style={styles.heroCardGridItem}
+                      onPress={() => router.push('/documents')}
+                      activeOpacity={0.75}
+                    >
+                      <View style={styles.cardDarkIconBox}>
+                        <Ionicons name="document-text" size={20} color="#ffffff" />
+                      </View>
+                      <View style={styles.cardOrangeDivider} />
+                      <View style={styles.dashboardCardTextBox}>
+                        <Text style={styles.dashboardCardTitle} numberOfLines={1}>
+                          {t('dashboard.card_kyc', 'KYC')}
+                        </Text>
+                        <Text style={styles.dashboardCardSub} numberOfLines={1}>
+                          {t('dashboard.card_kyc_sub', 'Verify your documents')}
+                        </Text>
+                      </View>
+                      <View style={styles.cardRightGroup}>
+                        {hasKycPendingDocs && (
+                          <View style={styles.cardOrangeAlertBadge}>
+                            <Text style={styles.cardOrangeAlertText}>!</Text>
+                          </View>
+                        )}
+                        <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* 3. Driver Wallet */}
+                    <TouchableOpacity
+                      style={styles.heroCardGridItem}
+                      onPress={() => router.push('/wallet')}
+                      activeOpacity={0.75}
+                    >
+                      <View style={styles.cardDarkIconBox}>
+                        <Ionicons name="wallet" size={20} color="#ffffff" />
+                      </View>
+                      <View style={styles.cardOrangeDivider} />
+                      <View style={styles.dashboardCardTextBox}>
+                        <Text style={styles.dashboardCardTitle} numberOfLines={1}>
+                          {t('profile.payment', 'Payment')}
+                        </Text>
+                        <Text style={styles.dashboardCardSub} numberOfLines={1}>
+                          {t('profile.payment_sub', 'Bank & Payouts')}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                    </TouchableOpacity>
+
+                    {/* 4. Notifications */}
+                    <TouchableOpacity
+                      style={styles.heroCardGridItem}
+                      onPress={() => router.push('/notifications')}
+                      activeOpacity={0.75}
+                    >
+                      <View style={styles.cardDarkIconBox}>
+                        <Ionicons name="notifications" size={20} color="#ffffff" />
+                      </View>
+                      <View style={styles.cardOrangeDivider} />
+                      <View style={styles.dashboardCardTextBox}>
+                        <Text style={styles.dashboardCardTitle} numberOfLines={1}>
+                          {t('dashboard.card_notifications', 'Notifications')}
+                        </Text>
+                        <Text style={styles.dashboardCardSub} numberOfLines={1}>
+                          {t('dashboard.card_notifications_sub', 'Alerts & Updates')}
+                        </Text>
+                      </View>
+                      <View style={styles.cardRightGroup}>
+                        {unreadUpdatesCount > 0 && (
+                          <View style={styles.cardNotifCountBadge}>
+                            <Text style={styles.cardNotifCountText}>
+                              {unreadUpdatesCount > 9 ? '9+' : unreadUpdatesCount}
+                            </Text>
+                          </View>
+                        )}
+                        <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* 5. Terms & Conditions */}
+                    <TouchableOpacity
+                      style={styles.heroCardGridItem}
+                      onPress={() => router.push('/terms')}
+                      activeOpacity={0.75}
+                    >
+                      <View style={styles.cardDarkIconBox}>
+                        <Ionicons name="shield-checkmark" size={20} color="#ffffff" />
+                      </View>
+                      <View style={styles.cardOrangeDivider} />
+                      <View style={styles.dashboardCardTextBox}>
+                        <Text style={styles.dashboardCardTitle} numberOfLines={1}>
+                          {t('dashboard.card_terms', 'Terms & Conditions')}
+                        </Text>
+                        <Text style={styles.dashboardCardSub} numberOfLines={1}>
+                          {t('dashboard.card_terms_sub', 'Policies & Safety')}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                    </TouchableOpacity>
                   </View>
-                  <View style={styles.heroCardGridTextBox}>
-                    <Text style={styles.heroCardGridTitle} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_terms', 'Terms & Conditions')}
-                    </Text>
-                    <Text style={styles.heroCardGridSub} numberOfLines={1} adjustsFontSizeToFit>
-                      {t('dashboard.card_terms_sub', 'Policies & Safety')}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
+                </>
+              )}
             </View>
 
             {/* FLOATING CARD CONTAINER */}
@@ -2351,6 +2626,53 @@ export default function DriverDashboardScreen() {
                         })
                       : '--';
 
+                    const upVehicleDisplay = (() => {
+                      if (upBooking?.vehicle?.model) return upBooking.vehicle.model;
+                      if (upBooking?.vehicleModel) return upBooking.vehicleModel;
+                      if (upBooking?.carModel) return upBooking.carModel;
+                      if (upBooking?.vehicleName) return upBooking.vehicleName;
+
+                      const rawCat = (
+                        upBooking?.vehicle?.category ||
+                        upBooking?.vehicleCategory ||
+                        upBooking?.category ||
+                        upBooking?.carType ||
+                        upBooking?.fleetCategory?.name ||
+                        upBooking?.fleetCategory ||
+                        ''
+                      ).toString().toUpperCase();
+
+                      switch (rawCat) {
+                        case 'SEDAN':
+                          return 'Etios, Swift Dzire';
+                        case 'SWIFT_DZIRE':
+                          return 'Swift Dzire';
+                        case 'TOYOTA_ETIOS':
+                          return 'Toyota Etios';
+                        case 'HATCHBACK':
+                          return 'Compact (WagonR, Tiago)';
+                        case 'SUV':
+                          return 'Ertiga, Carens';
+                        case 'SUV_ERTIGA':
+                          return 'Maruti Ertiga';
+                        case 'SUV_CARENS':
+                          return 'Kia Carens';
+                        case 'SUV_PREMIUM':
+                        case 'SUV_INNOVA':
+                        case 'INNOVA':
+                        case 'INNOVA_CRYSTA':
+                          return 'Innova Crysta';
+                        case 'TEMPO_TRAVELER':
+                        case 'TEMPO_TRAVELLER':
+                          return 'Tempo Traveller';
+                        default:
+                          if (rawCat) {
+                            return rawCat.replace(/_/g, ' ');
+                          }
+                          return 'Sedan (Dzire, Etios)';
+                      }
+                    })();
+
                     const upDate = upDateObj || new Date();
                     const isUpToday =
                       upDate.getDate() === now.getDate() &&
@@ -2423,61 +2745,64 @@ export default function DriverDashboardScreen() {
                           </View>
                         </View>
 
-                        {/* Info 3 Columns Row */}
-                        <View style={styles.infoThreeColsRow}>
-                          <View style={styles.infoThreeCol}>
-                            <View style={styles.infoColTopLabel}>
-                              <Ionicons name="calendar-outline" size={13} color="#64748b" />
-                              <Text style={styles.infoColLabel}>Scheduled</Text>
+                        {/* 2x2 Info Grid (2 sections per row) */}
+                        <View style={styles.infoGridContainer}>
+                          {/* Row 1: Pickup Date & Pickup Time */}
+                          <View style={styles.infoGridRow}>
+                            {/* Col 1: Pickup Date */}
+                            <View style={styles.infoCell}>
+                              <Ionicons name="calendar" size={22} color="#0f2744" style={styles.infoCellIcon} />
+                              <View style={styles.infoCellContent}>
+                                <Text style={styles.infoCellLabel}>Pickup Date</Text>
+                                <Text style={styles.infoCellValue} numberOfLines={1}>{pickupDateStr}</Text>
+                              </View>
                             </View>
-                            <Text style={styles.infoColMainText}>{pickupDateStr}</Text>
-                            <Text style={styles.infoColSubPhone}>{pickupTimeStr}</Text>
+
+                            <View style={styles.infoColDivider} />
+
+                            {/* Col 2: Pickup Time */}
+                            <View style={styles.infoCell}>
+                              <Ionicons name="time" size={22} color="#0f2744" style={styles.infoCellIcon} />
+                              <View style={styles.infoCellContent}>
+                                <Text style={styles.infoCellLabel}>Pickup Time</Text>
+                                <Text style={styles.infoCellValue} numberOfLines={1}>{pickupTimeStr}</Text>
+                              </View>
+                            </View>
                           </View>
 
-                          <View style={styles.infoColDivider} />
+                          {/* Horizontal Divider */}
+                          <View style={styles.infoRowHorizontalDivider} />
 
-                          <View style={styles.infoThreeCol}>
-                            <View style={styles.infoColTopLabel}>
-                              <Ionicons name="person-outline" size={13} color="#64748b" />
-                              <Text style={styles.infoColLabel}>Customer</Text>
-                            </View>
-                            <Text style={styles.infoColMainText} numberOfLines={1}>
-                              {upBooking.customer?.user?.fullName || 'Customer'}
-                            </Text>
-                            {(() => {
-                              const isUpReleased = (() => {
-                                if (Boolean(upBooking.customerPhoneReleased)) return true;
-                                if (['TRIP_STARTED', 'ON_TRIP', 'COMPLETED'].includes(upBooking.status)) return true;
-                                if (!upBooking.scheduledAt) return false;
-                                const d = parseSafeDate(upBooking.scheduledAt);
-                                if (!d || isNaN(d.getTime())) return false;
-                                const now = new Date();
-                                const diffHours = (d.getTime() - now.getTime()) / (1000 * 60 * 60);
-                                return diffHours <= 5 && diffHours >= -4;
-                              })();
-                              return isUpReleased && upBooking.customer?.user?.phone ? (
-                                <Text style={styles.infoColSubPhone}>
-                                  {upBooking.customer.user.phone}
+                          {/* Row 2: Vehicle & Trip Type */}
+                          <View style={styles.infoGridRow}>
+                            {/* Col 1: Vehicle */}
+                            <View style={styles.infoCell}>
+                              <Ionicons name="car-sport" size={22} color="#0f2744" style={styles.infoCellIcon} />
+                              <View style={styles.infoCellContent}>
+                                <Text style={styles.infoCellLabel}>Vehicle</Text>
+                                <Text style={styles.infoCellValue} numberOfLines={2}>
+                                  {upVehicleDisplay}
                                 </Text>
-                              ) : null;
-                            })()}
-                          </View>
-
-                          <View style={styles.infoColDivider} />
-
-                          <View style={styles.infoThreeCol}>
-                            <View style={styles.infoColTopLabel}>
-                              <Ionicons name="swap-horizontal-outline" size={13} color="#64748b" />
-                              <Text style={styles.infoColLabel}>Trip Type</Text>
+                              </View>
                             </View>
-                            <Text style={[styles.infoColMainText, { textTransform: 'uppercase' }]} numberOfLines={1} adjustsFontSizeToFit>
-                              {upBooking.tripType
-                                ? (upBooking.tripType === 'ONE_WAY' ? 'ONEWAY' : upBooking.tripType.replace(/_/g, ' '))
-                                : 'ONEWAY'}
-                            </Text>
-                            <Text style={styles.infoColSubPhone}>
-                              {upBooking.distanceKm || '--'} km
-                            </Text>
+
+                            <View style={styles.infoColDivider} />
+
+                            {/* Col 2: Trip Type & Distance */}
+                            <View style={styles.infoCell}>
+                              <Ionicons name="swap-horizontal" size={22} color="#0f2744" style={styles.infoCellIcon} />
+                              <View style={styles.infoCellContent}>
+                                <Text style={styles.infoCellLabel}>Trip Type</Text>
+                                <Text style={[styles.infoCellValue, { textTransform: 'uppercase' }]} numberOfLines={1} adjustsFontSizeToFit>
+                                  {upBooking.tripType
+                                    ? (upBooking.tripType === 'ONE_WAY' ? 'ONEWAY' : upBooking.tripType.replace(/_/g, ' '))
+                                    : 'ONEWAY'}
+                                </Text>
+                                <Text style={styles.infoCellSubPhone}>
+                                  {upBooking.distanceKm ? `${upBooking.distanceKm} km` : '-- km'}
+                                </Text>
+                              </View>
+                            </View>
                           </View>
                         </View>
 
@@ -2556,22 +2881,22 @@ export default function DriverDashboardScreen() {
                           </TouchableOpacity>
 
                           <TouchableOpacity
-                            style={[styles.creamViewRouteBtn, { flex: 1, paddingVertical: 11 }]}
+                            style={[styles.creamViewRouteBtn, { flex: 1, paddingVertical: 11, backgroundColor: '#0f2744', borderColor: '#0f2744' }]}
                             onPress={() => {
                               const queuedVendorCost = Math.round(
                                 Number(upBooking.driverPayeeAmount || 0) > 0
                                   ? Number(upBooking.driverPayeeAmount)
-                                  : (Number(upBooking.distanceKm || 0) * 13 + (Number(upBooking.driverAllowance) || 300))
+                                  : (Number(upBooking.distanceKm || 0) * 10 + (Number(upBooking.driverAllowance) || 300))
                               );
                               Alert.alert(
                                 `Queued Trip: ${upBooking.humanReadableRef}`,
-                                `Pickup: ${upBooking.pickupAddress}\nDrop: ${upBooking.dropAddress}\nDistance: ${upBooking.distanceKm || '--'} km\nCustomer: ${upBooking.customer?.user?.fullName || 'Customer'}\nScheduled: ${pickupDateStr} ${pickupTimeStr}\nDriver Amount: ₹${queuedVendorCost.toLocaleString('en-IN')}`
+                                `Pickup: ${upBooking.pickupAddress}\nDrop: ${upBooking.dropAddress}\nDistance: ${upBooking.distanceKm || '--'} km\nScheduled: ${pickupDateStr} ${pickupTimeStr}\nDriver Amount: ₹${queuedVendorCost.toLocaleString('en-IN')}`
                               );
                             }}
                             activeOpacity={0.8}
                           >
-                            <Ionicons name="document-text" size={14} color="#0f2744" />
-                            <Text style={[styles.creamBtnText, { fontSize: 11.5 }]}>DETAILS</Text>
+                            <Ionicons name="document-text" size={14} color="#ffffff" />
+                            <Text style={[styles.creamBtnText, { fontSize: 11.5, color: '#ffffff' }]}>DETAILS</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -2716,32 +3041,47 @@ export default function DriverDashboardScreen() {
                 const isSettled = trip.driverPaymentStatus === 'PAID';
                 const isCompleted = trip.status === 'TRIP_COMPLETED';
                 const isCancelled = trip.status === 'CANCELLED';
+                const isMissed = trip.status === 'MISSED' || trip.isMissed;
                 const vendorCost = Math.round(
                   Number(trip.driverPayeeAmount || 0) > 0
                     ? Number(trip.driverPayeeAmount)
-                    : (Number(trip.distanceKm || 0) * 13 + (Number(trip.driverAllowance) || 300))
+                    : (Number(trip.distanceKm || 0) * 10 + (Number(trip.driverAllowance) || 300))
                 );
 
                 return (
                   <View key={trip.id} style={styles.tripCardWhiteBorder}>
                     <View style={styles.tripCardTopRow}>
-                      <View>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
                         <Text style={styles.tripCardRef}>{trip.humanReadableRef}</Text>
                         <Text style={styles.tripCardDate}>
-                          {new Date(trip.createdAt).toLocaleDateString('en-IN', {
+                          {new Date(trip.scheduledAt || trip.createdAt).toLocaleDateString('en-IN', {
                             day: 'numeric',
                             month: 'short',
                             year: 'numeric',
                           })} • {trip.tripType}
                         </Text>
+                        {/* Customer Name without phone number */}
+                        {trip.customerName ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                            <Ionicons name="person-outline" size={13} color="#475569" style={{ marginRight: 4 }} />
+                            <Text style={{ fontSize: 13, fontWeight: '700', color: '#1e293b' }}>
+                              {trip.customerName}
+                            </Text>
+                          </View>
+                        ) : null}
                       </View>
                       <View style={styles.tripStatusBadgeGroup}>
-                        <View style={[styles.tripBadgePill, isCompleted ? styles.badgeGreen : isCancelled ? styles.badgeRose : styles.badgeAmber]}>
-                          <Text style={isCompleted ? styles.badgeTextGreen : isCancelled ? styles.badgeTextRose : styles.badgeTextAmber}>
-                            {trip.status.replace(/_/g, ' ')}
+                        <View style={[
+                          styles.tripBadgePill,
+                          isCompleted ? styles.badgeGreen : isCancelled ? styles.badgeRose : isMissed ? styles.badgeAmber : styles.badgeAmber
+                        ]}>
+                          <Text style={
+                            isCompleted ? styles.badgeTextGreen : isCancelled ? styles.badgeTextRose : isMissed ? styles.badgeTextAmber : styles.badgeTextAmber
+                          }>
+                            {isMissed ? 'MISSED TRIP' : trip.status.replace(/_/g, ' ')}
                           </Text>
                         </View>
-                        {!isCancelled && (
+                        {!isCancelled && !isMissed && (
                           <View style={[styles.settledBadgePill, isSettled ? styles.badgeGreen : styles.badgeAmber]}>
                             <Text style={isSettled ? styles.badgeTextGreen : styles.badgeTextAmber}>
                               {isSettled ? t('trips.paid') : t('trips.not_paid')}
@@ -2764,6 +3104,14 @@ export default function DriverDashboardScreen() {
                       </View>
                     )}
 
+                    {isMissed && (
+                      <View style={{ marginTop: 8, padding: 8, backgroundColor: '#fffbeb', borderRadius: 8, borderWidth: 1, borderColor: '#fde68a' }}>
+                        <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#b45309' }}>
+                          ⚠ Missed Trip • Scheduled pickup date has passed
+                        </Text>
+                      </View>
+                    )}
+
                     <View style={styles.tripCardRoute}>
                       <Text style={styles.tripRouteLine} numberOfLines={1}>
                         <Text style={{ fontWeight: '700' }}>{t('trips.pickup')} </Text>{trip.pickupAddress}
@@ -2775,25 +3123,29 @@ export default function DriverDashboardScreen() {
                         <Text style={styles.tripDistanceLine}>
                           <Text style={{ fontWeight: '700' }}>{t('trips.distance')} </Text>{trip.distanceKm} km
                         </Text>
-                        <Text style={styles.tripRouteVendorCostText}>
-                          ₹{vendorCost.toLocaleString('en-IN')}
-                        </Text>
+                        {!isMissed && (
+                          <Text style={styles.tripRouteVendorCostText}>
+                            ₹{vendorCost.toLocaleString('en-IN')}
+                          </Text>
+                        )}
                       </View>
                     </View>
 
-                    <View style={styles.tripPaymentStatusRow}>
-                      <View>
-                        <Text style={styles.tripPaymentStatusLabel}>{t('trips.driver_payment_status')}</Text>
-                        <Text style={styles.tripPaymentVendorCostSub}>
-                          Driver Amount: <Text style={{ fontWeight: '900', color: '#0f2744' }}>₹{vendorCost.toLocaleString('en-IN')}</Text>
-                        </Text>
+                    {!isMissed && (
+                      <View style={styles.tripPaymentStatusRow}>
+                        <View>
+                          <Text style={styles.tripPaymentStatusLabel}>{t('trips.driver_payment_status')}</Text>
+                          <Text style={styles.tripPaymentVendorCostSub}>
+                            Driver Amount: <Text style={{ fontWeight: '900', color: '#0f2744' }}>₹{vendorCost.toLocaleString('en-IN')}</Text>
+                          </Text>
+                        </View>
+                        <View style={[styles.settledBadgePillInline, isSettled ? styles.badgeGreen : styles.badgeAmber]}>
+                          <Text style={isSettled ? styles.badgeTextGreen : styles.badgeTextAmber}>
+                            {isSettled ? `✓ ${t('trips.paid')}` : `⏳ ${t('trips.not_paid')}`}
+                          </Text>
+                        </View>
                       </View>
-                      <View style={[styles.settledBadgePillInline, isSettled ? styles.badgeGreen : styles.badgeAmber]}>
-                        <Text style={isSettled ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                          {isSettled ? `✓ ${t('trips.paid')}` : `⏳ ${t('trips.not_paid')}`}
-                        </Text>
-                      </View>
-                    </View>
+                    )}
                   </View>
                 );
               })
@@ -2899,11 +3251,17 @@ export default function DriverDashboardScreen() {
             >
               <View style={styles.profileHeroAvatarOuter}>
                 <View style={styles.profileHeroAvatarInner}>
-                  <Image
-                    source={{ uri: driver?.profilePhotoUrl || CAPTAIN_AVATAR_BASE64 }}
-                    style={styles.profileHeroAvatarImg}
-                    resizeMode="cover"
-                  />
+                  {hasValidProfilePhoto ? (
+                    <Image
+                      source={{ uri: driver.profilePhotoUrl }}
+                      style={styles.profileHeroAvatarImg}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.profileHeroAvatarFallback}>
+                      <Ionicons name="person" size={32} color="#94a3b8" />
+                    </View>
+                  )}
                 </View>
                 {/* Camera icon badge */}
                 <TouchableOpacity
@@ -2941,314 +3299,211 @@ export default function DriverDashboardScreen() {
             </TouchableOpacity>
 
             {/* ============================================================ */}
-            {/* TRIPS ROW: NEW TRIPS & UPCOMING TRIPS (WHITE BACKGROUND)      */}
+            {/* PROFILE MENU LIST (CLEAN LIST WITH LINE SEPARATORS, NO BOXES) */}
             {/* ============================================================ */}
-            <View style={[styles.heroTripsSummaryRow, { paddingHorizontal: 0, marginBottom: 8 }]}>
-              {/* 1. New Trips (Warm Peach) */}
+            <View style={styles.profileListCard}>
+              {/* 1. My Vehicle */}
               <TouchableOpacity
-                style={[styles.heroTripWhiteCard, styles.heroTripCardPeach]}
-                onPress={() => setIsNewTripsModalOpen(true)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.heroTripIconBox}>
-                  <NewTripsPinIcon size={23} color="#ea580c" dotColor="#fff7ed" />
-                </View>
-                <View style={styles.heroTripInfoBox}>
-                  <Text style={styles.heroTripTitle} numberOfLines={1}>
-                    {t('dashboard.new_trips', 'New Trips')}
-                  </Text>
-                  <Text style={styles.heroTripSub} numberOfLines={1}>
-                    {pendingNewTripsCount > 0
-                      ? `${pendingNewTripsCount} ${pendingNewTripsCount === 1 ? 'New Trip' : 'New Trips'} • Tap to View`
-                      : newTripsList.length > 0
-                      ? `${newTripsList.length} ${newTripsList.length === 1 ? 'Trip' : 'Trips'} • Tap to View`
-                      : t('dashboard.live_rides', 'Live Rides')}
-                  </Text>
-                </View>
-                {/* Popup Number Icon: ONLY show numbers when new trip is assigned (not if accepted or declined) */}
-                {pendingNewTripsCount > 0 && (
-                  <View style={styles.heroTripPopupBadgeOrange}>
-                    <Text style={styles.heroTripPopupBadgeText}>
-                      {pendingNewTripsCount > 9 ? '9+' : pendingNewTripsCount}
-                    </Text>
-                  </View>
-                )}
-                <Ionicons name="chevron-forward" size={16} color="#c2410c" style={{ marginLeft: 6 }} />
-              </TouchableOpacity>
-
-              {/* 2. Upcoming Trips (Sky Blue) */}
-              <TouchableOpacity
-                style={[styles.heroTripWhiteCard, styles.heroTripCardSky]}
-                onPress={() => setIsUpcomingTripsModalOpen(true)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.heroTripIconBox}>
-                  <Ionicons name="calendar" size={20} color="#2563eb" />
-                </View>
-                <View style={styles.heroTripInfoBox}>
-                  <Text style={styles.heroTripTitle} numberOfLines={1}>
-                    {t('dashboard.upcoming_trips', 'Upcoming Trips')}
-                  </Text>
-                  <Text style={styles.heroTripSub} numberOfLines={1}>
-                    {upcomingWithinOneDayTrips.length > 0
-                      ? `${upcomingWithinOneDayTrips.length} Within 24h • Be Ready`
-                      : allUpcomingTrips.length > 0
-                      ? `${allUpcomingTrips.length} Scheduled`
-                      : t('dashboard.scheduled', 'Scheduled')}
-                  </Text>
-                </View>
-                {/* Popup Number Icon for Upcoming Trips closer before 1 day */}
-                {upcomingWithinOneDayTrips.length > 0 ? (
-                  <View style={styles.heroTripPopupBadgeBlue}>
-                    <Text style={styles.heroTripPopupBadgeText}>
-                      {upcomingWithinOneDayTrips.length > 9 ? '9+' : upcomingWithinOneDayTrips.length}
-                    </Text>
-                  </View>
-                ) : allUpcomingTrips.length > 0 ? (
-                  <View style={styles.heroTripPopupBadgeBlueSoft}>
-                    <Text style={styles.heroTripPopupBadgeText}>
-                      {allUpcomingTrips.length > 9 ? '9+' : allUpcomingTrips.length}
-                    </Text>
-                  </View>
-                ) : null}
-                <Ionicons name="chevron-forward" size={16} color="#0284c7" style={{ marginLeft: 6 }} />
-              </TouchableOpacity>
-            </View>
-
-            {/* ============================================================ */}
-            {/* 2-COLUMN PROFILE GRID CARDS (ORGANIZED MENU BOXES)            */}
-            {/* ============================================================ */}
-            <View style={styles.dashboardCardsGrid}>
-              {/* 1. Profile */}
-              <TouchableOpacity
-                style={styles.dashboardCardItem}
-                onPress={() => setIsProfileModalOpen(true)}
-                activeOpacity={0.75}
-              >
-                <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="person" size={22} color="#0f2744" />
-                </View>
-                <View style={styles.dashboardCardTextBox}>
-                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('dashboard.card_profile', 'Profile')}
-                  </Text>
-                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('dashboard.card_profile_sub', 'Personal Details')}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* 2. My Vehicle */}
-              <TouchableOpacity
-                style={styles.dashboardCardItem}
+                style={styles.profileListItem}
                 onPress={() => setIsVehicleModalOpen(true)}
-                activeOpacity={0.75}
+                activeOpacity={0.7}
               >
-                <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="car" size={22} color="#0f2744" />
+                <View style={styles.cardDarkIconBox}>
+                  <Ionicons name="car" size={19} color="#ffffff" />
                 </View>
+                <View style={styles.cardOrangeDivider} />
                 <View style={styles.dashboardCardTextBox}>
-                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1}>
                     {t('dashboard.card_vehicle', 'My Vehicle')}
                   </Text>
-                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('dashboard.card_vehicle_sub', 'Fleet & Cabs')}
+                  <Text style={styles.dashboardCardSub} numberOfLines={1}>
+                    {t('dashboard.card_vehicle_sub', 'Manage your vehicle details')}
                   </Text>
                 </View>
-                {hasVehiclePendingDocs && (
-                  <View style={styles.dashboardCardAlertBadge}>
-                    <Ionicons name="alert-circle" size={16} color="#ef4444" />
-                  </View>
-                )}
-              </TouchableOpacity>
-
-              {/* 3. KYC */}
-              <TouchableOpacity
-                style={styles.dashboardCardItem}
-                onPress={() => router.push('/documents')}
-                activeOpacity={0.75}
-              >
-                <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="document-text" size={22} color="#0f2744" />
+                <View style={styles.cardRightGroup}>
+                  {hasVehiclePendingDocs && (
+                    <View style={styles.cardOrangeAlertBadge}>
+                      <Text style={styles.cardOrangeAlertText}>!</Text>
+                    </View>
+                  )}
+                  <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
                 </View>
+              </TouchableOpacity>
+              <View style={styles.profileListDivider} />
+
+              {/* 2. KYC */}
+              <TouchableOpacity
+                style={styles.profileListItem}
+                onPress={() => router.push('/documents')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.cardDarkIconBox}>
+                  <Ionicons name="document-text" size={19} color="#ffffff" />
+                </View>
+                <View style={styles.cardOrangeDivider} />
                 <View style={styles.dashboardCardTextBox}>
-                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1}>
                     {t('dashboard.card_kyc', 'KYC')}
                   </Text>
-                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('dashboard.card_kyc_sub', 'Documents & Verify')}
+                  <Text style={styles.dashboardCardSub} numberOfLines={1}>
+                    {t('dashboard.card_kyc_sub', 'Verify your documents')}
                   </Text>
                 </View>
-                {hasKycPendingDocs && (
-                  <View style={styles.dashboardCardAlertBadge}>
-                    <Ionicons name="alert-circle" size={16} color="#ef4444" />
-                  </View>
-                )}
-              </TouchableOpacity>
-
-              {/* 4. My Trips */}
-              <TouchableOpacity
-                style={styles.dashboardCardItem}
-                onPress={() => setActiveBottomTab('MY_TRIPS')}
-                activeOpacity={0.75}
-              >
-                <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="receipt" size={22} color="#0f2744" />
+                <View style={styles.cardRightGroup}>
+                  {hasKycPendingDocs && (
+                    <View style={styles.cardOrangeAlertBadge}>
+                      <Text style={styles.cardOrangeAlertText}>!</Text>
+                    </View>
+                  )}
+                  <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
                 </View>
+              </TouchableOpacity>
+              <View style={styles.profileListDivider} />
+
+              {/* 3. Driver Wallet */}
+              <TouchableOpacity
+                style={styles.profileListItem}
+                onPress={() => router.push('/wallet')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.cardDarkIconBox}>
+                  <Ionicons name="wallet" size={19} color="#ffffff" />
+                </View>
+                <View style={styles.cardOrangeDivider} />
                 <View style={styles.dashboardCardTextBox}>
-                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('dashboard.card_trips', 'My Trips')}
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1}>
+                    {t('profile.payment', 'Driver Wallet')}
                   </Text>
-                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('dashboard.card_trips_sub', 'History & Earnings')}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* 5. Payment */}
-              <TouchableOpacity
-                style={styles.dashboardCardItem}
-                onPress={() => router.push('/payout-details')}
-                activeOpacity={0.75}
-              >
-                <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="wallet" size={22} color="#0f2744" />
-                </View>
-                <View style={styles.dashboardCardTextBox}>
-                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('profile.payment', 'Payment')}
-                  </Text>
-                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('profile.payment_sub', 'Bank & Payouts')}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* 6. Notifications */}
-              <TouchableOpacity
-                style={styles.dashboardCardItem}
-                onPress={() => router.push('/notifications')}
-                activeOpacity={0.75}
-              >
-                <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="notifications" size={22} color="#0f2744" />
-                </View>
-                <View style={styles.dashboardCardTextBox}>
-                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('dashboard.card_notifications', 'Notifications')}
-                  </Text>
-                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('dashboard.card_notifications_sub', 'Alerts & Updates')}
-                  </Text>
-                </View>
-                {unreadUpdatesCount > 0 && (
-                  <View style={styles.dashboardCardNotifBadge}>
-                    <Text style={styles.dashboardCardNotifBadgeText}>
-                      {unreadUpdatesCount > 9 ? '9+' : unreadUpdatesCount}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-
-              {/* 7. Help and Support */}
-              <TouchableOpacity
-                style={styles.dashboardCardItem}
-                onPress={() => setActiveBottomTab('SUPPORT')}
-                activeOpacity={0.75}
-              >
-                <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="headset" size={22} color="#0f2744" />
-                </View>
-                <View style={styles.dashboardCardTextBox}>
-                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('dashboard.card_support', 'Help & Support')}
-                  </Text>
-                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('dashboard.card_support_sub', '24/7 Helpline')}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* 8. Terms and Conditions */}
-              <TouchableOpacity
-                style={styles.dashboardCardItem}
-                onPress={() => router.push('/terms')}
-                activeOpacity={0.75}
-              >
-                <View style={styles.dashboardCardIconBox}>
-                  <Ionicons name="shield-checkmark" size={22} color="#0f2744" />
-                </View>
-                <View style={styles.dashboardCardTextBox}>
-                  <Text style={styles.dashboardCardTitle} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('dashboard.card_terms', 'Terms & Conditions')}
-                  </Text>
-                  <Text style={styles.dashboardCardSub} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('dashboard.card_terms_sub', 'Policies & Safety')}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* Utility Options: App Language & Logout */}
-            <View style={styles.profileBottomUtilityContainer}>
-              <TouchableOpacity
-                style={styles.profileUtilityCard}
-                onPress={() => setIsLangModalOpen(true)}
-                activeOpacity={0.75}
-              >
-                <View style={styles.profileSectionIconBox}>
-                  <Ionicons name="globe" size={20} color="#0f2744" />
-                </View>
-                <View style={styles.profileSectionTextBox}>
-                  <Text style={styles.profileSectionTitle} numberOfLines={1} adjustsFontSizeToFit>
-                    {t('profile.app_language', 'App Language')}
+                  <Text style={styles.dashboardCardSub} numberOfLines={1}>
+                    {t('profile.payment_sub', 'Balance, Payouts, Fines & Deposits')}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
               </TouchableOpacity>
+              <View style={styles.profileListDivider} />
 
+              {/* 4. Bank Payment Options */}
               <TouchableOpacity
-                style={[styles.profileUtilityCard, styles.profileUtilityLogoutCard]}
-                onPress={handleLogout}
-                activeOpacity={0.75}
+                style={styles.profileListItem}
+                onPress={() => router.push('/payout-details')}
+                activeOpacity={0.7}
               >
-                <View style={styles.profileSectionIconBox}>
+                <View style={styles.cardDarkIconBox}>
+                  <Ionicons name="business" size={19} color="#ffffff" />
+                </View>
+                <View style={styles.cardOrangeDivider} />
+                <View style={styles.dashboardCardTextBox}>
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1}>
+                    {t('profile.bank_payment_options', 'Bank Payment Options')}
+                  </Text>
+                  <Text style={styles.dashboardCardSub} numberOfLines={1}>
+                    {t('profile.bank_payment_options_sub', 'Bank Transfer, UPI & Payout Details')}
+                  </Text>
+                </View>
+                <View style={styles.cardRightGroup}>
+                  {hasBankPendingDetails && (
+                    <View style={styles.cardOrangeAlertBadge}>
+                      <Text style={styles.cardOrangeAlertText}>!</Text>
+                    </View>
+                  )}
+                  <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                </View>
+              </TouchableOpacity>
+              <View style={styles.profileListDivider} />
+
+              {/* 4. Notifications */}
+              <TouchableOpacity
+                style={styles.profileListItem}
+                onPress={() => router.push('/notifications')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.cardDarkIconBox}>
+                  <Ionicons name="notifications" size={19} color="#ffffff" />
+                </View>
+                <View style={styles.cardOrangeDivider} />
+                <View style={styles.dashboardCardTextBox}>
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1}>
+                    {t('dashboard.card_notifications', 'Notifications')}
+                  </Text>
+                  <Text style={styles.dashboardCardSub} numberOfLines={1}>
+                    {t('dashboard.card_notifications_sub', 'Alerts & Updates')}
+                  </Text>
+                </View>
+                <View style={styles.cardRightGroup}>
+                  {unreadUpdatesCount > 0 && (
+                    <View style={styles.cardNotifCountBadge}>
+                      <Text style={styles.cardNotifCountText}>
+                        {unreadUpdatesCount > 9 ? '9+' : unreadUpdatesCount}
+                      </Text>
+                    </View>
+                  )}
+                  <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                </View>
+              </TouchableOpacity>
+              <View style={styles.profileListDivider} />
+
+              {/* 5. Terms and Conditions */}
+              <TouchableOpacity
+                style={styles.profileListItem}
+                onPress={() => router.push('/terms')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.cardDarkIconBox}>
+                  <Ionicons name="shield-checkmark" size={19} color="#ffffff" />
+                </View>
+                <View style={styles.cardOrangeDivider} />
+                <View style={styles.dashboardCardTextBox}>
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1}>
+                    {t('dashboard.card_terms', 'Terms & Conditions')}
+                  </Text>
+                  <Text style={styles.dashboardCardSub} numberOfLines={1}>
+                    {t('dashboard.card_terms_sub', 'Policies & Safety')}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+              </TouchableOpacity>
+              <View style={styles.profileListDivider} />
+
+              {/* 6. App Language */}
+              <TouchableOpacity
+                style={styles.profileListItem}
+                onPress={() => setIsLangModalOpen(true)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.cardDarkIconBox}>
+                  <Ionicons name="globe" size={19} color="#ffffff" />
+                </View>
+                <View style={styles.cardOrangeDivider} />
+                <View style={styles.dashboardCardTextBox}>
+                  <Text style={styles.dashboardCardTitle} numberOfLines={1}>
+                    {t('profile.app_language', 'App Language')}
+                  </Text>
+                  <Text style={styles.dashboardCardSub} numberOfLines={1}>
+                    {i18n.language === 'kn' ? 'ಕನ್ನಡ' : i18n.language === 'hi' ? 'हिन्दी' : 'English'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+              </TouchableOpacity>
+              <View style={styles.profileListDivider} />
+
+              {/* 7. Logout */}
+              <TouchableOpacity
+                style={[styles.profileListItem, styles.profileListItemLogout]}
+                onPress={handleLogout}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.cardDarkIconBox, { backgroundColor: 'transparent' }]}>
                   <Ionicons name="log-out" size={20} color="#dc2626" />
                 </View>
-                <View style={styles.profileSectionTextBox}>
-                  <Text style={[styles.profileSectionTitle, { color: '#dc2626' }]} numberOfLines={1} adjustsFontSizeToFit>
+                <View style={[styles.cardOrangeDivider, { backgroundColor: '#ef4444' }]} />
+                <View style={styles.dashboardCardTextBox}>
+                  <Text style={[styles.dashboardCardTitle, { color: '#dc2626' }]} numberOfLines={1}>
                     {t('profile.logout', 'Logout')}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="#dc2626" />
               </TouchableOpacity>
             </View>
-
-            {/* Modals */}
-            <DriverProfileModal
-              visible={isProfileModalOpen}
-              onClose={() => setIsProfileModalOpen(false)}
-              driver={driver}
-              onSaveProfile={handleSaveProfile}
-            />
-
-            <DriverVehiclesModal
-              visible={isVehicleModalOpen}
-              onClose={() => setIsVehicleModalOpen(false)}
-              vehicles={registeredFleets}
-              onSaveVehicles={handleSaveVehicles}
-              onOpenDocuments={(vehIdx) => router.push({ pathname: '/documents', params: { vehicleIndex: String(vehIdx), fromVehicle: 'true' } })}
-            />
-
-
-
-
-
-            {/* Language Selection Modal (As done in Customer App) */}
-            <LanguageSelectionModal
-              visible={isLangModalOpen}
-              onClose={() => setIsLangModalOpen(false)}
-            />
 
             <Text style={styles.versionTextDark}>{t('profile.app_version', 'Kandy Cabs Driver App v1.0.0')}</Text>
           </View>
@@ -3267,7 +3522,7 @@ export default function DriverDashboardScreen() {
         >
           <Ionicons
             name={activeBottomTab === 'HOME' ? 'home' : 'home-outline'}
-            size={22}
+            size={23}
             color={activeBottomTab === 'HOME' ? '#f0750f' : '#94a3b8'}
           />
           <Text style={[styles.bottomNavText, activeBottomTab === 'HOME' && styles.bottomNavTextActive]}>
@@ -3275,6 +3530,8 @@ export default function DriverDashboardScreen() {
           </Text>
           {activeBottomTab === 'HOME' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
+
+        <View style={styles.bottomNavTabDivider} />
 
         {/* My Trips Tab */}
         <TouchableOpacity
@@ -3284,7 +3541,7 @@ export default function DriverDashboardScreen() {
         >
           <Ionicons
             name={activeBottomTab === 'MY_TRIPS' ? 'receipt' : 'receipt-outline'}
-            size={22}
+            size={23}
             color={activeBottomTab === 'MY_TRIPS' ? '#f0750f' : '#94a3b8'}
           />
           <Text style={[styles.bottomNavText, activeBottomTab === 'MY_TRIPS' && styles.bottomNavTextActive]}>
@@ -3292,6 +3549,8 @@ export default function DriverDashboardScreen() {
           </Text>
           {activeBottomTab === 'MY_TRIPS' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
+
+        <View style={styles.bottomNavTabDivider} />
 
         {/* Support Tab */}
         <TouchableOpacity
@@ -3301,7 +3560,7 @@ export default function DriverDashboardScreen() {
         >
           <Ionicons
             name={activeBottomTab === 'SUPPORT' ? 'headset' : 'headset-outline'}
-            size={22}
+            size={23}
             color={activeBottomTab === 'SUPPORT' ? '#f0750f' : '#94a3b8'}
           />
           <Text style={[styles.bottomNavText, activeBottomTab === 'SUPPORT' && styles.bottomNavTextActive]}>
@@ -3309,6 +3568,8 @@ export default function DriverDashboardScreen() {
           </Text>
           {activeBottomTab === 'SUPPORT' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
+
+        <View style={styles.bottomNavTabDivider} />
 
         {/* Profile Tab */}
         <TouchableOpacity
@@ -3319,12 +3580,12 @@ export default function DriverDashboardScreen() {
           <View style={styles.tabIconWrapper}>
             <Ionicons
               name={activeBottomTab === 'PROFILE' ? 'person' : 'person-outline'}
-              size={22}
+              size={23}
               color={activeBottomTab === 'PROFILE' ? '#f0750f' : '#94a3b8'}
             />
-            {hasPendingDocuments && (
+            {hasAnyProfilePending && (
               <View style={styles.profilePendingNotificationBadge}>
-                <Text style={styles.profilePendingNotificationBadgeText}>1</Text>
+                <Text style={styles.profilePendingNotificationBadgeText}>!</Text>
               </View>
             )}
           </View>
@@ -3351,11 +3612,16 @@ export default function DriverDashboardScreen() {
         }}
       />
 
-      {/* Dedicated New Trips Dispatched Modal (With Accept / Cancel Actions) */}
+      {/* Dedicated Assigned Booking Modal (With Phone Released Trips & Slide to Start Trip) */}
       <NewTripsModal
         visible={isNewTripsModalOpen}
         onClose={() => setIsNewTripsModalOpen(false)}
         dispatches={newTripsList}
+        phoneReleasedTrips={phoneReleasedTrips}
+        activeBooking={activeBooking}
+        onSelectBooking={() => {
+          setActiveBottomTab('HOME');
+        }}
         acceptedDispatches={acceptedDispatches}
         onAcceptDispatch={handleAcceptDispatch}
         onDeclineDispatch={handleDeclineDispatch}
@@ -3374,6 +3640,36 @@ export default function DriverDashboardScreen() {
         onSelectBooking={() => {
           setActiveBottomTab('HOME');
         }}
+        onOpenAssignedBooking={(bookingId) => {
+          setIsUpcomingTripsModalOpen(false);
+          setIsNewTripsModalOpen(true);
+        }}
+        onCancelBooking={async (bookingId, reason) => {
+          await handleDeclineDispatch(`dispatch-${bookingId}`, bookingId, reason || 'Driver requested cancellation');
+        }}
+      />
+
+      {/* Driver Vehicles Modal (Accessible from both Home and Profile tabs) */}
+      <DriverVehiclesModal
+        visible={isVehicleModalOpen}
+        onClose={() => setIsVehicleModalOpen(false)}
+        vehicles={registeredFleets}
+        onSaveVehicles={handleSaveVehicles}
+        onOpenDocuments={(vehIdx) => router.push({ pathname: '/documents', params: { vehicleIndex: String(vehIdx), fromVehicle: 'true' } })}
+      />
+
+      {/* Driver Profile Edit Modal */}
+      <DriverProfileModal
+        visible={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        driver={driver}
+        onSaveProfile={handleSaveProfile}
+      />
+
+      {/* Language Selection Modal */}
+      <LanguageSelectionModal
+        visible={isLangModalOpen}
+        onClose={() => setIsLangModalOpen(false)}
       />
     </View>
   );
@@ -3426,31 +3722,55 @@ const styles = StyleSheet.create({
   },
   mainHeaderWhite: {
     backgroundColor: '#162232',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
-    paddingLeft: 14,
+    borderBottomWidth: 2,
+    borderBottomColor: '#f97316',
+    paddingLeft: 16,
     paddingRight: 16,
-    paddingBottom: 1,
+    paddingBottom: 12,
     zIndex: 50,
   },
   headerBarInner: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
   headerLogoContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'flex-start',
   },
   driverHeaderLogo: {
     width: 80,
-    height: 41,
+    height: 40,
+  },
+  headerLogoDivider: {
+    width: 1.5,
+    height: 26,
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
+    marginHorizontal: 9,
+    borderRadius: 1,
+  },
+  headerPartnerBadge: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+  },
+  headerPartnerTitle: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 18,
+    letterSpacing: 0.4,
+  },
+  headerDriverAppTitle: {
+    color: '#f97316',
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 16,
+    letterSpacing: 0.3,
   },
   headerRightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 2,
     gap: 10,
   },
   notificationBellHeader: {
@@ -3541,95 +3861,126 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  heroCardOuterSmall: {
+    marginHorizontal: 10,
+    marginTop: 10,
+    borderRadius: 16,
+  },
   heroCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingVertical: 12,
+  },
+  heroCardContentSmall: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
   },
   heroDriverGroupLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 10,
+    marginRight: 6,
+    minWidth: 0,
   },
   heroAvatarContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#ffffff',
-    borderWidth: 2.5,
+    borderWidth: 2,
     borderColor: '#f97316',
     padding: 2,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#0f2744',
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowRadius: 3,
     elevation: 2,
     position: 'relative',
+    flexShrink: 0,
+  },
+  heroAvatarContainerSmall: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   heroAvatarImg: {
     width: '100%',
     height: '100%',
-    borderRadius: 28,
+    borderRadius: 24,
   },
   heroAvatarFallback: {
     width: '100%',
     height: '100%',
-    borderRadius: 28,
+    borderRadius: 24,
     backgroundColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   heroAvatarStatusDot: {
     position: 'absolute',
-    bottom: 1,
-    right: 1,
-    width: 15,
-    height: 15,
-    borderRadius: 7.5,
-    borderWidth: 2.5,
+    bottom: 0,
+    right: 0,
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
+    borderWidth: 2,
     borderColor: '#ffffff',
   },
   heroInfoBlock: {
-    marginLeft: 12,
+    marginLeft: 10,
     flex: 1,
     justifyContent: 'center',
+    minWidth: 0,
   },
   heroGreetingText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#64748b',
-    letterSpacing: 0.25,
-    marginBottom: 2,
+    letterSpacing: 0.2,
+    marginBottom: 1,
     lineHeight: 15,
+  },
+  heroGreetingTextSmall: {
+    fontSize: 11,
+    lineHeight: 13,
   },
   heroCardRight: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: 12,
     justifyContent: 'center',
   },
   heroCardName: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '900',
     color: '#0a192f',
     letterSpacing: -0.2,
-    lineHeight: 21,
+    lineHeight: 22,
     textAlign: 'left',
+  },
+  heroCardNameSmall: {
+    fontSize: 15.5,
+    lineHeight: 19,
   },
   heroCardPlateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 2.5,
+    flexWrap: 'nowrap',
+    minWidth: 0,
   },
   heroCardPlate: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#334155',
     letterSpacing: 0.3,
+    flexShrink: 0,
+  },
+  heroCardPlateSmall: {
+    fontSize: 11.5,
   },
   heroDutyToggleTrack: {
     flexDirection: 'row',
@@ -3637,45 +3988,50 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 20,
-    padding: 2.5,
+    borderRadius: 16,
+    padding: 2,
     alignSelf: 'center',
+    flexShrink: 0,
+  },
+  heroDutyToggleTrackSmall: {
+    padding: 1.5,
+    borderRadius: 14,
   },
   heroDutyToggleSegment: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 9,
-    borderRadius: 16,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+    borderRadius: 14,
   },
   heroDutyToggleSegmentOnlineActive: {
     backgroundColor: '#046a38',
     shadowColor: '#046a38',
     shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 1.5 },
-    shadowRadius: 2.5,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
     elevation: 2,
   },
   heroDutyToggleSegmentOfflineActive: {
     backgroundColor: '#991b1b',
     shadowColor: '#991b1b',
     shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 1.5 },
-    shadowRadius: 2.5,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
     elevation: 2,
   },
   heroDutyToggleDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 4.5,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    marginRight: 3.5,
   },
   heroDutyToggleText: {
-    fontSize: 11.5,
+    fontSize: 10.5,
     fontWeight: '800',
     color: '#64748b',
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
   },
   heroDutyToggleTextActive: {
     color: '#ffffff',
@@ -3689,16 +4045,16 @@ const styles = StyleSheet.create({
   },
   heroTripsSummaryRow: {
     flexDirection: 'column',
-    gap: 8,
+    gap: 10,
     paddingHorizontal: 12,
     marginBottom: 10,
   },
   heroTripWhiteCard: {
-    width: '100%',
+    flex: 1,
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     flexDirection: 'row',
@@ -3709,7 +4065,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 5,
     elevation: 2,
-    minHeight: 52,
+    minHeight: 64,
   },
   heroTripCardPeach: {
     backgroundColor: '#fff3e3',
@@ -3829,19 +4185,17 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   heroCardsGridInside: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     paddingHorizontal: 12,
     paddingBottom: 8,
+    gap: 10,
   },
   heroCardGridItem: {
-    width: '48.5%',
+    width: '100%',
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    paddingVertical: 11,
-    paddingHorizontal: 10,
-    marginBottom: 9,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     flexDirection: 'row',
@@ -3850,7 +4204,7 @@ const styles = StyleSheet.create({
     minHeight: 64,
     shadowColor: '#64748b',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.05,
     shadowRadius: 5,
     elevation: 2,
   },
@@ -4279,6 +4633,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
     marginTop: 0,
   },
+  mainScrollViewProfile: {
+    backgroundColor: '#ffffff',
+  },
   scrollContent: {
     padding: 14,
     paddingBottom: Platform.OS === 'android' ? 78 : 88,
@@ -4288,8 +4645,9 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'android' ? 78 : 88,
   },
   scrollContentProfile: {
-    padding: 14,
+    padding: 16,
     paddingBottom: Platform.OS === 'android' ? 76 : 84,
+    backgroundColor: '#ffffff',
   },
   cardWrapper: {
     backgroundColor: '#ffffff',
@@ -4654,6 +5012,58 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: '#475569',
   },
+  infoGridContainer: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    gap: 8,
+  },
+  infoGridRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  infoCell: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    gap: 8,
+  },
+  infoCellIcon: {
+    marginRight: 2,
+  },
+  infoCellContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  infoCellLabel: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  infoCellValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
+    lineHeight: 17,
+  },
+  infoCellSubPhone: {
+    fontSize: 10.5,
+    color: '#ea580c',
+    fontWeight: '700',
+    marginTop: 1,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  infoRowHorizontalDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginHorizontal: 8,
+  },
   infoThreeColsRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
@@ -4664,13 +5074,14 @@ const styles = StyleSheet.create({
   },
   infoThreeCol: {
     flex: 1,
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
   },
   infoColDivider: {
     width: 1,
     backgroundColor: '#e2e8f0',
+    alignSelf: 'stretch',
     marginVertical: 2,
     marginHorizontal: 2,
   },
@@ -5209,39 +5620,123 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.3,
   },
-  /* Quick Access Dashboard Cards */
-  dashboardCardsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: 10,
+  /* Clean Profile Settings List (Seamless flat list with fine line separators, no outer box, no border, no shadow) */
+  profileListCard: {
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    borderWidth: 0,
+    borderColor: 'transparent',
+    overflow: 'visible',
+    marginTop: 0,
     marginBottom: 20,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  profileListItem: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 6,
+    backgroundColor: 'transparent',
+  },
+  profileListDivider: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
+    width: '100%',
+  },
+  profileListItemLogout: {
+    backgroundColor: 'transparent',
+  },
+  /* Full-Width Quick Access Dashboard Cards (1 section in 1 row) */
+  dashboardCardsGrid: {
+    flexDirection: 'column',
+    marginTop: 8,
+    marginBottom: 20,
+    gap: 10,
   },
   dashboardCardItem: {
-    width: '48.5%',
+    width: '100%',
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderRadius: 16,
     paddingVertical: 12,
-    paddingHorizontal: 10,
-    marginBottom: 11,
+    paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#eef2f6',
-    shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: '#e2e8f0',
     flexDirection: 'row',
     alignItems: 'center',
     position: 'relative',
-    minHeight: 72,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+    minHeight: 64,
   },
-  dashboardCardIconBox: {
-    width: 30,
-    height: 30,
+  dashboardCardLogoutItem: {
+    borderColor: '#fee2e2',
+    backgroundColor: '#fff7f7',
+  },
+  cardDarkIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#0f2744',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 6,
+  },
+  cardOrangeDivider: {
+    width: 2,
+    height: 24,
+    backgroundColor: '#ea580c',
+    marginHorizontal: 12,
+    borderRadius: 1,
+  },
+  cardRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  cardOrangeAlertBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#ea580c',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+  },
+  cardOrangeAlertText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 15,
+  },
+  cardNotifCountBadge: {
+    backgroundColor: '#ea580c',
+    borderRadius: 11,
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+  },
+  cardNotifCountText: {
+    color: '#ffffff',
+    fontSize: 11.5,
+    fontWeight: '900',
+  },
+  dashboardCardIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#0f2744',
+    alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0,
   },
   dashboardCardTextBox: {
@@ -5249,17 +5744,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dashboardCardTitle: {
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: '800',
     color: '#0f2744',
-    letterSpacing: 0.1,
-    lineHeight: 16,
+    letterSpacing: -0.2,
+    lineHeight: 18,
   },
   dashboardCardSub: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '500',
     color: '#64748b',
     marginTop: 2,
+    lineHeight: 15,
   },
   dashboardCardChevron: {
     marginLeft: 2,
@@ -5373,6 +5869,24 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0f2744',
   },
+  homeDirectDispatchSection: {
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 14,
+    gap: 12,
+  },
+  homeDirectDispatchCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
   floatingDispatchCardWhite: {
     backgroundColor: '#ffffff',
     borderRadius: 18,
@@ -5445,6 +5959,10 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
+  },
+  passengerGroupLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   dispatchPassengerNameDark: {
     fontSize: 11,
@@ -6033,6 +6551,7 @@ const styles = StyleSheet.create({
     marginVertical: 2,
   },
   profileHeroCardWhite: {
+    backgroundColor: '#ffffff',
     paddingVertical: 12,
     paddingHorizontal: 6,
     flexDirection: 'row',
@@ -6888,16 +7407,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 999,
-    height: Platform.OS === 'android' ? 68 : 74,
-    paddingBottom: Platform.OS === 'android' ? 8 : 16,
+    height: Platform.OS === 'android' ? 66 : 72,
+    paddingBottom: Platform.OS === 'android' ? 6 : 14,
     backgroundColor: '#162232',
     flexDirection: 'row',
+    alignItems: 'center',
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
-    borderTopWidth: 1,
+    borderTopWidth: 1.5,
     borderLeftWidth: 0,
     borderRightWidth: 0,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     overflow: 'hidden',
     elevation: 10,
     shadowColor: '#000000',
@@ -6910,14 +7430,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    paddingTop: 4,
+    paddingTop: 3,
+  },
+  bottomNavTabDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    alignSelf: 'center',
   },
   bottomActiveBar: {
-    width: 28,
+    width: 26,
     height: 3,
     backgroundColor: '#f0750f',
     borderRadius: 1.5,
-    marginTop: 4,
+    marginTop: 3,
   },
   bottomNavEmoji: {
     fontSize: 18,
@@ -6927,11 +7453,11 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   bottomNavText: {
-    fontSize: 11,
+    fontSize: 11.5,
     color: '#94a3b8',
     fontWeight: '700',
-    marginTop: 3,
-    letterSpacing: 0.2,
+    marginTop: 2,
+    letterSpacing: 0.15,
   },
   bottomNavTextActive: {
     color: '#f0750f',
@@ -6947,19 +7473,20 @@ const styles = StyleSheet.create({
     top: -4,
     right: -8,
     backgroundColor: '#ea580c',
-    width: 15,
-    height: 15,
-    borderRadius: 7.5,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#ffffff',
+    borderColor: '#162232',
   },
   profilePendingNotificationBadgeText: {
     color: '#ffffff',
-    fontSize: 9,
+    fontSize: 9.5,
     fontWeight: '900',
-    lineHeight: 11,
+    lineHeight: 12,
+    textAlign: 'center',
   },
   avatarPendingDot: {
     position: 'absolute',
@@ -7516,24 +8043,28 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   profileBottomUtilityContainer: {
-    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 0,
     marginBottom: 20,
-    gap: 10,
   },
   profileUtilityCard: {
+    flex: 1,
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: '#eef2f6',
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+    minHeight: 72,
   },
   profileUtilityLogoutCard: {
     borderColor: '#fee2e2',

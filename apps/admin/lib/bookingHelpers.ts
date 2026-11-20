@@ -747,3 +747,25 @@ function safeJsonParse(val: string): any {
     return null;
   }
 }
+
+/**
+ * Checks whether a booking is a missed trip:
+ * The pickup date/time has passed, but the trip was never completed, started, or cancelled.
+ */
+export function isBookingMissed(b: any): boolean {
+  if (!b) return false;
+  const s = b.status;
+  if (
+    s === 'TRIP_COMPLETED' ||
+    s === 'TRIP_STARTED' ||
+    s === 'DRIVER_EN_ROUTE' ||
+    s === 'CANCELLED'
+  ) {
+    return false;
+  }
+  const schedVal = b.scheduledAt;
+  if (!schedVal) return false;
+  const d = new Date(schedVal);
+  if (isNaN(d.getTime())) return false;
+  return d.getTime() < Date.now();
+}

@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Linking from 'expo-linking';
 import * as FileSystem from 'expo-file-system';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { KANDY_LOGO_BASE64, generateKandyInvoiceHtml } from '@kandy-cabs/shared';
 import { customerApiClient, getDynamicBaseUrl, customerTokenStorage } from '../lib/api';
 
@@ -404,12 +406,30 @@ export function TaxInvoiceModal({
     if (!invoice || !bookingId) return;
     try {
       setSharing(true);
-      const downloadUrl = await getInvoiceDownloadUrl();
-      await Share.share({
-        title: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}`,
-        message: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}\nBooking: ${invoice.humanReadableRef || bookingId}\nCustomer: ${invoice.customer?.name || 'Customer'}\nTotal: ₹${invoice.financials?.grandTotal?.toFixed(2) || '0.00'}\n\nView / Download Official Invoice:\n${downloadUrl}`,
-        url: downloadUrl,
+      // 1. Generate the official full HTML tax invoice
+      const invoiceHtml = generateKandyInvoiceHtml(invoice);
+
+      // 2. Render to local .pdf file on device using expo-print
+      const { uri } = await Print.printToFileAsync({
+        html: invoiceHtml,
       });
+
+      // 3. Share the actual PDF document directly to WhatsApp / apps via native share sheet
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable && uri) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Share Tax Invoice #${invoice.invoiceNumber}`,
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        const downloadUrl = await getInvoiceDownloadUrl();
+        await Share.share({
+          title: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}`,
+          message: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}\nBooking: ${invoice.humanReadableRef || bookingId}\nCustomer: ${invoice.customer?.name || 'Customer'}\nTotal: ₹${invoice.financials?.grandTotal?.toFixed(2) || '0.00'}\n\nView / Download Official Invoice:\n${downloadUrl}`,
+          url: downloadUrl,
+        });
+      }
     } catch (err: any) {
       console.error('[TaxInvoice] Share PDF error:', err);
       Alert.alert('Share Error', err.message || 'Unable to share invoice at this time.');

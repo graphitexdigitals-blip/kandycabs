@@ -270,7 +270,10 @@ export default function PayoutDetailsScreen() {
             {payoutMethod === 'BANK' && (
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>{t('payout.bank_section_title', '🏦 Bank Account Information')}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="business" size={17} color="#0f2744" />
+                    <Text style={styles.sectionTitle}>{t('payout.bank_section_title', 'Bank Account Information')}</Text>
+                  </View>
                 </View>
 
                 {/* Account Holder Name */}
@@ -361,7 +364,10 @@ export default function PayoutDetailsScreen() {
             {payoutMethod === 'UPI' && (
               <View style={styles.sectionCard}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>{t('payout.upi_section_title', '⚡ UPI Transfer Information')}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="flash" size={17} color="#0f2744" />
+                    <Text style={styles.sectionTitle}>{t('payout.upi_section_title', 'UPI Transfer Information')}</Text>
+                  </View>
                 </View>
 
                 <View style={styles.upiNoteBox}>
@@ -411,7 +417,10 @@ export default function PayoutDetailsScreen() {
             {/* CONTACT DETAILS (Optional for Payout Contact) */}
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{t('payout.contact_section_title', '📞 Payout Contact Details')}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="call" size={17} color="#0f2744" />
+                  <Text style={styles.sectionTitle}>{t('payout.contact_section_title', 'Payout Contact Details')}</Text>
+                </View>
                 <Text style={styles.optionalTag}>{t('payout.contact_header_tag', 'Optional for SMS / Email Receipts')}</Text>
               </View>
 

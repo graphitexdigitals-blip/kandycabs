@@ -61,7 +61,18 @@ export async function GET(req: NextRequest) {
       orderBy: { scheduledAt: 'asc' },
     });
 
-    const parsedAssignedBookings = assignedBookings.map((b) => {
+    // Filter out unstarted bookings whose scheduled pickup date/time is in the past (Missed Trips - not active upcoming)
+    const activeAssignedBookings = assignedBookings.filter((b) => {
+      if (b.status === BookingStatus.TRIP_STARTED || b.status === BookingStatus.DRIVER_EN_ROUTE) {
+        return true;
+      }
+      if (!b.scheduledAt) return true;
+      const schedTime = new Date(b.scheduledAt).getTime();
+      if (isNaN(schedTime)) return true;
+      return schedTime >= Date.now();
+    });
+
+    const parsedAssignedBookings = activeAssignedBookings.map((b) => {
       const bAny = b as any;
       const createdPayload = (b?.tripEvents?.find((e: any) => e.type === 'BOOKING_CREATED')?.payloadJson as any) || {};
       let viaStops: any[] = [];

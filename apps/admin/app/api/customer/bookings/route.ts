@@ -167,8 +167,8 @@ export async function POST(req: NextRequest) {
     const petFee = hasPet ? (Number(body.petFee) || 500) : 0;
     const fuelType = ((passedFuelType ? String(passedFuelType).toUpperCase() : undefined) as FuelType) || (category === VehicleCategory.HATCHBACK ? FuelType.CNG : FuelType.DIESEL);
 
-    // Fetch dynamic pricing rule & system settings for night charge, airport rates, and chauffeur allowance
-    const [dbRule, nightSettingRow, airportRatesRow, chauffeurSettingRow] = await Promise.all([
+    // Fetch dynamic pricing rule & system settings for night charge, airport rates, chauffeur allowance, and driver payout rates
+    const [dbRule, nightSettingRow, airportRatesRow, chauffeurSettingRow, driverRulesSettingRow] = await Promise.all([
       prisma.pricingRule.findFirst({
         where: { category, tripType, fuelType, isActive: true },
       }).catch(() => null),
@@ -181,11 +181,16 @@ export async function POST(req: NextRequest) {
       prisma.systemSetting.findUnique({
         where: { key: 'chauffeur_allowance_settings' },
       }).catch(() => null),
+      prisma.systemSetting.findUnique({
+        where: { key: 'driver_pricing_rules' },
+      }).catch(() => null),
     ]);
 
     const nightSettings = nightSettingRow?.value as any;
     const airportRates = airportRatesRow?.value as any;
     const chauffeurSettings = chauffeurSettingRow?.value as any;
+    const driverRulesMap = (driverRulesSettingRow?.value as any) || {};
+    const dRule = driverRulesMap[`${category}_${tripType}_${fuelType}`] || {};
 
     const overrides: any = dbRule
       ? {
@@ -205,9 +210,17 @@ export async function POST(req: NextRequest) {
           localPackage8hrKm: dbRule.localPackage8hrKm ? Number(dbRule.localPackage8hrKm) : undefined,
           localPackage12hrBase: dbRule.localPackage12hrBase ? Number(dbRule.localPackage12hrBase) : undefined,
           localPackage12hrKm: dbRule.localPackage12hrKm ? Number(dbRule.localPackage12hrKm) : undefined,
+          driverBaseRatePerKm: dRule.driverBaseRatePerKm !== undefined && dRule.driverBaseRatePerKm !== null ? Number(dRule.driverBaseRatePerKm) : undefined,
+          driverExtraKmRate: dRule.driverExtraKmRate !== undefined && dRule.driverExtraKmRate !== null ? Number(dRule.driverExtraKmRate) : undefined,
+          driverAllowanceDaily: dRule.driverAllowanceDaily !== undefined && dRule.driverAllowanceDaily !== null ? Number(dRule.driverAllowanceDaily) : undefined,
+          driverNightCharge: dRule.driverNightCharge !== undefined && dRule.driverNightCharge !== null ? Number(dRule.driverNightCharge) : undefined,
           chauffeurConfig: chauffeurSettings,
         }
       : {
+          driverBaseRatePerKm: dRule.driverBaseRatePerKm !== undefined && dRule.driverBaseRatePerKm !== null ? Number(dRule.driverBaseRatePerKm) : undefined,
+          driverExtraKmRate: dRule.driverExtraKmRate !== undefined && dRule.driverExtraKmRate !== null ? Number(dRule.driverExtraKmRate) : undefined,
+          driverAllowanceDaily: dRule.driverAllowanceDaily !== undefined && dRule.driverAllowanceDaily !== null ? Number(dRule.driverAllowanceDaily) : undefined,
+          driverNightCharge: dRule.driverNightCharge !== undefined && dRule.driverNightCharge !== null ? Number(dRule.driverNightCharge) : undefined,
           chauffeurConfig: chauffeurSettings,
         };
 
@@ -273,7 +286,9 @@ export async function POST(req: NextRequest) {
           pickupOtp,
           customerLocationSharingEnabled: true,
           driverAllowance: typeof pricing.driverAllowance === 'number' ? pricing.driverAllowance : 0.0,
-          driverPayeeAmount: 0.0,
+          driverPayeeAmount: typeof pricing.driverPayeeAmount === 'number' && pricing.driverPayeeAmount > 0
+            ? pricing.driverPayeeAmount
+            : (typeof pricing.driverBaseFare === 'number' && pricing.driverBaseFare > 0 ? pricing.driverBaseFare : Math.round(effectiveTotalFare * 0.77)),
           driverPaymentStatus: PaymentStatus.PENDING,
         },
       });
@@ -331,6 +346,16 @@ export async function POST(req: NextRequest) {
             gstin: gstin ? String(gstin).trim().toUpperCase() : (body.gstin ? String(body.gstin).trim().toUpperCase() : undefined),
             couponCode: couponCode ? String(couponCode).trim().toUpperCase() : undefined,
             couponDiscount: pricing.discount || Number(body.couponDiscount) || 0,
+            driverRates: {
+              driverBaseRatePerKm: pricing.driverBaseRatePerKm,
+              driverExtraKmRate: pricing.driverExtraKmRate,
+              driverBaseFare: pricing.driverBaseFare,
+              driverExtraKmCharge: pricing.driverExtraKmCharge,
+              driverAllowancePayout: pricing.driverAllowancePayout,
+              driverNightChargePayout: pricing.driverNightChargePayout,
+              driverPayeeAmount: pricing.driverPayeeAmount,
+              companyProfit: pricing.companyProfit,
+            },
           },
         },
       });

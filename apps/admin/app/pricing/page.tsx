@@ -666,10 +666,10 @@ export default function AdminPricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col">
+    <div className="min-h-screen bg-[#f4f7fc] text-slate-900 flex flex-col font-sans">
       <AdminNavbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-2 sm:px-6 lg:px-8 py-2.5 sm:py-5 space-y-2.5 sm:space-y-4">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:pl-6 lg:pr-24 py-4 sm:py-5 space-y-4">
         {/* Top Header */}
         <div className="bg-white p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
@@ -1541,25 +1541,51 @@ export default function AdminPricingPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="bg-slate-50 border border-slate-200/80 rounded-lg sm:rounded-xl p-2.5 sm:p-3 flex items-baseline justify-between">
-                        <div>
-                          <span className="text-[9.5px] sm:text-[10px] font-black uppercase text-slate-400 tracking-wider block">
-                            Base Rate
-                          </span>
-                          <div className="flex items-baseline gap-1 mt-0.5">
-                            <span className="text-xl sm:text-2xl font-black text-slate-900">₹{rule.baseRatePerKm}</span>
-                            <span className="text-xs font-bold text-slate-500">/ km</span>
+                      <div className="space-y-2">
+                        <div className="bg-slate-50 border border-slate-200/80 rounded-lg sm:rounded-xl p-2.5 sm:p-3 flex items-baseline justify-between">
+                          <div>
+                            <span className="text-[9.5px] sm:text-[10px] font-black uppercase text-blue-600 tracking-wider block">
+                              Customer Base Rate
+                            </span>
+                            <div className="flex items-baseline gap-1 mt-0.5">
+                              <span className="text-xl sm:text-2xl font-black text-slate-900">₹{rule.baseRatePerKm}</span>
+                              <span className="text-xs font-bold text-slate-500">/ km</span>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <span className="text-[9.5px] sm:text-[10px] font-black uppercase text-slate-400 tracking-wider block">
+                              Extra KM Rate
+                            </span>
+                            <span className="text-xs sm:text-sm font-black text-slate-800">₹{rule.extraKmRate}/km</span>
+                            <span className="text-[9.5px] sm:text-[10px] font-semibold text-slate-400 block mt-0.5">
+                              {rule.extraKmThreshold ? `After ${rule.extraKmThreshold} km` : 'Beyond booked route'}
+                            </span>
                           </div>
                         </div>
 
-                        <div className="text-right">
-                          <span className="text-[9.5px] sm:text-[10px] font-black uppercase text-slate-400 tracking-wider block">
-                            Extra KM Rate
-                          </span>
-                          <span className="text-xs sm:text-sm font-black text-slate-800">₹{rule.extraKmRate}/km</span>
-                          <span className="text-[9.5px] sm:text-[10px] font-semibold text-slate-400 block mt-0.5">
-                            {rule.extraKmThreshold ? `After ${rule.extraKmThreshold} km` : 'Beyond booked route'}
-                          </span>
+                        {/* Driver Rate & Margin */}
+                        <div className="bg-amber-50/60 border border-amber-200/70 rounded-lg p-2 sm:p-2.5 flex items-center justify-between text-xs">
+                          <div>
+                            <span className="text-[9px] font-black uppercase text-amber-800 tracking-wider block">
+                              Driver Payout Rate
+                            </span>
+                            <div className="flex items-baseline gap-1 font-black text-amber-950 text-sm">
+                              ₹{rule.driverBaseRatePerKm !== undefined && rule.driverBaseRatePerKm !== null ? rule.driverBaseRatePerKm : Math.max(8, Math.round(rule.baseRatePerKm * 0.77 * 10) / 10)}
+                              <span className="text-[10px] font-bold text-amber-700">/km</span>
+                              <span className="text-[10px] text-amber-600 font-semibold ml-1">
+                                (Extra: ₹{rule.driverExtraKmRate !== undefined && rule.driverExtraKmRate !== null ? rule.driverExtraKmRate : rule.driverBaseRatePerKm || 10}/km)
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[9px] font-black uppercase text-emerald-700 tracking-wider block">
+                              Company Margin
+                            </span>
+                            <span className="text-xs font-black text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded">
+                              +₹{(rule.baseRatePerKm - (rule.driverBaseRatePerKm !== undefined && rule.driverBaseRatePerKm !== null ? rule.driverBaseRatePerKm : Math.max(8, Math.round(rule.baseRatePerKm * 0.77 * 10) / 10))).toFixed(1)}/km
+                            </span>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1948,6 +1974,85 @@ export default function AdminPricingPage() {
                     className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 font-bold focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
                     required
                   />
+                </div>
+              </div>
+
+              {/* Driver Payout Rates Section Arranged Below */}
+              <div className="bg-amber-50/70 border border-amber-200/90 rounded-xl p-3 sm:p-3.5 space-y-3">
+                <div className="flex items-center justify-between border-b border-amber-200/80 pb-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span className="text-[11px] font-black uppercase text-amber-950 tracking-wider">
+                      Driver Payout Rates (What Driver Receives)
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-amber-900 bg-amber-200/60 px-2 py-0.5 rounded">
+                    Margin: +₹{Math.max(0, (editingRule.baseRatePerKm || 0) - (editingRule.driverBaseRatePerKm !== undefined && editingRule.driverBaseRatePerKm !== null ? editingRule.driverBaseRatePerKm : Math.max(8, Math.round((editingRule.baseRatePerKm || 13) * 0.77 * 10) / 10))).toFixed(1)}/km
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-800 font-bold mb-1">
+                      Driver Base Rate / KM (₹)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      placeholder="e.g. 10"
+                      value={editingRule.driverBaseRatePerKm ?? ''}
+                      onChange={(e) => setEditingRule({ ...editingRule, driverBaseRatePerKm: e.target.value === '' ? '' : parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-white border border-amber-300 rounded-lg p-2 text-slate-900 font-bold focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      required
+                    />
+                    <span className="text-[10px] text-amber-900/70 mt-0.5 block">Standard payout to driver</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-800 font-bold mb-1">
+                      Driver Extra KM Rate (₹)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      placeholder="e.g. 10"
+                      value={editingRule.driverExtraKmRate ?? ''}
+                      onChange={(e) => setEditingRule({ ...editingRule, driverExtraKmRate: e.target.value === '' ? '' : parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-white border border-amber-300 rounded-lg p-2 text-slate-900 font-bold focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      required
+                    />
+                    <span className="text-[10px] text-amber-900/70 mt-0.5 block">Driver payout per extra km</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-800 font-bold mb-1">Driver Allowance / Day (₹)</label>
+                    <input
+                      type="number"
+                      step="10"
+                      min="0"
+                      value={editingRule.driverAllowanceDaily ?? editingRule.driverAllowance ?? 300}
+                      onChange={(e) => setEditingRule({ ...editingRule, driverAllowanceDaily: parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-white border border-amber-300 rounded-lg p-2 text-slate-900 font-bold focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                    <span className="text-[10px] text-amber-900/70 mt-0.5 block">Paid directly to driver</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-800 font-bold mb-1">Driver Night Charge (₹)</label>
+                    <input
+                      type="number"
+                      step="10"
+                      min="0"
+                      value={editingRule.driverNightCharge ?? Math.round((editingRule.nightCharge || 250) * 0.8)}
+                      onChange={(e) => setEditingRule({ ...editingRule, driverNightCharge: parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-white border border-amber-300 rounded-lg p-2 text-slate-900 font-bold focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                    <span className="text-[10px] text-amber-900/70 mt-0.5 block">Driver night shift pay</span>
+                  </div>
                 </div>
               </div>
 

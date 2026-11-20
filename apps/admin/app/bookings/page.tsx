@@ -8,7 +8,7 @@ import { BroadcastDispatchModal } from '@/components/BroadcastDispatchModal';
 import { OtpOverrideModal } from '@/components/OtpOverrideModal';
 import { BookingDetailDrawer } from '@/components/BookingDetailDrawer';
 import { AdminNavbar } from '@/components/AdminNavbar';
-import { parseIntermediateStops, getBookingMetadata, getTripVerificationPhotos, getTripTimingMilestones } from '@/lib/bookingHelpers';
+import { parseIntermediateStops, getBookingMetadata, getTripVerificationPhotos, getTripTimingMilestones, isBookingMissed } from '@/lib/bookingHelpers';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import {
   IconMap,
@@ -48,6 +48,7 @@ const STATUS_FILTERS = [
   BookingStatus.PENDING_ADMIN,
   BookingStatus.DISPATCHED,
   BookingStatus.DRIVER_ACCEPTED,
+  'MISSED',
   BookingStatus.DRIVER_EN_ROUTE,
   BookingStatus.TRIP_STARTED,
   BookingStatus.TRIP_COMPLETED,
@@ -73,6 +74,8 @@ export default function AdminBookingsPage() {
     switch (s) {
       case 'ALL':
         return 'ALL';
+      case 'MISSED':
+        return 'MISSED';
       case BookingStatus.PENDING_ADMIN:
         return 'PENDING';
       case BookingStatus.DISPATCHED:
@@ -132,6 +135,7 @@ export default function AdminBookingsPage() {
 
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const inFlightRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -144,8 +148,16 @@ export default function AdminBookingsPage() {
 
   const fetchBookings = useCallback(
     async (isBackground: boolean = false) => {
-      if (inFlightRef.current) return;
+      // If user triggers an active action (filter, page, search), abort previous in-flight request so button clicks are never dropped
+      if (!isBackground && abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      } else if (isBackground && inFlightRef.current) {
+        return; // Background poll can safely wait if another fetch is in flight
+      }
+
       inFlightRef.current = true;
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
       if (!isBackground) {
         setLoading(true);
@@ -161,6 +173,7 @@ export default function AdminBookingsPage() {
 
         const res = await fetch(`/api/admin/bookings?${queryParams}`, {
           cache: 'no-store',
+          signal: controller.signal,
         });
 
         if (res.status === 401) {
@@ -179,6 +192,10 @@ export default function AdminBookingsPage() {
           if (!isBackground) setIsReconnecting(true);
         }
       } catch (err: any) {
+        if (err.name === 'AbortError') {
+          // Normal user abort when rapidly clicking filters or pages
+          return;
+        }
         console.error('Fetch bookings error:', err);
         if (!isBackground) setIsReconnecting(true);
       } finally {
@@ -277,8 +294,12 @@ export default function AdminBookingsPage() {
   const displayedBookings = React.useMemo(() => {
     if (!bookings || bookings.length === 0) return [];
     return bookings.filter((b) => {
-      if (statusFilter !== 'ALL' && b.status !== statusFilter) {
-        return false;
+      if (statusFilter !== 'ALL') {
+        if (statusFilter === 'MISSED') {
+          if (!isBookingMissed(b)) return false;
+        } else if (b.status !== statusFilter) {
+          return false;
+        }
       }
       if (search.trim()) {
         const q = search.toLowerCase().trim();
@@ -419,9 +440,9 @@ export default function AdminBookingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-[#f4f7fc] flex flex-col font-sans">
       <AdminNavbar />
-      <div className="max-w-[1536px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-5 space-y-4 flex-1">
+      <div className="w-full px-4 sm:px-6 lg:pl-6 lg:pr-24 py-4 sm:py-5 space-y-4 flex-1">
         {/* Top Navbar / Navigation */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 bg-white px-4 py-3 sm:px-5 sm:py-3.5 rounded-xl shadow-xs border border-slate-200">
           <div>
@@ -568,15 +589,44 @@ export default function AdminBookingsPage() {
                 (b.status === BookingStatus.DRIVER_ACCEPTED || b.status === BookingStatus.DRIVER_EN_ROUTE);
               const latestCancelReq = b.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED');
               const latestCancelApp = b.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_APPROVED');
+              const latestDeclined = b.tripEvents?.find((e: any) => e.type === 'DRIVER_DECLINED');
+              const hasAcceptedEvt = b.tripEvents?.some((e: any) => e.type === 'DRIVER_ACCEPTED');
+              const isActuallyAccepted =
+                Boolean(hasAcceptedEvt) ||
+                b.status === BookingStatus.DRIVER_ACCEPTED ||
+                b.status === BookingStatus.DRIVER_EN_ROUTE ||
+                b.status === BookingStatus.TRIP_STARTED;
+
               const hasPendingCancel =
                 Boolean(latestCancelReq) &&
-                (!latestCancelApp || new Date(latestCancelReq.createdAt) > new Date(latestCancelApp.createdAt));
+                isActuallyAccepted &&
+                b.assignedDriverId != null &&
+                (!latestCancelApp || new Date(latestCancelReq.createdAt) > new Date(latestCancelApp.createdAt)) &&
+                (!latestDeclined || new Date(latestCancelReq.createdAt) > new Date(latestDeclined.createdAt));
+
+              const isDeclinedAwaitingRedispatch =
+                Boolean(latestDeclined) &&
+                !hasPendingCancel &&
+                !b.assignedDriverId &&
+                (b.status === BookingStatus.DISPATCHED || b.status === BookingStatus.PENDING_ADMIN);
 
               const statusDisplay = hasPendingCancel
                 ? {
                     label: 'Cancel Requested',
                     badgeClass: 'bg-rose-50 text-rose-700 border-rose-300 font-bold',
                     icon: <IconAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />,
+                  }
+                : isDeclinedAwaitingRedispatch
+                ? {
+                    label: 'Driver Declined',
+                    badgeClass: 'bg-rose-50 text-rose-700 border-rose-300 font-bold',
+                    icon: <IconCross className="w-3.5 h-3.5 text-rose-600 shrink-0" />,
+                  }
+                : isBookingMissed(b)
+                ? {
+                    label: 'Missed Trip',
+                    badgeClass: 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
+                    icon: <IconAlert className="w-3.5 h-3.5 text-amber-700 shrink-0" />,
                   }
                 : getStatusDisplay(b.status);
 
@@ -640,6 +690,7 @@ export default function AdminBookingsPage() {
                   );
                 }
                 if (b.status === BookingStatus.PENDING_ADMIN) {
+                  const isDeclined = Boolean(latestDeclined);
                   return (
                     <button
                       type="button"
@@ -647,9 +698,13 @@ export default function AdminBookingsPage() {
                         e.stopPropagation();
                         handleOpenDispatch(b.id, b.humanReadableRef);
                       }}
-                      className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition shadow-2xs"
+                      className={
+                        isDeclined
+                          ? "inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 transition shadow-2xs"
+                          : "inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition shadow-2xs"
+                      }
                     >
-                      <span>Dispatch</span>
+                      <span>{isDeclined ? 'Re-dispatch' : 'Dispatch'}</span>
                     </button>
                   );
                 }
@@ -697,12 +752,6 @@ export default function AdminBookingsPage() {
               };
 
               const renderDriverContent = () => {
-                const latestCancelReq = b.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED');
-                const latestCancelApp = b.tripEvents?.find((e: any) => e.type === 'DRIVER_CANCEL_APPROVED');
-                const hasPendingCancel =
-                  Boolean(latestCancelReq) &&
-                  (!latestCancelApp || new Date(latestCancelReq.createdAt) > new Date(latestCancelApp.createdAt));
-
                 if (hasPendingCancel) {
                   const driverName = b.assignedDriver?.user?.fullName || latestCancelReq?.payloadJson?.driverName || cleanDriverName || 'Driver Partner';
                   const driverPhone = b.assignedDriver?.user?.phone || latestCancelReq?.payloadJson?.driverPhone || '';
@@ -829,7 +878,7 @@ export default function AdminBookingsPage() {
                 const customerFare = Number(b.estimatedFare || 0);
                 const savedVendorCost = Number(b.driverPayeeAmount || 0);
                 const distanceKm = Number(b.distanceKm || 0);
-                const autoVendorCost = distanceKm > 0 ? Math.round(distanceKm * 13 + Number(b.driverAllowance ?? 0)) : null;
+                const autoVendorCost = distanceKm > 0 ? Math.round(distanceKm * 10 + Number(b.driverAllowance ?? 300)) : null;
                 const vendorCost = savedVendorCost > 0 ? savedVendorCost : autoVendorCost;
                 const netMargin = vendorCost !== null ? customerFare - vendorCost : null;
 
@@ -838,22 +887,25 @@ export default function AdminBookingsPage() {
                     <span className="font-extrabold text-slate-900 text-lg sm:text-xl tracking-tight block">
                       ₹{customerFare.toFixed(2)}
                     </span>
+                    <span className="text-[10px] font-bold text-slate-400 block -mt-0.5">
+                      Customer Pays
+                    </span>
 
-                    {/* Vendor Cost & Net Profit Margin Badge (Auto-calculated from Km if not yet set) */}
+                    {/* Driver Cost & Net Profit Margin Badge */}
                     {vendorCost !== null ? (
                       <div className="mt-1 space-y-0.5">
                         <span className="text-[11px] font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 inline-block">
-                          Vendor: ₹{vendorCost.toLocaleString('en-IN')}{savedVendorCost <= 0 ? ' (Est)' : ''}
+                          Driver: ₹{vendorCost.toLocaleString('en-IN')}{savedVendorCost <= 0 ? ' (Est)' : ''}
                         </span>
                         {netMargin !== null && (
                           <span className={`text-[10.5px] font-black block ${netMargin >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            Margin: {netMargin >= 0 ? '+' : ''}₹{netMargin.toLocaleString('en-IN')}
+                            Profit: {netMargin >= 0 ? '+' : ''}₹{netMargin.toLocaleString('en-IN')}
                           </span>
                         )}
                       </div>
                     ) : (
                       <span className="text-[10.5px] text-slate-400 italic block mt-0.5">
-                        Vendor cost pending
+                        Driver amount pending
                       </span>
                     )}
 
@@ -1133,12 +1185,12 @@ export default function AdminBookingsPage() {
                         {statusDisplay.icon}
                         <span>{statusDisplay.label}</span>
                       </span>
-                      {b.tripEvents?.some((e: any) => e.type === 'DRIVER_DECLINED') && (b.status === BookingStatus.DISPATCHED || b.status === BookingStatus.PENDING_ADMIN) && (
+                      {latestDeclined && (b.status === BookingStatus.DISPATCHED || b.status === BookingStatus.PENDING_ADMIN) && !b.assignedDriver && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 text-center animate-pulse">
                           Driver Declined
                         </span>
                       )}
-                      {b.tripEvents?.some((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED') && !b.tripEvents?.some((e: any) => e.type === 'DRIVER_CANCEL_APPROVED') && b.assignedDriver && (
+                      {hasPendingCancel && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 animate-pulse text-center">
                           Cancel Requested
                         </span>
@@ -1183,12 +1235,12 @@ export default function AdminBookingsPage() {
                     </span>
 
                     {/* Special status warnings/alerts */}
-                    {b.tripEvents?.some((e: any) => e.type === 'DRIVER_DECLINED') && (b.status === BookingStatus.DISPATCHED || b.status === BookingStatus.PENDING_ADMIN) && (
+                    {latestDeclined && (b.status === BookingStatus.DISPATCHED || b.status === BookingStatus.PENDING_ADMIN) && !b.assignedDriver && (
                       <span className="mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 text-center animate-pulse">
                         Driver Declined
                       </span>
                     )}
-                    {b.tripEvents?.some((e: any) => e.type === 'DRIVER_CANCEL_REQUESTED') && !b.tripEvents?.some((e: any) => e.type === 'DRIVER_CANCEL_APPROVED') && b.assignedDriver && (
+                    {hasPendingCancel && (
                       <span className="mt-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 animate-pulse text-center">
                         Cancel Requested
                       </span>

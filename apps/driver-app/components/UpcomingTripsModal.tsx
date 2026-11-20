@@ -10,15 +10,18 @@ import {
   Platform,
   Alert,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { SlideToAccept } from './SlideToAccept';
+import { driverApiClient } from '../lib/api';
 import {
   formatTripDateTime,
   parseCustomerRequirements,
   extractCustomerNotes,
+  isTripPhoneReleased,
 } from '../lib/tripRequirements';
 import {
   getTripInProcessSync,
@@ -103,6 +106,8 @@ interface UpcomingTripsModalProps {
   activeBooking?: any;
   driver?: any;
   onSelectBooking?: (bookingId: string) => void;
+  onOpenAssignedBooking?: (bookingId?: string) => void;
+  onCancelBooking?: (bookingId: string, reason?: string) => Promise<void>;
 }
 
 export function UpcomingTripsModal({
@@ -112,6 +117,8 @@ export function UpcomingTripsModal({
   activeBooking,
   driver,
   onSelectBooking,
+  onOpenAssignedBooking,
+  onCancelBooking,
 }: UpcomingTripsModalProps) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -210,7 +217,12 @@ export function UpcomingTripsModal({
       const diff = tripTime - now;
       const timing = formatTripDateTime(trip.scheduledAt, t);
 
-      // Within 24 hours, or scheduled for Today or Tomorrow, or pickup time has arrived/passed
+      // If scheduled pickup date/time has already passed and trip was never started, exclude it from accepted bookings
+      if (diff < 0) {
+        return;
+      }
+
+      // Within 24 hours, or scheduled for Today or Tomorrow
       if (timing.isToday || timing.isTomorrow || diff <= 24 * 3600 * 1000) {
         withinOneDay.push(trip);
       } else {
@@ -222,6 +234,111 @@ export function UpcomingTripsModal({
   }, [upcomingBookings, activeBooking, t]);
 
   const totalCount = onTripTrips.length + withinOneDayTrips.length + laterTrips.length;
+
+  // Selected Date Filter: 'all' | 'today' | 'tomorrow' | 'day3' | 'date-YYYY-M-D'
+  const [selectedFilter, setSelectedFilter] = useState<string>('all');
+
+  const filterTabs = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const dayAfterTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
+    const day3Num = dayAfterTomorrow.getDate();
+
+    const getOrdinal = (n: number) => {
+      const s = ['th', 'st', 'nd', 'rd'];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+    const day3Ordinal = getOrdinal(day3Num);
+
+    const allTrips = [...onTripTrips, ...withinOneDayTrips, ...laterTrips];
+    let todayCount = 0;
+    let tomorrowCount = 0;
+    let day3Count = 0;
+    const otherDateCounts: Record<string, { label: string; count: number; dateKey: string; timestamp: number }> = {};
+
+    const todayTime = today.getTime();
+    const tomorrowTime = tomorrow.getTime();
+    const day3Time = dayAfterTomorrow.getTime();
+
+    allTrips.forEach((trip) => {
+      const dateVal = trip?.scheduledAt;
+      if (!dateVal) {
+        todayCount++;
+        return;
+      }
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) {
+        todayCount++;
+        return;
+      }
+      const tripDayTime = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      if (tripDayTime === todayTime) {
+        todayCount++;
+      } else if (tripDayTime === tomorrowTime) {
+        tomorrowCount++;
+      } else if (tripDayTime === day3Time) {
+        day3Count++;
+      } else {
+        const key = `date-${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+        if (!otherDateCounts[key]) {
+          otherDateCounts[key] = {
+            label: getOrdinal(d.getDate()),
+            count: 0,
+            dateKey: key,
+            timestamp: tripDayTime,
+          };
+        }
+        otherDateCounts[key].count++;
+      }
+    });
+
+    const tabs: Array<{ key: string; label: string; count: number }> = [
+      { key: 'all', label: 'All', count: allTrips.length },
+      { key: 'today', label: 'Today', count: todayCount },
+      { key: 'tomorrow', label: 'Tomorrow', count: tomorrowCount },
+      { key: 'day3', label: day3Ordinal, count: day3Count },
+    ];
+
+    Object.values(otherDateCounts)
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .forEach((item) => {
+        tabs.push({
+          key: item.dateKey,
+          label: item.label,
+          count: item.count,
+        });
+      });
+
+    return tabs;
+  }, [onTripTrips, withinOneDayTrips, laterTrips]);
+
+  const selectedTab = filterTabs.find((t) => t.key === selectedFilter);
+
+  const filteredTrips = useMemo(() => {
+    const allTrips = [...onTripTrips, ...withinOneDayTrips, ...laterTrips];
+    if (selectedFilter === 'all') return allTrips;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const oneDay = 24 * 60 * 60 * 1000;
+    const tomorrow = today + oneDay;
+    const day3Time = today + 2 * oneDay;
+
+    return allTrips.filter((trip) => {
+      const dateVal = trip?.scheduledAt;
+      if (!dateVal) return selectedFilter === 'today';
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return selectedFilter === 'today';
+      const tripDayTime = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      if (selectedFilter === 'today') return tripDayTime === today;
+      if (selectedFilter === 'tomorrow') return tripDayTime === tomorrow;
+      if (selectedFilter === 'day3') return tripDayTime === day3Time;
+      const key = `date-${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+      return key === selectedFilter;
+    });
+  }, [selectedFilter, onTripTrips, withinOneDayTrips, laterTrips]);
 
   return (
     <Modal
@@ -238,7 +355,7 @@ export function UpcomingTripsModal({
             <View>
               <View style={styles.headerTitleRow}>
                 <Text style={styles.headerTitle}>
-                  {t('dashboard.upcoming_trips', 'Upcoming Trips')}
+                  {t('dashboard.accepted_booking', 'Accepted Booking')}
                 </Text>
                 {totalCount > 0 && (
                   <View style={styles.headerCountBadge}>
@@ -278,7 +395,7 @@ export function UpcomingTripsModal({
                 <Ionicons name="calendar-outline" size={42} color="#2563eb" />
               </View>
               <Text style={styles.emptyTitle}>
-                {t('dashboard.no_upcoming_trips_title', 'No Upcoming Trips')}
+                {t('dashboard.no_upcoming_trips_title', 'No Accepted Bookings')}
               </Text>
               <Text style={styles.emptyText}>
                 {t(
@@ -297,84 +414,217 @@ export function UpcomingTripsModal({
             </View>
           ) : (
             <View style={styles.tripsListContainer}>
-              {/* SECTION 0: ACTIVE ON-TRIP (Live trip in progress) */}
-              {onTripTrips.length > 0 && (
+              {/* Date Filter Bar: All, Today, Tomorrow, 20th... */}
+              {(totalCount > 0 || onTripTrips.length > 0) && (
+                <View style={styles.filterBarContainer}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.filterBarContent}
+                  >
+                    {filterTabs.map((tab) => {
+                      const isActive = selectedFilter === tab.key;
+                      return (
+                        <TouchableOpacity
+                          key={tab.key}
+                          style={[styles.filterBtn, isActive && styles.filterBtnActive]}
+                          onPress={() => setSelectedFilter(tab.key)}
+                          activeOpacity={0.75}
+                        >
+                          <Text
+                            style={[
+                              styles.filterBtnText,
+                              isActive && styles.filterBtnTextActive,
+                            ]}
+                          >
+                            {tab.label}
+                          </Text>
+                          {tab.count > 0 ? (
+                            <View
+                              style={[
+                                styles.filterCountBadge,
+                                isActive && styles.filterCountBadgeActive,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.filterCountText,
+                                  isActive && styles.filterCountTextActive,
+                                ]}
+                              >
+                                {tab.count}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+              {selectedFilter === 'all' ? (
+                <>
+                  {/* SECTION 0: ACTIVE ON-TRIP (Live trip in progress) */}
+                  {onTripTrips.length > 0 && (
+                    <View style={styles.sectionGroup}>
+                      <View style={styles.sectionHeaderRow}>
+                        <Ionicons name="navigate-circle" size={15} color="#16a34a" />
+                        <Text style={styles.sectionHeadingGreen}>
+                          ACTIVE ON TRIP ({onTripTrips.length})
+                        </Text>
+                      </View>
+
+                      {onTripTrips.map((trip, idx) => (
+                        <UpcomingTripCard
+                          key={trip.id || `ontrip-${idx}`}
+                          trip={trip}
+                          isCloserBefore1Day={false}
+                          isOnTrip={true}
+                          activeBooking={activeBooking}
+                          driver={driver}
+                          onClose={onClose}
+                          onSelectBooking={onSelectBooking}
+                          onOpenAssignedBooking={onOpenAssignedBooking}
+                          onCancelBooking={onCancelBooking}
+                          isAcceptedBookingView={true}
+                          router={router}
+                          t={t}
+                        />
+                      ))}
+                    </View>
+                  )}
+
+                  {/* SECTION 1: CLOSER BEFORE 1 DAY (URGENT • BE READY) */}
+                  {withinOneDayTrips.length > 0 && (
+                    <View style={[styles.sectionGroup, onTripTrips.length > 0 && { marginTop: 14 }]}>
+                      {withinOneDayTrips.map((trip, idx) => (
+                        <UpcomingTripCard
+                          key={trip.id || `closer-${idx}`}
+                          trip={trip}
+                          isCloserBefore1Day={true}
+                          isOnTrip={false}
+                          activeBooking={activeBooking}
+                          driver={driver}
+                          onClose={onClose}
+                          onSelectBooking={onSelectBooking}
+                          onOpenAssignedBooking={onOpenAssignedBooking}
+                          onCancelBooking={onCancelBooking}
+                          isAcceptedBookingView={true}
+                          router={router}
+                          t={t}
+                        />
+                      ))}
+                    </View>
+                  )}
+
+                  {/* SECTION 2: LATER SCHEDULED BOOKINGS (> 1 DAY) */}
+                  {laterTrips.length > 0 && (
+                    <View
+                      style={[
+                        styles.sectionGroup,
+                        (withinOneDayTrips.length > 0 || onTripTrips.length > 0) && { marginTop: 14 },
+                      ]}
+                    >
+                      <View style={styles.sectionHeaderRow}>
+                        <Ionicons name="calendar-outline" size={15} color="#64748b" />
+                        <Text style={styles.sectionHeadingGrey}>
+                          FUTURE SCHEDULED TRIPS ({laterTrips.length})
+                        </Text>
+                      </View>
+
+                      {laterTrips.map((trip, idx) => (
+                        <UpcomingTripCard
+                          key={trip.id || `later-${idx}`}
+                          trip={trip}
+                          isCloserBefore1Day={false}
+                          isOnTrip={false}
+                          activeBooking={activeBooking}
+                          driver={driver}
+                          onClose={onClose}
+                          onSelectBooking={onSelectBooking}
+                          onOpenAssignedBooking={onOpenAssignedBooking}
+                          onCancelBooking={onCancelBooking}
+                          isAcceptedBookingView={true}
+                          router={router}
+                          t={t}
+                        />
+                      ))}
+                    </View>
+                  )}
+                </>
+              ) : filteredTrips.length === 0 ? (
+                <View style={styles.filterEmptyContainer}>
+                  <View style={styles.filterEmptyIconWrap}>
+                    <Ionicons name="calendar-outline" size={32} color="#94a3b8" />
+                  </View>
+                  <Text style={styles.filterEmptyTitle}>
+                    No trips scheduled for {selectedTab?.label}
+                  </Text>
+                  <Text style={styles.filterEmptySub}>
+                    You have no accepted bookings scheduled for this date.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.filterEmptyResetBtn}
+                    onPress={() => setSelectedFilter('all')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.filterEmptyResetBtnText}>View All Bookings</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
                 <View style={styles.sectionGroup}>
-                  <View style={styles.sectionHeaderRow}>
-                    <Ionicons name="navigate-circle" size={15} color="#16a34a" />
-                    <Text style={styles.sectionHeadingGreen}>
-                      ACTIVE ON TRIP ({onTripTrips.length})
-                    </Text>
-                  </View>
+                  {filteredTrips.map((trip, idx) => {
+                    const matchActive =
+                      activeBooking &&
+                      (activeBooking.id === trip.id ||
+                        (trip.humanReadableRef && activeBooking.humanReadableRef === trip.humanReadableRef));
+                    const status = (matchActive && matchActive.status) || trip?.status;
+                    const isStatusStarted = [
+                      'TRIP_STARTED',
+                      'ON_TRIP',
+                      'IN_PROGRESS',
+                      'STARTED',
+                      'DRIVER_EN_ROUTE',
+                      'EN_ROUTE',
+                      'ARRIVED',
+                      'DRIVER_ARRIVED',
+                      'OTP_VERIFIED',
+                    ].includes(status);
+                    const tId = trip?.id || (matchActive ? activeBooking?.id : undefined);
+                    const isLocalStarted = Boolean(
+                      tId &&
+                        (getTripInProcessSync(tId) ||
+                          isTripVerificationCompletedSync(tId) ||
+                          isTripPickupReachedSync(tId) ||
+                          isTripOdometerCompletedSync(tId) ||
+                          isTripDestinationReachedSync(tId))
+                    );
+                    const isTripInProcess =
+                      isStatusStarted ||
+                      Boolean(trip?.startedAt) ||
+                      Boolean(matchActive?.startedAt) ||
+                      Boolean(trip?.isTripStarted) ||
+                      Boolean(matchActive?.isTripStarted) ||
+                      isLocalStarted;
 
-                  {onTripTrips.map((trip, idx) => (
-                    <UpcomingTripCard
-                      key={trip.id || `ontrip-${idx}`}
-                      trip={trip}
-                      isCloserBefore1Day={false}
-                      isOnTrip={true}
-                      activeBooking={activeBooking}
-                      driver={driver}
-                      onClose={onClose}
-                      onSelectBooking={onSelectBooking}
-                      router={router}
-                      t={t}
-                    />
-                  ))}
-                </View>
-              )}
-
-              {/* SECTION 1: CLOSER BEFORE 1 DAY (URGENT • BE READY) */}
-              {withinOneDayTrips.length > 0 && (
-                <View style={[styles.sectionGroup, onTripTrips.length > 0 && { marginTop: 14 }]}>
-                  <View style={styles.sectionHeaderRow}>
-                    <Ionicons name="time" size={15} color="#ea580c" />
-                    <Text style={styles.sectionHeadingOrange}>
-                      UPCOMING TRIPS ({withinOneDayTrips.length})
-                    </Text>
-                  </View>
-
-                  {withinOneDayTrips.map((trip, idx) => (
-                    <UpcomingTripCard
-                      key={trip.id || `closer-${idx}`}
-                      trip={trip}
-                      isCloserBefore1Day={true}
-                      isOnTrip={false}
-                      activeBooking={activeBooking}
-                      driver={driver}
-                      onClose={onClose}
-                      onSelectBooking={onSelectBooking}
-                      router={router}
-                      t={t}
-                    />
-                  ))}
-                </View>
-              )}
-
-              {/* SECTION 2: LATER SCHEDULED BOOKINGS (> 1 DAY) */}
-              {laterTrips.length > 0 && (
-                <View style={[styles.sectionGroup, (withinOneDayTrips.length > 0 || onTripTrips.length > 0) && { marginTop: 14 }]}>
-                  <View style={styles.sectionHeaderRow}>
-                    <Ionicons name="calendar-outline" size={15} color="#64748b" />
-                    <Text style={styles.sectionHeadingGrey}>
-                      FUTURE SCHEDULED TRIPS ({laterTrips.length})
-                    </Text>
-                  </View>
-
-                  {laterTrips.map((trip, idx) => (
-                    <UpcomingTripCard
-                      key={trip.id || `later-${idx}`}
-                      trip={trip}
-                      isCloserBefore1Day={false}
-                      isOnTrip={false}
-                      activeBooking={activeBooking}
-                      driver={driver}
-                      onClose={onClose}
-                      onSelectBooking={onSelectBooking}
-                      router={router}
-                      t={t}
-                    />
-                  ))}
+                    return (
+                      <UpcomingTripCard
+                        key={trip.id || `filtered-${idx}`}
+                        trip={trip}
+                        isCloserBefore1Day={true}
+                        isOnTrip={isTripInProcess}
+                        activeBooking={activeBooking}
+                        driver={driver}
+                        onClose={onClose}
+                        onSelectBooking={onSelectBooking}
+                        onOpenAssignedBooking={onOpenAssignedBooking}
+                        onCancelBooking={onCancelBooking}
+                        isAcceptedBookingView={true}
+                        router={router}
+                        t={t}
+                      />
+                    );
+                  })}
                 </View>
               )}
             </View>
@@ -385,7 +635,7 @@ export function UpcomingTripsModal({
   );
 }
 
-function UpcomingTripCard({
+export function UpcomingTripCard({
   trip,
   isCloserBefore1Day,
   isOnTrip,
@@ -393,6 +643,9 @@ function UpcomingTripCard({
   driver,
   onClose,
   onSelectBooking,
+  onOpenAssignedBooking,
+  onCancelBooking,
+  isAcceptedBookingView = false,
   router,
   t,
 }: {
@@ -403,10 +656,68 @@ function UpcomingTripCard({
   driver?: any;
   onClose: () => void;
   onSelectBooking?: (id: string) => void;
+  onOpenAssignedBooking?: (bookingId?: string) => void;
+  onCancelBooking?: (bookingId: string, reason?: string) => Promise<void>;
+  isAcceptedBookingView?: boolean;
   router: any;
   t: any;
 }) {
   const [isStartingTrip, setIsStartingTrip] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [localCancelPending, setLocalCancelPending] = useState(false);
+
+  const isCancelPending =
+    localCancelPending ||
+    trip?.isCancelRequested === true ||
+    trip?.tripEvents?.some(
+      (e: any) =>
+        e.type === 'DRIVER_CANCEL_REQUESTED' &&
+        !trip?.tripEvents?.some((a: any) => a.type === 'DRIVER_CANCEL_APPROVED')
+    );
+
+  const handleCancelPress = () => {
+    const bookingRef = trip?.humanReadableRef || trip?.id || 'this trip';
+    Alert.alert(
+      t('dashboard.cancel_trip_confirm_title', 'Cancel Trip Assignment'),
+      t(
+        'dashboard.cancel_trip_confirm_msg',
+        `Are you sure you want to cancel trip ${bookingRef}? A cancellation request will be submitted to Admin.`
+      ),
+      [
+        { text: t('common.back', 'Back'), style: 'cancel' },
+        {
+          text: t('common.confirm_cancel', 'Yes, Cancel Trip'),
+          style: 'destructive',
+          onPress: async () => {
+            setIsCancelling(true);
+            try {
+              if (onCancelBooking) {
+                await onCancelBooking(trip.id, 'Driver requested cancellation');
+              } else {
+                await driverApiClient.fetch('/api/driver/dispatches/decline', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    dispatchId: `dispatch-${trip.id}`,
+                    bookingId: trip.id,
+                    reason: 'Driver requested cancellation',
+                  }),
+                });
+              }
+              setLocalCancelPending(true);
+              Alert.alert(
+                t('dashboard.cancel_req_sent_title', 'Cancellation Request Sent'),
+                t('dashboard.cancel_req_sent_msg', 'Your cancellation request has been submitted to Admin.')
+              );
+            } catch (err: any) {
+              Alert.alert('Error', err?.message || 'Failed to submit cancellation request');
+            } finally {
+              setIsCancelling(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const tripDate = trip?.scheduledAt ? parseSafeDate(trip.scheduledAt) : null;
   const now = new Date();
@@ -467,10 +778,17 @@ function UpcomingTripCard({
 
   // 1. Auto phone release if within 5 hours of pickup, or 2. Released by admin, or 3. Trip is in progress
   const isPhoneReleased = Boolean(
-    trip?.customerPhoneReleased ||
+    isTripPhoneReleased(trip, activeBooking) ||
+      trip?.customerPhoneReleased ||
       effectiveIsOnTrip ||
       ['TRIP_STARTED', 'ON_TRIP', 'COMPLETED', 'IN_PROGRESS', 'STARTED', 'DRIVER_EN_ROUTE'].includes(effectiveStatus) ||
       isTimingNear
+  );
+
+  const isReleasedForAssigned = Boolean(
+    isTripPhoneReleased(trip, activeBooking) ||
+      trip?.customerPhoneReleased ||
+      effectiveIsOnTrip
   );
 
   const handleManageActiveTrip = () => {
@@ -551,6 +869,53 @@ function UpcomingTripCard({
       : trip.tripType.replace(/_/g, ' ')
     : 'ONEWAY';
 
+  const vehicleDisplay = (() => {
+    if (trip?.vehicle?.model) return trip.vehicle.model;
+    if (trip?.vehicleModel) return trip.vehicleModel;
+    if (trip?.carModel) return trip.carModel;
+    if (trip?.vehicleName) return trip.vehicleName;
+
+    const rawCat = (
+      trip?.vehicle?.category ||
+      trip?.vehicleCategory ||
+      trip?.category ||
+      trip?.carType ||
+      trip?.fleetCategory?.name ||
+      trip?.fleetCategory ||
+      ''
+    ).toString().toUpperCase();
+
+    switch (rawCat) {
+      case 'SEDAN':
+        return 'Etios, Swift Dzire';
+      case 'SWIFT_DZIRE':
+        return 'Swift Dzire';
+      case 'TOYOTA_ETIOS':
+        return 'Toyota Etios';
+      case 'HATCHBACK':
+        return 'Compact (WagonR, Tiago)';
+      case 'SUV':
+        return 'Ertiga, Carens';
+      case 'SUV_ERTIGA':
+        return 'Maruti Ertiga';
+      case 'SUV_CARENS':
+        return 'Kia Carens';
+      case 'SUV_PREMIUM':
+      case 'SUV_INNOVA':
+      case 'INNOVA':
+      case 'INNOVA_CRYSTA':
+        return 'Innova Crysta';
+      case 'TEMPO_TRAVELER':
+      case 'TEMPO_TRAVELLER':
+        return 'Tempo Traveller';
+      default:
+        if (rawCat) {
+          return rawCat.replace(/_/g, ' ');
+        }
+        return 'Sedan (Dzire, Etios)';
+    }
+  })();
+
   const activeVendorCost = Math.round(
     Number(trip?.driverPayeeAmount || 0) > 0
       ? Number(trip.driverPayeeAmount)
@@ -615,33 +980,10 @@ function UpcomingTripCard({
 
   return (
     <View style={styles.tripCard}>
-      {/* Top Row: Booking ID + Status Badge */}
-      <View style={styles.bookingTopRow}>
-        <View>
-          <Text style={styles.bookingIdLabel}>Booking ID</Text>
-          <Text style={styles.bookingIdNumber}>{trip?.humanReadableRef || 'TRIP'}</Text>
-        </View>
-
-        <View style={
-          effectiveIsOnTrip
-            ? styles.onTripBadge
-            : (isTimingNear || isToday)
-            ? styles.onRouteBadgeWarning
-            : styles.onRouteBadgeScheduled
-        }>
-          <View style={
-            effectiveIsOnTrip ? styles.onTripDot
-            : (isTimingNear || isToday) ? styles.onRouteDotWarning
-            : styles.onRouteDotScheduled
-          } />
-          <Text style={
-            effectiveIsOnTrip ? styles.onTripBadgeText
-            : (isTimingNear || isToday) ? styles.onRouteBadgeTextWarning
-            : styles.onRouteBadgeTextScheduled
-          }>
-            {effectiveIsOnTrip ? 'ON TRIP' : (isTimingNear || isToday) ? 'PICKUP SOON' : 'SCHEDULED'}
-          </Text>
-        </View>
+      {/* Top Row: Booking ID in one row with background color */}
+      <View style={styles.bookingIdRowBanner}>
+        <Text style={styles.bookingIdRowLabel}>Booking ID : </Text>
+        <Text style={styles.bookingIdRowNumber}>{trip?.humanReadableRef || 'TRIP'}</Text>
       </View>
 
       {/* Stepper Route */}
@@ -692,63 +1034,66 @@ function UpcomingTripCard({
             </View>
           </TouchableOpacity>
         </View>
-
-        {/* Route Navigation Button */}
-        <TouchableOpacity
-          style={styles.stepperViewRouteBtn}
-          onPress={() => openNavigationMap(
-            effectiveIsOnTrip ? trip?.dropLat : trip?.pickupLat,
-            effectiveIsOnTrip ? trip?.dropLng : trip?.pickupLng,
-            effectiveIsOnTrip ? trip?.dropAddress : trip?.pickupAddress
-          )}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="navigate" size={15} color="#2563eb" />
-          <Text style={styles.stepperViewRouteText}>{effectiveIsOnTrip ? 'DROP-OFF ROUTE' : 'PICKUP LOCATION'}</Text>
-          <Ionicons name="chevron-forward" size={13} color="#2563eb" />
-        </TouchableOpacity>
       </View>
 
-      {/* 3-Column Info Row */}
-      <View style={styles.infoThreeColsRow}>
-        {/* Col 1: Pickup Date & Time */}
-        <View style={styles.infoThreeCol}>
-          <View style={styles.infoColHeaderRow}>
-            <Ionicons name="calendar-outline" size={13} color="#64748b" />
-            <Text style={styles.infoColHeaderLabel}>Pickup Date & Time</Text>
+      {/* 2x2 Info Grid (2 sections per row) */}
+      <View style={styles.infoGridContainer}>
+        {/* Row 1: Pickup Date & Pickup Time */}
+        <View style={styles.infoGridRow}>
+          {/* Col 1: Pickup Date */}
+          <View style={styles.infoCell}>
+            <Ionicons name="calendar" size={22} color="#0f2744" style={styles.infoCellIcon} />
+            <View style={styles.infoCellContent}>
+              <Text style={styles.infoCellLabel}>Pickup Date</Text>
+              <Text style={styles.infoCellValue} numberOfLines={1}>
+                {pickupDateFormatted}
+              </Text>
+            </View>
           </View>
-          <Text style={styles.infoColValDark}>{pickupDateFormatted},</Text>
-          <Text style={styles.infoColValDark}>{pickupTimeFormatted}</Text>
+
+          <View style={styles.infoColDivider} />
+
+          {/* Col 2: Pickup Time */}
+          <View style={styles.infoCell}>
+            <Ionicons name="time" size={22} color="#0f2744" style={styles.infoCellIcon} />
+            <View style={styles.infoCellContent}>
+              <Text style={styles.infoCellLabel}>Pickup Time</Text>
+              <Text style={styles.infoCellValue} numberOfLines={1}>
+                {pickupTimeFormatted}
+              </Text>
+            </View>
+          </View>
         </View>
 
-        <View style={styles.infoColDivider} />
+        {/* Horizontal Divider between rows */}
+        <View style={styles.infoRowHorizontalDivider} />
 
-        {/* Col 2: Customer */}
-        <View style={styles.infoThreeCol}>
-          <View style={styles.infoColHeaderRow}>
-            <Ionicons name="person" size={13} color="#2563eb" />
-            <Text style={styles.infoColHeaderLabel}>Customer</Text>
+        {/* Row 2: Vehicle & Trip Type with KM */}
+        <View style={styles.infoGridRow}>
+          {/* Col 1: Vehicle */}
+          <View style={styles.infoCell}>
+            <Ionicons name="car-sport" size={22} color="#0f2744" style={styles.infoCellIcon} />
+            <View style={styles.infoCellContent}>
+              <Text style={styles.infoCellLabel}>Vehicle</Text>
+              <Text style={styles.infoCellValue} numberOfLines={2}>
+                {vehicleDisplay}
+              </Text>
+            </View>
           </View>
-          <Text style={styles.infoColValDark} numberOfLines={1}>
-            {trip?.customer?.user?.fullName || 'Customer'}
-          </Text>
-          {(effectiveIsOnTrip || isPhoneReleased) && trip?.customer?.user?.phone ? (
-            <Text style={styles.infoColSubPhone}>{trip.customer.user.phone}</Text>
-          ) : null}
-        </View>
 
-        <View style={styles.infoColDivider} />
+          <View style={styles.infoColDivider} />
 
-        {/* Col 3: Trip Type & Distance */}
-        <View style={styles.infoThreeCol}>
-          <View style={styles.infoColHeaderRow}>
-            <Ionicons name="swap-horizontal-outline" size={13} color="#64748b" />
-            <Text style={styles.infoColHeaderLabel}>Trip Type</Text>
+          {/* Col 2: Trip Type & Distance */}
+          <View style={styles.infoCell}>
+            <Ionicons name="swap-horizontal" size={22} color="#0f2744" style={styles.infoCellIcon} />
+            <View style={styles.infoCellContent}>
+              <Text style={styles.infoCellLabel}>Trip Type</Text>
+              <Text style={[styles.infoCellValue, { textTransform: 'uppercase' }]} numberOfLines={1}>
+                {tripTypeDisplay}
+              </Text>
+              <Text style={styles.infoCellSubPhone}>{trip?.distanceKm ? `${trip.distanceKm} km` : '-- km'}</Text>
+            </View>
           </View>
-          <Text style={[styles.infoColValDark, { textTransform: 'uppercase' }]} numberOfLines={1}>
-            {tripTypeDisplay}
-          </Text>
-          <Text style={styles.infoColSubPhone}>{trip?.distanceKm || '--'} km</Text>
         </View>
       </View>
 
@@ -802,94 +1147,151 @@ function UpcomingTripCard({
         </View>
       )}
 
-      {/* CTA based on trip state: If trip is ALREADY started, ONLY show MANAGE ACTIVE TRIP. Never show START TRIP */}
-      {effectiveIsOnTrip ? (
-        <View style={{ width: '100%', marginTop: 8 }}>
-          <TouchableOpacity
-            style={styles.manageActiveTripBtn}
-            onPress={handleManageActiveTrip}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="navigate-circle" size={20} color="#ffffff" style={{ marginRight: 8 }} />
-            <Text style={styles.manageActiveTripBtnText}>MANAGE ACTIVE TRIP</Text>
-            <Ionicons name="arrow-forward" size={18} color="#ffffff" style={{ marginLeft: 6 }} />
-          </TouchableOpacity>
+      {/* In Accepted Booking: Show VIEW/DETAILS button (70%) + CANCEL button (30%) */}
+      {isAcceptedBookingView ? (
+        <View style={styles.viewTripActionContainer}>
+          <View style={styles.actionButtonsRow}>
+            {isReleasedForAssigned ? (
+              <TouchableOpacity
+                style={[styles.viewAssignedTripBtn, { flex: 7 }]}
+                onPress={() => {
+                  if (onOpenAssignedBooking) {
+                    onOpenAssignedBooking(targetBookingId || trip?.id);
+                  } else {
+                    onClose();
+                    if (onSelectBooking && (targetBookingId || trip?.id)) {
+                      onSelectBooking(targetBookingId || trip?.id);
+                    }
+                  }
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="eye" size={15} color="#ffffff" style={{ marginRight: 5 }} />
+                <Text style={styles.viewAssignedTripBtnText}>{t('dashboard.view', 'VIEW')}</Text>
+                <Ionicons name="arrow-forward" size={14} color="#ffffff" style={{ marginLeft: 5 }} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.viewAssignedTripBtn, { flex: 7 }]}
+                onPress={() => {
+                  Alert.alert(
+                    `Trip: ${trip?.humanReadableRef || 'Details'}`,
+                    `Pickup: ${trip?.pickupAddress || '--'}\nDrop: ${trip?.dropAddress || '--'}\nDistance: ${trip?.distanceKm || '--'} km\nScheduled: ${pickupDateFormatted} ${pickupTimeFormatted}\nTrip Type: ${tripTypeDisplay}\nDriver Amount: ₹${activeVendorCost.toLocaleString('en-IN')}`
+                  );
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="document-text" size={14} color="#ffffff" style={{ marginRight: 5 }} />
+                <Text style={styles.viewAssignedTripBtnText}>{t('dashboard.details', 'DETAILS')}</Text>
+              </TouchableOpacity>
+            )}
+
+            {isCancelPending ? (
+              <View style={[styles.cancelPendingActionBtn, { flex: 3 }]}>
+                <Ionicons name="time-outline" size={12} color="#92400e" style={{ marginRight: 3 }} />
+                <Text style={styles.cancelPendingActionBtnText} numberOfLines={1}>PENDING</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.cancelTripActionBtn, { flex: 3 }]}
+                onPress={handleCancelPress}
+                activeOpacity={0.8}
+                disabled={isCancelling}
+              >
+                {isCancelling ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <>
+                    <Ionicons name="close-circle-outline" size={14} color="#ffffff" style={{ marginRight: 3 }} />
+                    <Text style={styles.cancelTripActionBtnText}>{t('common.cancel', 'CANCEL')}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      ) : isPhoneReleased ? (
-        <View style={styles.sliderContainer}>
-          <SlideToAccept
-            onAccept={handleSlideStartTrip}
-            isAccepting={isStartingTrip}
-            title={t('dashboard.slide_to_start_trip', { defaultValue: 'START TRIP' })}
-            acceptingTitle={t('dashboard.starting_trip', { defaultValue: 'STARTING TRIP...' })}
-          />
-        </View>
-      ) : null}
+      ) : (
+        <>
+          {/* CTA based on trip state: If trip is ALREADY started, ONLY show MANAGE ACTIVE TRIP. Never show START TRIP */}
+          {effectiveIsOnTrip ? (
+            <View style={{ width: '100%', marginTop: 8 }}>
+              <TouchableOpacity
+                style={styles.manageActiveTripBtn}
+                onPress={handleManageActiveTrip}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="navigate-circle" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+                <Text style={styles.manageActiveTripBtnText}>MANAGE ACTIVE TRIP</Text>
+                <Ionicons name="arrow-forward" size={18} color="#ffffff" style={{ marginLeft: 6 }} />
+              </TouchableOpacity>
+            </View>
+          ) : isPhoneReleased ? (
+            <View style={styles.sliderContainer}>
+              <SlideToAccept
+                onAccept={handleSlideStartTrip}
+                isAccepting={isStartingTrip}
+                title={t('dashboard.slide_to_start_trip', { defaultValue: 'START TRIP' })}
+                acceptingTitle={t('dashboard.starting_trip', { defaultValue: 'STARTING TRIP...' })}
+              />
+            </View>
+          ) : null}
 
-      {/* 3 Quick Action Buttons */}
-      <View style={styles.quickActionsRow}>
-        <TouchableOpacity
-          style={[styles.quickActionPill, !effectiveIsOnTrip && !isPhoneReleased && styles.quickActionPillLocked]}
-          onPress={() => {
-            if (!effectiveIsOnTrip && !isPhoneReleased) {
-              Alert.alert(
-                'Phone Protected',
-                'Customer contact details will auto-release 5 hours before scheduled pickup, or once released by Admin.'
-              );
-              return;
-            }
-            Linking.openURL(`tel:${trip?.customer?.user?.phone || ''}`);
-          }}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name={effectiveIsOnTrip || isPhoneReleased ? 'call' : 'lock-closed'}
-            size={14}
-            color={effectiveIsOnTrip || isPhoneReleased ? '#0f172a' : '#94a3b8'}
-          />
-          <Text style={[styles.quickActionText, !effectiveIsOnTrip && !isPhoneReleased && styles.quickActionTextLocked]}>
-            {effectiveIsOnTrip || isPhoneReleased ? t('dashboard.call_customer', 'CALL') : 'Phone Locked'}
-          </Text>
-        </TouchableOpacity>
+          {/* Quick Action Buttons */}
+          <View style={styles.quickActionsRow}>
+            {(effectiveIsOnTrip || isPhoneReleased) && (
+              <TouchableOpacity
+                style={styles.quickActionPill}
+                onPress={() => {
+                  Linking.openURL(`tel:${trip?.customer?.user?.phone || ''}`);
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="call"
+                  size={14}
+                  color="#0f172a"
+                />
+                <Text style={styles.quickActionText}>
+                  {t('dashboard.call_customer', 'CALL')}
+                </Text>
+              </TouchableOpacity>
+            )}
 
-        <TouchableOpacity
-          style={[styles.quickActionPill, !effectiveIsOnTrip && !isPhoneReleased && styles.quickActionPillLocked]}
-          onPress={() => {
-            if (!effectiveIsOnTrip && !isPhoneReleased) {
-              Alert.alert(
-                'Phone Protected',
-                'Customer contact details will auto-release 5 hours before scheduled pickup, or once released by Admin.'
-              );
-              return;
-            }
-            Linking.openURL(`sms:${trip?.customer?.user?.phone || ''}`);
-          }}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name={effectiveIsOnTrip || isPhoneReleased ? 'chatbox' : 'lock-closed'}
-            size={14}
-            color={effectiveIsOnTrip || isPhoneReleased ? '#0f172a' : '#94a3b8'}
-          />
-          <Text style={[styles.quickActionText, !effectiveIsOnTrip && !isPhoneReleased && styles.quickActionTextLocked]}>
-            {effectiveIsOnTrip || isPhoneReleased ? t('dashboard.message', 'MESSAGE') : 'Message Locked'}
-          </Text>
-        </TouchableOpacity>
+            {(effectiveIsOnTrip || isPhoneReleased) && (
+              <TouchableOpacity
+                style={styles.quickActionPill}
+                onPress={() => {
+                  Linking.openURL(`sms:${trip?.customer?.user?.phone || ''}`);
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="chatbox"
+                  size={14}
+                  color="#0f172a"
+                />
+                <Text style={styles.quickActionText}>
+                  {t('dashboard.message', 'MESSAGE')}
+                </Text>
+              </TouchableOpacity>
+            )}
 
-        <TouchableOpacity
-          style={styles.quickActionPill}
-          onPress={() => {
-            Alert.alert(
-              `Trip: ${trip?.humanReadableRef || 'Details'}`,
-              `Pickup: ${trip?.pickupAddress || '--'}\nDrop: ${trip?.dropAddress || '--'}\nDistance: ${trip?.distanceKm || '--'} km\nCustomer: ${trip?.customer?.user?.fullName || 'Customer'}\nScheduled: ${pickupDateFormatted} ${pickupTimeFormatted}\nTrip Type: ${tripTypeDisplay}\nDriver Amount: ₹${activeVendorCost.toLocaleString('en-IN')}`
-            );
-          }}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="document-text" size={14} color="#0f172a" />
-          <Text style={styles.quickActionText}>{t('dashboard.details', 'DETAILS')}</Text>
-        </TouchableOpacity>
-      </View>
+            <TouchableOpacity
+              style={[styles.quickActionPill, styles.quickActionDetailsPill]}
+              onPress={() => {
+                Alert.alert(
+                  `Trip: ${trip?.humanReadableRef || 'Details'}`,
+                  `Pickup: ${trip?.pickupAddress || '--'}\nDrop: ${trip?.dropAddress || '--'}\nDistance: ${trip?.distanceKm || '--'} km\nScheduled: ${pickupDateFormatted} ${pickupTimeFormatted}\nTrip Type: ${tripTypeDisplay}\nDriver Amount: ₹${activeVendorCost.toLocaleString('en-IN')}`
+                );
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="document-text" size={14} color="#ffffff" />
+              <Text style={[styles.quickActionText, styles.quickActionDetailsText]}>{t('dashboard.details', 'DETAILS')}</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -971,7 +1373,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 40,
   },
   emptyContainer: {
@@ -1057,6 +1460,30 @@ const styles = StyleSheet.create({
         elevation: 3,
       },
     }),
+  },
+  bookingIdRowBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  bookingIdRowLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#9a3412',
+  },
+  bookingIdRowNumber: {
+    fontSize: 12.5,
+    fontWeight: '900',
+    color: '#ea580c',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    letterSpacing: 0.3,
   },
   bookingTopRow: {
     flexDirection: 'row',
@@ -1171,6 +1598,58 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#2563eb',
   },
+  infoGridContainer: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    gap: 8,
+  },
+  infoGridRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  infoCell: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    gap: 8,
+  },
+  infoCellIcon: {
+    marginRight: 2,
+  },
+  infoCellContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  infoCellLabel: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  infoCellValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
+    lineHeight: 17,
+  },
+  infoCellSubPhone: {
+    fontSize: 10.5,
+    color: '#ea580c',
+    fontWeight: '700',
+    marginTop: 1,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  infoRowHorizontalDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginHorizontal: 8,
+  },
   infoThreeColsRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
@@ -1181,13 +1660,14 @@ const styles = StyleSheet.create({
   },
   infoThreeCol: {
     flex: 1,
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
   },
   infoColDivider: {
     width: 1,
     backgroundColor: '#e2e8f0',
+    alignSelf: 'stretch',
     marginVertical: 2,
     marginHorizontal: 2,
   },
@@ -1287,6 +1767,73 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 12,
   },
+  viewTripActionContainer: {
+    width: '100%',
+    marginTop: 10,
+  },
+  actionButtonsRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  viewAssignedTripBtn: {
+    height: 38,
+    backgroundColor: '#0f2744',
+    paddingVertical: 0,
+    borderRadius: 19,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0f2744',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  viewAssignedTripBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  cancelTripActionBtn: {
+    height: 38,
+    backgroundColor: '#dc2626',
+    borderRadius: 19,
+    borderWidth: 1.5,
+    borderColor: '#dc2626',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  cancelTripActionBtnText: {
+    color: '#ffffff',
+    fontSize: 11.5,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  cancelPendingActionBtn: {
+    height: 38,
+    backgroundColor: '#fef3c7',
+    borderRadius: 19,
+    borderWidth: 1.5,
+    borderColor: '#f59e0b',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelPendingActionBtnText: {
+    color: '#92400e',
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
   quickActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1309,6 +1856,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     color: '#0f172a',
+  },
+  quickActionDetailsPill: {
+    backgroundColor: '#0f2744',
+    borderColor: '#0f2744',
+  },
+  quickActionDetailsText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   quickActionPillLocked: {
     backgroundColor: '#f8fafc',
@@ -1367,6 +1924,108 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 0.6,
+  },
+  // Filter Bar Styles
+  filterBarContainer: {
+    backgroundColor: 'transparent',
+    borderBottomWidth: 0,
+    borderTopWidth: 0,
+    paddingVertical: 2,
+    marginBottom: 8,
+  },
+  filterBarContent: {
+    paddingHorizontal: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  filterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  filterBtnActive: {
+    backgroundColor: '#0f2744',
+    borderColor: '#0f2744',
+  },
+  filterBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  filterBtnTextActive: {
+    color: '#ffffff',
+    fontWeight: '800',
+  },
+  filterCountBadge: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterCountBadgeActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  filterCountText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#475569',
+  },
+  filterCountTextActive: {
+    color: '#ffffff',
+  },
+  filterEmptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginTop: 8,
+  },
+  filterEmptyIconWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  filterEmptyTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0f2744',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  filterEmptySub: {
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  filterEmptyResetBtn: {
+    backgroundColor: '#0f2744',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  filterEmptyResetBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });
 

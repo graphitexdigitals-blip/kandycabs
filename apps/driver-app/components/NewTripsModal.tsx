@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'expo-router';
+import { UpcomingTripCard } from './UpcomingTripsModal';
 import {
   formatTripDateTime,
   parseCustomerRequirements,
@@ -31,43 +33,31 @@ const CANCELLATION_REASONS = [
 ];
 
 export function NewTripsPinIcon({
-  size = 23,
+  size = 26,
   color = '#ea580c',
-  dotColor = '#fff7ed',
+  style,
 }: {
   size?: number;
   color?: string;
   dotColor?: string;
+  style?: any;
 }) {
-  const dotSize = Math.max(3, Math.round(size * 0.22));
-  const dotTop = Math.round(size * 0.20);
-  const dotLeft = Math.round(size * 0.36);
   return (
-    <View style={{ width: size, height: size, position: 'relative' }}>
-      <MaterialCommunityIcons name="map-marker-plus" size={size} color={color} />
-      <View
-        style={{
-          position: 'absolute',
-          top: dotTop,
-          left: dotLeft,
-          width: dotSize,
-          height: dotSize,
-          borderRadius: dotSize / 2,
-          backgroundColor: dotColor,
-        }}
-      />
-    </View>
+    <MaterialCommunityIcons name="map-marker-plus" size={size} color={color} style={style} />
   );
 }
 
 interface NewTripsModalProps {
   visible: boolean;
   onClose: () => void;
-  dispatches: any[];
-  onAcceptDispatch: (dispatchId: string, bookingId: string) => Promise<void>;
-  onDeclineDispatch: (dispatchId: string, bookingId: string, reason?: string) => Promise<void>;
-  acceptingId: string | null;
-  decliningId: string | null;
+  dispatches?: any[];
+  phoneReleasedTrips?: any[];
+  activeBooking?: any;
+  onSelectBooking?: (id: string) => void;
+  onAcceptDispatch?: (dispatchId: string, bookingId: string) => Promise<void>;
+  onDeclineDispatch?: (dispatchId: string, bookingId: string, reason?: string) => Promise<void>;
+  acceptingId?: string | null;
+  decliningId?: string | null;
   driver?: any;
   acceptedDispatches?: Record<string, string>;
 }
@@ -76,6 +66,9 @@ export function NewTripsModal({
   visible,
   onClose,
   dispatches = [],
+  phoneReleasedTrips = [],
+  activeBooking,
+  onSelectBooking,
   onAcceptDispatch,
   onDeclineDispatch,
   acceptingId,
@@ -84,6 +77,7 @@ export function NewTripsModal({
   acceptedDispatches,
 }: NewTripsModalProps) {
   const { t } = useTranslation();
+  const router = useRouter();
 
   // Cancellation Reason Modal State
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
@@ -112,19 +106,21 @@ export function NewTripsModal({
 
     setIsSubmittingCancel(true);
     try {
-      await onDeclineDispatch(
-        targetCancelDispatch.dispatchId,
-        targetCancelDispatch.bookingId,
-        finalReason
-      );
+      if (onDeclineDispatch) {
+        await onDeclineDispatch(
+          targetCancelDispatch.dispatchId,
+          targetCancelDispatch.bookingId,
+          finalReason
+        );
+      }
       setCancelModalVisible(false);
       setTargetCancelDispatch(null);
       Alert.alert(
-        'Cancellation Request Sent',
-        'Your cancellation request with the reason has been submitted to Admin. Please wait for Admin to accept your request.'
+        'Ride Declined',
+        'You have declined this ride request.'
       );
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to submit cancellation request');
+      Alert.alert('Error', err?.message || 'Failed to decline ride request');
     } finally {
       setIsSubmittingCancel(false);
     }
@@ -166,24 +162,24 @@ export function NewTripsModal({
         {/* Top Header Bar */}
         <View style={styles.headerBar}>
           <View style={styles.headerLeftGroup}>
-            <View style={styles.headerIconBadge}>
-              <NewTripsPinIcon size={21} color="#ea580c" dotColor="#ffedd5" />
-            </View>
+            <NewTripsPinIcon size={25} color="#ea580c" style={styles.headerIcon} />
             <View>
               <View style={styles.headerTitleRow}>
                 <Text style={styles.headerTitle}>
-                  {t('dashboard.new_trips', 'New Trips')}
+                  {t('dashboard.assigned_booking', 'Assigned Booking')}
                 </Text>
-                {newTripsPendingCount > 0 && (
+                {((phoneReleasedTrips?.length || 0) + (newTripsPendingCount || 0)) > 0 && (
                   <View style={styles.headerCountBadge}>
-                    <Text style={styles.headerCountText}>{newTripsPendingCount}</Text>
+                    <Text style={styles.headerCountText}>
+                      {(phoneReleasedTrips?.length || 0) + (newTripsPendingCount || 0)}
+                    </Text>
                   </View>
                 )}
               </View>
               <Text style={styles.headerSub}>
-                {newTripsPendingCount > 0
-                  ? 'Accept or decline dispatched ride assignments'
-                  : 'Live ride requests dispatched by Admin'}
+                {phoneReleasedTrips && phoneReleasedTrips.length > 0
+                  ? `${phoneReleasedTrips.length} ride(s) ready to slide & start`
+                  : t('dashboard.assigned_booking_sub', 'View and start your trip')}
               </Text>
             </View>
           </View>
@@ -203,19 +199,19 @@ export function NewTripsModal({
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {dispatches.length === 0 ? (
+          {(!phoneReleasedTrips || phoneReleasedTrips.length === 0) && dispatches.length === 0 ? (
             /* Empty State */
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
-                <NewTripsPinIcon size={44} color="#ea580c" dotColor="#ffedd5" />
+                <Ionicons name="navigate-outline" size={44} color="#ea580c" />
               </View>
               <Text style={styles.emptyTitle}>
-                {t('dashboard.no_new_trips_title', 'No New Trips Right Now')}
+                {t('dashboard.no_trips_to_start_title', 'No Trips Ready to Start')}
               </Text>
               <Text style={styles.emptyText}>
                 {t(
-                  'dashboard.no_new_trips_desc',
-                  'When an admin dispatches a ride to you, it will pop up here instantly. Stay online on duty to receive requests along your route.'
+                  'dashboard.no_trips_to_start_desc',
+                  'When your assigned trip is within 5 hours of pickup or customer phone is released, you can view and start your trip right here.'
                 )}
               </Text>
 
@@ -229,7 +225,38 @@ export function NewTripsModal({
             </View>
           ) : (
             <View style={styles.tripsListContainer}>
-              {dispatches.map((d, index) => {
+              {/* SECTION 1: TRIPS READY TO START (Phone released -> slide to start trip) */}
+              {phoneReleasedTrips && phoneReleasedTrips.length > 0 && (
+                <View style={styles.sectionGroup}>
+                  {phoneReleasedTrips.map((trip: any, idx: number) => (
+                    <UpcomingTripCard
+                      key={trip.id || `ready-${idx}`}
+                      trip={trip}
+                      isCloserBefore1Day={true}
+                      isOnTrip={false}
+                      activeBooking={activeBooking}
+                      driver={driver}
+                      onClose={onClose}
+                      onSelectBooking={onSelectBooking}
+                      router={router}
+                      t={t}
+                    />
+                  ))}
+                </View>
+              )}
+
+              {/* SECTION 2: NEW DISPATCHES (Awaiting Accept / Decline) */}
+              {dispatches.length > 0 && (
+                <View style={[styles.sectionGroup, (phoneReleasedTrips && phoneReleasedTrips.length > 0) && { marginTop: 14 }]}>
+                  {phoneReleasedTrips && phoneReleasedTrips.length > 0 && (
+                    <View style={styles.sectionHeaderRow}>
+                      <Ionicons name="radio-button-on" size={14} color="#2563eb" />
+                      <Text style={styles.sectionHeadingBlue}>
+                        {t('dashboard.pending_dispatches', 'NEW RIDE REQUESTS')} ({dispatches.length})
+                      </Text>
+                    </View>
+                  )}
+                  {dispatches.map((d, index) => {
                 const b = d?.booking || {};
                 const bookingId = b?.id || d.bookingId;
                 const isAccepting = acceptingId === d.id;
@@ -525,7 +552,9 @@ export function NewTripsModal({
                         <TouchableOpacity
                           style={styles.acceptDispatchBtn}
                           onPress={async () => {
-                            await onAcceptDispatch(d.id, bookingId);
+                            if (onAcceptDispatch) {
+                              await onAcceptDispatch(d.id, bookingId);
+                            }
                           }}
                           disabled={isAccepting || isDeclining}
                           activeOpacity={0.85}
@@ -546,6 +575,8 @@ export function NewTripsModal({
                   </View>
                 );
               })}
+                </View>
+              )}
             </View>
           )}
         </ScrollView>
@@ -569,9 +600,9 @@ export function NewTripsModal({
                   <Ionicons name="alert-circle" size={28} color="#dc2626" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.cancelModalTitle}>Reason for Cancelling Ride</Text>
+                  <Text style={styles.cancelModalTitle}>Decline Ride Request</Text>
                   <Text style={styles.cancelModalSubtitle}>
-                    Please select a reason. Admin will be notified immediately.
+                    Please select a reason for declining this ride.
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -645,7 +676,7 @@ export function NewTripsModal({
                   {isSubmittingCancel ? (
                     <ActivityIndicator size="small" color="#ffffff" />
                   ) : (
-                    <Text style={styles.cancelModalConfirmBtnText}>Confirm Cancel</Text>
+                    <Text style={styles.cancelModalConfirmBtnText}>Decline Ride</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -832,15 +863,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  headerIconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#fff3e3',
-    borderWidth: 1,
-    borderColor: '#fed7aa',
-    alignItems: 'center',
-    justifyContent: 'center',
+  headerIcon: {
     marginRight: 10,
   },
   headerTitleRow: {
@@ -932,6 +955,27 @@ const styles = StyleSheet.create({
   },
   tripsListContainer: {
     gap: 14,
+  },
+  sectionGroup: {
+    gap: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  sectionHeadingGreen: {
+    fontSize: 11.5,
+    fontWeight: '900',
+    color: '#15803d',
+    letterSpacing: 0.6,
+  },
+  sectionHeadingBlue: {
+    fontSize: 11.5,
+    fontWeight: '900',
+    color: '#2563eb',
+    letterSpacing: 0.6,
   },
 
   /* EXACT IMAGE 1 CARD STYLES */

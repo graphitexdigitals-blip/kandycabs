@@ -41,6 +41,10 @@ export interface DynamicRateOverrides {
   localPackage12hrKm?: number;
   localPackage12hrExtraKmRate?: number;
   extraHourRate?: number;
+  driverBaseRatePerKm?: number;
+  driverExtraKmRate?: number;
+  driverAllowanceDaily?: number;
+  driverNightCharge?: number;
   chauffeurConfig?: any;
 }
 
@@ -85,6 +89,15 @@ export interface PricingBreakdown {
   ratePerKm: number;
   hasPet?: boolean;
   petCharge?: number;
+  // Driver Payout & Company Margin Breakdown
+  driverBaseRatePerKm?: number;
+  driverExtraKmRate?: number;
+  driverBaseFare?: number;
+  driverExtraKmCharge?: number;
+  driverAllowancePayout?: number;
+  driverNightChargePayout?: number;
+  driverPayeeAmount?: number;
+  companyProfit?: number;
 }
 
 export interface QuoteRequest {

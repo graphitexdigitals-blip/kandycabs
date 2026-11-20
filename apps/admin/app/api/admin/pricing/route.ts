@@ -86,33 +86,59 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const formatted = rules.map((r) => ({
-      id: r.id,
-      category: r.category,
-      tripType: r.tripType,
-      fuelType: r.fuelType,
-      baseRatePerKm: Number(r.baseRatePerKm),
-      extraKmRate: Number(r.extraKmRate),
-      extraKmThreshold: r.extraKmThreshold !== null && r.extraKmThreshold !== undefined ? Number(r.extraKmThreshold) : null,
-      driverAllowance: Number(r.driverAllowance),
-      nightCharge: Number(r.nightCharge),
-      gstRatePercent: Number(r.gstRatePercent),
-      nightWindowStartHour: r.nightWindowStartHour,
-      nightWindowEndHour: r.nightWindowEndHour,
-      localPackage4hrBase: r.localPackage4hrBase !== null && r.localPackage4hrBase !== undefined ? Number(r.localPackage4hrBase) : null,
-      localPackage4hrKm: r.localPackage4hrKm !== null && r.localPackage4hrKm !== undefined ? Number(r.localPackage4hrKm) : null,
-      localPackage4hrExtraKmRate: r.localPackage4hrExtraKmRate !== null && r.localPackage4hrExtraKmRate !== undefined ? Number(r.localPackage4hrExtraKmRate) : Number(r.extraKmRate),
-      localPackage8hrBase: r.localPackage8hrBase !== null && r.localPackage8hrBase !== undefined ? Number(r.localPackage8hrBase) : null,
-      localPackage8hrKm: r.localPackage8hrKm !== null && r.localPackage8hrKm !== undefined ? Number(r.localPackage8hrKm) : null,
-      localPackage8hrExtraKmRate: r.localPackage8hrExtraKmRate !== null && r.localPackage8hrExtraKmRate !== undefined ? Number(r.localPackage8hrExtraKmRate) : Number(r.extraKmRate),
-      localPackage12hrBase: r.localPackage12hrBase !== null && r.localPackage12hrBase !== undefined ? Number(r.localPackage12hrBase) : null,
-      localPackage12hrKm: r.localPackage12hrKm !== null && r.localPackage12hrKm !== undefined ? Number(r.localPackage12hrKm) : null,
-      localPackage12hrExtraKmRate: r.localPackage12hrExtraKmRate !== null && r.localPackage12hrExtraKmRate !== undefined ? Number(r.localPackage12hrExtraKmRate) : Number(r.extraKmRate),
-      extraHourRate: r.extraHourRate !== null && r.extraHourRate !== undefined ? Number(r.extraHourRate) : null,
-      inclusions: r.inclusions,
-      exclusions: r.exclusions,
-      isActive: r.isActive,
-    }));
+    // Fetch driver pricing settings from SystemSetting
+    const driverRulesSetting = await prisma.systemSetting.findUnique({
+      where: { key: 'driver_pricing_rules' },
+    }).catch(() => null);
+    const driverRulesMap: Record<string, any> = (driverRulesSetting?.value as any) || {};
+
+    const formatted = rules.map((r) => {
+      const ruleKey = `${r.category}_${r.tripType}_${r.fuelType}`;
+      const dRule = driverRulesMap[ruleKey] || {};
+      const baseKm = Number(r.baseRatePerKm);
+      const extraKm = Number(r.extraKmRate);
+
+      return {
+        id: r.id,
+        category: r.category,
+        tripType: r.tripType,
+        fuelType: r.fuelType,
+        baseRatePerKm: baseKm,
+        extraKmRate: extraKm,
+        extraKmThreshold: r.extraKmThreshold !== null && r.extraKmThreshold !== undefined ? Number(r.extraKmThreshold) : null,
+        driverAllowance: Number(r.driverAllowance),
+        nightCharge: Number(r.nightCharge),
+        gstRatePercent: Number(r.gstRatePercent),
+        nightWindowStartHour: r.nightWindowStartHour,
+        nightWindowEndHour: r.nightWindowEndHour,
+        // Driver Specific Payout Rates
+        driverBaseRatePerKm: dRule.driverBaseRatePerKm !== undefined && dRule.driverBaseRatePerKm !== null
+          ? Number(dRule.driverBaseRatePerKm)
+          : Math.max(8, Math.round(baseKm * 0.77 * 10) / 10),
+        driverExtraKmRate: dRule.driverExtraKmRate !== undefined && dRule.driverExtraKmRate !== null
+          ? Number(dRule.driverExtraKmRate)
+          : Math.max(8, Math.round(extraKm * 0.77 * 10) / 10),
+        driverAllowanceDaily: dRule.driverAllowanceDaily !== undefined && dRule.driverAllowanceDaily !== null
+          ? Number(dRule.driverAllowanceDaily)
+          : Number(r.driverAllowance),
+        driverNightCharge: dRule.driverNightCharge !== undefined && dRule.driverNightCharge !== null
+          ? Number(dRule.driverNightCharge)
+          : Math.round(Number(r.nightCharge) * 0.8),
+        localPackage4hrBase: r.localPackage4hrBase !== null && r.localPackage4hrBase !== undefined ? Number(r.localPackage4hrBase) : null,
+        localPackage4hrKm: r.localPackage4hrKm !== null && r.localPackage4hrKm !== undefined ? Number(r.localPackage4hrKm) : null,
+        localPackage4hrExtraKmRate: r.localPackage4hrExtraKmRate !== null && r.localPackage4hrExtraKmRate !== undefined ? Number(r.localPackage4hrExtraKmRate) : Number(r.extraKmRate),
+        localPackage8hrBase: r.localPackage8hrBase !== null && r.localPackage8hrBase !== undefined ? Number(r.localPackage8hrBase) : null,
+        localPackage8hrKm: r.localPackage8hrKm !== null && r.localPackage8hrKm !== undefined ? Number(r.localPackage8hrKm) : null,
+        localPackage8hrExtraKmRate: r.localPackage8hrExtraKmRate !== null && r.localPackage8hrExtraKmRate !== undefined ? Number(r.localPackage8hrExtraKmRate) : Number(r.extraKmRate),
+        localPackage12hrBase: r.localPackage12hrBase !== null && r.localPackage12hrBase !== undefined ? Number(r.localPackage12hrBase) : null,
+        localPackage12hrKm: r.localPackage12hrKm !== null && r.localPackage12hrKm !== undefined ? Number(r.localPackage12hrKm) : null,
+        localPackage12hrExtraKmRate: r.localPackage12hrExtraKmRate !== null && r.localPackage12hrExtraKmRate !== undefined ? Number(r.localPackage12hrExtraKmRate) : Number(r.extraKmRate),
+        extraHourRate: r.extraHourRate !== null && r.extraHourRate !== undefined ? Number(r.extraHourRate) : null,
+        inclusions: r.inclusions,
+        exclusions: r.exclusions,
+        isActive: r.isActive,
+      };
+    });
 
     return NextResponse.json({ success: true, rules: formatted });
   } catch (error: any) {
@@ -139,6 +165,10 @@ export async function POST(req: NextRequest) {
       gstRatePercent = 5.0,
       nightWindowStartHour = 22,
       nightWindowEndHour = 6,
+      driverBaseRatePerKm,
+      driverExtraKmRate,
+      driverAllowanceDaily,
+      driverNightCharge,
       localPackage4hrBase,
       localPackage4hrKm,
       localPackage4hrExtraKmRate,
@@ -217,16 +247,52 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Upsert driver pricing rule into SystemSetting
+    const ruleKey = `${category}_${tripType}_${fuelType}`;
+    let savedDriverRule: any = {};
+    try {
+      const existingSetting = await prisma.systemSetting.findUnique({
+        where: { key: 'driver_pricing_rules' },
+      }).catch(() => null);
+      const driverRulesMap = (existingSetting?.value as any) || {};
+
+      savedDriverRule = {
+        driverBaseRatePerKm: driverBaseRatePerKm !== undefined && driverBaseRatePerKm !== null && driverBaseRatePerKm !== '' ? Number(driverBaseRatePerKm) : (driverRulesMap[ruleKey]?.driverBaseRatePerKm ?? Math.max(8, Math.round(Number(baseRatePerKm) * 0.77 * 10) / 10)),
+        driverExtraKmRate: driverExtraKmRate !== undefined && driverExtraKmRate !== null && driverExtraKmRate !== '' ? Number(driverExtraKmRate) : (driverRulesMap[ruleKey]?.driverExtraKmRate ?? Math.max(8, Math.round(Number(extraKmRate || baseRatePerKm) * 0.77 * 10) / 10)),
+        driverAllowanceDaily: driverAllowanceDaily !== undefined && driverAllowanceDaily !== null && driverAllowanceDaily !== '' ? Number(driverAllowanceDaily) : (driverRulesMap[ruleKey]?.driverAllowanceDaily ?? Number(driverAllowance || 300)),
+        driverNightCharge: driverNightCharge !== undefined && driverNightCharge !== null && driverNightCharge !== '' ? Number(driverNightCharge) : (driverRulesMap[ruleKey]?.driverNightCharge ?? Math.round(Number(nightCharge || 250) * 0.8)),
+      };
+
+      driverRulesMap[ruleKey] = {
+        ...(driverRulesMap[ruleKey] || {}),
+        ...savedDriverRule,
+      };
+
+      await prisma.systemSetting.upsert({
+        where: { key: 'driver_pricing_rules' },
+        update: { value: driverRulesMap },
+        create: { key: 'driver_pricing_rules', value: driverRulesMap },
+      });
+    } catch (driverSettingErr) {
+      console.warn('Could not persist driver_pricing_rules in SystemSetting:', driverSettingErr);
+    }
+
     await prisma.auditLog.create({
       data: {
         action: 'PRICING_RULE_SAVED',
         entityType: 'PricingRule',
         entityId: rule.id,
-        reason: `Updated fare rule for ${category} × ${tripType} × ${fuelType}: Base ₹${baseRatePerKm}/km, Extra ₹${extraKmRate}/km`,
+        reason: `Updated fare rule for ${category} × ${tripType} × ${fuelType}: Base ₹${baseRatePerKm}/km (Driver ₹${savedDriverRule.driverBaseRatePerKm || 'N/A'}/km), Extra ₹${extraKmRate}/km`,
       },
     });
 
-    return NextResponse.json({ success: true, rule });
+    return NextResponse.json({
+      success: true,
+      rule: {
+        ...rule,
+        ...savedDriverRule,
+      },
+    });
   } catch (error: any) {
     console.error('Error saving pricing rule:', error);
     return NextResponse.json(

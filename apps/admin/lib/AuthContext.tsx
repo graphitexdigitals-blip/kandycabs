@@ -89,9 +89,14 @@ export function AuthProvider({
     setIsLoading(true);
     try {
       await client.auth.logout();
+    } catch (err) {
+      console.error('Logout error:', err);
     } finally {
       setUser(null);
       setIsLoading(false);
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
     }
   }, [client]);
 

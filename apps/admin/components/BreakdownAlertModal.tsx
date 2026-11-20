@@ -125,7 +125,7 @@ export function BreakdownAlertModal() {
     };
 
     checkActiveBreakdowns();
-    const interval = setInterval(checkActiveBreakdowns, 4000);
+    const interval = setInterval(checkActiveBreakdowns, 20000);
 
     return () => {
       isMounted = false;

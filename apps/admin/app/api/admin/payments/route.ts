@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@kandy-cabs/db';
-import { PaymentStatus, PaymentType } from '@kandy-cabs/shared';
+import { PaymentStatus, PaymentType, BookingStatus } from '@kandy-cabs/shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,33 +16,33 @@ export async function GET(req: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    // Date range filter for bookings and revenue
+    // Date range filter for bookings and revenue (strictly in Indian Standard Time UTC+05:30)
     const bookingDateFilter: any = {};
     const paymentDateFilter: any = { status: PaymentStatus.PAID };
 
     if (startDate || endDate) {
       const dateRange: any = {};
       if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        dateRange.gte = start;
+        dateRange.gte = new Date(`${startDate}T00:00:00.000+05:30`);
       }
       if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        dateRange.lte = end;
+        dateRange.lte = new Date(`${endDate}T23:59:59.999+05:30`);
       }
       bookingDateFilter.createdAt = dateRange;
-      paymentDateFilter.createdAt = dateRange;
+      // Payment model doesn't have direct createdAt, but relates to booking
+      paymentDateFilter.booking = { createdAt: dateRange };
     }
 
     // 1. Calculate Revenue & Driver Payout Summary via database aggregates
     const [
       revenueAggregate,
       allBookingsCount,
-      paidBookingsCount,
-      partialBookingsCount,
-      pendingBookingsCount,
+      customerNoPendingCount,
+      customerFullPaymentCount,
+      customerAdvReceivedCount,
+      customerAdvBalancePendingCount,
+      customerPendingCount,
+      cancelledBookingsCount,
       driverPaidAggregate,
       driverPaidCount,
       driverPendingAggregate,
@@ -55,26 +55,60 @@ export async function GET(req: NextRequest) {
       prisma.booking.count({
         where: bookingDateFilter,
       }),
+      // 1. Customer Amount Received (No Pending: advance is paid, and balance is paid or zero)
       prisma.booking.count({
         where: {
           ...bookingDateFilter,
           advancePaymentStatus: PaymentStatus.PAID,
-          balancePaymentStatus: PaymentStatus.PAID,
+          OR: [
+            { balancePaymentStatus: PaymentStatus.PAID },
+            { balanceAmount: { lte: 0 } },
+          ],
         },
       }),
+      // 2. Customer Full Payment (100% upfront: advance is paid, balanceAmount is 0)
+      prisma.booking.count({
+        where: {
+          ...bookingDateFilter,
+          advancePaymentStatus: PaymentStatus.PAID,
+          balanceAmount: { lte: 0 },
+        },
+      }),
+      // 3. Customer Advance Received (all bookings where advance has been paid)
+      prisma.booking.count({
+        where: {
+          ...bookingDateFilter,
+          advancePaymentStatus: PaymentStatus.PAID,
+        },
+      }),
+      // 4. Customer Advance Received with Balance Pending
       prisma.booking.count({
         where: {
           ...bookingDateFilter,
           advancePaymentStatus: PaymentStatus.PAID,
           balancePaymentStatus: PaymentStatus.PENDING,
+          balanceAmount: { gt: 0 },
         },
       }),
+      // 5. Customer Pending: Any booking where customer payment is not fully received
+      // (includes advance paid but balance pending, as well as advance pending)
       prisma.booking.count({
         where: {
           ...bookingDateFilter,
-          advancePaymentStatus: PaymentStatus.PENDING,
+          OR: [
+            { balancePaymentStatus: PaymentStatus.PENDING, balanceAmount: { gt: 0 } },
+            { advancePaymentStatus: PaymentStatus.PENDING },
+          ],
         },
       }),
+      // 6. Cancelled Bookings
+      prisma.booking.count({
+        where: {
+          ...bookingDateFilter,
+          status: BookingStatus.CANCELLED,
+        },
+      }),
+      // Driver Settled
       prisma.booking.aggregate({
         where: {
           ...bookingDateFilter,
@@ -93,6 +127,7 @@ export async function GET(req: NextRequest) {
           assignedDriverId: { not: null },
         },
       }),
+      // Driver Pending
       prisma.booking.aggregate({
         where: {
           ...bookingDateFilter,
@@ -121,37 +156,75 @@ export async function GET(req: NextRequest) {
       Number(driverPendingAggregate._sum?.driverAllowance || 0) +
       Number(driverPendingAggregate._sum?.driverPayeeAmount || 0);
 
-    // 2. Query bookings with payments
-    const whereClause: any = { ...bookingDateFilter };
+    // 2. Query bookings with filters using andConditions to prevent OR collisions
+    const andConditions: any[] = [];
+    if (bookingDateFilter.createdAt) {
+      andConditions.push({ createdAt: bookingDateFilter.createdAt });
+    }
 
-    if (status === 'PAID') {
-      whereClause.advancePaymentStatus = PaymentStatus.PAID;
-      whereClause.balancePaymentStatus = PaymentStatus.PAID;
-    } else if (status === 'PARTIALLY_PAID' || status === 'CUSTOMER_PENDING' || status === 'PAY_LATER') {
-      whereClause.balancePaymentStatus = PaymentStatus.PENDING;
-    } else if (status === 'PENDING') {
-      whereClause.advancePaymentStatus = PaymentStatus.PENDING;
+    if (status === 'CUSTOMER_NO_PENDING' || status === 'PAID') {
+      andConditions.push({
+        advancePaymentStatus: PaymentStatus.PAID,
+        OR: [
+          { balancePaymentStatus: PaymentStatus.PAID },
+          { balanceAmount: { lte: 0 } },
+        ],
+      });
+    } else if (status === 'CUSTOMER_FULL_PAYMENT') {
+      andConditions.push({
+        advancePaymentStatus: PaymentStatus.PAID,
+        balanceAmount: { lte: 0 },
+      });
+    } else if (status === 'CUSTOMER_ADV_RECEIVED') {
+      andConditions.push({
+        advancePaymentStatus: PaymentStatus.PAID,
+      });
+    } else if (status === 'CUSTOMER_ADV_BALANCE_PENDING' || status === 'PARTIALLY_PAID') {
+      andConditions.push({
+        advancePaymentStatus: PaymentStatus.PAID,
+        balancePaymentStatus: PaymentStatus.PENDING,
+        balanceAmount: { gt: 0 },
+      });
+    } else if (status === 'CUSTOMER_PENDING' || status === 'PAY_LATER' || status === 'PENDING') {
+      andConditions.push({
+        OR: [
+          { balancePaymentStatus: PaymentStatus.PENDING, balanceAmount: { gt: 0 } },
+          { advancePaymentStatus: PaymentStatus.PENDING },
+        ],
+      });
+    } else if (status === 'CANCELLED') {
+      andConditions.push({
+        status: BookingStatus.CANCELLED,
+      });
     } else if (status === 'DRIVER_PAID') {
-      whereClause.driverPaymentStatus = PaymentStatus.PAID;
-      whereClause.assignedDriverId = { not: null };
+      andConditions.push({
+        driverPaymentStatus: PaymentStatus.PAID,
+        assignedDriverId: { not: null },
+      });
     } else if (status === 'DRIVER_UNPAID') {
-      whereClause.driverPaymentStatus = PaymentStatus.PENDING;
-      whereClause.assignedDriverId = { not: null };
+      andConditions.push({
+        driverPaymentStatus: PaymentStatus.PENDING,
+        assignedDriverId: { not: null },
+      });
     }
 
     if (search) {
-      whereClause.OR = [
-        { humanReadableRef: { contains: search, mode: 'insensitive' } },
-        { customer: { user: { fullName: { contains: search, mode: 'insensitive' } } } },
-        { customer: { user: { phone: { contains: search, mode: 'insensitive' } } } },
-        { assignedDriver: { user: { fullName: { contains: search, mode: 'insensitive' } } } },
-        { assignedDriver: { user: { phone: { contains: search, mode: 'insensitive' } } } },
-        { payments: { some: { razorpayPaymentId: { contains: search, mode: 'insensitive' } } } },
-        { payments: { some: { razorpayOrderId: { contains: search, mode: 'insensitive' } } } },
-      ];
+      andConditions.push({
+        OR: [
+          { humanReadableRef: { contains: search, mode: 'insensitive' } },
+          { customer: { user: { fullName: { contains: search, mode: 'insensitive' } } } },
+          { customer: { user: { phone: { contains: search, mode: 'insensitive' } } } },
+          { assignedDriver: { user: { fullName: { contains: search, mode: 'insensitive' } } } },
+          { assignedDriver: { user: { phone: { contains: search, mode: 'insensitive' } } } },
+          { payments: { some: { razorpayPaymentId: { contains: search, mode: 'insensitive' } } } },
+          { payments: { some: { razorpayOrderId: { contains: search, mode: 'insensitive' } } } },
+        ],
+      });
     }
 
-    const [totalCount, bookings] = await Promise.all([
+    const whereClause: any = andConditions.length > 0 ? { AND: andConditions } : {};
+
+    const [totalCount, bookings, driverRulesSetting] = await Promise.all([
       prisma.booking.count({ where: whereClause }),
       prisma.booking.findMany({
         where: whereClause,
@@ -183,7 +256,12 @@ export async function GET(req: NextRequest) {
           },
         },
       }),
+      prisma.systemSetting.findUnique({
+        where: { key: 'driver_pricing_rules' },
+      }).catch(() => null),
     ]);
+
+    const driverRulesMap: Record<string, any> = (driverRulesSetting?.value as any) || {};
 
     const formattedBookings = bookings.map((b) => {
       const advancePayment = b.payments.find((p) => p.type === PaymentType.ADVANCE);
@@ -243,6 +321,55 @@ export async function GET(req: NextRequest) {
         };
       }
 
+      // Extract vehicle category and trip driver rates from trip events
+      let vehicleCategory = 'SWIFT_DZIRE';
+      let tripDriverRates: any = null;
+      for (const te of b.tripEvents || []) {
+        try {
+          const p = typeof te.payloadJson === 'string' ? JSON.parse(te.payloadJson) : te.payloadJson;
+          if (p?.category) vehicleCategory = p.category;
+          if (p?.driverRates) tripDriverRates = p.driverRates;
+        } catch {}
+      }
+
+      const ruleKey = `${vehicleCategory}_${b.tripType}_DIESEL`;
+      const dRule = driverRulesMap[ruleKey] || {};
+      const driverRatePerKm = Number(
+        tripDriverRates?.driverBaseRatePerKm ??
+        dRule.driverBaseRatePerKm ??
+        (vehicleCategory === 'HATCHBACK' ? 9 : vehicleCategory === 'SWIFT_DZIRE' || vehicleCategory === 'TOYOTA_ETIOS' || vehicleCategory === 'SEDAN' ? 10 : vehicleCategory === 'SUV_ERTIGA' || vehicleCategory === 'SUV' ? 13 : vehicleCategory === 'SUV_CRYSTA' || vehicleCategory === 'SUV_PREMIUM' ? 17 : 22)
+      );
+
+      const distanceKm = Number(b.distanceKm || 0);
+      const rawPayee = Number(b.driverPayeeAmount || 0);
+      // If rawPayee is 0, auto-calculate distanceKm * driverRatePerKm (the /km rate implemented before)
+      const driverKmPayee = rawPayee > 0 ? rawPayee : Math.round(distanceKm * driverRatePerKm);
+      const driverAllowance = Number(b.driverAllowance || 0);
+      const driverTotalPayout = driverKmPayee + driverAllowance;
+      const estimatedFare = Number(b.estimatedFare || 0);
+      const kandyCabsProfit = Math.max(0, estimatedFare - driverTotalPayout);
+
+      // Calculate payment milestone dates
+      const isAdvancePaid = b.advancePaymentStatus === PaymentStatus.PAID;
+      const advancePaidDate = isAdvancePaid
+        ? (advancePayment?.verifiedAt?.toISOString() || b.createdAt.toISOString())
+        : null;
+
+      const isFullUpfront = Number(b.advanceAmount || 0) >= Number(b.estimatedFare || 0) && isAdvancePaid;
+      const isBalancePaid = b.balancePaymentStatus === PaymentStatus.PAID || Number(b.balanceAmount || 0) <= 0;
+
+      let fullPaymentDate: string | null = null;
+      let balancePaidDate: string | null = null;
+
+      if (isFullUpfront) {
+        fullPaymentDate = advancePaidDate;
+      } else if (b.balancePaymentStatus === PaymentStatus.PAID) {
+        balancePaidDate = balancePayment?.verifiedAt?.toISOString() || b.createdAt.toISOString();
+        fullPaymentDate = balancePaidDate;
+      }
+
+      const balanceDueDate = b.scheduledAt ? b.scheduledAt.toISOString() : null;
+
       return {
         id: b.id,
         humanReadableRef: b.humanReadableRef,
@@ -251,7 +378,11 @@ export async function GET(req: NextRequest) {
         driverName: b.assignedDriver?.user?.fullName,
         driverPhone: b.assignedDriver?.user?.phone,
         tripType: b.tripType,
-        estimatedFare: Number(b.estimatedFare),
+        category: vehicleCategory,
+        distanceKm,
+        driverRatePerKm,
+        driverKmPayee,
+        estimatedFare,
         advanceAmount: Number(b.advanceAmount),
         advancePaymentStatus: b.advancePaymentStatus,
         balanceAmount: Number(b.balanceAmount),
@@ -259,14 +390,21 @@ export async function GET(req: NextRequest) {
         isPayLater,
         tollAmount: b.tollAmount ? Number(b.tollAmount) : 0,
         parkingAmount: b.parkingAmount ? Number(b.parkingAmount) : 0,
-        driverAllowance: b.driverAllowance ? Number(b.driverAllowance) : 0,
-        driverPayeeAmount: b.driverPayeeAmount ? Number(b.driverPayeeAmount) : 0,
+        driverAllowance,
+        driverPayeeAmount: driverKmPayee,
+        driverTotalPayout,
+        kandyCabsProfit,
         driverPaymentStatus: b.driverPaymentStatus || 'PENDING',
         totalCollected:
           (advancePayment?.status === PaymentStatus.PAID ? Number(advancePayment.amount) : 0) +
           (balancePayment?.status === PaymentStatus.PAID ? Number(balancePayment.amount) : 0),
         status: b.status,
         createdAt: b.createdAt.toISOString(),
+        scheduledAt: balanceDueDate,
+        advancePaidDate,
+        fullPaymentDate,
+        balancePaidDate,
+        balanceDueDate,
         advancePayment: advancePayment
           ? {
               id: advancePayment.id,
@@ -296,9 +434,17 @@ export async function GET(req: NextRequest) {
       summary: {
         totalRevenue,
         totalBookings: allBookingsCount,
-        paidCount: paidBookingsCount,
-        partiallyPaidCount: partialBookingsCount,
-        pendingCount: pendingBookingsCount,
+        allBookingsCount,
+        customerNoPendingCount,
+        customerFullPaymentCount,
+        customerAdvReceivedCount,
+        customerAdvBalancePendingCount,
+        customerPendingCount,
+        cancelledCount: cancelledBookingsCount,
+        // Backward-compatibility keys
+        paidCount: customerNoPendingCount,
+        partiallyPaidCount: customerAdvBalancePendingCount,
+        pendingCount: customerPendingCount,
         driverPaidCount,
         totalDriverPaidAmount,
         driverPendingCount,

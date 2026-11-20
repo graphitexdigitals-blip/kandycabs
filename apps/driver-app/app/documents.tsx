@@ -2446,7 +2446,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 14,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 32) + 12 : 16,
+    paddingTop: Platform.OS === 'android' ? 6 : 10,
     paddingBottom: 24,
   },
 
@@ -2455,8 +2455,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 2,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingTop: 2,
+    paddingBottom: 10,
   },
   cleanTopBarTitleBox: {
     flex: 1,

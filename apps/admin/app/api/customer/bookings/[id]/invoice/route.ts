@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@kandy-cabs/db';
 import { verifyAuthToken, UserRole, buildKandyInvoiceData, generateKandyInvoiceHtml } from '@kandy-cabs/shared';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
+import { getAdminSession } from '@/lib/auth';
+import { generateKandyInvoicePdf } from '@/lib/invoicePdf';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,20 +16,29 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    let token = req.cookies.get('kandy_session')?.value;
-    if (!token) {
-      const authHeader = req.headers.get('authorization');
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7).trim();
+    let payload = null;
+    const adminSession = await getAdminSession(req);
+    if (adminSession && adminSession.roles && adminSession.roles.includes(UserRole.ADMIN)) {
+      payload = adminSession;
+    } else {
+      let token = req.cookies.get('kandy_session')?.value;
+      if (!token) {
+        const authHeader = req.headers.get('authorization');
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          token = authHeader.substring(7).trim();
+        }
+      }
+      // Support URL token for direct browser PDF/HTML downloads
+      if (!token) {
+        const url = new URL(req.url);
+        token = url.searchParams.get('auth') || url.searchParams.get('token') || undefined;
+      }
+      if (token) {
+        payload = await verifyAuthToken(token);
       }
     }
-    // Support URL token for direct browser PDF/HTML downloads
-    if (!token) {
-      const url = new URL(req.url);
-      token = url.searchParams.get('auth') || url.searchParams.get('token') || undefined;
-    }
 
-    if (!token) {
+    if (!payload || !payload.userId) {
       const res = NextResponse.json(
         { error: 'Unauthorized', message: 'Authentication required' },
         { status: 401 }
@@ -35,19 +46,15 @@ export async function GET(
       return setCorsHeaders(res);
     }
 
-    const payload = await verifyAuthToken(token);
-    if (!payload || !payload.userId) {
-      const res = NextResponse.json(
-        { error: 'Unauthorized', message: 'Invalid or expired token' },
-        { status: 401 }
-      );
-      return setCorsHeaders(res);
-    }
-
     const { id } = params;
 
-    const booking = await prisma.booking.findUnique({
-      where: { id },
+    const booking = await prisma.booking.findFirst({
+      where: {
+        OR: [
+          { id },
+          { humanReadableRef: id },
+        ],
+      },
       include: {
         customer: {
           include: {
@@ -99,9 +106,19 @@ export async function GET(
     // Check request format
     const url = new URL(req.url);
     const format = url.searchParams.get('format');
-    const autoPrint = url.searchParams.get('print') === 'true' || url.searchParams.get('download') === '1';
+    const autoPrint = url.searchParams.get('print') === 'true';
+    const isDownload = url.searchParams.get('download') === '1' || format === 'download' || format === 'pdf';
 
-    if (format === 'html' || format === 'download' || req.headers.get('accept')?.includes('text/html')) {
+    // Direct PDF format download
+    if (format === 'pdf' || (isDownload && format !== 'html')) {
+      const pdfBuffer = await generateKandyInvoicePdf(invoiceData);
+      const headers = new Headers();
+      headers.set('Content-Type', 'application/pdf');
+      headers.set('Content-Disposition', `attachment; filename="Kandy_Cabs_Tax_Invoice_${invoiceData.invoiceNumber}.pdf"`);
+      return new Response(new Uint8Array(pdfBuffer), { status: 200, headers });
+    }
+
+    if (format === 'html' || req.headers.get('accept')?.includes('text/html')) {
       const html = generateKandyInvoiceHtml(invoiceData, { autoPrint });
       const headers = new Headers();
       headers.set('Content-Type', 'text/html; charset=utf-8');

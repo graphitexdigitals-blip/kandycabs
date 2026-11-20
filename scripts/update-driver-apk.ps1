@@ -107,58 +107,35 @@ if (Test-Path $patchManifest) {
     }
 }
 
-# Now inject high-res official Kandy Cabs logo into wide splash/header drawables (res/6p.png and res/7n.png)
+# Inject high-res official Kandy Cabs logos into wide drawables
+# res/6p.png = logo.png (grey/black text for light background)
+# res/7n.png = logo-white.png (pure white text for dark header bar)
 $logoPath = Join-Path $root "apps\driver-app\assets\images\logo.png"
+$whiteLogoPath = Join-Path $root "apps\driver-app\assets\images\logo-white.png"
+
 if (Test-Path $logoPath) {
-    $logoBmp = New-Object System.Drawing.Bitmap($logoPath)
-    foreach ($logoEntry in @("res/6p.png", "res/7n.png")) {
-        $existing = $zip.GetEntry($logoEntry)
-        $targetW = 990
-        $targetH = 497
-        if ($null -ne $existing) {
-            try {
-                $s = $existing.Open()
-                $m = New-Object System.IO.MemoryStream
-                $s.CopyTo($m)
-                $s.Dispose()
-                $b = New-Object System.Drawing.Bitmap($m)
-                $targetW = $b.Width
-                $targetH = $b.Height
-                $b.Dispose()
-                $m.Dispose()
-            } catch {}
-            $existing.Delete()
-        }
+    $existing = $zip.GetEntry("res/6p.png")
+    if ($null -ne $existing) { $existing.Delete() }
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $logoPath, "res/6p.png")
+    Write-Output "Injected full-res logo: res/6p.png"
 
-        $canvas = New-Object System.Drawing.Bitmap($targetW, $targetH)
-        $g = [System.Drawing.Graphics]::FromImage($canvas)
-        $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
-        $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
-        $g.Clear([System.Drawing.Color]::Transparent)
-
-        # Preserve exact 1158x598 aspect ratio, fit and center well-proportioned logo on transparent canvas
-        $maxScale = [Math]::Min($targetW / $logoBmp.Width, $targetH / $logoBmp.Height)
-        $scale = $maxScale * 0.65
-        $drawW = [int]($logoBmp.Width * $scale)
-        $drawH = [int]($logoBmp.Height * $scale)
-        $drawX = [int](($targetW - $drawW) / 2)
-        $drawY = [int](($targetH - $drawH) / 2)
-
-        $g.DrawImage($logoBmp, $drawX, $drawY, $drawW, $drawH)
-        $g.Dispose()
-
-        $tempLogo = [System.IO.Path]::GetTempFileName() + ".png"
-        $canvas.Save($tempLogo, [System.Drawing.Imaging.ImageFormat]::Png)
-        $canvas.Dispose()
-
-        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $tempLogo, $logoEntry)
-        Remove-Item $tempLogo -Force
-        Write-Output "Injected clean undistorted logo: $logoEntry ($targetW x $targetH, rendered ${drawW}x${drawH})"
-    }
-    $logoBmp.Dispose()
+    $existingMdpi = $zip.GetEntry("res/drawable-mdpi/assets_images_logo.png")
+    if ($null -ne $existingMdpi) { $existingMdpi.Delete() }
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $logoPath, "res/drawable-mdpi/assets_images_logo.png")
+    Write-Output "Injected full-res logo: res/drawable-mdpi/assets_images_logo.png"
 }
 
+if (Test-Path $whiteLogoPath) {
+    $existing = $zip.GetEntry("res/7n.png")
+    if ($null -ne $existing) { $existing.Delete() }
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $whiteLogoPath, "res/7n.png")
+    Write-Output "Injected full-res white logo: res/7n.png"
+
+    $existingMdpiWhite = $zip.GetEntry("res/drawable-mdpi/assets_images_logowhite.png")
+    if ($null -ne $existingMdpiWhite) { $existingMdpiWhite.Delete() }
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $whiteLogoPath, "res/drawable-mdpi/assets_images_logowhite.png")
+    Write-Output "Injected full-res white logo: res/drawable-mdpi/assets_images_logowhite.png"
+}
 $zip.Dispose()
 
 Write-Output "3. Running zipalign..."

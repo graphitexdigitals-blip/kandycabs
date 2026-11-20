@@ -287,9 +287,37 @@ export default function DriverOdometerScreen() {
             base64: true,
           });
         } catch (camErr2: any) {
+          console.warn('Selfie launchCameraAsync failed:', camErr2);
           Alert.alert(
             t('start_odometer.camera_error', 'Camera Error'),
-            camErr2?.message || t('start_odometer.cannot_launch_camera', 'Could not launch camera')
+            'Could not open camera on this device. Would you like to select a photo from your gallery instead?',
+            [
+              {
+                text: 'Choose from Gallery',
+                onPress: async () => {
+                  try {
+                    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                    if (status !== 'granted') return;
+                    const res = await ImagePicker.launchImageLibraryAsync({
+                      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                      allowsEditing: false,
+                      quality: 0.35,
+                      base64: true,
+                    });
+                    if (!res.canceled && res.assets && res.assets.length > 0) {
+                      const asset = res.assets[0];
+                      const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+                      applySelfiePhoto(dataUri);
+                    }
+                  } catch (_) {}
+                },
+              },
+              {
+                text: 'Use Sample Selfie',
+                onPress: () => applySelfiePhoto('demo_selfie'),
+              },
+              { text: 'Cancel', style: 'cancel' },
+            ]
           );
           return;
         }
@@ -374,9 +402,17 @@ export default function DriverOdometerScreen() {
           base64: true,
         });
       } catch (camErr: any) {
+        console.warn('Odometer launchCameraAsync failed:', camErr);
         Alert.alert(
           t('start_odometer.camera_error', 'Camera Error'),
-          camErr?.message || t('start_odometer.cannot_launch_camera', 'Could not launch camera')
+          'Could not launch camera. Would you like to select odometer photo from your gallery instead?',
+          [
+            {
+              text: 'Choose from Gallery',
+              onPress: handlePickGalleryImage,
+            },
+            { text: 'Cancel', style: 'cancel' },
+          ]
         );
         return;
       }
