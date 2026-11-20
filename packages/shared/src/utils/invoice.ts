@@ -99,8 +99,8 @@ export interface KandyInvoiceData {
 export const OFFICIAL_KANDY_COMPANY: KandyInvoiceCompany = {
   name: 'KANDY CABS',
   tagline: 'Safe | Reliable | Hassle-Free',
-  addressLine1: '#708, 7th Floor, Inland Impala, Vidyaranyanagar,',
-  addressLine2: 'Mangaluru, Karnataka – 575020',
+  addressLine1: '',
+  addressLine2: '',
   gstin: '29AIEPR4688P1Z4',
   website: 'www.kandycabs.in',
   email: 'kandycabsmlr@gmail.com',
@@ -1059,7 +1059,7 @@ export function generateKandyInvoiceHtml(invoice: KandyInvoiceData, options?: { 
         <td class="company-details">
           <div class="company-title">${invoice.company.name}</div>
           <div class="company-tagline">${invoice.company.tagline}</div>
-          <div class="company-addr">${invoice.company.addressLine1}<br>${invoice.company.addressLine2}</div>
+          ${(invoice.company.addressLine1 || invoice.company.addressLine2) ? `<div class="company-addr">${invoice.company.addressLine1 ? `${invoice.company.addressLine1}<br>` : ''}${invoice.company.addressLine2 || ''}</div>` : ''}
           <div class="company-gstin">GSTIN: ${invoice.company.gstin}</div>
           <div class="company-contact">Website: ${invoice.company.website} | Email: ${invoice.company.email}</div>
         </td>

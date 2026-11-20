@@ -55,24 +55,16 @@ export async function generateKandyInvoicePdfBytes(invoice: KandyInvoiceData): P
   });
 
   const company = invoice.company || {
-    addressLine1: '#708, 7th Floor, Inland Impala, Vidyaranyanagar,',
-    addressLine2: 'Mangaluru, Karnataka – 575020',
+    addressLine1: '',
+    addressLine2: '',
     gstin: '29AIEPR4688P1Z4',
     website: 'www.kandycabs.in',
     email: 'kandycabsmlr@gmail.com',
   };
 
-  page.drawText(`${company.addressLine1} ${company.addressLine2}`, {
-    x: left,
-    y: currentY - 40,
-    size: 7.5,
-    font: fontRegular,
-    color: colorSlateDark,
-  });
-
   page.drawText(`GSTIN: ${company.gstin} | Web: ${company.website} | Email: ${company.email}`, {
     x: left,
-    y: currentY - 51,
+    y: currentY - 42,
     size: 7.5,
     font: fontRegular,
     color: colorSlateDark,

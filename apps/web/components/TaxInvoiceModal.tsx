@@ -294,8 +294,8 @@ function normalizeInvoiceData(raw: any): any {
     company: raw.company || {
       name: 'KANDY CABS',
       tagline: 'Safe | Reliable | Hassle-Free',
-      addressLine1: '#708, 7th Floor, Inland Impala, Vidyaranyanagar,',
-      addressLine2: 'Mangaluru, Karnataka – 575020',
+      addressLine1: '',
+      addressLine2: '',
       gstin: '29AIEPR4688P1Z4',
       website: 'www.kandycabs.in',
       email: 'kandycabsmlr@gmail.com',
@@ -416,10 +416,6 @@ export function TaxInvoiceModal({
               <div className="text-right">
                 <h1 className="text-2xl font-black text-[#162232] tracking-tight">KANDY CABS</h1>
                 <p className="text-xs font-bold text-slate-600">Safe | Reliable | Hassle-Free</p>
-                <p className="text-[11px] text-slate-600 mt-1 leading-snug">
-                  #708, 7th Floor, Inland Impala, Vidyaranyanagar,<br />
-                  Mangaluru, Karnataka – 575020
-                </p>
                 <p className="text-xs font-black text-[#162232] mt-1">
                   GSTIN: 29AIEPR4688P1Z4
                 </p>

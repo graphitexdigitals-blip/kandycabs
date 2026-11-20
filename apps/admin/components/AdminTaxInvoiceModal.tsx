@@ -268,8 +268,6 @@ export function AdminTaxInvoiceModal({
                     {invoice.company?.name || 'KANDY CABS'}
                   </h4>
                   <p className="font-semibold text-slate-700">{invoice.company?.tagline || 'Safe | Reliable | Hassle-Free'}</p>
-                  <p>{invoice.company?.addressLine1 || '#708, 7th Floor, Inland Impala, Vidyaranyanagar,'}</p>
-                  <p>{invoice.company?.addressLine2 || 'Mangaluru, Karnataka – 575020'}</p>
                   <p className="font-extrabold text-[#162232] mt-0.5">
                     GSTIN: {invoice.company?.gstin || '29AIEPR4688P1Z4'}
                   </p>
