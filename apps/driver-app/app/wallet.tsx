@@ -723,31 +723,6 @@ export default function DriverWalletScreen() {
                     onPress={() => handleOpenDispute(tx)}
                     activeOpacity={0.8}
                   >
-                    {/* Left Icon */}
-                    <View style={styles.txIconBox}>
-                      <Ionicons
-                        name={
-                          isFine
-                            ? 'warning-outline'
-                            : isEarning
-                            ? 'car-outline'
-                            : isDeposit
-                            ? 'shield-checkmark-outline'
-                            : 'business-outline'
-                        }
-                        size={22}
-                        color={
-                          isFine
-                            ? '#dc2626'
-                            : isEarning
-                            ? '#16a34a'
-                            : isDeposit
-                            ? '#2563eb'
-                            : '#4338ca'
-                        }
-                      />
-                    </View>
-
                     {/* Middle Details */}
                     <View style={styles.txInfo}>
                       <View style={styles.txTitleRow}>
@@ -786,31 +761,33 @@ export default function DriverWalletScreen() {
                       >
                         {tx.amount > 0 ? `+₹${tx.amount.toLocaleString('en-IN')}` : `-₹${Math.abs(tx.amount).toLocaleString('en-IN')}`}
                       </Text>
-                      {!isFine && (
-                        <View
+                      <View
+                        style={[
+                          styles.txStatusPill,
+                          isFine
+                            ? { backgroundColor: '#fee2e2' }
+                            : isEarning
+                            ? { backgroundColor: '#dcfce7' }
+                            : isDeposit
+                            ? { backgroundColor: '#eff6ff' }
+                            : { backgroundColor: '#f1f5f9' },
+                        ]}
+                      >
+                        <Text
                           style={[
-                            styles.txStatusPill,
-                            isEarning
-                              ? { backgroundColor: '#dcfce7' }
+                            styles.txStatusText,
+                            isFine
+                              ? { color: '#dc2626' }
+                              : isEarning
+                              ? { color: '#16a34a' }
                               : isDeposit
-                              ? { backgroundColor: '#eff6ff' }
-                              : { backgroundColor: '#f1f5f9' },
+                              ? { color: '#2563eb' }
+                              : { color: '#475569' },
                           ]}
                         >
-                          <Text
-                            style={[
-                              styles.txStatusText,
-                              isEarning
-                                ? { color: '#16a34a' }
-                                : isDeposit
-                                ? { color: '#2563eb' }
-                                : { color: '#475569' },
-                            ]}
-                          >
-                            {tx.status}
-                          </Text>
-                        </View>
-                      )}
+                          {isFine ? 'FINE DEDUCTED' : tx.status}
+                        </Text>
+                      </View>
                     </View>
                   </TouchableOpacity>
                 );
@@ -1774,7 +1751,6 @@ const styles = StyleSheet.create({
   },
   txInfo: {
     flex: 1,
-    marginLeft: 8,
     marginRight: 8,
   },
   txTitleRow: {
