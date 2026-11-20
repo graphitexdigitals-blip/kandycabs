@@ -392,11 +392,67 @@ export function TaxInvoiceModal({
     if (!invoice || !bookingId) return;
     try {
       setDownloading(true);
-      const downloadUrl = await getInvoiceDownloadUrl();
-      await Linking.openURL(downloadUrl);
+
+      // On web browser fallback to download URL
+      if (Platform.OS === 'web') {
+        const downloadUrl = await getInvoiceDownloadUrl();
+        await Linking.openURL(downloadUrl);
+        return;
+      }
+
+      // 1. Generate the official full HTML tax invoice
+      const invoiceHtml = generateKandyInvoiceHtml(invoice);
+
+      // 2. Render to local high-resolution PDF file on device
+      const { uri } = await Print.printToFileAsync({
+        html: invoiceHtml,
+      });
+
+      const fileName = `Kandy_Cabs_Tax_Invoice_${invoice.invoiceNumber || bookingId}.pdf`;
+      const targetUri = `${FileSystem.documentDirectory}${fileName}`;
+      await FileSystem.copyAsync({ from: uri, to: targetUri });
+
+      // 3. For Android: prompt directory to save directly into Downloads or user folder
+      if (Platform.OS === 'android' && FileSystem.StorageAccessFramework) {
+        try {
+          const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+          if (permissions.granted) {
+            const base64 = await FileSystem.readAsStringAsync(targetUri, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            const createdUri = await FileSystem.StorageAccessFramework.createFileAsync(
+              permissions.directoryUri,
+              fileName,
+              'application/pdf'
+            );
+            await FileSystem.writeAsStringAsync(createdUri, base64, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            Alert.alert(
+              'PDF Downloaded',
+              `Tax invoice (${fileName}) has been saved to your selected folder.`
+            );
+            return;
+          }
+        } catch (safErr) {
+          console.warn('[TaxInvoice] StorageAccessFramework error, falling back to Sharing:', safErr);
+        }
+      }
+
+      // 4. iOS / Android native sharing or saving
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(targetUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Save Tax Invoice #${invoice.invoiceNumber}`,
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        Alert.alert('PDF Generated', `Invoice PDF saved to device documents: ${fileName}`);
+      }
     } catch (err: any) {
       console.error('[TaxInvoice] Direct PDF download error:', err);
-      Alert.alert('Download Error', err.message || 'Unable to open invoice at this time.');
+      Alert.alert('Download Error', err.message || 'Unable to generate PDF at this time.');
     } finally {
       setDownloading(false);
     }
@@ -414,10 +470,15 @@ export function TaxInvoiceModal({
         html: invoiceHtml,
       });
 
-      // 3. Share the actual PDF document directly to WhatsApp / apps via native share sheet
+      // 3. Copy to a properly named PDF file
+      const fileName = `Kandy_Cabs_Tax_Invoice_${invoice.invoiceNumber || bookingId}.pdf`;
+      const targetUri = `${FileSystem.documentDirectory}${fileName}`;
+      await FileSystem.copyAsync({ from: uri, to: targetUri });
+
+      // 4. Share the actual PDF document directly to WhatsApp / apps via native share sheet
       const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable && uri) {
-        await Sharing.shareAsync(uri, {
+      if (isAvailable) {
+        await Sharing.shareAsync(targetUri, {
           mimeType: 'application/pdf',
           dialogTitle: `Share Tax Invoice #${invoice.invoiceNumber}`,
           UTI: 'com.adobe.pdf',
