@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { KANDY_LOGO_BASE64 } from '@kandy-cabs/shared';
+import { KANDY_LOGO_BASE64, buildKandyInvoiceData } from '@kandy-cabs/shared';
 
 interface AdminTaxInvoiceModalProps {
   booking: any | null;
@@ -76,79 +76,47 @@ export function AdminTaxInvoiceModal({
       return;
     }
 
+    // Immediately build full official tax invoice representation from booking object
+    if (booking) {
+      try {
+        const directInvoice = buildKandyInvoiceData(booking);
+        setInvoice(directInvoice);
+      } catch (e) {
+        console.warn('Initial direct invoice build:', e);
+      }
+    }
+
     setLoading(true);
     setError('');
 
     fetch(`/api/customer/bookings/${bookingId}/invoice`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((data) => {
         if (data && data.success && data.invoice) {
           setInvoice(data.invoice);
-        } else if (booking) {
-          // Construct fallback invoice representation from booking object
-          const rawRef = (booking.humanReadableRef || booking.ref || booking.id || '').toUpperCase();
-          const invoiceNum = rawRef.startsWith('KC-') ? rawRef : `KC-2026-${rawRef.slice(-6)}`;
-          const d = new Date(booking.scheduledAt || booking.createdAt || Date.now());
-          const grandTotal = Number(booking.estimatedFare || booking.finalFare || 0);
-          const taxable = Math.round((grandTotal / 1.05) * 100) / 100;
-          const gst = grandTotal - taxable;
-          const halfGst = Math.round((gst / 2) * 100) / 100;
-
-          setInvoice({
-            invoiceNumber: invoiceNum,
-            invoiceDateFormatted: formatOrdinalDate(d),
-            placeOfSupply: 'Karnataka',
-            supplyType: 'Passenger Transportation Service',
-            bookingRef: invoiceNum,
-            bookingStatus: booking.status || 'CONFIRMED',
-            customer: {
-              name: booking.customerName?.startsWith('Mr.') ? booking.customerName : `Mr. ${booking.customerName || 'Customer'}`,
-              phone: booking.customerPhone || '',
-              pickupAddress: booking.actualPickupAddress || booking.pickupAddress || 'Address on file',
-            },
-            tripDetails: {
-              travelDate: formatOrdinalDate(d),
-              tripType: booking.tripType || 'ONEWAY',
-              numberOfDays: '1 Day',
-              route: `${booking.pickupAddress?.split(',')[0] || 'Origin'} → ${booking.dropAddress?.split(',')[0] || 'Destination'}`,
-              passengers: `${booking.passengers || 4} Passengers • AC Commercial Cab`,
-              pickupTime: 'Pickup Scheduled as per booking',
-              kmLimit: `${Math.round(Number(booking.distanceKm || 100))} Km Limit`,
-              tollParkingStatus: booking.tollAmount > 0 || booking.parkingAmount > 0 ? `Included (Toll: ₹${booking.tollAmount || 0} + Parking: ₹${booking.parkingAmount || 0})` : 'Excluded (Payable Extra at Actuals)',
-            },
-            financials: {
-              serviceDescription: `Outstation Cab Service (${Math.round(Number(booking.distanceKm || 100))} Km Limit) - ${booking.vehicleModel || 'AC Commercial Cab'}`,
-              serviceAmount: taxable - (Number(booking.driverAllowance || 0)),
-              chauffeurAllowance: Number(booking.driverAllowance || 0),
-              taxableValue: taxable,
-              cgst: halfGst,
-              sgst: gst - halfGst,
-              gstTotal: gst,
-              grandTotal: grandTotal,
-              advancePaid: Number(booking.advanceAmount || 0),
-              advanceStatus: booking.advancePaymentStatus || 'PAID',
-              balanceDue: Number(booking.balanceAmount || 0),
-              balanceStatus: booking.balancePaymentStatus || 'PENDING',
-            },
-            amountInWords: numberToWordsINR(grandTotal),
-            remarks: 'Toll charges, state border permits, parking fees, additional kilometres beyond the limit, and chauffeur night allowance are charged extra as applicable.',
-            company: {
-              name: 'KANDY CABS',
-              tagline: 'Safe | Reliable | Hassle-Free',
-              addressLine1: '#708, 7th Floor, Inland Impala, Vidyaranyanagar,',
-              addressLine2: 'Mangaluru, Karnataka – 575020',
-              gstin: '29AIEPR4688P1Z4',
-              website: 'www.kandycabs.in',
-              email: 'kandycabsmlr@gmail.com',
-            },
-          });
-        } else {
-          setError(data?.message || 'Failed to load official tax invoice.');
+        } else if (!invoice && booking) {
+          try {
+            setInvoice(buildKandyInvoiceData(booking));
+          } catch (e) {
+            setError(data?.message || 'Failed to load official tax invoice.');
+          }
         }
       })
       .catch((err) => {
-        console.error('Error loading tax invoice:', err);
-        setError('Error loading tax invoice data.');
+        console.warn('Tax invoice fetch fallback to local booking data:', err);
+        if (booking) {
+          try {
+            setInvoice(buildKandyInvoiceData(booking));
+            setError('');
+          } catch (e) {
+            setError('Error loading tax invoice data.');
+          }
+        } else {
+          setError('Error loading tax invoice data.');
+        }
       })
       .finally(() => setLoading(false));
   }, [isOpen, bookingId, booking]);

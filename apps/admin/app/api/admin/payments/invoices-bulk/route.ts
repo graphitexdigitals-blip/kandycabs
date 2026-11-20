@@ -5,6 +5,7 @@ import { getAdminSession } from '@/lib/auth';
 import { generateKandyInvoicePdf } from '@/lib/invoicePdf';
 import {
   buildKandyInvoiceData,
+  generateKandyInvoiceHtml,
   UserRole,
   PaymentStatus,
   BookingStatus,
@@ -170,16 +171,27 @@ export async function GET(req: NextRequest) {
     for (const b of bookings) {
       try {
         const invoiceData = buildKandyInvoiceData(b);
-        // Direct binary PDF generation using PDFKit
-        const pdfBuffer = await generateKandyInvoicePdf(invoiceData);
+        let pdfBuffer: Buffer | null = null;
+        try {
+          pdfBuffer = await generateKandyInvoicePdf(invoiceData);
+        } catch (pdfErr) {
+          console.warn(`PDFKit generation error for booking ${b.humanReadableRef}, generating HTML invoice:`, pdfErr);
+        }
 
         const safeCustomerName = (b.customer?.user?.fullName || 'Customer')
           .trim()
           .replace(/[^a-zA-Z0-9_-]/g, '_')
           .substring(0, 30);
-        const fileName = `Invoice_${b.humanReadableRef}_${safeCustomerName}.pdf`;
 
-        folder.file(fileName, pdfBuffer);
+        let fileName = '';
+        if (pdfBuffer && pdfBuffer.length > 0) {
+          fileName = `Invoice_${b.humanReadableRef}_${safeCustomerName}.pdf`;
+          folder.file(fileName, pdfBuffer);
+        } else {
+          const htmlContent = generateKandyInvoiceHtml(invoiceData);
+          fileName = `Invoice_${b.humanReadableRef}_${safeCustomerName}.html`;
+          folder.file(fileName, htmlContent);
+        }
 
         const bookingDateStr = b.createdAt ? new Date(b.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
         const advPaidDateStr = invoiceData.financials?.advancePaidDate || (b.advancePaymentStatus === PaymentStatus.PAID ? bookingDateStr : 'Pending');

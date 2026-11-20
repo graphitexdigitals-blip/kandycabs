@@ -111,11 +111,19 @@ export async function GET(
 
     // Direct PDF format download
     if (format === 'pdf' || (isDownload && format !== 'html')) {
-      const pdfBuffer = await generateKandyInvoicePdf(invoiceData);
-      const headers = new Headers();
-      headers.set('Content-Type', 'application/pdf');
-      headers.set('Content-Disposition', `attachment; filename="Kandy_Cabs_Tax_Invoice_${invoiceData.invoiceNumber}.pdf"`);
-      return new Response(new Uint8Array(pdfBuffer), { status: 200, headers });
+      try {
+        const pdfBuffer = await generateKandyInvoicePdf(invoiceData);
+        const headers = new Headers();
+        headers.set('Content-Type', 'application/pdf');
+        headers.set('Content-Disposition', `attachment; filename="Kandy_Cabs_Tax_Invoice_${invoiceData.invoiceNumber}.pdf"`);
+        return new Response(new Uint8Array(pdfBuffer), { status: 200, headers });
+      } catch (pdfErr) {
+        console.warn('PDFKit generation failed, falling back to printable HTML tax invoice:', pdfErr);
+        const html = generateKandyInvoiceHtml(invoiceData, { autoPrint: true });
+        const headers = new Headers();
+        headers.set('Content-Type', 'text/html; charset=utf-8');
+        return new NextResponse(html, { status: 200, headers });
+      }
     }
 
     if (format === 'html' || req.headers.get('accept')?.includes('text/html')) {
