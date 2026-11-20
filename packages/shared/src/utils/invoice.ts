@@ -108,8 +108,8 @@ export const OFFICIAL_KANDY_COMPANY: KandyInvoiceCompany = {
 
 export const OFFICIAL_KANDY_SIGNATORY: KandyInvoiceSignatory = {
   company: 'KANDY CABS',
-  name: 'Mukesh Rao',
-  role: 'Authorised Signatory',
+  name: '',
+  role: '',
 };
 
 /**

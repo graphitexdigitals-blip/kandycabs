@@ -552,23 +552,17 @@ export function AdminTaxInvoiceModal({
                 {invoice.remarks}
               </div>
 
-              {/* Signatures */}
-              <div className="flex justify-between items-end pt-4 border-t border-slate-200">
-                <div className="text-[10px] text-slate-500">
-                  <p className="font-bold text-slate-700">Thank you for traveling with Kandy Cabs!</p>
-                  <p>Computer generated tax invoice • Valid without physical seal</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase mb-5">
-                    For {invoice.company?.name || 'KANDY CABS'}
-                  </p>
-                  <div className="inline-block border-t border-slate-400 pt-1 text-right min-w-[130px]">
-                    <span className="text-xs font-black text-[#162232] block leading-tight">
-                      KANDY CABS PVT LTD
-                    </span>
-                    <span className="text-[9px] text-slate-500">Authorized Signatory</span>
-                  </div>
-                </div>
+              {/* 10. Footer */}
+              <div className="pt-4 border-t border-slate-200 text-center">
+                <p className="text-xs font-black text-[#162232]">
+                  Thank you for choosing {invoice.company?.name || 'KANDY CABS'}
+                </p>
+                <p className="text-[10px] font-semibold text-slate-600 mt-0.5">
+                  {invoice.company?.tagline || 'Safe | Reliable | Hassle-Free'} • {invoice.company?.website || 'www.kandycabs.in'} • {invoice.company?.email || 'kandycabsmlr@gmail.com'}
+                </p>
+                <p className="text-[9px] text-slate-400 text-right mt-2">
+                  {invoice.company?.name || 'KANDY CABS'} | GSTIN: {invoice.company?.gstin || '29AIEPR4688P1Z4'}
+                </p>
               </div>
             </div>
           ) : null}

@@ -20,7 +20,7 @@ export function resolveRobotoStyle(style: any) {
  * Formats names into clean Title Case (First letter of each word capitalized, rest lowercase).
  * Handles:
  * "RRaakshith" -> "Rrakshith"
- * "mukesh rao" -> "Mukesh Rao"
+ * "rakshith shetty" -> "Rakshith Shetty"
  * "RAMESH KUMAR (TEST DRIVER)" -> "Ramesh Kumar (Test Driver)"
  */
 export function formatTitleCase(str: string | null | undefined): string {
