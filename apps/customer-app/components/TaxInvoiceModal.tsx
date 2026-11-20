@@ -381,6 +381,13 @@ export function TaxInvoiceModal({
 
   if (!isOpen || !bookingId) return null;
 
+  const getInvoicePdfViewUrl = async (): Promise<string> => {
+    const token = await customerTokenStorage.getTokenAsync();
+    const baseUrl = getDynamicBaseUrl();
+    const authParam = token ? `&auth=${encodeURIComponent(token)}` : '';
+    return `${baseUrl}/api/customer/bookings/${bookingId}/invoice?format=pdf${authParam}`;
+  };
+
   const getInvoiceDownloadUrl = async (): Promise<string> => {
     const token = await customerTokenStorage.getTokenAsync();
     const baseUrl = getDynamicBaseUrl();
@@ -475,33 +482,57 @@ export function TaxInvoiceModal({
     if (!invoice || !bookingId) return;
     try {
       setSharing(true);
-      // 1. Generate the official full HTML tax invoice
-      const invoiceHtml = generateKandyInvoiceHtml(invoice);
 
-      // 2. Render to local .pdf file on device using expo-print
-      const { uri } = await Print.printToFileAsync({
-        html: invoiceHtml,
-      });
+      // Web Environment: use Web Share API or open viewable PDF in new browser tab
+      if (Platform.OS === 'web') {
+        const viewPdfUrl = await getInvoicePdfViewUrl();
+        if (typeof navigator !== 'undefined' && (navigator as any).share) {
+          try {
+            await (navigator as any).share({
+              title: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber} (PDF)`,
+              text: `Tax Invoice #${invoice.invoiceNumber} - Kandy Cabs (${invoice.tripDetails?.route || 'Trip'})`,
+              url: viewPdfUrl,
+            });
+            return;
+          } catch {
+            // User cancelled or dismissed share dialog
+          }
+        }
+        window.open(viewPdfUrl, '_blank');
+        return;
+      }
 
-      // 3. Copy to a properly named PDF file
+      // Native Mobile (Android & iOS):
       const fileName = `Kandy_Cabs_Tax_Invoice_${invoice.invoiceNumber || bookingId}.pdf`;
       const targetUri = `${FileSystem.documentDirectory}${fileName}`;
-      await FileSystem.copyAsync({ from: uri, to: targetUri });
 
-      // 4. Share the actual PDF document directly to WhatsApp / apps via native share sheet
+      // 1. Generate local high-resolution PDF on device or fetch from server
+      try {
+        const invoiceHtml = generateKandyInvoiceHtml(invoice);
+        const { uri } = await Print.printToFileAsync({
+          html: invoiceHtml,
+        });
+        await FileSystem.copyAsync({ from: uri, to: targetUri });
+      } catch (printErr) {
+        console.warn('[TaxInvoice] Local printToFileAsync failed, fetching server PDF:', printErr);
+        const downloadUrl = await getInvoiceDownloadUrl();
+        await FileSystem.downloadAsync(downloadUrl, targetUri);
+      }
+
+      // 2. Share actual PDF document file directly (so it can be viewed and opened in PDF viewers / WhatsApp)
       const isAvailable = await Sharing.isAvailableAsync();
       if (isAvailable) {
         await Sharing.shareAsync(targetUri, {
           mimeType: 'application/pdf',
-          dialogTitle: `Share Tax Invoice #${invoice.invoiceNumber}`,
+          dialogTitle: `Tax Invoice #${invoice.invoiceNumber} (PDF)`,
           UTI: 'com.adobe.pdf',
         });
       } else {
-        const downloadUrl = await getInvoiceDownloadUrl();
+        const viewPdfUrl = await getInvoicePdfViewUrl();
         await Share.share({
-          title: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}`,
-          message: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}\nBooking: ${invoice.humanReadableRef || bookingId}\nCustomer: ${invoice.customer?.name || 'Customer'}\nTotal: ₹${invoice.financials?.grandTotal?.toFixed(2) || '0.00'}\n\nView / Download Official Invoice:\n${downloadUrl}`,
-          url: downloadUrl,
+          title: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber} (PDF)`,
+          message: `Kandy Cabs Tax Invoice #${invoice.invoiceNumber}\nBooking: ${invoice.humanReadableRef || bookingId}\nCustomer: ${invoice.customer?.name || 'Customer'}\nTotal: ₹${invoice.financials?.grandTotal?.toFixed(2) || '0.00'}\n\nView Official Tax Invoice (PDF):\n${viewPdfUrl}`,
+          url: viewPdfUrl,
         });
       }
     } catch (err: any) {
