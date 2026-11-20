@@ -3,9 +3,9 @@ import JSZip from 'jszip';
 import { prisma } from '@kandy-cabs/db';
 import { getAdminSession } from '@/lib/auth';
 import { uploadBulkInvoicesZip } from '@/lib/supabase-storage';
+import { generateKandyInvoicePdfBytes } from '@/lib/invoicePdfLib';
 import {
   buildKandyInvoiceData,
-  generateKandyInvoiceHtml,
   UserRole,
   PaymentStatus,
   BookingStatus,
@@ -176,9 +176,9 @@ export async function GET(req: NextRequest) {
           .replace(/[^a-zA-Z0-9_-]/g, '_')
           .substring(0, 30);
 
-        const htmlContent = generateKandyInvoiceHtml(invoiceData);
-        const fileName = `Invoice_${b.humanReadableRef}_${safeCustomerName}.html`;
-        folder.file(fileName, htmlContent);
+        const pdfBytes = await generateKandyInvoicePdfBytes(invoiceData);
+        const fileName = `Invoice_${b.humanReadableRef}_${safeCustomerName}.pdf`;
+        folder.file(fileName, pdfBytes);
 
         const bookingDateStr = b.createdAt ? new Date(b.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
         const advPaidDateStr = invoiceData.financials?.advancePaidDate || (b.advancePaymentStatus === PaymentStatus.PAID ? bookingDateStr : 'Pending');

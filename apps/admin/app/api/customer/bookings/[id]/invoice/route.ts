@@ -3,6 +3,7 @@ import { prisma } from '@kandy-cabs/db';
 import { verifyAuthToken, UserRole, buildKandyInvoiceData, generateKandyInvoiceHtml } from '@kandy-cabs/shared';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
 import { getAdminSession } from '@/lib/auth';
+import { generateKandyInvoicePdfBytes } from '@/lib/invoicePdfLib';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,16 +106,24 @@ export async function GET(
     // Check request format (PDF or HTML printable view)
     const url = new URL(req.url);
     const format = url.searchParams.get('format');
-    const autoPrint = url.searchParams.get('print') === 'true' || format === 'pdf';
-    const isDownload = url.searchParams.get('download') === '1' || format === 'download' || format === 'pdf';
+    const autoPrint = url.searchParams.get('print') === 'true';
+    const isDownload = url.searchParams.get('download') === '1' || format === 'download';
 
-    if (format === 'html' || format === 'pdf' || isDownload || req.headers.get('accept')?.includes('text/html')) {
+    // If PDF format requested or binary download requested
+    if (format === 'pdf' || (isDownload && format !== 'html')) {
+      const pdfBytes = await generateKandyInvoicePdfBytes(invoiceData);
+      const disposition = isDownload ? 'attachment' : 'inline';
+      const headers = new Headers();
+      headers.set('Content-Type', 'application/pdf');
+      headers.set('Content-Disposition', `${disposition}; filename="Kandy_Cabs_Tax_Invoice_${invoiceData.invoiceNumber}.pdf"`);
+      headers.set('Cache-Control', 'public, max-age=3600');
+      return new Response(pdfBytes as any, { status: 200, headers });
+    }
+
+    if (format === 'html' || autoPrint || req.headers.get('accept')?.includes('text/html')) {
       const html = generateKandyInvoiceHtml(invoiceData, { autoPrint });
       const headers = new Headers();
       headers.set('Content-Type', 'text/html; charset=utf-8');
-      if (format === 'download' && url.searchParams.get('attachment') === '1') {
-        headers.set('Content-Disposition', `attachment; filename="Kandy_Cabs_Tax_Invoice_${invoiceData.invoiceNumber}.html"`);
-      }
       return new NextResponse(html, { status: 200, headers });
     }
 
