@@ -36,6 +36,7 @@ import {
   IconUser,
   IconUserSolid,
   IconCalendar,
+  IconChevronDown,
   IconX,
   IconClock,
   IconMapPin,
@@ -62,6 +63,109 @@ export default function AdminBookingsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [search, setSearch] = useState('');
+
+  // Date Filter State
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [datePreset, setDatePreset] = useState('ALL');
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
+  const dateDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Convert any Date to YYYY-MM-DD strictly in Indian Standard Time (IST)
+  const toIstIsoDate = (d: Date = new Date()) => {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(d);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(event.target as Node)) {
+        setIsDateDropdownOpen(false);
+      }
+    };
+    if (isDateDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDateDropdownOpen]);
+
+  const handleSelectPreset = (preset: string) => {
+    setDatePreset(preset);
+    const now = new Date();
+    if (preset === 'ALL') {
+      setStartDate('');
+      setEndDate('');
+    } else if (preset === 'TODAY') {
+      const todayStr = toIstIsoDate(now);
+      setStartDate(todayStr);
+      setEndDate(todayStr);
+    } else if (preset === 'TOMORROW') {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomStr = toIstIsoDate(tomorrow);
+      setStartDate(tomStr);
+      setEndDate(tomStr);
+    } else if (preset === 'YESTERDAY') {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yStr = toIstIsoDate(yesterday);
+      setStartDate(yStr);
+      setEndDate(yStr);
+    } else if (preset === 'THIS_WEEK') {
+      const weekAgo = new Date(now);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      setStartDate(toIstIsoDate(weekAgo));
+      setEndDate(toIstIsoDate(now));
+    } else if (preset === 'THIS_MONTH') {
+      const istStr = toIstIsoDate(now);
+      const [year, month] = istStr.split('-');
+      setStartDate(`${year}-${month}-01`);
+      setEndDate(istStr);
+    }
+    setIsDateDropdownOpen(false);
+    setPage(1);
+  };
+
+  const handleClearDateFilter = () => {
+    setDatePreset('ALL');
+    setStartDate('');
+    setEndDate('');
+    setIsDateDropdownOpen(false);
+    setPage(1);
+  };
+
+  const getDateButtonLabel = () => {
+    if (!startDate && !endDate) return 'Select Date';
+    if (datePreset === 'TODAY') return 'Today';
+    if (datePreset === 'TOMORROW') return 'Tomorrow';
+    if (datePreset === 'YESTERDAY') return 'Yesterday';
+    if (datePreset === 'THIS_WEEK') return 'Last 7 Days';
+    if (datePreset === 'THIS_MONTH') return 'This Month';
+    if (startDate && endDate && startDate === endDate) {
+      const [y, m, d] = startDate.split('-').map(Number);
+      const dateObj = new Date(y, m - 1, d);
+      return dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    }
+    if (startDate && endDate) {
+      const [y1, m1, d1] = startDate.split('-').map(Number);
+      const [y2, m2, d2] = endDate.split('-').map(Number);
+      const date1 = new Date(y1, m1 - 1, d1);
+      const date2 = new Date(y2, m2 - 1, d2);
+      return `${date1.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} - ${date2.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`;
+    }
+    if (startDate) {
+      const [y, m, d] = startDate.split('-').map(Number);
+      const dateObj = new Date(y, m - 1, d);
+      return `From ${dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`;
+    }
+    return 'Select Date';
+  };
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ totalCount: 0, totalPages: 1, limit: 25, page: 1 });
   const [isReconnecting, setIsReconnecting] = useState(false);
@@ -171,6 +275,8 @@ export default function AdminBookingsPage() {
           page: String(page),
           limit: '25',
           status: statusFilter,
+          ...(startDate ? { startDate } : {}),
+          ...(endDate ? { endDate } : {}),
           ...(debouncedSearch ? { search: debouncedSearch } : {}),
         });
 
@@ -206,7 +312,7 @@ export default function AdminBookingsPage() {
         if (!isBackground) setLoading(false);
       }
     },
-    [page, statusFilter, debouncedSearch, router]
+    [page, statusFilter, startDate, endDate, debouncedSearch, router]
   );
 
   // Initial fetch and on filter/page change
@@ -336,6 +442,22 @@ export default function AdminBookingsPage() {
           return false;
         }
       }
+
+      // Filter by Scheduled Pickup Date range (IST-aware)
+      if (startDate || endDate) {
+        if (!b.scheduledAt) return false;
+        const bDate = new Date(b.scheduledAt);
+        if (isNaN(bDate.getTime())) return false;
+        if (startDate) {
+          const start = new Date(`${startDate}T00:00:00.000+05:30`);
+          if (bDate < start) return false;
+        }
+        if (endDate) {
+          const end = new Date(`${endDate}T23:59:59.999+05:30`);
+          if (bDate > end) return false;
+        }
+      }
+
       if (search.trim()) {
         const q = search.toLowerCase().trim();
         const refMatch = b.humanReadableRef?.toLowerCase().includes(q);
@@ -353,7 +475,7 @@ export default function AdminBookingsPage() {
       }
       return true;
     });
-  }, [bookings, statusFilter, search, isDeclinedBooking]);
+  }, [bookings, statusFilter, startDate, endDate, search, isDeclinedBooking]);
 
   const handleOpenDrawer = (id: string) => {
     setSelectedBookingId(id);
@@ -588,22 +710,206 @@ export default function AdminBookingsPage() {
             })}
           </div>
 
-          {/* Search Bar (never shrinks or overlaps) */}
-          <div className="relative w-full sm:w-64 md:w-72 lg:w-80 shrink-0">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-              <IconSearch className="w-4 h-4" />
+          {/* Right Controls: Date Filter Dropdown & Search Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Select Date Dropdown Button */}
+            <div className="relative" ref={dateDropdownRef}>
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsDateDropdownOpen((prev) => !prev)}
+                  className={`px-3 py-1.5 sm:py-2 bg-white hover:bg-slate-50 border rounded-xl text-xs font-semibold flex items-center justify-between sm:justify-start gap-2 shadow-2xs transition cursor-pointer w-full sm:w-auto ${
+                    startDate ? 'border-[#F95700] bg-orange-50/60 text-[#0F172A] font-bold' : 'border-[#E2E8F0] text-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <IconCalendar className={`w-3.5 h-3.5 ${startDate ? 'text-[#F95700]' : 'text-slate-500'}`} />
+                    <span className="truncate max-w-[130px] sm:max-w-none">{getDateButtonLabel()}</span>
+                  </div>
+                  <IconChevronDown
+                    className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 ${
+                      isDateDropdownOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+
+                {/* Reset button when date filter is active */}
+                {startDate && (
+                  <button
+                    type="button"
+                    onClick={handleClearDateFilter}
+                    className="w-7 h-7 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-500 flex items-center justify-center text-xs transition cursor-pointer border border-slate-200 shadow-2xs shrink-0"
+                    title="Reset date filter to All Dates"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Date Filter Dropdown Popup */}
+              {isDateDropdownOpen && (
+                <div className="absolute right-0 sm:right-0 top-full mt-1.5 w-[280px] sm:w-80 bg-white rounded-xl sm:rounded-2xl shadow-xl border border-slate-200/90 p-2.5 sm:p-3.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-[11px] sm:text-xs">
+                    <span className="font-extrabold text-slate-900 tracking-tight">Filter Bookings by Date</span>
+                    {startDate && (
+                      <button
+                        type="button"
+                        onClick={handleClearDateFilter}
+                        className="text-[10px] sm:text-[11px] font-bold text-rose-600 hover:text-rose-800 transition cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Preset Quick Filters */}
+                  <div className="py-1.5">
+                    <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 px-0.5">
+                      Quick Presets
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPreset('ALL')}
+                        className={`px-2 py-1 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-semibold text-left transition cursor-pointer ${
+                          datePreset === 'ALL' && !startDate
+                            ? 'bg-slate-900 text-white font-bold'
+                            : 'hover:bg-slate-100 text-slate-700 bg-slate-50'
+                        }`}
+                      >
+                        All Dates
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPreset('TODAY')}
+                        className={`px-2 py-1 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-semibold text-left transition cursor-pointer ${
+                          datePreset === 'TODAY'
+                            ? 'bg-slate-900 text-white font-bold'
+                            : 'hover:bg-slate-100 text-slate-700 bg-slate-50'
+                        }`}
+                      >
+                        Today
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPreset('TOMORROW')}
+                        className={`px-2 py-1 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-semibold text-left transition cursor-pointer ${
+                          datePreset === 'TOMORROW'
+                            ? 'bg-slate-900 text-white font-bold'
+                            : 'hover:bg-slate-100 text-slate-700 bg-slate-50'
+                        }`}
+                      >
+                        Tomorrow
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPreset('YESTERDAY')}
+                        className={`px-2 py-1 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-semibold text-left transition cursor-pointer ${
+                          datePreset === 'YESTERDAY'
+                            ? 'bg-slate-900 text-white font-bold'
+                            : 'hover:bg-slate-100 text-slate-700 bg-slate-50'
+                        }`}
+                      >
+                        Yesterday
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPreset('THIS_WEEK')}
+                        className={`px-2 py-1 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-semibold text-left transition cursor-pointer ${
+                          datePreset === 'THIS_WEEK'
+                            ? 'bg-slate-900 text-white font-bold'
+                            : 'hover:bg-slate-100 text-slate-700 bg-slate-50'
+                        }`}
+                      >
+                        Last 7 Days
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPreset('THIS_MONTH')}
+                        className={`px-2 py-1 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-semibold text-left transition cursor-pointer ${
+                          datePreset === 'THIS_MONTH'
+                            ? 'bg-slate-900 text-white font-bold'
+                            : 'hover:bg-slate-100 text-slate-700 bg-slate-50'
+                        }`}
+                      >
+                        This Month
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Custom Date Range */}
+                  <div className="border-t border-slate-100 pt-1.5">
+                    <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 px-0.5">
+                      Custom Date Range
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 text-xs">
+                      <div>
+                        <label className="text-[10px] text-slate-500 font-medium block mb-0.5">From Date</label>
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => {
+                            setDatePreset('CUSTOM');
+                            setStartDate(e.target.value);
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-md sm:rounded-lg py-1 px-1.5 text-[11px] text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-500 font-medium block mb-0.5">To Date</label>
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => {
+                            setDatePreset('CUSTOM');
+                            setEndDate(e.target.value);
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-md sm:rounded-lg py-1 px-1.5 text-[11px] text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={handleClearDateFilter}
+                        className="text-[11px] text-slate-600 hover:text-slate-900 font-semibold px-1.5 py-0.5 rounded transition cursor-pointer"
+                      >
+                        Reset All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsDateDropdownOpen(false);
+                          setPage(1);
+                        }}
+                        className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded-md sm:rounded-lg transition shadow-2xs cursor-pointer"
+                      >
+                        Apply Filter
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Search"
-              className="w-full pl-9.5 pr-3 py-1.5 sm:py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
-              style={{ paddingLeft: '2.35rem' }}
-            />
+
+            {/* Search Bar (never shrinks or overlaps) */}
+            <div className="relative w-full sm:w-56 md:w-64 lg:w-72 shrink-0">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <IconSearch className="w-4 h-4" />
+              </div>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search"
+                className="w-full pl-9.5 pr-3 py-1.5 sm:py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                style={{ paddingLeft: '2.35rem' }}
+              />
+            </div>
           </div>
         </div>
 

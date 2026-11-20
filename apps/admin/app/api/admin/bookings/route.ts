@@ -22,6 +22,8 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(50, Math.max(1, rawLimit));
     const statusParam = searchParams.get('status')?.toUpperCase();
     const search = searchParams.get('search')?.trim();
+    const startDate = searchParams.get('startDate')?.trim();
+    const endDate = searchParams.get('endDate')?.trim();
 
     const where: any = {
       deletedAt: null,
@@ -48,6 +50,26 @@ export async function GET(req: NextRequest) {
         where.scheduledAt = { gte: now };
       } else if (Object.values(BookingStatus).includes(statusParam as any)) {
         where.status = statusParam as BookingStatus;
+      }
+    }
+
+    // Filter by Scheduled Pickup Date range (IST-aware)
+    if (startDate || endDate) {
+      const dateRange: any = {};
+      if (startDate) {
+        dateRange.gte = new Date(`${startDate}T00:00:00.000+05:30`);
+      }
+      if (endDate) {
+        dateRange.lte = new Date(`${endDate}T23:59:59.999+05:30`);
+      }
+
+      if (where.scheduledAt && typeof where.scheduledAt === 'object') {
+        where.scheduledAt = {
+          ...where.scheduledAt,
+          ...dateRange,
+        };
+      } else {
+        where.scheduledAt = dateRange;
       }
     }
 
