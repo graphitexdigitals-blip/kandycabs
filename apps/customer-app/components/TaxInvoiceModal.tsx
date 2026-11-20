@@ -379,25 +379,23 @@ export function TaxInvoiceModal({
 
   if (!isOpen || !bookingId) return null;
 
-  const getInvoicePdfViewUrl = async (): Promise<string> => {
-    const token = await customerTokenStorage.getTokenAsync();
+  const getInvoicePdfViewUrl = (): string => {
     const baseUrl = getDynamicBaseUrl();
-    const authParam = token ? `&auth=${encodeURIComponent(token)}` : '';
-    return `${baseUrl}/api/customer/bookings/${bookingId}/invoice?format=pdf${authParam}`;
+    const ref = invoice?.humanReadableRef || invoice?.invoiceNumber || bookingId;
+    return `${baseUrl}/api/customer/bookings/${ref}/invoice?format=pdf`;
   };
 
-  const getInvoiceDownloadUrl = async (): Promise<string> => {
-    const token = await customerTokenStorage.getTokenAsync();
+  const getInvoiceDownloadUrl = (): string => {
     const baseUrl = getDynamicBaseUrl();
-    const authParam = token ? `&auth=${encodeURIComponent(token)}` : '';
-    return `${baseUrl}/api/customer/bookings/${bookingId}/invoice?format=pdf&download=1${authParam}`;
+    const ref = invoice?.humanReadableRef || invoice?.invoiceNumber || bookingId;
+    return `${baseUrl}/api/customer/bookings/${ref}/invoice?format=pdf&download=1`;
   };
 
   const handleDownloadPdf = async () => {
     if (!invoice || !bookingId) return;
     try {
       setDownloading(true);
-      const downloadUrl = await getInvoiceDownloadUrl();
+      const downloadUrl = getInvoiceDownloadUrl();
 
       // On web browser, trigger direct browser PDF download without page redirection
       if (Platform.OS === 'web') {
@@ -436,7 +434,7 @@ export function TaxInvoiceModal({
     if (!invoice || !bookingId) return;
     try {
       setSharing(true);
-      const viewPdfUrl = await getInvoicePdfViewUrl();
+      const viewPdfUrl = getInvoicePdfViewUrl();
 
       // Web Environment: use Web Share API or open viewable PDF in new browser tab
       if (Platform.OS === 'web') {

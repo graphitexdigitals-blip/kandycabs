@@ -15,6 +15,21 @@ export async function generateKandyInvoicePdfBytes(invoice: KandyInvoiceData): P
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([595.28, 841.89]); // A4: 595.28 x 841.89 pt
 
+  // Protect all drawText calls against WinAnsi encoding crashes (e.g. Rupee sign ₹, unicode dashes, bullets)
+  const originalDrawText = page.drawText.bind(page);
+  (page as any).drawText = (text: string, options?: any) => {
+    const sanitized = String(text ?? '')
+      .replace(/₹/g, 'Rs. ')
+      .replace(/[\u2010-\u2015]/g, '-')
+      .replace(/\u2022/g, '*')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/\u2026/g, '...')
+      .replace(/\u00A0/g, ' ')
+      .replace(/[^\x00-\x7F]/g, '');
+    return originalDrawText(sanitized, options);
+  };
+
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const fontOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);

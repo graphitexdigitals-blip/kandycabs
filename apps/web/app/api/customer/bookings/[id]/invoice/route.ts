@@ -28,7 +28,18 @@ export async function GET(
       token = url.searchParams.get('auth') || url.searchParams.get('token') || undefined;
     }
 
-    if (!token) {
+    const url = new URL(req.url);
+    const format = url.searchParams.get('format');
+    const autoPrint = url.searchParams.get('print') === 'true';
+    const isDownload = url.searchParams.get('download') === '1' || format === 'download' || format === 'pdf';
+    const isPublicPdf = format === 'pdf' || isDownload;
+
+    let payload: any = null;
+    if (token) {
+      payload = await verifyAuthToken(token);
+    }
+
+    if (!payload?.userId && !isPublicPdf) {
       const res = NextResponse.json(
         { error: 'Unauthorized', message: 'Authentication required' },
         { status: 401 }
@@ -36,19 +47,15 @@ export async function GET(
       return setCorsHeaders(res);
     }
 
-    const payload = await verifyAuthToken(token);
-    if (!payload || !payload.userId) {
-      const res = NextResponse.json(
-        { error: 'Unauthorized', message: 'Invalid or expired token' },
-        { status: 401 }
-      );
-      return setCorsHeaders(res);
-    }
-
     const { id } = params;
 
-    const booking = await prisma.booking.findUnique({
-      where: { id },
+    const booking = await prisma.booking.findFirst({
+      where: {
+        OR: [
+          { id },
+          { humanReadableRef: id },
+        ],
+      },
       include: {
         customer: {
           include: {
@@ -80,13 +87,14 @@ export async function GET(
       return setCorsHeaders(res);
     }
 
-    // Ownership check (Customer must own the booking, or User must be ADMIN)
-    const isAdmin = payload.roles && payload.roles.includes(UserRole.ADMIN);
+    // Ownership check (Customer must own the booking, or User must be ADMIN, or public invoice PDF download)
+    const isAdmin = payload?.roles && payload.roles.includes(UserRole.ADMIN);
     const isOwner =
-      booking.customer?.user?.phone === payload.phone ||
-      booking.customerId === payload.customerId;
+      payload &&
+      (booking.customer?.user?.phone === payload.phone ||
+        booking.customerId === payload.customerId);
 
-    if (!isAdmin && !isOwner) {
+    if (!isAdmin && !isOwner && !isPublicPdf) {
       const res = NextResponse.json(
         { error: 'Forbidden', message: 'You do not have permission to view this invoice' },
         { status: 403 }
@@ -96,12 +104,6 @@ export async function GET(
 
     // Build official Kandy Cabs invoice data
     const invoiceData = buildKandyInvoiceData(booking);
-
-    // Check request format (PDF or HTML printable view)
-    const url = new URL(req.url);
-    const format = url.searchParams.get('format');
-    const autoPrint = url.searchParams.get('print') === 'true';
-    const isDownload = url.searchParams.get('download') === '1' || format === 'download' || format === 'pdf';
 
     // Prioritize PDF whenever download is requested OR format=pdf
     if (format === 'pdf' || isDownload) {
