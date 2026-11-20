@@ -786,33 +786,31 @@ export default function DriverWalletScreen() {
                       >
                         {tx.amount > 0 ? `+₹${tx.amount.toLocaleString('en-IN')}` : `-₹${Math.abs(tx.amount).toLocaleString('en-IN')}`}
                       </Text>
-                      <View
-                        style={[
-                          styles.txStatusPill,
-                          isFine
-                            ? { backgroundColor: '#fee2e2' }
-                            : isEarning
-                            ? { backgroundColor: '#dcfce7' }
-                            : isDeposit
-                            ? { backgroundColor: '#eff6ff' }
-                            : { backgroundColor: '#f1f5f9' },
-                        ]}
-                      >
-                        <Text
+                      {!isFine && (
+                        <View
                           style={[
-                            styles.txStatusText,
-                            isFine
-                              ? { color: '#dc2626' }
-                              : isEarning
-                              ? { color: '#16a34a' }
+                            styles.txStatusPill,
+                            isEarning
+                              ? { backgroundColor: '#dcfce7' }
                               : isDeposit
-                              ? { color: '#2563eb' }
-                              : { color: '#475569' },
+                              ? { backgroundColor: '#eff6ff' }
+                              : { backgroundColor: '#f1f5f9' },
                           ]}
                         >
-                          {isFine ? 'FINE DEDUCTED' : tx.status}
-                        </Text>
-                      </View>
+                          <Text
+                            style={[
+                              styles.txStatusText,
+                              isEarning
+                                ? { color: '#16a34a' }
+                                : isDeposit
+                                ? { color: '#2563eb' }
+                                : { color: '#475569' },
+                            ]}
+                          >
+                            {tx.status}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   </TouchableOpacity>
                 );
