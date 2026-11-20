@@ -16,6 +16,19 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const now = new Date();
+    // Accurate IST midnight calculation (UTC+05:30)
+    const istOffsetMs = 5.5 * 60 * 60 * 1000;
+    const nowIst = new Date(now.getTime() + istOffsetMs);
+    const y = nowIst.getUTCFullYear();
+    const m = nowIst.getUTCMonth();
+    const d = nowIst.getUTCDate();
+
+    const todayStart = new Date(Date.UTC(y, m, d) - istOffsetMs);
+    const todayEnd = new Date(Date.UTC(y, m, d, 23, 59, 59, 999) - istOffsetMs);
+    const tomorrowStart = new Date(Date.UTC(y, m, d + 1) - istOffsetMs);
+    const tomorrowEnd = new Date(Date.UTC(y, m, d + 1, 23, 59, 59, 999) - istOffsetMs);
+
     // Parallel fetch using groupBy aggregations and lean select projections
     const [
       bookingStatusGroups,
@@ -27,6 +40,7 @@ export async function GET(req: NextRequest) {
       recentBookings,
       recentAuditLogs,
       activeDriversWithNotes,
+      operationalBookings,
     ] = await Promise.all([
       // 1. Grouped booking status counts
       prisma.booking.groupBy({
@@ -115,6 +129,72 @@ export async function GET(req: NextRequest) {
           vehicles: { select: { plateNumber: true } },
         },
       }),
+
+      // 10. Operational Schedule Bookings: Today, Tomorrow, Driver Not Accepted, & Missed Pickup Candidates
+      prisma.booking.findMany({
+        where: {
+          deletedAt: null,
+          status: { not: BookingStatus.CANCELLED },
+          OR: [
+            // Scheduled for today or tomorrow
+            { scheduledAt: { gte: todayStart, lte: tomorrowEnd } },
+            // Past scheduled pickups that never started or completed (missed pickup / overdue)
+            {
+              scheduledAt: { lt: now },
+              status: { in: [BookingStatus.PENDING_ADMIN, BookingStatus.DISPATCHED, BookingStatus.DRIVER_ACCEPTED] },
+            },
+            // Driver not accepted (dispatched) or pending admin dispatch
+            { status: BookingStatus.DISPATCHED },
+            { status: BookingStatus.PENDING_ADMIN },
+          ],
+        },
+        orderBy: { scheduledAt: 'asc' },
+        take: 150,
+        select: {
+          id: true,
+          humanReadableRef: true,
+          tripType: true,
+          pickupAddress: true,
+          dropAddress: true,
+          scheduledAt: true,
+          status: true,
+          estimatedFare: true,
+          advanceAmount: true,
+          advancePaymentStatus: true,
+          balanceAmount: true,
+          balancePaymentStatus: true,
+          assignedDriverId: true,
+          actualStartedAt: true,
+          createdAt: true,
+          customer: {
+            select: {
+              user: { select: { fullName: true, phone: true } },
+            },
+          },
+          assignedDriver: {
+            select: {
+              id: true,
+              user: { select: { fullName: true, phone: true } },
+              vehicles: { select: { plateNumber: true, category: true } },
+            },
+          },
+          dispatches: {
+            where: { status: 'PENDING' },
+            orderBy: { broadcastAt: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              broadcastAt: true,
+              status: true,
+              driver: {
+                select: {
+                  user: { select: { fullName: true, phone: true } },
+                },
+              },
+            },
+          },
+        },
+      }),
     ]);
 
     // Aggregate booking counts
@@ -188,6 +268,83 @@ export async function GET(req: NextRequest) {
     const grossRevenue = Number(paymentsSummary._sum?.estimatedFare || 0);
     const advanceCollected = Number(paymentsSummary._sum?.advanceAmount || 0);
 
+    // Process operational schedule bookings
+    const nowTime = now.getTime();
+    const missedPickups: any[] = [];
+    const todayTrips: any[] = [];
+    const tomorrowTrips: any[] = [];
+    const driverNotAccepted: any[] = [];
+
+    const seenMissed = new Set<string>();
+    const seenToday = new Set<string>();
+    const seenTomorrow = new Set<string>();
+    const seenNotAccepted = new Set<string>();
+
+    for (const b of (operationalBookings || [])) {
+      const schedTime = new Date(b.scheduledAt).getTime();
+      const isToday = schedTime >= todayStart.getTime() && schedTime <= todayEnd.getTime();
+      const isTomorrow = schedTime >= tomorrowStart.getTime() && schedTime <= tomorrowEnd.getTime();
+      const isPast = schedTime < nowTime;
+      const hasStarted = b.status === BookingStatus.TRIP_STARTED || b.status === BookingStatus.TRIP_COMPLETED;
+      const isEnRoute = b.status === BookingStatus.DRIVER_EN_ROUTE;
+
+      // Minutes difference (positive = future, negative = past)
+      const diffMinutes = Math.round((schedTime - nowTime) / (60 * 1000));
+
+      // Determine operational risk level
+      let riskLevel: 'NORMAL' | 'AT_RISK' | 'MISSED_PICKUP' = 'NORMAL';
+      let riskMessage = '';
+
+      if (isPast && !hasStarted && b.status !== BookingStatus.CANCELLED) {
+        riskLevel = 'MISSED_PICKUP';
+        const minsOverdue = Math.abs(diffMinutes);
+        const hoursOverdue = Math.floor(minsOverdue / 60);
+        const remMins = minsOverdue % 60;
+        const timeOverdueStr = hoursOverdue > 0 ? `${hoursOverdue}h ${remMins}m` : `${minsOverdue}m`;
+        riskMessage = `Driver missed pickup! Scheduled ${timeOverdueStr} ago, trip not started.`;
+      } else if (isToday && !hasStarted && !isEnRoute && diffMinutes <= 45 && diffMinutes >= 0) {
+        riskLevel = 'AT_RISK';
+        riskMessage = `Urgent: Pickup in ${diffMinutes} mins! Driver has not started moving en-route.`;
+      }
+
+      const enhancedBooking = {
+        ...b,
+        diffMinutes,
+        riskLevel,
+        riskMessage,
+        isToday,
+        isTomorrow,
+        isPast,
+      };
+
+      // 1. Missed Pickup
+      if (riskLevel === 'MISSED_PICKUP' && !seenMissed.has(b.id)) {
+        seenMissed.add(b.id);
+        missedPickups.push(enhancedBooking);
+      }
+
+      // 2. Today's Trips
+      if (isToday && !seenToday.has(b.id)) {
+        seenToday.add(b.id);
+        todayTrips.push(enhancedBooking);
+      }
+
+      // 3. Tomorrow's Trips
+      if (isTomorrow && !seenTomorrow.has(b.id)) {
+        seenTomorrow.add(b.id);
+        tomorrowTrips.push(enhancedBooking);
+      }
+
+      // 4. Driver Not Accepted (Dispatched or Pending Admin for upcoming)
+      if (
+        (b.status === BookingStatus.DISPATCHED || b.status === BookingStatus.PENDING_ADMIN) &&
+        !seenNotAccepted.has(b.id)
+      ) {
+        seenNotAccepted.add(b.id);
+        driverNotAccepted.push(enhancedBooking);
+      }
+    }
+
     return NextResponse.json({
       stats: {
         bookings: {
@@ -214,6 +371,19 @@ export async function GET(req: NextRequest) {
           categoriesCount: totalFleets,
           pricingRulesCount: pricingRulesCount,
         },
+        operationalWatch: {
+          todayCount: todayTrips.length,
+          tomorrowCount: tomorrowTrips.length,
+          missedPickupCount: missedPickups.length,
+          driverNotAcceptedCount: driverNotAccepted.length,
+          atRiskCount: todayTrips.filter((t: any) => t.riskLevel === 'AT_RISK').length,
+        },
+      },
+      operationalSchedule: {
+        todayTrips,
+        tomorrowTrips,
+        missedPickups,
+        driverNotAccepted,
       },
       recentBookings,
       recentAuditLogs,
