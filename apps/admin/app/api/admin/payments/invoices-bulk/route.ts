@@ -3,6 +3,7 @@ import JSZip from 'jszip';
 import { prisma } from '@kandy-cabs/db';
 import { getAdminSession } from '@/lib/auth';
 import { generateKandyInvoicePdf } from '@/lib/invoicePdf';
+import { uploadBulkInvoicesZip } from '@/lib/supabase-storage';
 import {
   buildKandyInvoiceData,
   generateKandyInvoiceHtml,
@@ -168,14 +169,19 @@ export async function GET(req: NextRequest) {
       filename: string;
     }> = [];
 
+    // For batches with > 8 bookings, use ultra-fast standalone printable HTML invoices to prevent Vercel 10s serverless timeout
+    const forceFastHtml = bookings.length > 8;
+
     for (const b of bookings) {
       try {
         const invoiceData = buildKandyInvoiceData(b);
         let pdfBuffer: Buffer | null = null;
-        try {
-          pdfBuffer = await generateKandyInvoicePdf(invoiceData);
-        } catch (pdfErr) {
-          console.warn(`PDFKit generation error for booking ${b.humanReadableRef}, generating HTML invoice:`, pdfErr);
+        if (!forceFastHtml) {
+          try {
+            pdfBuffer = await generateKandyInvoicePdf(invoiceData);
+          } catch (pdfErr) {
+            console.warn(`PDFKit generation notice for booking ${b.humanReadableRef}:`, pdfErr);
+          }
         }
 
         const safeCustomerName = (b.customer?.user?.fullName || 'Customer')
@@ -318,10 +324,29 @@ export async function GET(req: NextRequest) {
       compressionOptions: { level: 9 },
     });
 
+    // Upload archive to Supabase Cloud Storage
+    const cloudUrl = await uploadBulkInvoicesZip({
+      zipBuffer,
+      fileName: `${folderName}.zip`,
+    });
+
+    const wantsJson = req.headers.get('accept')?.includes('application/json') || req.nextUrl.searchParams.get('format') === 'json';
+    if (wantsJson && cloudUrl) {
+      return NextResponse.json({
+        success: true,
+        downloadUrl: cloudUrl,
+        fileName: `${folderName}.zip`,
+        count: summaryRows.length,
+      });
+    }
+
     const headers = new Headers();
     headers.set('Content-Type', 'application/zip');
     headers.set('Content-Disposition', `attachment; filename="${folderName}.zip"`);
     headers.set('Cache-Control', 'no-store, max-age=0');
+    if (cloudUrl) {
+      headers.set('X-Cloud-Storage-Url', cloudUrl);
+    }
 
     return new Response(new Uint8Array(zipBuffer), { status: 200, headers });
   } catch (error: any) {

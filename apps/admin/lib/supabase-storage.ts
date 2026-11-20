@@ -142,3 +142,40 @@ export async function uploadInspectionPhotos(
   const results = await Promise.all(uploadPromises);
   return results.filter(Boolean);
 }
+
+/**
+ * Uploads generated bulk invoices ZIP package to Supabase Cloud Storage.
+ * Returns public storage URL or null if upload fails.
+ */
+export async function uploadBulkInvoicesZip({
+  zipBuffer,
+  fileName,
+}: {
+  zipBuffer: Buffer | Uint8Array;
+  fileName: string;
+}): Promise<string | null> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return null;
+
+  try {
+    const storagePath = `exports/${fileName}`;
+    const { data, error } = await supabase.storage
+      .from(TRIP_PHOTOS_BUCKET)
+      .upload(storagePath, Buffer.from(zipBuffer), {
+        contentType: 'application/zip',
+        upsert: true,
+      });
+
+    if (!error && data) {
+      const { data: publicData } = supabase.storage
+        .from(TRIP_PHOTOS_BUCKET)
+        .getPublicUrl(storagePath);
+
+      return publicData?.publicUrl || null;
+    }
+  } catch (err: any) {
+    console.warn('[Supabase Invoices Export Notice]:', err.message);
+  }
+
+  return null;
+}

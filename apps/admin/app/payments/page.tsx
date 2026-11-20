@@ -281,6 +281,20 @@ export default function AdminPaymentsPage() {
         return;
       }
 
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        if (data.downloadUrl) {
+          const a = document.createElement('a');
+          a.href = data.downloadUrl;
+          a.setAttribute('download', data.fileName || 'KandyCabs_Invoices.zip');
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          return;
+        }
+      }
+
       const blob = await res.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
