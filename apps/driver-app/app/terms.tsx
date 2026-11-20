@@ -96,8 +96,8 @@ export default function DriverTermsScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" translucent={false} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -187,7 +187,7 @@ export default function DriverTermsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   header: {
     flexDirection: 'row',
@@ -195,7 +195,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#ffffff',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingTop: Platform.OS === 'android' ? 10 : 8,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
@@ -226,6 +227,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    backgroundColor: '#f8fafc',
   },
   scrollContent: {
     padding: 16,
