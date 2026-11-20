@@ -1038,13 +1038,13 @@ export function generateKandyInvoiceHtml(invoice: KandyInvoiceData, options?: { 
 
   <!-- Screen Only Action Bar -->
   <div class="action-bar no-print">
-    <div class="title">📄 KANDY CABS OFFICIAL TAX INVOICE</div>
+    <div class="title">KANDY CABS OFFICIAL TAX INVOICE</div>
     <div class="buttons">
       <button onclick="window.print()" class="btn btn-primary">
-        🖨️ Save as PDF / Print
+        Save as PDF / Print
       </button>
       <button onclick="downloadAsHtml()" class="btn btn-secondary">
-        ⬇️ Download File
+        Download File
       </button>
     </div>
   </div>

@@ -352,18 +352,13 @@ export function TaxInvoiceModal({
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-900/60 backdrop-blur-xs text-slate-800">
       {/* Top Floating Control Bar */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-white shrink-0 shadow-xs">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#f74a01] text-white font-black text-xs shadow-xs">
-            KC
-          </span>
-          <div>
-            <h2 className="text-sm font-black text-slate-900 leading-tight">
-              Official Tax Invoice
-            </h2>
-            <p className="text-[10px] text-slate-500 font-mono">
-              {invoice?.invoiceNumber || 'Kandy Cabs'}
-            </p>
-          </div>
+        <div>
+          <h2 className="text-sm font-black text-slate-900 leading-tight">
+            Official Tax Invoice
+          </h2>
+          <p className="text-[10px] text-slate-500 font-mono">
+            {invoice?.invoiceNumber || 'Kandy Cabs'}
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -371,13 +366,19 @@ export function TaxInvoiceModal({
             onClick={handlePrint}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f74a01] hover:bg-orange-600 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
           >
-            🖨️ Save as PDF / Print
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Save as PDF / Print
           </button>
           <button
             onClick={handleDownload}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
           >
-            ⬇️ Download HTML
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download HTML
           </button>
           <button
             onClick={onClose}

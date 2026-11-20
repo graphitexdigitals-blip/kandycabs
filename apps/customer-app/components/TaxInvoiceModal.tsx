@@ -445,9 +445,6 @@ export function TaxInvoiceModal({
           {/* Modal Top Bar */}
           <View style={styles.topControlBar}>
             <View style={styles.topBarLeft}>
-              <View style={styles.kcLogoMiniBadge}>
-                <Text style={styles.kcLogoMiniText}>KC</Text>
-              </View>
               <View>
                 <Text style={styles.topBarTitle}>
                   {t('modals.invoice.title', { defaultValue: 'Official Tax Invoice' })}
