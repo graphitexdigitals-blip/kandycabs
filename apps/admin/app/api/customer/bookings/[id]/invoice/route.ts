@@ -3,7 +3,6 @@ import { prisma } from '@kandy-cabs/db';
 import { verifyAuthToken, UserRole, buildKandyInvoiceData, generateKandyInvoiceHtml } from '@kandy-cabs/shared';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
 import { getAdminSession } from '@/lib/auth';
-import { generateKandyInvoicePdf } from '@/lib/invoicePdf';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,30 +102,13 @@ export async function GET(
     // Build official Kandy Cabs invoice data
     const invoiceData = buildKandyInvoiceData(booking);
 
-    // Check request format
+    // Check request format (PDF or HTML printable view)
     const url = new URL(req.url);
     const format = url.searchParams.get('format');
-    const autoPrint = url.searchParams.get('print') === 'true';
+    const autoPrint = url.searchParams.get('print') === 'true' || format === 'pdf';
     const isDownload = url.searchParams.get('download') === '1' || format === 'download' || format === 'pdf';
 
-    // Direct PDF format download
-    if (format === 'pdf' || (isDownload && format !== 'html')) {
-      try {
-        const pdfBuffer = await generateKandyInvoicePdf(invoiceData);
-        const headers = new Headers();
-        headers.set('Content-Type', 'application/pdf');
-        headers.set('Content-Disposition', `attachment; filename="Kandy_Cabs_Tax_Invoice_${invoiceData.invoiceNumber}.pdf"`);
-        return new Response(new Uint8Array(pdfBuffer), { status: 200, headers });
-      } catch (pdfErr) {
-        console.warn('PDFKit generation failed, falling back to printable HTML tax invoice:', pdfErr);
-        const html = generateKandyInvoiceHtml(invoiceData, { autoPrint: true });
-        const headers = new Headers();
-        headers.set('Content-Type', 'text/html; charset=utf-8');
-        return new NextResponse(html, { status: 200, headers });
-      }
-    }
-
-    if (format === 'html' || req.headers.get('accept')?.includes('text/html')) {
+    if (format === 'html' || format === 'pdf' || isDownload || req.headers.get('accept')?.includes('text/html')) {
       const html = generateKandyInvoiceHtml(invoiceData, { autoPrint });
       const headers = new Headers();
       headers.set('Content-Type', 'text/html; charset=utf-8');
