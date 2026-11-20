@@ -107,10 +107,10 @@ export async function GET(
     const url = new URL(req.url);
     const format = url.searchParams.get('format');
     const autoPrint = url.searchParams.get('print') === 'true';
-    const isDownload = url.searchParams.get('download') === '1' || format === 'download';
+    const isDownload = url.searchParams.get('download') === '1' || format === 'download' || format === 'pdf';
 
-    // If PDF format requested or binary download requested
-    if (format === 'pdf' || (isDownload && format !== 'html')) {
+    // Prioritize PDF whenever download is requested OR format=pdf
+    if (format === 'pdf' || isDownload) {
       const pdfBytes = await generateKandyInvoicePdfBytes(invoiceData);
       const disposition = isDownload ? 'attachment' : 'inline';
       const headers = new Headers();

@@ -345,7 +345,7 @@ export function TaxInvoiceModal({
   };
 
   const handleDownload = () => {
-    window.open(`/api/customer/bookings/${bookingId}/invoice?format=html&download=1&attachment=1`, '_blank');
+    window.open(`/api/customer/bookings/${bookingId}/invoice?format=pdf&download=1`, '_blank');
   };
 
   return (

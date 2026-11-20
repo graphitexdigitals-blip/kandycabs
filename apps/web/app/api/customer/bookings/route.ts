@@ -10,6 +10,7 @@ import {
   PaymentStatus,
   BookingStatus,
   parseSafeIsoDate,
+  FuelType,
 } from '@kandy-cabs/shared';
 import { calculateRouteDistance } from '@/lib/distance';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
