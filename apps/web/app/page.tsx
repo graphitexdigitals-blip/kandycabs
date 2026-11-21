@@ -12,6 +12,22 @@ import { WebAuthModal } from '@/components/WebAuthModal';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import { DriverAppModal } from '@/components/DriverAppModal';
 import { PromoBannerSlider } from '@/components/PromoBannerSlider';
+import { TimePickerModal } from '@/components/TimePickerModal';
+
+function format12HourTime(timeStr: string): string {
+  if (!timeStr) return '';
+  try {
+    const parts = timeStr.trim().split(':');
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return timeStr;
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+  } catch {
+    return timeStr;
+  }
+}
 
 const POPULAR_LOCATIONS = ALL_LOCATIONS.map((l) => ({ name: l.label, lat: l.lat, lng: l.lng }));
 
@@ -86,6 +102,7 @@ export default function CustomerHomePage() {
   const [driverModalOpen, setDriverModalOpen] = useState(false);
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [locationModalTarget, setLocationModalTarget] = useState<'PICKUP' | 'DROP' | string>('PICKUP');
+  const [timeModalOpen, setTimeModalOpen] = useState(false);
 
   // Autocomplete suggestions
   const [pickupQuery, setPickupQuery] = useState('');
@@ -504,8 +521,11 @@ export default function CustomerHomePage() {
               />
             </div>
 
-            {/* Pickup Time */}
-            <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+            {/* Pickup Time (12-Hour) */}
+            <div
+              onClick={() => setTimeModalOpen(true)}
+              className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-[#f0750f]/50 cursor-pointer focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] transition-all select-none"
+            >
               <div className="flex items-center gap-1.5 text-slate-400 mb-0.5">
                 <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -514,12 +534,14 @@ export default function CustomerHomePage() {
                   PICKUP TIME
                 </span>
               </div>
-              <input
-                type="time"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-                className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none cursor-pointer"
-              />
+              <div className="flex items-center justify-between">
+                <span className={`text-xs sm:text-sm font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
+                  {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
+                </span>
+                <span className="text-[10px] text-[#f0750f] font-bold uppercase">
+                  {scheduledTime ? 'Change' : 'Set'}
+                </span>
+              </div>
             </div>
 
             {/* If Round Trip: Return Date Row */}
@@ -632,6 +654,15 @@ export default function CustomerHomePage() {
       <DriverAppModal
         isOpen={driverModalOpen}
         onClose={() => setDriverModalOpen(false)}
+      />
+
+      {/* 12-Hour Time Picker Modal */}
+      <TimePickerModal
+        isOpen={timeModalOpen}
+        onClose={() => setTimeModalOpen(false)}
+        onSelectTime={(t) => setScheduledTime(t)}
+        currentTime={scheduledTime}
+        title="Select Pickup Time"
       />
     </div>
   );
