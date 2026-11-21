@@ -36,7 +36,7 @@ const SERVICE_CATEGORIES = [
     id: 'AIRPORT',
     title: 'Airport Transfer',
     icon: (
-      <svg className="w-7 h-7 text-[#f0750f]" viewBox="0 0 512 512" fill="currentColor">
+      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-[#f0750f]" viewBox="0 0 512 512" fill="currentColor">
         <g transform="rotate(-45 256 256)">
           <path d="M186.62 464H160a16 16 0 0 1-14.57-22.6l64.46-142.25L113.1 297l-35.3 42.77C71.07 348.23 65.7 352 52 352H34.08a17.66 17.66 0 0 1-14.7-7.06c-2.38-3.21-4.72-8.65-2.44-16.41l19.82-71c.15-.53.33-1.06.53-1.58a.4.4 0 0 0 0-.15 15 15 0 0 1-.53-1.59l-19.84-71.45c-2.15-7.61.2-12.93 2.56-16.06a16.83 16.83 0 0 1 13.6-6.7H52c10.23 0 20.16 4.59 26 12l34.57 42.05l97.32-1.44l-64.44-142A16 16 0 0 1 160 48h26.91a25 25 0 0 1 19.35 9.8l125.05 152l57.77-1.52c4.23-.23 15.95-.31 18.66-.31C463 208 496 225.94 496 256c0 9.46-3.78 27-29.07 38.16c-14.93 6.6-34.85 9.94-59.21 9.94-2.68 0-14.37-.08-18.66-.31l-57.76-1.54l-125.36 152a25 25 0 0 1-19.32 9.75" />
         </g>
@@ -47,7 +47,7 @@ const SERVICE_CATEGORIES = [
     id: 'LOCAL',
     title: 'Local Rental',
     icon: (
-      <svg className="w-7 h-7 text-[#f0750f]" viewBox="0 0 512 512" fill="currentColor">
+      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-[#f0750f]" viewBox="0 0 512 512" fill="currentColor">
         <path d="M256 48C141.13 48 48 141.13 48 256s93.13 208 208 208s208-93.13 208-208S370.87 48 256 48m96 240h-96a16 16 0 0 1-16-16V128a16 16 0 0 1 32 0v128h80a16 16 0 0 1 0 32" />
       </svg>
     ),
@@ -56,7 +56,7 @@ const SERVICE_CATEGORIES = [
     id: 'CORPORATE',
     title: 'Corporate Travel',
     icon: (
-      <svg className="w-7 h-7 text-[#f0750f]" viewBox="0 0 512 512" fill="currentColor">
+      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-[#f0750f]" viewBox="0 0 512 512" fill="currentColor">
         <path d="M432 112h-48V96a48.05 48.05 0 0 0-48-48H176a48.05 48.05 0 0 0-48 48v16H80a48.05 48.05 0 0 0-48 48v64h448v-64a48.05 48.05 0 0 0-48-48zM160 96a16 16 0 0 1 16-16h160a16 16 0 0 1 16 16v16H160zM32 256v144a48.05 48.05 0 0 0 48 48h352a48.05 48.05 0 0 0 48-48V256H336a16 16 0 0 1-16 16H192a16 16 0 0 1-16-16z" />
       </svg>
     ),
@@ -65,7 +65,7 @@ const SERVICE_CATEGORIES = [
     id: 'TOUR',
     title: 'Tour & Pilgrimage',
     icon: (
-      <svg className="w-7 h-7 text-[#f0750f]" viewBox="0 0 512 512" fill="currentColor">
+      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-[#f0750f]" viewBox="0 0 512 512" fill="currentColor">
         <path d="M432 176H320V64a48 48 0 0 0-48-48H80a48 48 0 0 0-48 48v416a16 16 0 0 0 16 16h104a8 8 0 0 0 8-8v-71.55c0-8.61 6.62-16 15.23-16.43A16 16 0 0 1 192 416v72a8 8 0 0 0 8 8h264a16 16 0 0 0 16-16V224a48 48 0 0 0-48-48M98.08 431.87a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m80 240a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m80 320a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79M444 464H320V208h112a16 16 0 0 1 16 16v236a4 4 0 0 1-4 4" />
         <path d="M400 400a16 16 0 1 0 16 16a16 16 0 0 0-16-16m0-80a16 16 0 1 0 16 16a16 16 0 0 0-16-16m0-80a16 16 0 1 0 16 16a16 16 0 0 0-16-16m-64 160a16 16 0 1 0 16 16a16 16 0 0 0-16-16m0-80a16 16 0 1 0 16 16a16 16 0 0 0-16-16m0-80a16 16 0 1 0 16 16a16 16 0 0 0-16-16" />
       </svg>
@@ -848,17 +848,17 @@ export default function CustomerHomePage() {
         </div>
 
         {/* 4-Card Quick Category Grid (Mobile Only - Navigates to Dedicated Pages) */}
-        <section className="grid grid-cols-4 gap-2 sm:gap-3 md:hidden pt-4 pb-1">
+        <section className="grid grid-cols-4 gap-1.5 sm:gap-2.5 md:hidden pt-2 pb-0.5">
           {SERVICE_CATEGORIES.map((cat) => (
             <Link
               key={cat.id}
               href={`/${cat.id.toLowerCase()}`}
-              className="bg-white hover:bg-slate-50 active:scale-95 transition-all py-3 px-1.5 sm:py-3.5 sm:px-3 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group min-h-[72px] sm:min-h-[82px]"
+              className="bg-white hover:bg-slate-50 active:scale-95 transition-all py-1.5 px-1 sm:py-2.5 sm:px-2 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group"
             >
-              <div className="text-2xl sm:text-3xl flex items-center justify-center mb-1.5">
+              <div className="flex items-center justify-center mb-0.5">
                 {cat.icon}
               </div>
-              <span className="text-[10px] sm:text-xs font-bold leading-tight text-slate-800">
+              <span className="text-[9.5px] sm:text-xs font-bold leading-tight text-slate-800">
                 {cat.title}
               </span>
             </Link>
