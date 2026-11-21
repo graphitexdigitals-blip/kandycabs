@@ -651,8 +651,8 @@ export default function CustomerHomePage() {
           </div>
         </section>
 
-        {/* 4-Card Quick Category Grid (Matching Screenshot) */}
-        <section className="grid grid-cols-4 gap-1.5 sm:gap-2.5">
+        {/* 4-Card Quick Category Grid (Mobile Only - Hidden on Desktop/Tablet) */}
+        <section className="grid grid-cols-4 gap-1.5 sm:gap-2.5 md:hidden">
           {SERVICE_CATEGORIES.map((cat) => {
             const isSelected = activeTab === cat.id;
             return (
