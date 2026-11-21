@@ -211,11 +211,11 @@ export function LocationPickerModal({
               type="button"
               onClick={handleFetchCurrentLocation}
               disabled={fetchingGps}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-md text-[11px] sm:text-xs font-bold transition shadow-2xs disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 rounded-full text-[11px] sm:text-xs font-bold transition shadow-2xs disabled:opacity-50"
             >
               {fetchingGps ? (
                 <>
-                  <svg className="w-3.5 h-3.5 animate-spin text-emerald-600" fill="none" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 animate-spin text-[#f0750f]" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
@@ -223,10 +223,10 @@ export function LocationPickerModal({
                 </>
               ) : (
                 <>
-                  <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 2v2m0 16v2m10-10h-2M4 12H2m17.07-7.07l-1.41 1.41M6.34 17.66l-1.41 1.41M19.07 19.07l-1.41-1.41M6.34 6.34L4.93 4.93M12 7a5 5 0 100 10 5 5 0 000-10z" />
+                  <svg className="w-3.5 h-3.5 text-[#f0750f] flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M21 3L3 10.53v.98l6.84 2.65L12.49 21h.98L21 3z" />
                   </svg>
-                  <span>Use Live GPS Location</span>
+                  <span>Use My Current Location</span>
                 </>
               )}
             </button>
