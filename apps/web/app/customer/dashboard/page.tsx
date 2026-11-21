@@ -10,6 +10,9 @@ import { useAuth } from '@/lib/AuthContext';
 import { TaxInvoiceModal } from '@/components/TaxInvoiceModal';
 import { CancelBookingModal } from '@/components/CancelBookingModal';
 import { DriverAppModal } from '@/components/DriverAppModal';
+import { CustomerHeader } from '@/components/CustomerHeader';
+import { CustomerBottomDock } from '@/components/CustomerBottomDock';
+import { WebAuthModal } from '@/components/WebAuthModal';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,6 +44,7 @@ export default function CustomerDashboardPage() {
   const [realtimeActive, setRealtimeActive] = useState(false);
   const [driverAppModalOpen, setDriverAppModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   // Modals
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
@@ -265,176 +269,11 @@ export default function CustomerDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-16">
-      {/* Fixed Top Navigation Bar */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs transition-all duration-300">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-15 flex items-center justify-between">
-          <Link href="/" className="flex items-center group py-1.5">
-            <Image
-              src="/images/logo.webp"
-              alt="Kandy Cabs - Safe | Reliable | Hassle Free"
-              width={180}
-              height={56}
-              priority
-              className="h-9 sm:h-11 lg:h-14 w-auto object-contain transition-transform group-hover:scale-[1.02]"
-            />
-          </Link>
+    <div className="min-h-screen bg-slate-50 pb-20 md:pb-8">
+      {/* Top Header Matching Customer App */}
+      <CustomerHeader activeNav="bookings" onOpenAuth={() => setAuthModalOpen(true)} />
 
-          <nav className="hidden lg:flex items-center space-x-8 font-semibold text-sm text-slate-700">
-            <Link href="/#booking-engine" className="hover:text-orange-600 transition">Book Cab</Link>
-            <Link href="/#fleet" className="hover:text-orange-600 transition">Fleet &amp; Rates</Link>
-            <Link href="/#why-kandy" className="hover:text-orange-600 transition">Why Choose Us</Link>
-            <Link href="/#how-it-works" className="hover:text-orange-600 transition">How It Works</Link>
-          </nav>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            {isAuthenticated ? (
-              <div className="flex items-center gap-2">
-                {user?.roles?.includes(UserRole.ADMIN) && (
-                  <a
-                    href={process.env.NEXT_PUBLIC_ADMIN_URL || '/admin'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hidden lg:inline-flex items-center px-3 py-1.5 sm:py-2 bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 rounded-lg sm:rounded-xl text-xs font-bold transition shadow-xs"
-                  >
-                    Admin Dashboard
-                  </a>
-                )}
-                {user?.roles?.includes(UserRole.DRIVER) && (
-                  <button
-                    type="button"
-                    onClick={() => setDriverAppModalOpen(true)}
-                    className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 border border-orange-200 text-orange-900 rounded-xl text-xs font-bold hover:bg-orange-100 transition"
-                  >
-                    <span>Driver Partner</span>
-                    <span className="text-[10px] bg-orange-600 text-white px-1.5 py-0.5 rounded font-black">App</span>
-                  </button>
-                )}
-                <div className="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border border-slate-300 text-slate-800 bg-slate-50 font-bold text-[11px] sm:text-xs flex items-center gap-1.5 shadow-xs">
-                  <div className="w-4 h-4 sm:w-4.5 sm:h-4.5 rounded-full bg-orange-600 text-white text-[10px] flex items-center justify-center font-black">
-                    {user?.fullName ? user.fullName[0].toUpperCase() : 'U'}
-                  </div>
-                  <span className="hidden xs:inline">{user?.fullName?.split(' ')[0] || 'My Account'}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => logout()}
-                  className="hidden lg:inline-flex px-2 sm:px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-red-600 hover:bg-slate-100 rounded-lg sm:rounded-xl transition"
-                  title="Sign Out"
-                >
-                  Sign Out
-                </button>
-              </div>
-            ) : (
-              <Link
-                href="/"
-                className="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border border-slate-300 bg-slate-50 hover:border-orange-500 hover:bg-orange-50 text-slate-800 transition font-bold text-[11px] sm:text-xs flex items-center gap-1 sm:gap-1.5 shadow-xs"
-              >
-                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                </svg>
-                <span>Sign In</span>
-              </Link>
-            )}
-
-            {/* Hamburger */}
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen((prev) => !prev)}
-              aria-label="Toggle Navigation Menu"
-              className="lg:hidden p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-slate-300 bg-slate-50 text-slate-800 hover:text-orange-600 hover:bg-slate-100 transition focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-xs"
-            >
-              {mobileMenuOpen ? (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Dropdown Menu */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden mx-2 sm:mx-4 rounded-xl border border-slate-200 bg-white/98 backdrop-blur-2xl px-3 py-3 shadow-2xl animate-in slide-in-from-top-2 duration-200 mb-2">
-            <nav className="flex flex-col space-y-1 font-semibold text-slate-800 text-sm">
-              <Link
-                href="/#booking-engine"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-between px-3 py-2 bg-orange-600 text-white rounded-lg shadow-xs font-bold hover:bg-orange-700 transition"
-              >
-                <span>Book Cab Online</span>
-                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">Instant</span>
-              </Link>
-
-              <Link href="/#fleet" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-100 text-slate-800 hover:text-orange-600 transition">
-                <span>Fleet &amp; Rates</span>
-                <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-              </Link>
-
-              <Link href="/#why-kandy" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-100 text-slate-800 hover:text-orange-600 transition">
-                <span>Why Choose Us</span>
-                <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-              </Link>
-
-              <Link href="/#how-it-works" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-100 text-slate-800 hover:text-orange-600 transition">
-                <span>How It Works</span>
-                <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-              </Link>
-
-              <div className="pt-1.5 border-t border-slate-200 flex flex-col gap-1.5">
-                {user?.roles?.includes(UserRole.ADMIN) && (
-                  <a
-                    href={process.env.NEXT_PUBLIC_ADMIN_URL || '/admin'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="w-full flex items-center justify-between px-3 py-2 bg-white border border-slate-200 text-slate-900 rounded-lg hover:bg-slate-50 transition font-bold text-xs text-left shadow-xs"
-                  >
-                    <span>Admin Dashboard</span>
-                  </a>
-                )}
-                {user?.roles?.includes(UserRole.DRIVER) && (
-                  <button
-                    type="button"
-                    onClick={() => { setMobileMenuOpen(false); setDriverAppModalOpen(true); }}
-                    className="w-full flex items-center justify-between px-3 py-2 bg-orange-50 border border-orange-200 text-orange-950 rounded-lg hover:bg-orange-100 transition font-bold text-xs text-left"
-                  >
-                    <span>Download KandyCabs App</span>
-                    <span className="text-[10px] bg-orange-600 text-white px-1.5 py-0.5 rounded font-black">Download</span>
-                  </button>
-                )}
-                <a
-                  href="tel:+918045689000"
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100 font-bold text-xs transition"
-                >
-                  <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  <span>24/7 Support: +91 80456 89000</span>
-                </a>
-                {isAuthenticated && (
-                  <button
-                    type="button"
-                    onClick={() => { setMobileMenuOpen(false); logout(); }}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs transition"
-                  >
-                    <svg className="w-3.5 h-3.5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    <span>Sign Out</span>
-                  </button>
-                )}
-              </div>
-            </nav>
-          </div>
-        )}
-      </header>
-
-      <div className="pt-2 sm:pt-3 pb-6 px-3 sm:px-5 lg:px-8">
+      <div className="pt-4 pb-6 px-3 sm:px-5 lg:px-8">
       <div className="max-w-5xl mx-auto space-y-2.5 sm:space-y-3">
         {/* Driver Partner Notification Banner */}
         {user?.roles?.includes(UserRole.DRIVER) && (
@@ -774,6 +613,15 @@ export default function CustomerDashboardPage() {
         onClose={() => setDriverAppModalOpen(false)}
         driverName={user?.fullName}
       />
+
+      {/* Web Auth Modal */}
+      <WebAuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+      />
+
+      {/* Mobile Bottom Dock */}
+      <CustomerBottomDock onOpenAuth={() => setAuthModalOpen(true)} />
       </div>
     </div>
   );
