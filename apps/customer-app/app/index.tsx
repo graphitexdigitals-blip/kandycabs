@@ -2526,7 +2526,7 @@ const styles = StyleSheet.create({
   locationFieldLabel: {
     fontSize: 11.2,
     fontWeight: '800',
-    color: 'rgb(22, 34, 50)',
+    color: '#000000',
     letterSpacing: 0.3,
     marginBottom: 1,
   },
@@ -3017,7 +3017,7 @@ const styles = StyleSheet.create({
   scheduleLabel: {
     fontSize: 8,
     fontWeight: '800',
-    color: '#64748b',
+    color: '#000000',
     letterSpacing: 0.4,
   },
   scheduleValue: {
