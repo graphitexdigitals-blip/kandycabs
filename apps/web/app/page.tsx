@@ -846,14 +846,14 @@ export default function CustomerHomePage() {
         </div>
 
         {/* 4-Card Quick Category Grid (Mobile Only - Navigates to Dedicated Pages) */}
-        <section className="grid grid-cols-4 gap-1.5 sm:gap-2.5 md:hidden pt-2 pb-0.5">
+        <section className="grid grid-cols-4 gap-2 sm:gap-2.5 md:hidden pt-6 pb-1">
           {SERVICE_CATEGORIES.map((cat) => (
             <Link
               key={cat.id}
               href={`/${cat.id.toLowerCase()}`}
-              className="bg-white hover:bg-slate-50 active:scale-95 transition-all py-1.5 px-1 sm:py-2.5 sm:px-2 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group"
+              className="bg-white hover:bg-slate-50 active:scale-95 transition-all pt-3 pb-2 px-1 sm:pt-3.5 sm:pb-2.5 sm:px-2 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group"
             >
-              <div className="flex items-center justify-center mb-0.5">
+              <div className="flex items-center justify-center mb-1">
                 {cat.icon}
               </div>
               <span className="text-[9.5px] sm:text-xs font-bold leading-tight text-slate-800">
