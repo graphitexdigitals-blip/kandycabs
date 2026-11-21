@@ -238,7 +238,7 @@ export function PromoBannerSlider({ onSelectCategory, className = '' }: PromoBan
         </div>
       )}
 
-      {/* Navigation Arrows (Visible on hover on desktop, always accessible) */}
+      {/* Navigation Arrows (Visible only on desktop on hover, hidden on mobile and tablet) */}
       {totalSlides > 1 && (
         <>
           <button
@@ -248,10 +248,10 @@ export function PromoBannerSlider({ onSelectCategory, className = '' }: PromoBan
               prevSlide();
               pauseAndResumeAfterDelay();
             }}
-            className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm transition-all duration-200 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 active:scale-90 shadow-md"
+            className="hidden lg:flex absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-black/40 hover:bg-black/70 text-white items-center justify-center backdrop-blur-sm transition-all duration-200 opacity-0 group-hover:opacity-100 active:scale-90 shadow-md"
             aria-label="Previous slide"
           >
-            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
@@ -263,10 +263,10 @@ export function PromoBannerSlider({ onSelectCategory, className = '' }: PromoBan
               nextSlide();
               pauseAndResumeAfterDelay();
             }}
-            className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm transition-all duration-200 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 active:scale-90 shadow-md"
+            className="hidden lg:flex absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-black/40 hover:bg-black/70 text-white items-center justify-center backdrop-blur-sm transition-all duration-200 opacity-0 group-hover:opacity-100 active:scale-90 shadow-md"
             aria-label="Next slide"
           >
-            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
             </svg>
           </button>
