@@ -11,7 +11,7 @@ interface CustomerHeaderProps {
   activeNav?: 'home' | 'booking' | 'fleets' | 'bookings' | 'support';
 }
 
-export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeaderProps) {
+export function CustomerHeader({ onOpenAuth }: CustomerHeaderProps) {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
   const [greeting, setGreeting] = useState('Good Morning');
@@ -28,13 +28,13 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
     }
   }, []);
 
-  const displayName = user?.fullName || (user?.phone ? `+91 ${user.phone.slice(-10)}` : 'Guest');
+  const loggedInName = isAuthenticated ? (user?.fullName || (user?.phone ? `+91 ${user.phone.slice(-10)}` : '')) : '';
 
   return (
     <header className="bg-[#162232] text-white sticky top-0 z-40 shadow-md">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-        {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2 group">
+      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between relative">
+        {/* Left: Brand Logo */}
+        <Link href="/" className="flex items-center gap-2 group z-10">
           <div className="relative h-10 w-28 sm:w-32">
             <Image
               src="/images/logo.png"
@@ -46,10 +46,8 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
           </div>
         </Link>
 
-
-        {/* User Greeting & Notification Bell (Matching App Header) */}
-        <div className="flex items-center gap-3">
-          {/* Greeting Box */}
+        {/* Center: Greeting & Logged-in Name (Arranged in Dead-Center, No Guest) */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 z-10 max-w-[56%] text-center pointer-events-auto">
           <div
             onClick={() => {
               if (!isAuthenticated && onOpenAuth) {
@@ -58,24 +56,30 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
                 setShowUserMenu(!showUserMenu);
               }
             }}
-            className="flex flex-col text-right cursor-pointer select-none"
+            className="flex flex-col items-center justify-center text-center cursor-pointer select-none group"
           >
-            <span className="text-[11px] sm:text-xs text-slate-300 font-normal leading-tight">
-              {greeting}
-            </span>
-            <span className="text-xs sm:text-sm font-bold text-white tracking-wide flex items-center justify-end gap-1">
-              {displayName}
-              {isAuthenticated && (
-                <svg className="w-3.5 h-3.5 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              )}
-            </span>
+            {loggedInName ? (
+              <>
+                <span className="text-[11px] sm:text-xs text-slate-300 font-medium leading-tight truncate">
+                  {greeting}
+                </span>
+                <span className="text-xs sm:text-sm font-extrabold text-white tracking-wide flex items-center justify-center gap-1 group-hover:text-orange-400 transition-colors truncate">
+                  {loggedInName}
+                  <svg className="w-3.5 h-3.5 text-slate-400 group-hover:text-orange-400 transition-colors flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </span>
+              </>
+            ) : (
+              <span className="text-xs sm:text-sm font-extrabold text-white tracking-wide group-hover:text-orange-400 transition-colors">
+                {greeting}
+              </span>
+            )}
           </div>
 
-          {/* User Menu Dropdown */}
+          {/* User Menu Dropdown (Centered right below the greeting) */}
           {showUserMenu && isAuthenticated && (
-            <div className="absolute right-12 top-14 mt-1 w-48 bg-white rounded-xl shadow-xl py-2 z-50 text-slate-800 border border-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-48 bg-white rounded-xl shadow-xl py-2 z-50 text-slate-800 border border-slate-100 animate-in fade-in slide-in-from-top-2 duration-150 text-left">
               <div className="px-4 py-2 border-b border-slate-100">
                 <p className="text-xs text-slate-400">Signed in as</p>
                 <p className="text-sm font-semibold truncate text-slate-800">{user?.fullName || 'User'}</p>
@@ -106,8 +110,10 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
               </button>
             </div>
           )}
+        </div>
 
-          {/* Notification Bell (Circular with Orange Indicator Dot) */}
+        {/* Right: Notification Bell (Circular with Orange Indicator Dot) */}
+        <div className="flex items-center gap-3 z-10">
           <Link
             href="/customer/dashboard"
             className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 flex items-center justify-center transition-colors"
