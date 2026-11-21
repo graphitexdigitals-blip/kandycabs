@@ -534,7 +534,7 @@ export function AdditionalRequirementsModal({
             <ToggleRow
               icon={
                 <svg className="w-5 h-5 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 4a2 2 0 100-4 2 2 0 000 4zm2 18v-7h1a1 1 0 001-1v-4a3 3 0 00-3-3h-2a3 3 0 00-3 3v5a1 1 0 001 1h1v6a1 1 0 001 1h1a1 1 0 001-1z" />
+                  <path d="M9 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm7 9c-.01-1.34-.83-2.51-2-3 0-1.66-1.34-3-3-3s-3 1.34-3 3v7h2v5h3v-5h1v-4z" />
                 </svg>
               }
               title="Pregnancy Friendly"
