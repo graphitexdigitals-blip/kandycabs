@@ -289,17 +289,17 @@ export function AdditionalRequirementsModal({
                   </svg>
                 </button>
 
-                {/* Expanded Multi-Bag Selector (Matching Image 4) */}
+                {/* Expanded Multi-Bag Selector (Matching Customer App) */}
                 {isLuggageDropdownOpen && (
-                  <div className="mt-2.5 p-3 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3 animate-in fade-in duration-150">
+                  <div className="mt-2.5 p-3 sm:p-4 rounded-3xl border border-slate-200 bg-white shadow-xs space-y-3.5 animate-in fade-in duration-150">
                     {LUGGAGE_ITEMS.map((item) => {
                       const count = luggageCounts[item.id];
                       return (
                         <div
                           key={item.id}
-                          className="flex items-center gap-3 py-1.5 border-b border-slate-100 last:border-b-0"
+                          className="flex items-center gap-3.5 pb-3 border-b border-slate-100 last:border-b-0 last:pb-0"
                         >
-                          <div className="relative w-12 h-12 flex-shrink-0">
+                          <div className="relative w-14 h-14 flex-shrink-0">
                             <Image
                               src={item.image}
                               alt={item.name}
@@ -309,31 +309,39 @@ export function AdditionalRequirementsModal({
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                              {item.name}
-                            </h4>
-                            <p className="text-[11px] text-slate-400 line-clamp-1">
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                                {item.name}
+                              </h4>
+                              {count > 0 && (
+                                <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black flex-shrink-0">
+                                  ✓
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-400 line-clamp-1 mb-1.5">
                               {item.desc}
                             </p>
 
-                            {/* Stepper or + Add Button */}
-                            <div className="mt-1.5">
+                            {/* Stepper or + Add Button - Full Width Matching Customer App */}
+                            <div>
                               {count > 0 ? (
-                                <div className="inline-flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+                                <div className="w-full h-8 rounded-xl border border-slate-200 bg-white flex items-center justify-between px-1">
                                   <button
                                     type="button"
                                     onClick={() => handleDecrementBag(item.id)}
-                                    className="w-6 h-6 flex items-center justify-center text-slate-700 hover:bg-white rounded font-bold text-xs transition"
+                                    className="w-7 h-6 rounded-lg bg-[#f0f4f8] hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition"
                                   >
                                     −
                                   </button>
-                                  <span className="px-2 text-xs font-bold text-slate-900">
-                                    {count} {count === 1 ? 'bag' : 'bags'}
-                                  </span>
+                                  <div className="text-xs font-semibold text-slate-500">
+                                    <span className="text-[#f0750f] font-bold mr-1">{count}</span>
+                                    <span>{count === 1 ? 'bag' : 'bags'}</span>
+                                  </div>
                                   <button
                                     type="button"
                                     onClick={() => handleIncrementBag(item.id)}
-                                    className="w-6 h-6 flex items-center justify-center text-slate-700 hover:bg-white rounded font-bold text-xs transition"
+                                    className="w-7 h-6 rounded-lg bg-[#f0f4f8] hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition"
                                   >
                                     +
                                   </button>
@@ -342,7 +350,7 @@ export function AdditionalRequirementsModal({
                                 <button
                                   type="button"
                                   onClick={() => handleIncrementBag(item.id)}
-                                  className="py-1 px-3 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 inline-flex items-center gap-1 transition"
+                                  className="w-full py-1.5 px-3 rounded-xl bg-[#f0f4f8] hover:bg-[#e2e8f0] text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5 transition"
                                 >
                                   <span>+</span>
                                   <span>Add</span>
@@ -357,7 +365,7 @@ export function AdditionalRequirementsModal({
                     <button
                       type="button"
                       onClick={() => setIsLuggageDropdownOpen(false)}
-                      className="w-full py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-800 transition"
+                      className="w-full py-2.5 rounded-xl bg-[#f8fafc] hover:bg-slate-100 border border-slate-200 text-xs sm:text-sm font-bold text-slate-800 transition text-center shadow-2xs mt-2"
                     >
                       Done
                     </button>
