@@ -323,7 +323,7 @@ export default function CustomerHomePage() {
                     key={tab.id}
                     type="button"
                     onClick={() => handleTabClick(tab.id)}
-                    className={`py-2 lg:py-2.5 px-4 lg:px-5 text-center font-extrabold uppercase tracking-wide text-xs whitespace-nowrap transition-all border-r last:border-r-0 ${
+                    className={`py-2.5 lg:py-3 px-6 lg:px-7 text-center font-extrabold uppercase tracking-wide text-xs lg:text-[13px] whitespace-nowrap transition-all border-r last:border-r-0 ${
                       isActive
                         ? 'bg-[#f0750f] text-white border-[#f0750f]'
                         : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
