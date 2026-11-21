@@ -118,12 +118,12 @@ export default function AirportBookingPage() {
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 pb-16">
       <CustomerHeader activeNav="home" />
 
-      <main className="max-w-2xl mx-auto px-3 sm:px-6 pt-3 space-y-4">
+      <main className="max-w-2xl mx-auto px-2.5 sm:px-6 pt-2 space-y-2.5">
         {/* Navigation Breadcrumb / Back Link */}
         <div className="flex items-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-[#f0750f] bg-white border border-slate-200 px-3 py-1.5 rounded-full shadow-xs active:scale-95 transition-all"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-[#f0750f] bg-white border border-slate-200 px-2.5 py-1 rounded-full shadow-xs active:scale-95 transition-all"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
@@ -133,22 +133,22 @@ export default function AirportBookingPage() {
         </div>
 
         {/* Card 1: Details (Matches User Reference Image 1) */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3.5">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-2.5 space-y-2">
           <div className="flex items-center gap-2 text-[#f0750f]">
-            <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
               <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
             </svg>
-            <h3 className="text-base font-extrabold text-[#f0750f]">Airport Transfer</h3>
+            <h3 className="text-sm font-extrabold text-[#f0750f]">Airport Transfer</h3>
           </div>
 
           {/* Pickup Location */}
           <div>
-            <span className="block text-[10px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+            <span className="block text-[8.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
               PICKUP LOCATION
             </span>
-            <div className="flex items-center gap-2 p-3 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+            <div className="flex items-center gap-2 py-1.5 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
               <div className="text-emerald-500 flex-shrink-0">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                   <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
                 </svg>
               </div>
@@ -157,7 +157,7 @@ export default function AirportBookingPage() {
                 value={pickupAddress}
                 onChange={(e) => setPickupAddress(e.target.value)}
                 placeholder="Enter pickup location"
-                className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400 truncate"
+                className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400 truncate leading-tight"
               />
               <button
                 type="button"
@@ -168,7 +168,7 @@ export default function AirportBookingPage() {
                 className="text-slate-400 hover:text-[#f0750f] p-0.5 flex-shrink-0"
                 title="Select on Map"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </button>
@@ -177,22 +177,22 @@ export default function AirportBookingPage() {
 
           {/* Destination Airport */}
           <div className="relative">
-            <span className="block text-[10px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+            <span className="block text-[8.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
               DESTINATION AIRPORT
             </span>
             <div
               onClick={() => setAirportDropdownOpen(!airportDropdownOpen)}
-              className="flex items-center gap-2 p-3 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white cursor-pointer select-none"
+              className="flex items-center gap-2 py-1.5 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white cursor-pointer select-none"
             >
               <div className="text-red-500 flex-shrink-0">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
                 </svg>
               </div>
-              <span className="flex-1 text-xs sm:text-sm font-semibold text-slate-800 truncate">
+              <span className="flex-1 text-xs font-semibold text-slate-800 truncate leading-tight">
                 {selectedAirport || 'Select destination airport'}
               </span>
-              <svg className={`w-4 h-4 text-slate-400 transition-transform ${airportDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${airportDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </div>
@@ -207,7 +207,7 @@ export default function AirportBookingPage() {
                       setSelectedAirport(airport);
                       setAirportDropdownOpen(false);
                     }}
-                    className={`w-full text-left px-4 py-2.5 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-colors ${
+                    className={`w-full text-left px-3.5 py-2 text-xs font-semibold flex items-center gap-2 transition-colors ${
                       selectedAirport === airport ? 'bg-orange-50 text-[#f0750f]' : 'hover:bg-slate-50 text-slate-700'
                     }`}
                   >
@@ -228,12 +228,12 @@ export default function AirportBookingPage() {
               value={flightNumber}
               onChange={(e) => setFlightNumber(e.target.value)}
               placeholder="Flight no. (optional)"
-              className="flex-1 min-w-0 p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#f0750f]"
+              className="flex-1 min-w-0 py-1.5 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#f0750f] leading-tight"
             />
             <button
               type="button"
               onClick={handleAddStop}
-              className="bg-[#162232] hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1 flex-shrink-0 transition-all shadow-sm active:scale-95"
+              className="bg-[#162232] hover:bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 flex-shrink-0 transition-all shadow-xs active:scale-95"
             >
               <span>+</span> Add a Stop
             </button>
@@ -241,49 +241,49 @@ export default function AirportBookingPage() {
 
           {/* Stops List */}
           {stops.map((stop, index) => (
-            <div key={stop.id} className="flex items-center gap-2 p-2 rounded-xl bg-orange-50 border border-orange-100 text-xs">
-              <span className="font-bold text-[#f0750f]">{index + 1}. Stop:</span>
-              <span className="flex-1 truncate text-slate-800">{stop.address || 'Click to select'}</span>
+            <div key={stop.id} className="flex items-center gap-1.5 p-1 rounded-lg bg-orange-50 border border-orange-100 text-xs">
+              <span className="font-bold text-[#f0750f] text-[10px]">{index + 1}. Stop:</span>
+              <span className="flex-1 truncate text-slate-800 text-[11px]">{stop.address || 'Click to select'}</span>
               <button
                 type="button"
                 onClick={() => {
                   setLocationModalTarget(stop.id);
                   setLocationModalOpen(true);
                 }}
-                className="text-[#f0750f] font-semibold underline"
+                className="text-[#f0750f] font-semibold underline text-[11px]"
               >
                 Change
               </button>
-              <button type="button" onClick={() => handleRemoveStop(stop.id)} className="text-red-500 font-bold ml-1">✕</button>
+              <button type="button" onClick={() => handleRemoveStop(stop.id)} className="text-red-500 font-bold ml-1 text-xs">✕</button>
             </div>
           ))}
         </div>
 
         {/* Card 2: Trip Schedule + Straddling Button */}
-        <div className="relative bg-white rounded-2xl border border-slate-100 shadow-sm p-4 pb-9">
-          <div className="flex items-center gap-1.5 text-[#f0750f] mb-3">
-            <svg className="w-4 h-4 text-[#f0750f]" fill="currentColor" viewBox="0 0 24 24">
+        <div className="relative bg-white rounded-2xl border border-slate-100 shadow-sm p-2.5 pb-7">
+          <div className="flex items-center gap-1.5 text-[#f0750f] mb-2">
+            <svg className="w-3.5 h-3.5 text-[#f0750f]" fill="currentColor" viewBox="0 0 24 24">
               <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z" />
             </svg>
-            <h4 className="text-xs sm:text-sm font-extrabold text-[#f0750f]">Trip Schedule</h4>
+            <h4 className="text-xs font-extrabold text-[#f0750f]">Trip Schedule</h4>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 mb-2">
+          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
             {/* Pickup Date */}
             <div className="relative">
-              <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+              <span className="block text-[8.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
                 PICKUP DATE
               </span>
-              <div className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-slate-50/70">
+              <div className="flex items-center justify-between py-1.5 px-2 rounded-xl border border-slate-200 bg-slate-50/70">
                 <div className="flex items-center gap-1.5 truncate">
-                  <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-3 h-3 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span className={`text-xs sm:text-sm font-semibold truncate ${scheduledDate ? 'text-slate-900' : 'text-slate-400'}`}>
+                  <span className={`text-xs font-semibold truncate ${scheduledDate ? 'text-slate-900' : 'text-slate-400'}`}>
                     {scheduledDate || 'Select Date'}
                   </span>
                 </div>
-                <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
                 <input
@@ -298,22 +298,22 @@ export default function AirportBookingPage() {
 
             {/* Pickup Time */}
             <div>
-              <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+              <span className="block text-[8.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
                 PICKUP TIME
               </span>
               <div
                 onClick={() => setTimeModalOpen(true)}
-                className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 cursor-pointer"
+                className="flex items-center justify-between py-1.5 px-2 rounded-xl border border-slate-200 bg-slate-50/70 cursor-pointer"
               >
                 <div className="flex items-center gap-1.5 truncate">
-                  <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-3 h-3 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className={`text-xs sm:text-sm font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
+                  <span className={`text-xs font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
                     {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
                   </span>
                 </div>
-                <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
@@ -325,10 +325,10 @@ export default function AirportBookingPage() {
             <button
               type="button"
               onClick={handleBookYourRide}
-              className="py-3 px-10 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 text-xs sm:text-sm tracking-wider uppercase whitespace-nowrap"
+              className="py-2 px-7 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-md shadow-orange-500/25 flex items-center justify-center gap-1.5 text-xs tracking-wider uppercase whitespace-nowrap"
             >
               <span>BOOK YOUR RIDE</span>
-              <span className="text-base sm:text-lg leading-none">→</span>
+              <span className="text-sm leading-none">→</span>
             </button>
           </div>
         </div>
