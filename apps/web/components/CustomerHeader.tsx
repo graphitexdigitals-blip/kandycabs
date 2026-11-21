@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/AuthContext';
 
 interface CustomerHeaderProps {
   onOpenAuth?: () => void;
-  activeNav?: 'home' | 'bookings' | 'support' | 'profile';
+  activeNav?: 'home' | 'booking' | 'fleets' | 'bookings' | 'support';
 }
 
 export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeaderProps) {
@@ -45,49 +45,6 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
             />
           </div>
         </Link>
-
-        {/* Desktop Navigation Links (Home, My Bookings, Support, Profile) */}
-        <nav className="hidden md:flex items-center gap-7 text-sm font-semibold">
-          <Link
-            href="/"
-            className={`transition-colors hover:text-[#f0750f] ${
-              activeNav === 'home' ? 'text-[#f0750f]' : 'text-slate-300'
-            }`}
-          >
-            Home
-          </Link>
-          <Link
-            href="/customer/dashboard"
-            className={`transition-colors hover:text-[#f0750f] ${
-              activeNav === 'bookings' ? 'text-[#f0750f]' : 'text-slate-300'
-            }`}
-          >
-            My Bookings
-          </Link>
-          <a
-            href="tel:+919481086058"
-            className={`transition-colors hover:text-[#f0750f] ${
-              activeNav === 'support' ? 'text-[#f0750f]' : 'text-slate-300'
-            }`}
-          >
-            Support
-          </a>
-          <button
-            type="button"
-            onClick={() => {
-              if (isAuthenticated) {
-                setShowUserMenu(!showUserMenu);
-              } else if (onOpenAuth) {
-                onOpenAuth();
-              }
-            }}
-            className={`transition-colors hover:text-[#f0750f] ${
-              activeNav === 'profile' ? 'text-[#f0750f]' : 'text-slate-300'
-            }`}
-          >
-            Profile
-          </button>
-        </nav>
 
         {/* User Greeting & Notification Bell (Matching App Header) */}
         <div className="flex items-center gap-3">
