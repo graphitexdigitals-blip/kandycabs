@@ -632,52 +632,52 @@ export default function CustomerHomePage() {
         {/* MOBILE VIEW (Excluding Desktop): Clean One Way / Round   */}
         {/* ======================================================== */}
         <div className="md:hidden space-y-2.5 mb-9">
-          {/* Top 2 Tabs (ONE WAY vs ROUND TRIP) */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleTabClick('ONEWAY')}
-              className={`flex items-center gap-2 py-2 px-2.5 rounded-xl text-left transition-all ${
-                activeTab === 'ONEWAY'
-                  ? 'bg-[#f0750f] text-white'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
-              }`}
-            >
-              <div className={`flex items-center justify-center flex-shrink-0 ${activeTab === 'ONEWAY' ? 'text-white' : 'text-slate-500'}`}>
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-extrabold uppercase leading-tight truncate">ONE WAY</p>
-                <p className={`text-[9px] font-medium leading-tight truncate ${activeTab === 'ONEWAY' ? 'text-white/85' : 'text-slate-400'}`}>Drop-off only</p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTabClick('ROUND')}
-              className={`flex items-center gap-2 py-2 px-2.5 rounded-xl text-left transition-all ${
-                activeTab === 'ROUND'
-                  ? 'bg-[#f0750f] text-white'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
-              }`}
-            >
-              <div className={`flex items-center justify-center flex-shrink-0 ${activeTab === 'ROUND' ? 'text-white' : 'text-slate-500'}`}>
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 12a8 8 0 0 1 14.93-4M20 4v5h-5" />
-                  <path d="M20 12a8 8 0 0 1-14.93 4M4 20v-5h5" />
-                </svg>
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-extrabold uppercase leading-tight truncate">ROUND TRIP</p>
-                <p className={`text-[9px] font-medium leading-tight truncate ${activeTab === 'ROUND' ? 'text-white/85' : 'text-slate-400'}`}>Return same cab</p>
-              </div>
-            </button>
-          </div>
-
-          {/* Clean Compact Mobile Booking Card */}
+          {/* Clean Compact Mobile Booking Card (Tabs Arranged Inside the Same Box Card) */}
           <div className="relative bg-white rounded-2xl border border-slate-100 shadow-sm p-3 pb-8 space-y-2.5">
+            {/* Top 2 Tabs (ONE WAY vs ROUND TRIP) Inside the Same Box Card */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => handleTabClick('ONEWAY')}
+                className={`flex items-center gap-2 py-2 px-2.5 rounded-xl text-left transition-all ${
+                  activeTab === 'ONEWAY'
+                    ? 'bg-[#f0750f] text-white shadow-xs'
+                    : 'bg-slate-50/80 hover:bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
+              >
+                <div className={`flex items-center justify-center flex-shrink-0 ${activeTab === 'ONEWAY' ? 'text-white' : 'text-slate-500'}`}>
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-extrabold uppercase leading-tight truncate">ONE WAY</p>
+                  <p className={`text-[9px] font-medium leading-tight truncate ${activeTab === 'ONEWAY' ? 'text-white/85' : 'text-slate-400'}`}>Drop-off only</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTabClick('ROUND')}
+                className={`flex items-center gap-2 py-2 px-2.5 rounded-xl text-left transition-all ${
+                  activeTab === 'ROUND'
+                    ? 'bg-[#f0750f] text-white shadow-xs'
+                    : 'bg-slate-50/80 hover:bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
+              >
+                <div className={`flex items-center justify-center flex-shrink-0 ${activeTab === 'ROUND' ? 'text-white' : 'text-slate-500'}`}>
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 12a8 8 0 0 1 14.93-4M20 4v5h-5" />
+                    <path d="M20 12a8 8 0 0 1-14.93 4M4 20v-5h5" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-extrabold uppercase leading-tight truncate">ROUND TRIP</p>
+                  <p className={`text-[9px] font-medium leading-tight truncate ${activeTab === 'ROUND' ? 'text-white/85' : 'text-slate-400'}`}>Return same cab</p>
+                </div>
+              </button>
+            </div>
+
             {/* Pickup & Drop with Swap */}
             <div className="relative space-y-1.5">
               {/* Pickup */}
