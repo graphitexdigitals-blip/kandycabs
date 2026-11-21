@@ -11,8 +11,8 @@ export function CustomerRatingsCard() {
       {/* Top Header: Trust Badge & Overall Rating */}
       <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
         <div className="flex items-center gap-2">
-          <div className="text-[#f0750f] flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-[#f0750f]" viewBox="0 0 20 20" fill="currentColor">
+          <div className="text-[#F4B400] flex items-center justify-center flex-shrink-0">
+            <svg className="w-5 h-5 text-[#F4B400]" viewBox="0 0 20 20" fill="currentColor">
               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
           </div>
@@ -35,7 +35,7 @@ export function CustomerRatingsCard() {
           className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-full flex-shrink-0 shadow-sm cursor-pointer"
         >
           <span className="text-xs font-black text-black">4.9</span>
-          <div className="flex text-amber-400 text-xs tracking-tight">
+          <div className="flex text-[#F4B400] text-xs tracking-tight">
             {'★★★★★'}
           </div>
           <svg
@@ -81,7 +81,7 @@ export function CustomerRatingsCard() {
               <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.59l4.04 3.15c.95-2.84 3.6-4.99 6.72-4.99z" />
             </svg>
             <span>Rate Us on Google</span>
-            <span className="text-amber-400 text-xs tracking-tight">★★★★★</span>
+            <span className="text-[#F4B400] text-xs tracking-tight">★★★★★</span>
           </a>
 
           <a
