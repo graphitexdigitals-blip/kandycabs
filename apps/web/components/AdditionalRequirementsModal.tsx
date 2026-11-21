@@ -516,10 +516,10 @@ export function AdditionalRequirementsModal({
             <ToggleRow
               icon={
                 <svg className="w-5 h-5 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
-                  <circle cx="8" cy="20" r="1.5" />
-                  <circle cx="17" cy="20" r="1.5" />
-                  <path d="M4 4h2l2 8h9l2-6H7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <circle cx="12" cy="7" r="2.5" />
+                  <path d="M14 4a6.5 6.5 0 0 1 6.5 6.5H14V4z" />
+                  <path d="M5.5 8h2.2l1.5 3.5h11.3c.8 0 1.5.7 1.5 1.5 0 2.8-2.2 4.5-4.8 4.5h-4.4c-2.6 0-4.8-1.7-4.8-4.5v-.5L6.6 9H5.5V8z" />
+                  <circle cx="9.5" cy="19.2" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                  <circle cx="16.5" cy="19.2" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
                 </svg>
               }
               title="Baby on Board"
