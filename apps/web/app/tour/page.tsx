@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { TripType, VehicleCategory } from '@kandy-cabs/shared';
 import { PlaceLocation } from '@/lib/locations';
 import { CustomerHeader } from '@/components/CustomerHeader';
+import { BookingFlowHeader } from '@/components/BookingFlowHeader';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import { TimePickerModal } from '@/components/TimePickerModal';
 
@@ -130,20 +131,15 @@ export default function TourPilgrimagePage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 pb-16">
-      <main className="max-w-2xl mx-auto px-2.5 sm:px-6 pt-3 sm:pt-4 space-y-2.5">
-        {/* Navigation Breadcrumb / Back Link */}
-        <div className="flex items-center">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-[#f0750f] bg-white border border-slate-200 px-3 py-1 rounded-full shadow-xs active:scale-95 transition-all"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-            </svg>
-            <span>Back to Home</span>
-          </Link>
-        </div>
+      {/* Step 1 Booking Flow Header */}
+      <BookingFlowHeader
+        currentStep={1}
+        title="Enter Trip Details"
+        subStepLabel="Route & Schedule"
+        onBack={() => router.push('/')}
+      />
 
+      <main className="max-w-2xl mx-auto px-2.5 sm:px-6 pt-3 sm:pt-4 space-y-2.5">
         {/* Card 1: Details (Matches User Reference Image 4) */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-2.5 space-y-2">
           <div className="flex items-center justify-between">
