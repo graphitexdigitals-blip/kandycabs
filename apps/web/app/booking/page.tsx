@@ -33,10 +33,12 @@ interface FleetOption {
   luggage: string;
   fuelBadge: string;
   baseRatePerKm: number;
+  minKm?: number;
   recommended?: boolean;
   specialBadge?: string;
   roofCarrierAvailable?: boolean;
   hasRoofCarrier?: boolean;
+  isContactOnly?: boolean;
 }
 
 const FLEET_LIST: FleetOption[] = [
@@ -50,11 +52,12 @@ const FLEET_LIST: FleetOption[] = [
     luggage: '2',
     fuelBadge: 'CNG / Petrol',
     baseRatePerKm: 11,
+    minKm: 50,
     roofCarrierAvailable: true,
   },
   {
     id: 'SWIFT_DZIRE',
-    category: VehicleCategory.SEDAN,
+    category: VehicleCategory.SWIFT_DZIRE,
     name: 'Sedan – Swift Dzire',
     models: 'Maruti Suzuki Dzire or equivalent',
     image: '/images/fleet-sedan.webp',
@@ -62,72 +65,108 @@ const FLEET_LIST: FleetOption[] = [
     luggage: '3',
     fuelBadge: 'Diesel',
     baseRatePerKm: 13,
-    roofCarrierAvailable: true,
+    minKm: 60,
+    roofCarrierAvailable: false,
   },
   {
     id: 'TOYOTA_ETIOS',
-    category: VehicleCategory.SEDAN,
+    category: VehicleCategory.TOYOTA_ETIOS,
     name: 'Sedan – Toyota Etios',
     models: 'Toyota Etios Diesel with Large Boot Space',
-    image: '/images/fleet-sedan.webp',
+    image: '/images/fleet-4-sedan.png',
     capacity: '4+1',
     luggage: '4',
     fuelBadge: 'Diesel',
     baseRatePerKm: 14,
+    minKm: 60,
     recommended: true,
     specialBadge: 'Diesel with Boot',
-    roofCarrierAvailable: true,
+    roofCarrierAvailable: false,
   },
   {
     id: 'SUV_ERTIGA',
-    category: VehicleCategory.SUV,
-    name: 'Prime SUV – Ertiga (6+1)',
-    models: 'Maruti Suzuki Ertiga, Kia Carens, Triber',
+    category: VehicleCategory.SUV_ERTIGA,
+    name: 'SUV – Ertiga',
+    models: 'Maruti Suzuki Ertiga or equivalent',
     image: '/images/fleet-suv.webp',
     capacity: '6+1',
     luggage: '4',
-    fuelBadge: 'Diesel / CNG',
-    baseRatePerKm: 18,
+    fuelBadge: 'CNG / Petrol',
+    baseRatePerKm: 16,
+    minKm: 80,
     roofCarrierAvailable: true,
   },
   {
-    id: 'INNOVA_CRYSTA',
-    category: VehicleCategory.SUV_PREMIUM,
-    name: 'Innova Crysta Luxury',
-    models: 'Toyota Innova Crysta, Hycross Luxury',
-    image: '/images/fleet-crysta.webp',
-    capacity: '7+1',
+    id: 'SUV_CARENS',
+    category: VehicleCategory.SUV_CARENS,
+    name: 'SUV – Kia Carens',
+    models: 'Kia Carens Diesel Luxury 6+1',
+    image: '/images/fleet-carens.webp',
+    capacity: '6+1',
     luggage: '4',
     fuelBadge: 'Diesel',
-    baseRatePerKm: 22,
-    recommended: true,
-    specialBadge: 'VIP Comfort',
+    baseRatePerKm: 18,
+    minKm: 80,
+    specialBadge: '6-Seater',
     roofCarrierAvailable: true,
   },
   {
-    id: 'TEMPO_TRAVELLER',
+    id: 'SUV_INNOVA',
+    category: VehicleCategory.SUV_INNOVA,
+    name: 'SUV – Toyota Innova',
+    models: 'Toyota Innova Diesel 7+1 Touring',
+    image: '/images/fleet-innova.webp',
+    capacity: '7+1',
+    luggage: '5',
+    fuelBadge: 'Diesel',
+    baseRatePerKm: 19,
+    minKm: 90,
+    specialBadge: '7-Seater',
+    roofCarrierAvailable: true,
+  },
+  {
+    id: 'SUV_CRYSTA',
+    category: VehicleCategory.SUV_CRYSTA,
+    name: 'SUV – Innova Crysta',
+    models: 'Toyota Innova Crysta Diesel Luxury',
+    image: '/images/fleet-crysta.webp',
+    capacity: '7+1',
+    luggage: '5',
+    fuelBadge: 'Diesel',
+    baseRatePerKm: 20,
+    minKm: 100,
+    specialBadge: 'Executive Luxury',
+    roofCarrierAvailable: true,
+  },
+  {
+    id: 'TEMPO_TRAVELER',
     category: VehicleCategory.TEMPO_TRAVELER,
-    name: 'Tempo Traveller (12+1)',
-    models: 'Force Traveller 3350 AC Executive',
+    name: 'Tempo Traveller',
+    models: '12-17 Seater Force Traveller AC Luxury',
     image: '/images/fleet-traveller.webp',
     capacity: '12-17',
-    luggage: '8',
+    luggage: '10',
     fuelBadge: 'Diesel',
     baseRatePerKm: 26,
+    minKm: 150,
+    specialBadge: 'Group',
     roofCarrierAvailable: true,
+    isContactOnly: true,
   },
   {
     id: 'URBANIA',
     category: VehicleCategory.URBANIA,
-    name: 'Force Urbania Luxury Van',
-    models: '10 / 13 / 17 Seater Ultra Cruiser',
+    name: 'Force Urbania',
+    models: '10/13/17 Seater Force Urbania AC Luxury Van',
     image: '/images/fleet-urbania.webp',
     capacity: '10-17',
-    luggage: '12',
+    luggage: '10',
     fuelBadge: 'Diesel',
     baseRatePerKm: 32,
-    specialBadge: 'Ultra Luxury',
+    minKm: 150,
+    specialBadge: 'Flagship Luxury',
     roofCarrierAvailable: true,
+    isContactOnly: true,
   },
 ];
 
@@ -205,6 +244,8 @@ export default function BookingFunnelPage() {
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [locationModalTarget, setLocationModalTarget] = useState<'PICKUP' | 'DROP'>('PICKUP');
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [tempoNoticeModalOpen, setTempoNoticeModalOpen] = useState(false);
+  const [selectedLargeFleet, setSelectedLargeFleet] = useState<FleetOption | null>(null);
 
   // Sync user profile when user logs in
   useEffect(() => {
@@ -276,7 +317,8 @@ export default function BookingFunnelPage() {
   const calculateFare = (fleet: FleetOption) => {
     const isRound = tripType === TripType.ROUND;
     const billedKm = isRound ? distanceKm * 2 : distanceKm;
-    const baseDistanceFare = Math.round(billedKm * fleet.baseRatePerKm);
+    const effectiveKm = Math.max(fleet.minKm || 0, billedKm);
+    const baseDistanceFare = Math.round(effectiveKm * fleet.baseRatePerKm);
     const chauffeurAllowance = isRound ? 600 : 300;
     const tollStateTax = 'Included';
     const subtotal = baseDistanceFare + chauffeurAllowance;
@@ -286,7 +328,7 @@ export default function BookingFunnelPage() {
     const balanceToDriver = totalFare - advancePayable;
 
     return {
-      billedKm,
+      billedKm: effectiveKm,
       baseDistanceFare,
       chauffeurAllowance,
       tollStateTax,
@@ -299,6 +341,16 @@ export default function BookingFunnelPage() {
   };
 
   const selectedPricing = calculateFare(selectedFleet);
+
+  // Filter fleets according to Customer App rules:
+  // Tempo Traveller and Force Urbania are NOT available on One-Way drops (Round Trip only)
+  const displayedFleets = FLEET_LIST.filter((f) => {
+    const isOneWay = tripType === TripType.ONEWAY;
+    if (isOneWay && (f.id === 'TEMPO_TRAVELER' || f.id === 'URBANIA')) {
+      return false;
+    }
+    return true;
+  });
 
   // Formatter for Date display (e.g., "22 Nov 2026 (Sun)")
   const formatFriendlyDate = (dateStr: string) => {
@@ -325,8 +377,22 @@ export default function BookingFunnelPage() {
   };
 
   const handleSelectCab = (fleet: FleetOption) => {
+    if (fleet.isContactOnly || fleet.id === 'TEMPO_TRAVELER' || fleet.id === 'URBANIA') {
+      setSelectedLargeFleet(fleet);
+      setTempoNoticeModalOpen(true);
+      return;
+    }
     setSelectedFleet(fleet);
     setStep(3); // Navigate to Step 3: Passenger Contact
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleConfirmLargeFleet = () => {
+    if (selectedLargeFleet) {
+      setSelectedFleet(selectedLargeFleet);
+    }
+    setTempoNoticeModalOpen(false);
+    setStep(3);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -511,9 +577,29 @@ export default function BookingFunnelPage() {
               </div>
             </div>
 
+            {/* One-Way Notice for Tempo Traveller / Force Urbania */}
+            {tripType === TripType.ONEWAY && (
+              <div className="p-3 sm:p-3.5 bg-amber-50/90 border border-amber-200/80 rounded-2xl flex items-center justify-between gap-3 text-xs text-amber-950 shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl flex-shrink-0">🚐</span>
+                  <div>
+                    <span className="font-bold">Tempo Traveller & Force Urbania:</span>{' '}
+                    <span className="text-amber-900/90">Available for <strong>Round Trips</strong> & group tour charters.</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTripType(TripType.ROUND)}
+                  className="font-bold text-[#f0750f] hover:underline whitespace-nowrap text-xs bg-white px-3 py-1.5 rounded-xl border border-orange-200 shadow-2xs flex-shrink-0"
+                >
+                  Round Trip &gt;
+                </button>
+              </div>
+            )}
+
             {/* List of Fleet Cards */}
             <div className="space-y-3.5">
-              {FLEET_LIST.map((fleet) => {
+              {displayedFleets.map((fleet) => {
                 const fare = calculateFare(fleet);
                 const isExpanded = expandedDetailsId === fleet.id;
                 const carrierOn = !!roofCarrierEnabled[fleet.id];
@@ -527,12 +613,12 @@ export default function BookingFunnelPage() {
                     {(fleet.recommended || fleet.specialBadge) && (
                       <div className="flex items-center gap-1.5 mb-2">
                         {fleet.recommended && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-50 text-[#f0750f] border border-orange-200">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-50 text-[#f0750f] border border-orange-200">
                             Recommended
                           </span>
                         )}
                         {fleet.specialBadge && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
                             {fleet.specialBadge}
                           </span>
                         )}
@@ -559,9 +645,11 @@ export default function BookingFunnelPage() {
                         </h3>
 
                         {/* Specs Row */}
-                        <div className="flex items-center gap-2.5 text-xs text-slate-500 my-1 font-medium">
+                        <div className="flex items-center gap-2 text-xs text-slate-600 my-1 font-medium">
                           <span>👤 {fleet.capacity}</span>
+                          <span className="text-slate-300">|</span>
                           <span>🧳 {fleet.luggage}</span>
+                          <span className="text-slate-300">|</span>
                           <span>❄️ A/C</span>
                         </div>
 
@@ -569,9 +657,9 @@ export default function BookingFunnelPage() {
                           {fare.billedKm} km included
                         </p>
 
-                        {/* Fuel Badge */}
-                        <div className="flex items-center gap-1 mt-1 text-[11px] font-semibold text-slate-700">
-                          <span className="w-2 h-2 rounded-full bg-[#f0750f]" />
+                        {/* Fuel Badge with Solid Orange Dot */}
+                        <div className="flex items-center gap-1.5 mt-1 text-[11px] font-semibold text-slate-700">
+                          <span className="w-2 h-2 rounded-full bg-[#f0750f] inline-block flex-shrink-0" />
                           <span>{fleet.fuelBadge}</span>
                         </div>
                       </div>
@@ -603,7 +691,7 @@ export default function BookingFunnelPage() {
                           setSelectedFleet(fleet);
                           setReqModalOpen(true);
                         }}
-                        className="flex-1 py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                        className={`${fleet.roofCarrierAvailable ? 'flex-1' : 'w-full'} py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 shadow-xs transition-colors`}
                       >
                         <span className="text-[#f0750f] font-bold text-sm">+</span>
                         <span>Add Requirements</span>
@@ -1430,6 +1518,98 @@ export default function BookingFunnelPage() {
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
       />
+
+      {/* Tempo Traveller & Force Urbania Fleet Availability Notice Modal */}
+      {tempoNoticeModalOpen && selectedLargeFleet && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl relative border border-slate-100">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-orange-50 text-[#f0750f] flex items-center justify-center text-xl font-bold">
+                  🚐
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Large Fleet Availability</h3>
+                  <p className="text-xs text-slate-500">Commercial Group Charter</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTempoNoticeModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Vehicle Preview Box */}
+            <div className="flex items-center gap-3.5 p-3.5 bg-slate-50 rounded-2xl mb-4 border border-slate-100">
+              <div className="relative w-20 h-16 flex-shrink-0">
+                <Image
+                  src={selectedLargeFleet.image}
+                  alt={selectedLargeFleet.name}
+                  fill
+                  className="object-contain"
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-bold text-slate-900 truncate">{selectedLargeFleet.name}</h4>
+                <p className="text-xs text-slate-500 truncate">{selectedLargeFleet.models}</p>
+                <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600 mt-1">
+                  <span>👥 {selectedLargeFleet.capacity} Travellers</span>
+                  <span>•</span>
+                  <span>🧳 {selectedLargeFleet.luggage} Bags</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Informational Process Points */}
+            <div className="space-y-3 mb-5 text-xs">
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-[#f0750f] text-white font-bold flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
+                  1
+                </span>
+                <div>
+                  <p className="font-bold text-slate-900">Kindly Book Your Trip</p>
+                  <p className="text-slate-500 mt-0.5">
+                    Place your booking request online. Our operations team verifies vehicle permit and allocation.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-[#f0750f] text-white font-bold flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
+                  2
+                </span>
+                <div>
+                  <p className="font-bold text-slate-900">Confirmed Within 15 Minutes</p>
+                  <p className="text-slate-500 mt-0.5">
+                    We assign a verified commercial driver and send confirmation directly to your dashboard.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={handleConfirmLargeFleet}
+                className="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.99] transition-all shadow-sm flex items-center justify-center gap-1.5"
+              >
+                <span>Proceed with Booking Request</span>
+                <span>→</span>
+              </button>
+              <a
+                href="tel:+919481086058"
+                className="w-full py-2.5 px-4 rounded-xl font-semibold text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <span>📞 Call Fleet Operations: +91 94810 86058</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
