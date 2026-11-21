@@ -278,7 +278,7 @@ export default function CustomerHomePage() {
       {/* Main Content Container */}
       <main className="max-w-6xl xl:max-w-7xl mx-auto px-2 sm:px-4 md:px-6 pt-1.5 sm:pt-3 space-y-2.5 sm:space-y-4">
         {/* Floating White Booking Search Card (Matching Mobile App Exact Layout) */}
-        <section id="booking-card" className="bg-white rounded-2xl sm:rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 p-2.5 sm:p-5 transition-all">
+        <section id="booking-card" className="relative bg-white rounded-2xl sm:rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 p-2.5 sm:p-5 pb-7 sm:pb-8 mb-6 sm:mb-8 transition-all">
           {/* Mobile View: Top 2 Tabs (ONE WAY vs ROUND TRIP) */}
           <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-2 md:hidden">
             {/* ONE WAY Tab */}
@@ -638,12 +638,12 @@ export default function CustomerHomePage() {
             )}
           </div>
 
-          {/* BOOK YOUR RIDE Button */}
-          <div className="flex justify-center pt-0.5">
+          {/* BOOK YOUR RIDE Button (Straddling the bottom border in the middle) */}
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-20">
             <button
               type="button"
               onClick={() => handleBookYourRide()}
-              className="w-full sm:w-auto sm:px-8 py-2.5 sm:py-3 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-2 text-xs sm:text-base tracking-wide uppercase"
+              className="py-2.5 sm:py-3.5 px-8 sm:px-12 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 text-xs sm:text-base tracking-wider uppercase whitespace-nowrap"
             >
               <span>BOOK YOUR RIDE</span>
               <span className="text-base sm:text-xl leading-none">→</span>
