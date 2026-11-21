@@ -218,8 +218,12 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
           <form onSubmit={handleVerifyOtp} className="space-y-4">
             {/* If user is already registered, welcome them with their name */}
             {isRegistered && existingName && (
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-semibold flex items-center gap-2">
-                <span>👋</span>
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-semibold flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                  <svg className="w-3 h-3 stroke-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
                 <span>Welcome back, <strong className="font-bold">{existingName}</strong>!</span>
               </div>
             )}
@@ -241,7 +245,7 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#10b981] hover:bg-[#059669] transition-colors shadow-sm disabled:opacity-50 text-sm flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#f0750f] hover:bg-[#ea580c] transition-colors shadow-sm disabled:opacity-50 text-sm flex items-center justify-center gap-2"
             >
               {loading
                 ? 'Verifying...'
@@ -290,7 +294,7 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#10b981] hover:bg-[#059669] transition-colors shadow-sm disabled:opacity-50 text-sm flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#f0750f] hover:bg-[#ea580c] transition-colors shadow-sm disabled:opacity-50 text-sm flex items-center justify-center gap-2"
             >
               {loading ? 'Completing Registration...' : 'Complete Registration ✓'}
             </button>
