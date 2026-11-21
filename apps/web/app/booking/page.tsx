@@ -449,8 +449,8 @@ export default function BookingFunnelPage() {
                 <div className="space-y-3 flex-1 min-w-0 pr-4">
                   {/* Pickup Line */}
                   <div className="flex items-center gap-2.5">
-                    <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="text-emerald-600 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                       </svg>
                     </div>
@@ -461,8 +461,8 @@ export default function BookingFunnelPage() {
 
                   {/* Drop Line */}
                   <div className="flex items-center gap-2.5">
-                    <div className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="text-red-600 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                       </svg>
                     </div>

@@ -149,9 +149,9 @@ export function AdditionalRequirementsModal({
             {/* 1. Senior Citizens */}
             <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-lg">
+                <span className="text-2xl flex items-center justify-center flex-shrink-0">
                   👴
-                </div>
+                </span>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Senior Citizens (Above Age 60)?</p>
                   <p className="text-xs text-slate-500">Enable this for easy access seating & driver assistance.</p>
@@ -168,9 +168,9 @@ export function AdditionalRequirementsModal({
             {/* 2. Need a Return Journey */}
             <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-lg">
+                <span className="text-2xl flex items-center justify-center flex-shrink-0">
                   🔄
-                </div>
+                </span>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Need a Return Journey Later?</p>
                   <p className="text-xs text-slate-500">Enable this if you may need a return trip on a later date.</p>
@@ -187,9 +187,9 @@ export function AdditionalRequirementsModal({
             {/* 3. Need an Airport Drop */}
             <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-lg">
+                <span className="text-2xl flex items-center justify-center flex-shrink-0">
                   🛫
-                </div>
+                </span>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Need an Airport Drop?</p>
                   <p className="text-xs text-slate-500">Enable this if you need to be dropped at the airport.</p>
@@ -206,9 +206,9 @@ export function AdditionalRequirementsModal({
             {/* 4. Need an Airport Pickup */}
             <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-lg">
+                <span className="text-2xl flex items-center justify-center flex-shrink-0">
                   🛬
-                </div>
+                </span>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Need an Airport Pickup?</p>
                   <p className="text-xs text-slate-500">Enable this if you need to be picked up from the airport.</p>
@@ -225,9 +225,9 @@ export function AdditionalRequirementsModal({
             {/* 5. Pet Friendly */}
             <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">
+                <span className="text-2xl flex items-center justify-center flex-shrink-0">
                   🐾
-                </div>
+                </span>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Pet Friendly</p>
                   <p className="text-xs text-slate-500">Enable this if you are traveling with pets.</p>
@@ -244,9 +244,9 @@ export function AdditionalRequirementsModal({
             {/* 6. Baby on Board */}
             <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-pink-50 text-pink-600 flex items-center justify-center font-bold text-lg">
+                <span className="text-2xl flex items-center justify-center flex-shrink-0">
                   👶
-                </div>
+                </span>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Baby on Board</p>
                   <p className="text-xs text-slate-500">Enable this if traveling with an infant or child.</p>

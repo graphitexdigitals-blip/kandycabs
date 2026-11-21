@@ -314,13 +314,13 @@ export default function CustomerHomePage() {
                   : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
               }`}
             >
-              <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm ${
-                  tripType === TripType.ONEWAY ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+              <span
+                className={`text-lg font-black transition-colors ${
+                  tripType === TripType.ONEWAY ? 'text-white' : 'text-slate-500'
                 }`}
               >
                 →
-              </div>
+              </span>
               <div>
                 <p className="text-xs sm:text-sm font-extrabold tracking-wide uppercase">
                   ONE WAY
@@ -345,13 +345,13 @@ export default function CustomerHomePage() {
                   : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
               }`}
             >
-              <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm ${
-                  tripType === TripType.ROUND ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+              <span
+                className={`text-lg font-black transition-colors ${
+                  tripType === TripType.ROUND ? 'text-white' : 'text-slate-500'
                 }`}
               >
                 ↻
-              </div>
+              </span>
               <div>
                 <p className="text-xs sm:text-sm font-extrabold tracking-wide uppercase">
                   ROUND TRIP
@@ -373,8 +373,8 @@ export default function CustomerHomePage() {
             <div ref={pickupWrapperRef} className="relative">
               <div className="flex items-center gap-3 p-3 sm:p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all">
                 {/* Green Pin */}
-                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <div className="text-emerald-600 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path
                       fillRule="evenodd"
                       d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
@@ -452,8 +452,8 @@ export default function CustomerHomePage() {
             <div ref={dropWrapperRef} className="relative">
               <div className="flex items-center gap-3 p-3 sm:p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all">
                 {/* Red Pin */}
-                <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <div className="text-red-600 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path
                       fillRule="evenodd"
                       d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
@@ -635,7 +635,7 @@ export default function CustomerHomePage() {
               onClick={() => handleCategorySelect(cat.id)}
               className="bg-white hover:bg-slate-50 active:scale-95 transition-all p-3 sm:p-4 rounded-2xl sm:rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group"
             >
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-orange-50 group-hover:bg-orange-100 flex items-center justify-center mb-2 transition-colors">
+              <div className="text-2xl sm:text-3xl flex items-center justify-center mb-2">
                 {cat.icon}
               </div>
               <span className="text-[11px] sm:text-xs font-bold text-slate-800 leading-tight">
@@ -659,8 +659,8 @@ export default function CustomerHomePage() {
         {/* 24/7 Help & Support Card (Matching Screenshot) */}
         <section className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="text-emerald-600 flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
               </svg>
             </div>
