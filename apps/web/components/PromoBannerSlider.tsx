@@ -272,28 +272,6 @@ export function PromoBannerSlider({ onSelectCategory, className = '' }: PromoBan
           </button>
         </>
       )}
-
-      {/* Dot Indicators */}
-      {totalSlides > 1 && (
-        <div className="absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 rounded-full bg-black/30 backdrop-blur-sm">
-          {slides.map((_, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                goToSlide(idx);
-              }}
-              className={`transition-all duration-300 rounded-full ${
-                idx === currentIndex
-                  ? 'w-5 sm:w-6 h-1.5 sm:h-2 bg-[#f0750f] shadow-sm'
-                  : 'w-1.5 sm:w-2 h-1.5 sm:h-2 bg-white/70 hover:bg-white'
-              }`}
-              aria-label={`Go to slide ${idx + 1}`}
-            />
-          ))}
-        </div>
-      )}
     </section>
   );
 }
