@@ -8,7 +8,6 @@ import { TripType, VehicleCategory } from '@kandy-cabs/shared';
 import { useAuth } from '@/lib/AuthContext';
 import { ALL_LOCATIONS, PlaceLocation } from '@/lib/locations';
 import { CustomerHeader } from '@/components/CustomerHeader';
-import { CustomerBottomDock } from '@/components/CustomerBottomDock';
 import { WebAuthModal } from '@/components/WebAuthModal';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import { DriverAppModal } from '@/components/DriverAppModal';
@@ -231,7 +230,7 @@ export default function CustomerHomePage() {
   ).slice(0, 6);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 pb-24 md:pb-12">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 pb-12 sm:pb-16">
       {/* Top Header Matching Customer App */}
       <CustomerHeader onOpenAuth={() => setAuthModalOpen(true)} activeNav="home" />
 
@@ -613,8 +612,7 @@ export default function CustomerHomePage() {
 
       </main>
 
-      {/* Mobile Bottom Dock (Matching Customer App) */}
-      <CustomerBottomDock onOpenAuth={() => setAuthModalOpen(true)} />
+
 
       {/* OpenStreetMap Interactive Modal */}
       <LocationPickerModal
