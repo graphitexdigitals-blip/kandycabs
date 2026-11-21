@@ -17,10 +17,10 @@ export function CustomerRatingsCard() {
             </svg>
           </div>
           <div className="min-w-0">
-            <h4 className="text-[11px] sm:text-xs lg:text-sm font-extrabold text-slate-900 leading-tight truncate">
+            <h4 className="text-xs sm:text-sm lg:text-base font-extrabold text-slate-900 leading-tight truncate">
               Customer Ratings & Reviews
             </h4>
-            <p className="text-[9px] sm:text-[9.5px] lg:text-[10px] text-slate-500 font-medium truncate">
+            <p className="text-[10px] sm:text-[10.5px] lg:text-[11px] text-slate-500 font-medium truncate">
               Verified by 15,400+ Happy Travelers
             </p>
           </div>
@@ -34,8 +34,8 @@ export function CustomerRatingsCard() {
           title="Rate Kandy Cabs on Google Maps"
           className="flex items-center gap-1 sm:gap-1.5 bg-white border border-slate-200 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full flex-shrink-0 shadow-sm cursor-pointer"
         >
-          <span className="text-[11px] sm:text-xs font-black text-black">4.9</span>
-          <div className="flex text-[#F4B400] text-[10px] sm:text-xs tracking-tight">
+          <span className="text-xs sm:text-sm font-black text-black">4.9</span>
+          <div className="flex text-[#F4B400] text-xs sm:text-sm tracking-tight">
             {'★★★★★'}
           </div>
           <svg
@@ -57,10 +57,10 @@ export function CustomerRatingsCard() {
       {/* Middle Body: Feedback & Experience Invitation */}
       <div className="py-1.5 md:py-2 lg:py-2.5 flex-1 flex flex-col justify-center">
         <div className="space-y-0.5 md:space-y-1">
-          <p className="text-[11px] md:text-xs lg:text-[13px] font-extrabold text-slate-900 leading-snug">
+          <p className="text-xs md:text-sm lg:text-[14px] font-extrabold text-slate-900 leading-snug">
             Kindly add your valuable feedback and share your experience with Kandy Cabs!
           </p>
-          <p className="text-[9.5px] md:text-[10px] lg:text-[11px] text-slate-500 font-medium leading-relaxed">
+          <p className="text-[10.5px] md:text-[11px] lg:text-xs text-slate-500 font-medium leading-relaxed">
             Your review helps fellow travelers and enables us to continuously improve our taxi, outstation, and airport transfer services.
           </p>
         </div>
@@ -71,7 +71,7 @@ export function CustomerRatingsCard() {
             href={GOOGLE_MAPS_REVIEW_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 text-[10px] sm:text-[11px] font-bold shadow-md hover:shadow-lg active:scale-95 transition-all group flex-shrink-0"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 text-[11px] sm:text-xs font-bold shadow-md hover:shadow-lg active:scale-95 transition-all group flex-shrink-0"
           >
             {/* Google G logo */}
             <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" viewBox="0 0 24 24">
@@ -81,14 +81,14 @@ export function CustomerRatingsCard() {
               <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.59l4.04 3.15c.95-2.84 3.6-4.99 6.72-4.99z" />
             </svg>
             <span>Rate Us on Google</span>
-            <span className="text-[#F4B400] text-[10px] sm:text-xs tracking-tight">★★★★★</span>
+            <span className="text-[#F4B400] text-[11px] sm:text-xs tracking-tight">★★★★★</span>
           </a>
 
           <a
             href={GOOGLE_MAPS_REVIEW_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[9.5px] sm:text-[10.5px] font-bold text-slate-500 hover:text-[#f0750f] transition-colors inline-flex items-center gap-1 group truncate"
+            className="text-[10.5px] sm:text-xs font-bold text-slate-500 hover:text-[#f0750f] transition-colors inline-flex items-center gap-1 group truncate"
           >
             <span>All Reviews</span>
             <span className="group-hover:translate-x-0.5 transition-transform">→</span>
@@ -97,7 +97,7 @@ export function CustomerRatingsCard() {
       </div>
 
       {/* Bottom Footer: Trust Pillars */}
-      <div className="border-t border-slate-200/80 pt-1.5 md:pt-2 flex items-center justify-between text-[9px] sm:text-[9.5px] lg:text-[10px] text-slate-500 font-semibold">
+      <div className="border-t border-slate-200/80 pt-1.5 md:pt-2 flex items-center justify-between text-[10px] sm:text-[10.5px] lg:text-[11px] text-slate-500 font-semibold">
         <div className="flex items-center gap-2 sm:gap-2.5 lg:gap-3 flex-wrap">
           <span className="inline-flex items-center gap-1 text-slate-600">
             <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#f0750f]" viewBox="0 0 20 20" fill="currentColor">

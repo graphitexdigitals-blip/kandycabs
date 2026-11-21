@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  font-size: 16.5px;
+  -webkit-text-size-adjust: 100%;
+}
+
 :root {
   --foreground-rgb: 15, 23, 42;
   --background-rgb: 248, 250, 252;

@@ -343,7 +343,7 @@ export default function CustomerHomePage() {
                     key={tab.id}
                     type="button"
                     onClick={() => handleTabClick(tab.id)}
-                    className={`py-2.5 lg:py-3 px-6 lg:px-7 text-center font-extrabold uppercase tracking-wide text-xs lg:text-[13px] whitespace-nowrap transition-all border-r last:border-r-0 ${
+                    className={`py-2.5 lg:py-3 px-6 lg:px-7 text-center font-extrabold uppercase tracking-wide text-xs lg:text-sm whitespace-nowrap transition-all border-r last:border-r-0 ${
                       isActive
                         ? 'bg-[#f0750f] text-white border-[#f0750f]'
                         : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
@@ -367,7 +367,7 @@ export default function CustomerHomePage() {
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0 pr-2">
-                  <span className="block text-[10px] font-extrabold text-black uppercase tracking-wider">
+                  <span className="block text-[11px] font-extrabold text-black uppercase tracking-wider">
                     PICKUP LOCATION
                   </span>
                   <input
@@ -383,7 +383,7 @@ export default function CustomerHomePage() {
                       setShowPickupSuggestions(true);
                     }}
                     placeholder="Enter pickup location"
-                    className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
+                    className="w-full bg-transparent text-[15px] font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
                   />
                 </div>
                 <button
@@ -447,7 +447,7 @@ export default function CustomerHomePage() {
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0 pr-2">
-                  <span className="block text-[10px] font-extrabold text-black uppercase tracking-wider">
+                  <span className="block text-[11px] font-extrabold text-black uppercase tracking-wider">
                     DROP LOCATION
                   </span>
                   <input
@@ -463,7 +463,7 @@ export default function CustomerHomePage() {
                       setShowDropSuggestions(true);
                     }}
                     placeholder="Enter drop location"
-                    className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
+                    className="w-full bg-transparent text-[15px] font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
                   />
                 </div>
                 <button
@@ -553,7 +553,7 @@ export default function CustomerHomePage() {
                 <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-black">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
                   TRIP START DATE
                 </span>
               </div>
@@ -562,7 +562,7 @@ export default function CustomerHomePage() {
                 value={scheduledDate}
                 min={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setScheduledDate(e.target.value)}
-                className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer ${
+                className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
                   scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
                 }`}
               />
@@ -576,16 +576,16 @@ export default function CustomerHomePage() {
                 <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-black">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
                   PICKUP TIME
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className={`text-sm font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
+                <span className={`text-[15px] font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
                   {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
                 </span>
                 {scheduledTime && (
-                  <span className="text-[10px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
+                  <span className="text-[11px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
                     Change
                   </span>
                 )}
@@ -598,7 +598,7 @@ export default function CustomerHomePage() {
                   <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-black">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
                     RETURN JOURNEY DATE
                   </span>
                 </div>
@@ -607,7 +607,7 @@ export default function CustomerHomePage() {
                   value={returnDate}
                   min={scheduledDate}
                   onChange={(e) => setReturnDate(e.target.value)}
-                  className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer ${
+                  className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
                     returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
                   }`}
                 />
@@ -620,7 +620,7 @@ export default function CustomerHomePage() {
             <button
               type="button"
               onClick={() => handleBookYourRide()}
-              className="py-3 px-10 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm tracking-wider uppercase whitespace-nowrap"
+              className="py-3 px-10 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-[15px] tracking-wider uppercase whitespace-nowrap shadow-md"
             >
               <span>BOOK YOUR RIDE</span>
               <span className="text-xl leading-none">→</span>
@@ -651,8 +651,8 @@ export default function CustomerHomePage() {
                   </svg>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-extrabold uppercase leading-tight truncate">ONE WAY</p>
-                  <p className={`text-[9px] font-medium leading-tight truncate ${activeTab === 'ONEWAY' ? 'text-white/85' : 'text-slate-400'}`}>Drop-off only</p>
+                  <p className="text-[13px] font-extrabold uppercase leading-tight truncate">ONE WAY</p>
+                  <p className={`text-[10px] font-medium leading-tight truncate ${activeTab === 'ONEWAY' ? 'text-white/85' : 'text-slate-400'}`}>Drop-off only</p>
                 </div>
               </button>
 
@@ -672,8 +672,8 @@ export default function CustomerHomePage() {
                   </svg>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-extrabold uppercase leading-tight truncate">ROUND TRIP</p>
-                  <p className={`text-[9px] font-medium leading-tight truncate ${activeTab === 'ROUND' ? 'text-white/85' : 'text-slate-400'}`}>Return same cab</p>
+                  <p className="text-[13px] font-extrabold uppercase leading-tight truncate">ROUND TRIP</p>
+                  <p className={`text-[10px] font-medium leading-tight truncate ${activeTab === 'ROUND' ? 'text-white/85' : 'text-slate-400'}`}>Return same cab</p>
                 </div>
               </button>
             </div>
@@ -689,7 +689,7 @@ export default function CustomerHomePage() {
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0 pr-1">
-                    <span className="block text-[9px] font-extrabold text-black uppercase tracking-wider leading-none mb-0.5">
+                    <span className="block text-[10.5px] font-extrabold text-black uppercase tracking-wider leading-none mb-0.5">
                       PICKUP LOCATION
                     </span>
                     <input
@@ -706,7 +706,7 @@ export default function CustomerHomePage() {
                         }
                       }}
                       placeholder="Enter pickup location"
-                      className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400 leading-tight"
+                      className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400 leading-tight"
                     />
                   </div>
                   <button
@@ -768,7 +768,7 @@ export default function CustomerHomePage() {
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0 pr-1">
-                    <span className="block text-[9px] font-extrabold text-black uppercase tracking-wider leading-none mb-0.5">
+                    <span className="block text-[10.5px] font-extrabold text-black uppercase tracking-wider leading-none mb-0.5">
                       DROP LOCATION
                     </span>
                     <input
@@ -785,7 +785,7 @@ export default function CustomerHomePage() {
                         }
                       }}
                       placeholder="Enter drop location"
-                      className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400 leading-tight"
+                      className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400 leading-tight"
                     />
                   </div>
                   <button
@@ -830,7 +830,7 @@ export default function CustomerHomePage() {
               <button
                 type="button"
                 onClick={handleAddStop}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[10.5px] font-semibold shadow-xs transition-all"
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-all"
               >
                 <span className="text-[#f0750f] font-bold text-xs">+</span> Add a Stop
               </button>
@@ -839,8 +839,8 @@ export default function CustomerHomePage() {
             {/* Stops list if any */}
             {stops.map((stop, index) => (
               <div key={stop.id} className="flex items-center gap-1.5 p-1.5 rounded-lg bg-orange-50 border border-orange-100 text-xs">
-                <span className="font-bold text-[#f0750f] text-[10px]">{index + 1}. Stop:</span>
-                <span className="flex-1 truncate text-slate-800 text-[11px]">{stop.address || 'Select Stop'}</span>
+                <span className="font-bold text-[#f0750f] text-[11px]">{index + 1}. Stop:</span>
+                <span className="flex-1 truncate text-slate-800 text-xs">{stop.address || 'Select Stop'}</span>
                 <button type="button" onClick={() => handleRemoveStop(stop.id)} className="text-red-500 font-bold ml-1 text-xs">✕</button>
               </div>
             ))}
@@ -852,7 +852,7 @@ export default function CustomerHomePage() {
                   <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-black">
+                  <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
                     TRIP START DATE
                   </span>
                 </div>
@@ -861,7 +861,7 @@ export default function CustomerHomePage() {
                   value={scheduledDate}
                   min={new Date().toISOString().split('T')[0]}
                   onChange={(e) => setScheduledDate(e.target.value)}
-                  className={`w-full bg-transparent text-xs font-semibold focus:outline-none cursor-pointer leading-tight ${
+                  className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer leading-tight ${
                     scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
                   }`}
                 />
@@ -875,16 +875,16 @@ export default function CustomerHomePage() {
                   <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-black">
+                  <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
                     PICKUP TIME
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className={`text-xs font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
+                  <span className={`text-sm font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
                     {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
                   </span>
                   {scheduledTime && (
-                    <span className="text-[9px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
+                    <span className="text-[10px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
                       Change
                     </span>
                   )}
@@ -897,7 +897,7 @@ export default function CustomerHomePage() {
                     <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-black">
+                    <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
                       RETURN JOURNEY DATE
                     </span>
                   </div>
@@ -906,7 +906,7 @@ export default function CustomerHomePage() {
                     value={returnDate}
                     min={scheduledDate}
                     onChange={(e) => setReturnDate(e.target.value)}
-                    className={`w-full bg-transparent text-xs font-semibold focus:outline-none cursor-pointer leading-tight ${
+                    className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer leading-tight ${
                       returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
                     }`}
                   />
@@ -919,10 +919,10 @@ export default function CustomerHomePage() {
               <button
                 type="button"
                 onClick={() => handleBookYourRide()}
-                className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 text-xs tracking-wider uppercase whitespace-nowrap"
+                className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 text-sm tracking-wider uppercase whitespace-nowrap shadow-md"
               >
                 <span>BOOK YOUR RIDE</span>
-                <span className="text-sm leading-none">→</span>
+                <span className="text-base leading-none">→</span>
               </button>
             </div>
           </div>
@@ -939,7 +939,7 @@ export default function CustomerHomePage() {
               <div className="flex items-center justify-center mb-1">
                 {cat.icon}
               </div>
-              <span className="text-[9.5px] sm:text-xs font-bold leading-tight text-slate-800">
+              <span className="text-[11px] sm:text-xs font-bold leading-tight text-slate-800">
                 {cat.title}
               </span>
             </Link>
@@ -968,17 +968,17 @@ export default function CustomerHomePage() {
               </svg>
             </div>
             <div>
-              <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">
+              <h4 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
                 24/7 Help & Support
               </h4>
-              <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                 Need assistance with your ride?
               </p>
             </div>
           </div>
           <a
             href="tel:+919481086058"
-            className="bg-[#162232] hover:bg-slate-800 text-white text-[11px] sm:text-xs font-bold px-3 py-1.5 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl transition-all shadow-sm flex items-center gap-1 flex-shrink-0"
+            className="bg-[#162232] hover:bg-slate-800 text-white text-xs sm:text-sm font-bold px-3 py-1.5 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl transition-all shadow-sm flex items-center gap-1 flex-shrink-0"
           >
             Get Help &gt;
           </a>

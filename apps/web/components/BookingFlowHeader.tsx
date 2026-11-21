@@ -41,11 +41,11 @@ export function BookingFlowHeader({
           </button>
 
           <div className="text-center flex-1 mx-2">
-            <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+            <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
               {title}
             </h1>
             {(subtitle || subStepLabel) && (
-              <p className="text-[10.5px] sm:text-xs text-slate-500 mt-0.5 font-medium">
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-medium">
                 {subtitle || (subStepLabel ? `Step ${currentStep} of 3 • ${subStepLabel}` : '')}
               </p>
             )}
@@ -80,7 +80,7 @@ export function BookingFlowHeader({
               )}
             </div>
             <span
-              className={`text-[10.5px] sm:text-xs font-semibold ${
+              className={`text-xs sm:text-sm font-semibold ${
                 currentStep >= 1 ? 'text-[#f0750f]' : 'text-slate-400'
               }`}
             >
@@ -119,7 +119,7 @@ export function BookingFlowHeader({
               )}
             </div>
             <span
-              className={`text-[10.5px] sm:text-xs font-semibold ${
+              className={`text-xs sm:text-sm font-semibold ${
                 currentStep >= 2 ? 'text-[#f0750f]' : 'text-slate-400'
               }`}
             >
@@ -146,7 +146,7 @@ export function BookingFlowHeader({
               3
             </div>
             <span
-              className={`text-[10.5px] sm:text-xs font-semibold ${
+              className={`text-xs sm:text-sm font-semibold ${
                 currentStep === 3 ? 'text-[#f0750f]' : 'text-slate-400'
               }`}
             >

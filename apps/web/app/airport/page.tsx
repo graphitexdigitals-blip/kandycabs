@@ -158,7 +158,7 @@ export default function AirportBookingPage() {
 
           {/* Pickup Location */}
           <div ref={pickupWrapperRef} className="relative">
-            <span className="block text-[8.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
+            <span className="block text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
               PICKUP LOCATION
             </span>
             <div className="flex items-center gap-2 py-1.5 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
@@ -226,7 +226,7 @@ export default function AirportBookingPage() {
 
           {/* Destination Airport */}
           <div className="relative">
-            <span className="block text-[8.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
+            <span className="block text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
               DESTINATION AIRPORT
             </span>
             <div
@@ -320,7 +320,7 @@ export default function AirportBookingPage() {
           <div className="grid grid-cols-2 gap-2 mb-1.5">
             {/* Pickup Date */}
             <div className="relative">
-              <span className="block text-[8.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
+              <span className="block text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
                 PICKUP DATE
               </span>
               <div className="flex items-center justify-between py-2 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70">
@@ -347,7 +347,7 @@ export default function AirportBookingPage() {
 
             {/* Pickup Time */}
             <div>
-              <span className="block text-[8.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
+              <span className="block text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
                 PICKUP TIME
               </span>
               <div
