@@ -235,23 +235,23 @@ export default function CustomerHomePage() {
       <CustomerHeader onOpenAuth={() => setAuthModalOpen(true)} activeNav="home" />
 
       {/* Main Content Container */}
-      <main className="max-w-4xl mx-auto px-4 pt-4 sm:pt-6 space-y-4 sm:space-y-6">
+      <main className="max-w-4xl mx-auto px-3 sm:px-4 pt-2.5 sm:pt-3 space-y-3 sm:space-y-3.5">
         {/* Floating White Booking Search Card (Matching Mobile App Exact Layout) */}
-        <section id="booking-card" className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 p-4 sm:p-6 transition-all">
+        <section id="booking-card" className="bg-white rounded-2xl sm:rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 p-3 sm:p-4 transition-all">
           {/* Trip Type Tabs (ONE WAY vs ROUND TRIP) */}
-          <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="grid grid-cols-2 gap-2 mb-2.5">
             {/* ONE WAY Tab */}
             <button
               type="button"
               onClick={() => setTripType(TripType.ONEWAY)}
-              className={`flex items-center gap-2.5 p-3 sm:p-3.5 rounded-2xl text-left transition-all ${
+              className={`flex items-center gap-2 p-2 sm:p-2.5 rounded-xl sm:rounded-2xl text-left transition-all ${
                 tripType === TripType.ONEWAY
                   ? 'bg-[#f0750f] text-white shadow-sm'
                   : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
               }`}
             >
               <span
-                className={`text-lg font-black transition-colors ${
+                className={`text-base sm:text-lg font-black transition-colors ${
                   tripType === TripType.ONEWAY ? 'text-white' : 'text-slate-500'
                 }`}
               >
@@ -275,14 +275,14 @@ export default function CustomerHomePage() {
             <button
               type="button"
               onClick={() => setTripType(TripType.ROUND)}
-              className={`flex items-center gap-2.5 p-3 sm:p-3.5 rounded-2xl text-left transition-all ${
+              className={`flex items-center gap-2 p-2 sm:p-2.5 rounded-xl sm:rounded-2xl text-left transition-all ${
                 tripType === TripType.ROUND
                   ? 'bg-[#f0750f] text-white shadow-sm'
                   : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
               }`}
             >
               <span
-                className={`text-lg font-black transition-colors ${
+                className={`text-base sm:text-lg font-black transition-colors ${
                   tripType === TripType.ROUND ? 'text-white' : 'text-slate-500'
                 }`}
               >
@@ -304,10 +304,10 @@ export default function CustomerHomePage() {
           </div>
 
           {/* Locations Container with Integrated Swap Button */}
-          <div className="relative space-y-2 mb-3">
+          <div className="relative space-y-1.5 mb-2">
             {/* Pickup Location Box */}
             <div ref={pickupWrapperRef} className="relative">
-              <div className="flex items-center gap-3 p-3 sm:p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all">
+              <div className="flex items-center gap-2.5 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all">
                 {/* Green Pin */}
                 <div className="text-emerald-600 flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -386,7 +386,7 @@ export default function CustomerHomePage() {
 
             {/* Drop Location Box */}
             <div ref={dropWrapperRef} className="relative">
-              <div className="flex items-center gap-3 p-3 sm:p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all">
+              <div className="flex items-center gap-2.5 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all">
                 {/* Red Pin */}
                 <div className="text-red-600 flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -454,7 +454,7 @@ export default function CustomerHomePage() {
           {stops.map((stop, index) => (
             <div
               key={stop.id}
-              className="flex items-center gap-2 p-2.5 mb-2 rounded-xl bg-orange-50/70 border border-orange-100 text-xs"
+              className="flex items-center gap-2 p-2 mb-1.5 rounded-xl bg-orange-50/70 border border-orange-100 text-xs"
             >
               <span className="font-bold text-[#f0750f]">{index + 1}. Stop:</span>
               <span className="flex-1 truncate font-medium text-slate-800">
@@ -481,21 +481,21 @@ export default function CustomerHomePage() {
           ))}
 
           {/* + Add a Stop Button */}
-          <div className="mb-4">
+          <div className="mb-2.5">
             <button
               type="button"
               onClick={handleAddStop}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-sm transition-all"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-sm transition-all"
             >
               <span className="text-[#f0750f] font-bold text-sm">+</span> Add a Stop
             </button>
           </div>
 
           {/* Schedule Row (Date & Time) */}
-          <div className="grid grid-cols-2 gap-3 mb-5">
+          <div className="grid grid-cols-2 gap-2 mb-3">
             {/* Trip Start Date */}
-            <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
-              <div className="flex items-center gap-1.5 text-slate-400 mb-1">
+            <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+              <div className="flex items-center gap-1.5 text-slate-400 mb-0.5">
                 <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
@@ -513,8 +513,8 @@ export default function CustomerHomePage() {
             </div>
 
             {/* Pickup Time */}
-            <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
-              <div className="flex items-center gap-1.5 text-slate-400 mb-1">
+            <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+              <div className="flex items-center gap-1.5 text-slate-400 mb-0.5">
                 <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -532,8 +532,8 @@ export default function CustomerHomePage() {
 
             {/* If Round Trip: Return Date Row */}
             {tripType === TripType.ROUND && (
-              <div className="col-span-2 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
-                <div className="flex items-center gap-1.5 text-slate-400 mb-1">
+              <div className="col-span-2 p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                <div className="flex items-center gap-1.5 text-slate-400 mb-0.5">
                   <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
@@ -556,7 +556,7 @@ export default function CustomerHomePage() {
           <button
             type="button"
             onClick={() => handleBookYourRide()}
-            className="w-full py-4 px-6 rounded-2xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-2 text-base tracking-wide uppercase"
+            className="w-full py-3 px-5 rounded-xl sm:rounded-2xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-2 text-sm sm:text-base tracking-wide uppercase"
           >
             <span>BOOK YOUR RIDE</span>
             <span className="text-xl leading-none">→</span>
@@ -564,14 +564,14 @@ export default function CustomerHomePage() {
         </section>
 
         {/* 4-Card Quick Category Grid (Matching Screenshot) */}
-        <section className="grid grid-cols-4 gap-2 sm:gap-3">
+        <section className="grid grid-cols-4 gap-2 sm:gap-2.5">
           {SERVICE_CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               onClick={() => handleCategorySelect(cat.id)}
-              className="bg-white hover:bg-slate-50 active:scale-95 transition-all p-3 sm:p-4 rounded-2xl sm:rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group"
+              className="bg-white hover:bg-slate-50 active:scale-95 transition-all p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group"
             >
-              <div className="text-2xl sm:text-3xl flex items-center justify-center mb-2">
+              <div className="text-2xl sm:text-3xl flex items-center justify-center mb-1">
                 {cat.icon}
               </div>
               <span className="text-[11px] sm:text-xs font-bold text-slate-800 leading-tight">
@@ -585,7 +585,7 @@ export default function CustomerHomePage() {
         <PromoBannerSlider onSelectCategory={handleCategorySelect} />
 
         {/* 24/7 Help & Support Card (Matching Screenshot) */}
-        <section className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm flex items-center justify-between">
+        <section className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-3.5 border border-slate-100 shadow-sm flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="text-emerald-600 flex items-center justify-center flex-shrink-0">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
