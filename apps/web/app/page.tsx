@@ -12,6 +12,7 @@ import { WebAuthModal } from '@/components/WebAuthModal';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import { DriverAppModal } from '@/components/DriverAppModal';
 import { PromoBannerSlider } from '@/components/PromoBannerSlider';
+import { CustomerRatingsCard } from '@/components/CustomerRatingsCard';
 import { TimePickerModal } from '@/components/TimePickerModal';
 
 function format12HourTime(timeStr: string): string {
@@ -863,8 +864,18 @@ export default function CustomerHomePage() {
           ))}
         </section>
 
-        {/* Interactive Promotional Banner Carousel Slider */}
-        <PromoBannerSlider onSelectCategory={handleCategorySelect} />
+        {/* Mobile View (Excluding Desktop): Single Banner Slider */}
+        <div className="md:hidden">
+          <PromoBannerSlider onSelectCategory={handleCategorySelect} />
+        </div>
+
+        {/* Desktop View (Excluding Mobile): 2 in a Row (Left: Slider, Right: Ratings Section) */}
+        <section className="hidden md:grid md:grid-cols-2 gap-4 lg:gap-5 items-stretch">
+          <div className="h-full">
+            <PromoBannerSlider onSelectCategory={handleCategorySelect} className="h-full" />
+          </div>
+          <CustomerRatingsCard />
+        </section>
 
         {/* 24/7 Help & Support Card (Matching Screenshot) */}
         <section className="bg-white rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 border border-slate-100 shadow-sm flex items-center justify-between">
