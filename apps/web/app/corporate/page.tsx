@@ -322,7 +322,7 @@ export default function CorporateTravelPage() {
             <button
               type="button"
               onClick={handleBookYourRide}
-              className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-md shadow-orange-500/25 flex items-center justify-center gap-1.5 text-xs tracking-wider uppercase whitespace-nowrap"
+              className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 text-xs tracking-wider uppercase whitespace-nowrap"
             >
               <span>BOOK YOUR RIDE</span>
               <span className="text-sm leading-none">→</span>

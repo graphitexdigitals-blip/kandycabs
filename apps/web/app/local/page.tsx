@@ -152,7 +152,7 @@ export default function LocalRentalPage() {
                     onClick={() => setLocalPackage(pkg.id as any)}
                     className={`py-2 px-1 rounded-xl text-center text-[11px] font-bold leading-tight transition-all border ${
                       isSelected
-                        ? 'bg-[#f0750f] text-white border-[#f0750f] shadow-sm'
+                        ? 'bg-[#f0750f] text-white border-[#f0750f]'
                         : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
                     }`}
                   >
@@ -230,7 +230,7 @@ export default function LocalRentalPage() {
             <button
               type="button"
               onClick={handleBookYourRide}
-              className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-md shadow-orange-500/25 flex items-center justify-center gap-1.5 text-xs tracking-wider uppercase whitespace-nowrap"
+              className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 text-xs tracking-wider uppercase whitespace-nowrap"
             >
               <span>BOOK YOUR RIDE</span>
               <span className="text-sm leading-none">→</span>

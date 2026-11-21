@@ -597,7 +597,7 @@ export default function CustomerHomePage() {
             <button
               type="button"
               onClick={() => handleBookYourRide()}
-              className="py-3 px-10 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 text-sm tracking-wider uppercase whitespace-nowrap"
+              className="py-3 px-10 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm tracking-wider uppercase whitespace-nowrap"
             >
               <span>BOOK YOUR RIDE</span>
               <span className="text-xl leading-none">→</span>
@@ -616,7 +616,7 @@ export default function CustomerHomePage() {
               onClick={() => handleTabClick('ONEWAY')}
               className={`flex items-center gap-2 py-2 px-2.5 rounded-xl text-left transition-all ${
                 activeTab === 'ONEWAY'
-                  ? 'bg-[#f0750f] text-white shadow-sm'
+                  ? 'bg-[#f0750f] text-white'
                   : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
               }`}
             >
@@ -636,7 +636,7 @@ export default function CustomerHomePage() {
               onClick={() => handleTabClick('ROUND')}
               className={`flex items-center gap-2 py-2 px-2.5 rounded-xl text-left transition-all ${
                 activeTab === 'ROUND'
-                  ? 'bg-[#f0750f] text-white shadow-sm'
+                  ? 'bg-[#f0750f] text-white'
                   : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
               }`}
             >
@@ -838,7 +838,7 @@ export default function CustomerHomePage() {
               <button
                 type="button"
                 onClick={() => handleBookYourRide()}
-                className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-md shadow-orange-500/25 flex items-center justify-center gap-1.5 text-xs tracking-wider uppercase whitespace-nowrap"
+                className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 text-xs tracking-wider uppercase whitespace-nowrap"
               >
                 <span>BOOK YOUR RIDE</span>
                 <span className="text-sm leading-none">→</span>
