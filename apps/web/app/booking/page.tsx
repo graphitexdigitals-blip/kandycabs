@@ -587,7 +587,7 @@ export default function BookingFunnelPage() {
                         <button
                           type="button"
                           onClick={() => handleSelectCab(fleet)}
-                          className="py-2 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-95 transition-all shadow-md shadow-orange-500/20 flex items-center gap-1"
+                          className="py-2 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-95 transition-all shadow-sm flex items-center gap-1"
                         >
                           <span>Select</span>
                           <span>&gt;</span>
@@ -957,7 +957,7 @@ export default function BookingFunnelPage() {
             <button
               type="button"
               onClick={handleContinueToReview}
-              className="w-full py-4 px-6 rounded-2xl font-bold text-white bg-[#10b981] hover:bg-[#059669] active:scale-[0.99] transition-all shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 text-base tracking-wide"
+              className="w-full py-4 px-6 rounded-2xl font-bold text-white bg-[#10b981] hover:bg-[#059669] active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-2 text-base tracking-wide"
             >
               <span>Continue to Review &amp; Pay</span>
               <span>&gt;</span>
@@ -1282,7 +1282,7 @@ export default function BookingFunnelPage() {
           <div className="space-y-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-md text-center space-y-5">
               {/* Green Checkmark Circle */}
-              <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
+              <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-md">
                 <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                 </svg>
@@ -1371,7 +1371,7 @@ export default function BookingFunnelPage() {
               {/* Track Ride in My Bookings Button */}
               <Link
                 href="/customer/dashboard"
-                className="w-full py-4 px-6 rounded-2xl font-bold text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.99] transition-all shadow-xl shadow-orange-500/25 flex items-center justify-center gap-2 text-sm tracking-wide"
+                className="w-full py-4 px-6 rounded-2xl font-bold text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-2 text-sm tracking-wide"
               >
                 <span>🚗</span>
                 <span>Track Ride in My Bookings</span>

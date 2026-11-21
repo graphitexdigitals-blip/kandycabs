@@ -310,7 +310,7 @@ export default function CustomerHomePage() {
               onClick={() => setTripType(TripType.ONEWAY)}
               className={`flex items-center gap-2.5 p-3 sm:p-3.5 rounded-2xl text-left transition-all ${
                 tripType === TripType.ONEWAY
-                  ? 'bg-[#f0750f] text-white shadow-md shadow-orange-500/20'
+                  ? 'bg-[#f0750f] text-white shadow-sm'
                   : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
               }`}
             >
@@ -341,7 +341,7 @@ export default function CustomerHomePage() {
               onClick={() => setTripType(TripType.ROUND)}
               className={`flex items-center gap-2.5 p-3 sm:p-3.5 rounded-2xl text-left transition-all ${
                 tripType === TripType.ROUND
-                  ? 'bg-[#f0750f] text-white shadow-md shadow-orange-500/20'
+                  ? 'bg-[#f0750f] text-white shadow-sm'
                   : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
               }`}
             >
@@ -620,7 +620,7 @@ export default function CustomerHomePage() {
           <button
             type="button"
             onClick={() => handleBookYourRide()}
-            className="w-full py-4 px-6 rounded-2xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.99] transition-all shadow-xl shadow-orange-500/30 flex items-center justify-center gap-2 text-base tracking-wide uppercase"
+            className="w-full py-4 px-6 rounded-2xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-2 text-base tracking-wide uppercase"
           >
             <span>BOOK YOUR RIDE</span>
             <span className="text-xl leading-none">→</span>

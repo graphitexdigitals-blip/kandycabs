@@ -164,7 +164,7 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#f0750f] hover:bg-[#ea580c] transition-colors shadow-lg shadow-orange-500/25 disabled:opacity-50 text-sm flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#f0750f] hover:bg-[#ea580c] transition-colors shadow-sm disabled:opacity-50 text-sm flex items-center justify-center gap-2"
             >
               {loading ? 'Sending OTP...' : 'Get OTP Code →'}
             </button>
@@ -188,7 +188,7 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#10b981] hover:bg-[#059669] transition-colors shadow-lg shadow-emerald-500/25 disabled:opacity-50 text-sm flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#10b981] hover:bg-[#059669] transition-colors shadow-sm disabled:opacity-50 text-sm flex items-center justify-center gap-2"
             >
               {loading ? 'Verifying...' : 'Verify & Continue ✓'}
             </button>
@@ -214,3 +214,4 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
     </div>
   );
 }
+

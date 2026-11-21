@@ -266,7 +266,7 @@ export function AdditionalRequirementsModal({
         <div className="pt-3 border-t border-slate-100">
           <button
             onClick={handleSave}
-            className="w-full py-3.5 px-4 rounded-xl font-bold text-white bg-[#f0750f] hover:bg-[#ea580c] transition-colors shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 text-sm"
+            className="w-full py-3.5 px-4 rounded-xl font-bold text-white bg-[#f0750f] hover:bg-[#ea580c] transition-colors shadow-sm flex items-center justify-center gap-2 text-sm"
           >
             Save & Apply Requirements ✓
           </button>
@@ -275,3 +275,4 @@ export function AdditionalRequirementsModal({
     </div>
   );
 }
+
