@@ -112,8 +112,21 @@ export function CustomerHeader({ onOpenAuth }: CustomerHeaderProps) {
           )}
         </div>
 
-        {/* Right: Notification Bell (Circular with Orange Indicator Dot) */}
-        <div className="flex items-center gap-3 z-10">
+        {/* Right: Sign In (if not logged in) & Notification Bell */}
+        <div className="flex items-center gap-2.5 sm:gap-3 z-10">
+          {!isAuthenticated && (
+            <button
+              type="button"
+              onClick={onOpenAuth}
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#f0750f] hover:bg-[#ea580c] transition-all shadow-sm flex items-center gap-1.5 active:scale-95"
+            >
+              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+              </svg>
+              <span>Sign In</span>
+            </button>
+          )}
+
           <Link
             href="/customer/dashboard"
             className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 flex items-center justify-center transition-colors"
