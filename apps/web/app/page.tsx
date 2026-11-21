@@ -360,7 +360,7 @@ export default function CustomerHomePage() {
           <div className="relative space-y-1.5 mb-2">
             {/* Pickup Location Box */}
             <div ref={pickupWrapperRef} className="relative">
-              <div className="flex items-center gap-2 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all">
+              <div className="flex items-center gap-2 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white transition-all">
                 <div className="text-emerald-500 flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                     <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
@@ -440,7 +440,7 @@ export default function CustomerHomePage() {
 
             {/* Drop Location Box */}
             <div ref={dropWrapperRef} className="relative">
-              <div className="flex items-center gap-2 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all">
+              <div className="flex items-center gap-2 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white transition-all">
                 <div className="text-red-500 flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                     <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
@@ -548,7 +548,7 @@ export default function CustomerHomePage() {
 
           {/* Schedule Row */}
           <div className="grid grid-cols-2 gap-2 mb-2.5">
-            <div className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+            <div className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
               <div className="flex items-center gap-1 text-black mb-0.5">
                 <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -570,7 +570,7 @@ export default function CustomerHomePage() {
 
             <div
               onClick={() => setTimeModalOpen(true)}
-              className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-[#f0750f]/50 cursor-pointer focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] transition-all select-none"
+              className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-white cursor-pointer focus-within:bg-white transition-all select-none"
             >
               <div className="flex items-center gap-1 text-black mb-0.5">
                 <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -593,7 +593,7 @@ export default function CustomerHomePage() {
             </div>
 
             {(tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') && (
-              <div className="col-span-2 p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+              <div className="col-span-2 p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
                 <div className="flex items-center gap-1 text-black mb-0.5">
                   <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -682,7 +682,7 @@ export default function CustomerHomePage() {
             <div className="relative space-y-1.5">
               {/* Pickup */}
               <div ref={mobilePickupWrapperRef} className="relative">
-                <div className="flex items-center gap-2 py-2 px-3 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                <div className="flex items-center gap-2 py-2 px-3 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
                   <div className="text-emerald-500 flex-shrink-0">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                       <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
@@ -761,7 +761,7 @@ export default function CustomerHomePage() {
 
               {/* Drop */}
               <div ref={mobileDropWrapperRef} className="relative">
-                <div className="flex items-center gap-2 py-2 px-3 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                <div className="flex items-center gap-2 py-2 px-3 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
                   <div className="text-red-500 flex-shrink-0">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                       <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />

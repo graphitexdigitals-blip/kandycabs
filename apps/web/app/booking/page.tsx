@@ -904,7 +904,7 @@ export default function BookingFunnelPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Full Name */}
-                <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                     FULL NAME *
                   </span>
@@ -923,7 +923,7 @@ export default function BookingFunnelPage() {
                 </div>
 
                 {/* Mobile Number */}
-                <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                     MOBILE NUMBER *
                   </span>
@@ -944,7 +944,7 @@ export default function BookingFunnelPage() {
                 </div>
 
                 {/* Email ID */}
-                <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                     EMAIL ID
                   </span>
@@ -964,7 +964,7 @@ export default function BookingFunnelPage() {
                 </div>
 
                 {/* Alternate Mobile Number */}
-                <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                     ALTERNATE MOBILE NUMBER
                   </span>
