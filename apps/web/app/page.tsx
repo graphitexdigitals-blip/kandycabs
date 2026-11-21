@@ -337,7 +337,7 @@ export default function CustomerHomePage() {
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0 pr-1 sm:pr-2">
-                  <span className="block text-[9px] sm:text-[10px] font-extrabold text-black uppercase tracking-wider">
+                  <span className="block text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     PICKUP LOCATION
                   </span>
                   <input
@@ -353,7 +353,7 @@ export default function CustomerHomePage() {
                       setShowPickupSuggestions(true);
                     }}
                     placeholder="Enter pickup location"
-                    className="w-full bg-transparent text-xs sm:text-sm font-semibold text-black focus:outline-none truncate placeholder:text-slate-600"
+                    className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
                   />
                 </div>
                 <button
@@ -419,7 +419,7 @@ export default function CustomerHomePage() {
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0 pr-1 sm:pr-2">
-                  <span className="block text-[9px] sm:text-[10px] font-extrabold text-black uppercase tracking-wider">
+                  <span className="block text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     DROP LOCATION
                   </span>
                   <input
@@ -435,7 +435,7 @@ export default function CustomerHomePage() {
                       setShowDropSuggestions(true);
                     }}
                     placeholder="Enter drop location"
-                    className="w-full bg-transparent text-xs sm:text-sm font-semibold text-black focus:outline-none truncate placeholder:text-slate-600"
+                    className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
                   />
                 </div>
                 <button
@@ -523,11 +523,11 @@ export default function CustomerHomePage() {
           <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-2.5">
             {/* Trip Start Date */}
             <div className="p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
-              <div className="flex items-center gap-1 text-black mb-0.5">
-                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex items-center gap-1 text-slate-400 mb-0.5">
+                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-black">
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
                   TRIP START DATE
                 </span>
               </div>
@@ -536,7 +536,11 @@ export default function CustomerHomePage() {
                 value={scheduledDate}
                 min={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setScheduledDate(e.target.value)}
-                className="w-full bg-transparent text-xs sm:text-sm font-bold text-black focus:outline-none cursor-pointer"
+                className={`w-full bg-transparent text-xs sm:text-sm font-semibold focus:outline-none cursor-pointer ${
+                  scheduledDate
+                    ? 'text-slate-900 font-semibold'
+                    : 'text-slate-400 [&::-webkit-datetime-edit]:text-slate-400 [&::-webkit-datetime-edit-fields-wrapper]:text-slate-400 [&::-webkit-datetime-edit-text]:text-slate-400 [&::-webkit-datetime-edit-month-field]:text-slate-400 [&::-webkit-datetime-edit-day-field]:text-slate-400 [&::-webkit-datetime-edit-year-field]:text-slate-400'
+                }`}
               />
             </div>
 
@@ -545,16 +549,16 @@ export default function CustomerHomePage() {
               onClick={() => setTimeModalOpen(true)}
               className="p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-[#f0750f]/50 cursor-pointer focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] transition-all select-none"
             >
-              <div className="flex items-center gap-1 text-black mb-0.5">
-                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex items-center gap-1 text-slate-400 mb-0.5">
+                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-black">
+                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
                   PICKUP TIME
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className={`text-xs sm:text-sm font-semibold truncate ${scheduledTime ? 'text-black font-bold' : 'text-slate-600'}`}>
+                <span className={`text-xs sm:text-sm font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
                   {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
                 </span>
                 <span className="text-[9px] sm:text-[10px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
@@ -566,11 +570,11 @@ export default function CustomerHomePage() {
             {/* If Round Trip: Return Date Row */}
             {tripType === TripType.ROUND && (
               <div className="col-span-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
-                <div className="flex items-center gap-1 text-black mb-0.5">
-                  <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="flex items-center gap-1 text-slate-400 mb-0.5">
+                  <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-black">
+                  <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
                     RETURN JOURNEY DATE
                   </span>
                 </div>
@@ -579,7 +583,11 @@ export default function CustomerHomePage() {
                   value={returnDate}
                   min={scheduledDate}
                   onChange={(e) => setReturnDate(e.target.value)}
-                  className="w-full bg-transparent text-xs sm:text-sm font-bold text-black focus:outline-none cursor-pointer"
+                  className={`w-full bg-transparent text-xs sm:text-sm font-semibold focus:outline-none cursor-pointer ${
+                    returnDate
+                      ? 'text-slate-900 font-semibold'
+                      : 'text-slate-400 [&::-webkit-datetime-edit]:text-slate-400 [&::-webkit-datetime-edit-fields-wrapper]:text-slate-400 [&::-webkit-datetime-edit-text]:text-slate-400 [&::-webkit-datetime-edit-month-field]:text-slate-400 [&::-webkit-datetime-edit-day-field]:text-slate-400 [&::-webkit-datetime-edit-year-field]:text-slate-400'
+                  }`}
                 />
               </div>
             )}
