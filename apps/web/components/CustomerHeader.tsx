@@ -112,13 +112,25 @@ export function CustomerHeader({ onOpenAuth }: CustomerHeaderProps) {
           )}
         </div>
 
-        {/* Right: Sign In (if not logged in) */}
-        <div className="flex items-center gap-2.5 sm:gap-3 z-10">
+        {/* Right: Download App Button & Sign In */}
+        <div className="flex items-center gap-2 sm:gap-3 z-10">
+          <a
+            href="/kandy-cabs-customer.apk"
+            download="kandy-cabs-customer.apk"
+            className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#f0750f] hover:bg-[#ea580c] transition-all shadow-sm flex items-center gap-1.5 active:scale-95 flex-shrink-0"
+            title="Download Kandy Cabs Customer App"
+          >
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span>Download App</span>
+          </a>
+
           {!isAuthenticated && (
             <button
               type="button"
               onClick={onOpenAuth}
-              className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#f0750f] hover:bg-[#ea580c] transition-all shadow-sm flex items-center gap-1.5 active:scale-95"
+              className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl font-semibold text-xs sm:text-sm text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 transition-all flex items-center gap-1.5 active:scale-95 flex-shrink-0"
             >
               <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
