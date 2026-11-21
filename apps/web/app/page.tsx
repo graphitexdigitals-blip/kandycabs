@@ -313,25 +313,27 @@ export default function CustomerHomePage() {
         {/* DESKTOP VIEW (Excluding Mobile): Unified 6-Tab Single Card */}
         {/* ======================================================== */}
         <section id="booking-card" className="hidden md:block relative bg-white rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 p-5 pb-8 mb-8 transition-all">
-          {/* Merged Single-Bar Segmented Tabs */}
-          <div className="inline-flex rounded-xl border border-slate-200 overflow-hidden mb-3 bg-white">
-            {DESKTOP_TABS.map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => handleTabClick(tab.id)}
-                  className={`py-1.5 lg:py-2 px-3 lg:px-4 text-center font-extrabold uppercase tracking-wide text-xs whitespace-nowrap transition-all border-r last:border-r-0 ${
-                    isActive
-                      ? 'bg-[#f0750f] text-white border-[#f0750f]'
-                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-                  }`}
-                >
-                  {tab.title}
-                </button>
-              );
-            })}
+          {/* Merged Single-Bar Segmented Tabs (Centered in Middle with Balanced Padding) */}
+          <div className="flex justify-center w-full mb-3.5">
+            <div className="inline-flex rounded-xl border border-slate-200 overflow-hidden bg-white shadow-xs">
+              {DESKTOP_TABS.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => handleTabClick(tab.id)}
+                    className={`py-2 lg:py-2.5 px-4 lg:px-5 text-center font-extrabold uppercase tracking-wide text-xs whitespace-nowrap transition-all border-r last:border-r-0 ${
+                      isActive
+                        ? 'bg-[#f0750f] text-white border-[#f0750f]'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    {tab.title}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Locations Container with Integrated Swap Button */}
