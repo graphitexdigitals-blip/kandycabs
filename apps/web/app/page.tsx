@@ -639,14 +639,16 @@ export default function CustomerHomePage() {
           </div>
 
           {/* BOOK YOUR RIDE Button */}
-          <button
-            type="button"
-            onClick={() => handleBookYourRide()}
-            className="w-full py-2.5 sm:py-3 px-4 rounded-xl sm:rounded-2xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-2 text-xs sm:text-base tracking-wide uppercase"
-          >
-            <span>BOOK YOUR RIDE</span>
-            <span className="text-base sm:text-xl leading-none">→</span>
-          </button>
+          <div className="flex justify-center pt-0.5">
+            <button
+              type="button"
+              onClick={() => handleBookYourRide()}
+              className="w-full sm:w-auto sm:px-8 py-2.5 sm:py-3 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-2 text-xs sm:text-base tracking-wide uppercase"
+            >
+              <span>BOOK YOUR RIDE</span>
+              <span className="text-base sm:text-xl leading-none">→</span>
+            </button>
+          </div>
         </section>
 
         {/* 4-Card Quick Category Grid (Matching Screenshot) */}
