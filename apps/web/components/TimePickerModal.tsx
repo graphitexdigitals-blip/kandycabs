@@ -171,11 +171,9 @@ export function TimePickerModal({
         {/* Header matching Customer App */}
         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-[#162232] text-white flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
+            <svg className="w-[22px] h-[22px] text-[#162232] flex-shrink-0" viewBox="0 0 512 512" fill="currentColor">
+              <path d="M256 48C141.13 48 48 141.13 48 256s93.13 208 208 208 208-93.13 208-208S370.87 48 256 48zm96 240h-96a16 16 0 01-16-16V128a16 16 0 0132 0v128h80a16 16 0 010 32z" />
+            </svg>
             <h3 className="text-sm sm:text-base font-bold text-slate-900">{title}</h3>
           </div>
           <button
