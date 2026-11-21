@@ -20,6 +20,7 @@ import {
 } from '@/components/AdditionalRequirementsModal';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import { WebAuthModal } from '@/components/WebAuthModal';
+import { TermsAndConditionsModal } from '@/components/TermsAndConditionsModal';
 
 export const dynamic = 'force-dynamic';
 
@@ -236,13 +237,18 @@ export default function BookingFunnelPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingResult, setBookingResult] = useState<any>(null);
 
-  // Modals
+  // Modals & Terms
   const [reqModalOpen, setReqModalOpen] = useState(false);
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [locationModalTarget, setLocationModalTarget] = useState<'PICKUP' | 'DROP'>('PICKUP');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [tempoNoticeModalOpen, setTempoNoticeModalOpen] = useState(false);
   const [selectedLargeFleet, setSelectedLargeFleet] = useState<FleetOption | null>(null);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [couponModalOpen, setCouponModalOpen] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
 
   // Sync user profile when user logs in
   useEffect(() => {
@@ -409,6 +415,10 @@ export default function BookingFunnelPage() {
 
   const handlePayNow = async () => {
     if (isSubmitting) return;
+    if (!agreedToTerms) {
+      setTermsModalOpen(true);
+      return;
+    }
     setIsSubmitting(true);
 
     try {
@@ -1146,15 +1156,52 @@ export default function BookingFunnelPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* STEP 4: REVIEW & CONFIRM BOOKING (Matching screenshot media_1795240460079_d94c25ef.jpg) */}
+        {/* STEP 4: REVIEW & CONFIRM BOOKING (Matching customer app screenshots 1 & 2) */}
         {/* ========================================================================= */}
         {step === 4 && (
           <div className="space-y-4 animate-in fade-in duration-200">
-            {/* Selected Vehicle Card */}
-            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm">
+            {/* Header with Stepper Progress (Matching Image 1) */}
+            <div className="space-y-3 pb-1">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep(3)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 transition font-bold"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                </button>
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-slate-900">Review &amp; Confirm Booking</h2>
+                  <p className="text-xs text-slate-500">Step 3 of 3 • Review &amp; Pay</p>
+                </div>
+              </div>
+
+              {/* Horizontal Stepper Progress Bar */}
+              <div className="flex items-center justify-between max-w-md mx-auto pt-1 px-2 text-xs font-bold select-none">
+                <div className="flex items-center gap-1.5 text-[#f0750f]">
+                  <span className="w-5 h-5 rounded-full bg-[#f0750f] text-white text-[10px] flex items-center justify-center font-bold">✓</span>
+                  <span>Trip Details</span>
+                </div>
+                <div className="flex-1 h-0.5 bg-[#f0750f] mx-2" />
+                <div className="flex items-center gap-1.5 text-[#f0750f]">
+                  <span className="w-5 h-5 rounded-full bg-[#f0750f] text-white text-[10px] flex items-center justify-center font-bold">✓</span>
+                  <span>Select Cab</span>
+                </div>
+                <div className="flex-1 h-0.5 bg-[#f0750f] mx-2" />
+                <div className="flex items-center gap-1.5 text-[#f0750f]">
+                  <span className="w-5 h-5 rounded-full bg-[#f0750f] text-white text-[10px] flex items-center justify-center font-bold">3</span>
+                  <span>Review &amp; Pay</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Selected Vehicle Card (Matching Image 1) */}
+            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm space-y-3.5">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-3">
-                  <div className="relative w-16 h-12 flex-shrink-0">
+                  <div className="relative w-20 h-14 flex-shrink-0">
                     <Image
                       src={selectedFleet.image}
                       alt={selectedFleet.name}
@@ -1163,8 +1210,8 @@ export default function BookingFunnelPage() {
                     />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">{selectedFleet.name}</h3>
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900">{selectedFleet.name}</h3>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 my-0.5 font-medium">
                       <span className="flex items-center gap-1">
                         <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
@@ -1196,15 +1243,15 @@ export default function BookingFunnelPage() {
                       className="text-xs font-semibold text-[#f0750f] hover:underline flex items-center gap-0.5 mt-0.5"
                     >
                       <span>Change Vehicle</span>
-                      <svg className="w-2.5 h-2.5 text-[#f0750f]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M6 9l6 6 6-6" />
+                      <svg className="w-3 h-3 text-[#f0750f]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 18l6-6-6-6" />
                       </svg>
                     </button>
                   </div>
                 </div>
 
                 <div className="text-right">
-                  <p className="text-base font-black text-slate-900">
+                  <p className="text-base sm:text-lg font-black text-slate-900">
                     ₹ {selectedPricing.totalFare.toLocaleString('en-IN')}
                   </p>
                   <p className="text-[10px] text-slate-400 font-medium">
@@ -1213,37 +1260,59 @@ export default function BookingFunnelPage() {
                 </div>
               </div>
 
-              {/* Route & Schedule */}
-              <div className="pt-3 space-y-2 text-xs">
-                <div className="flex items-center gap-2 text-slate-700">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="font-semibold truncate">{pickupAddress}</span>
-                  <span className="text-slate-400">→</span>
-                  <span className="w-2 h-2 rounded-full bg-red-500" />
-                  <span className="font-semibold truncate">{dropAddress}</span>
+              {/* Route & Schedule Rows (Matching Image 1) */}
+              <div className="space-y-2.5 text-xs">
+                {/* Pickup & Drop Points */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="w-3 h-3 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 ring-4 ring-emerald-100" />
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-900 truncate">{pickupAddress}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">Pickup Location</p>
+                    </div>
+                  </div>
+
+                  <span className="text-slate-300 hidden sm:inline">→</span>
+
+                  <div className="flex items-center gap-2 min-w-0 flex-1 sm:justify-end">
+                    <span className="w-3 h-3 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 ring-4 ring-red-100" />
+                    <div className="min-w-0 sm:text-right">
+                      <p className="font-bold text-slate-900 truncate">{dropAddress}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">Drop Location</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4 text-slate-500 font-medium">
-                  <span className="flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+
+                {/* Pickup Date & Time Grid */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 border border-slate-100">
+                    <svg className="w-4 h-4 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                       <line x1="16" y1="2" x2="16" y2="6" />
                       <line x1="8" y1="2" x2="8" y2="6" />
                       <line x1="3" y1="10" x2="21" y2="10" />
                     </svg>
-                    {formatFriendlyDate(scheduledDate)}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <div>
+                      <p className="font-bold text-slate-800">{formatFriendlyDate(scheduledDate)}</p>
+                      <p className="text-[10px] text-slate-400">Pickup Date</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 border border-slate-100">
+                    <svg className="w-4 h-4 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10" />
                       <polyline points="12 6 12 12 16 14" />
                     </svg>
-                    {formatFriendlyTime(scheduledTime)}
-                  </span>
+                    <div>
+                      <p className="font-bold text-slate-800">{formatFriendlyTime(scheduledTime)}</p>
+                      <p className="text-[10px] text-slate-400">Pickup Time</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Passenger Details Card (2x2 Grid with Edit Button) */}
+            {/* Passenger Details Card (2x2 Grid with Edit Button - Matching Image 1) */}
             <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-2">
@@ -1259,9 +1328,9 @@ export default function BookingFunnelPage() {
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="px-3 py-1 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-xs"
+                  className="px-3 py-1 rounded-xl border border-orange-200 text-xs font-bold text-[#f0750f] bg-orange-50 hover:bg-orange-100 flex items-center gap-1.5 shadow-2xs transition"
                 >
-                  <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="w-3.5 h-3.5 text-[#f0750f]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 20h9" />
                     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                   </svg>
@@ -1308,12 +1377,18 @@ export default function BookingFunnelPage() {
               </div>
             </div>
 
-            {/* 2-Column Pricing Card: Left Fare Breakdown vs Right Includes / Excludes */}
+            {/* 2-Column Pricing Card: Left Fare Breakdown vs Right Includes / Excludes (Matching Images 1 & 2) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Left Column: Fare Breakdown */}
               <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm space-y-3">
                 <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                  <span className="text-base text-[#f0750f]">📄</span>
+                  <svg className="w-4 h-4 text-[#f0750f] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                    <polyline points="10 9 9 9 8 9" />
+                  </svg>
                   <h3 className="text-sm font-bold text-slate-900">Fare Breakdown</h3>
                 </div>
 
@@ -1366,29 +1441,93 @@ export default function BookingFunnelPage() {
                         Rest ₹{selectedPricing.balanceToDriver.toLocaleString('en-IN')} to driver later
                       </p>
                     </div>
-                    <span className="text-sm font-black text-[#f0750f]">
+                    <span className="text-sm sm:text-base font-black text-[#f0750f]">
                       ₹ {selectedPricing.advancePayable.toLocaleString('en-IN')}
                     </span>
                   </div>
                 </div>
 
-                {/* Driver Payment Section */}
-                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-slate-700">Driver Payment Section</span>
-                    <span className="font-bold text-slate-900">
-                      ₹ {selectedPricing.balanceToDriver.toLocaleString('en-IN')}
-                    </span>
+                {/* Driver Payment Section (Matching Image 2) */}
+                <div className="p-3 rounded-2xl bg-amber-50/60 border border-amber-200">
+                  <div className="flex items-center justify-between text-xs font-bold text-amber-950">
+                    <div className="flex items-center gap-1.5">
+                      <svg className="w-4 h-4 text-amber-700 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="8" width="20" height="10" rx="2" />
+                        <path d="M6 8l2-4h8l2 4" />
+                        <circle cx="7" cy="14" r="1.5" />
+                        <circle cx="17" cy="14" r="1.5" />
+                      </svg>
+                      <span>Driver Payment Section</span>
+                    </div>
+                    <span>₹{selectedPricing.balanceToDriver.toLocaleString('en-IN')}</span>
                   </div>
+                  <p className="text-[11px] text-amber-900/80 mt-1">
+                    Payable to driver upon drop: ₹{selectedPricing.balanceToDriver.toLocaleString('en-IN')} cash / UPI.
+                  </p>
                 </div>
+
+                {/* Apply Coupon Button (Matching Image 2) */}
+                <button
+                  type="button"
+                  onClick={() => setCouponModalOpen((prev) => !prev)}
+                  className="w-full py-2.5 px-3 rounded-xl border border-blue-200 bg-blue-50/50 hover:bg-blue-100/70 text-xs font-bold text-blue-700 flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
+                >
+                  <svg className="w-3.5 h-3.5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  <span>{appliedCoupon ? `Promo Applied: ${appliedCoupon} (Edit)` : '+ Apply Coupon'}</span>
+                </button>
+
+                {couponModalOpen && (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 animate-in fade-in">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Try WELCOME100, KANDY15"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                        className="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-xl uppercase font-mono tracking-wider focus:outline-none focus:border-[#f0750f]"
+                      />
+                      {appliedCoupon ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAppliedCoupon(null);
+                            setCouponCode('');
+                          }}
+                          className="px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl border border-red-200"
+                        >
+                          ✕ Remove
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!couponCode.trim()) return;
+                            setAppliedCoupon(couponCode.trim());
+                          }}
+                          className="px-4 py-2 text-xs font-bold text-white bg-[#162232] hover:bg-slate-800 rounded-xl"
+                        >
+                          Apply
+                        </button>
+                      )}
+                    </div>
+                    {appliedCoupon && (
+                      <p className="text-[11px] font-semibold text-emerald-600">
+                        🎉 Promo &ldquo;{appliedCoupon}&rdquo; applied successfully!
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Right Column: Includes vs Excludes */}
+              {/* Right Column: Includes vs Excludes (Matching Images 1 & 2) */}
               <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm space-y-4">
                 {/* Includes */}
                 <div>
                   <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 mb-2">
-                    <span>✓</span>
+                    <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px]">✓</span>
                     <span>Includes</span>
                   </div>
                   <ul className="space-y-1.5 text-xs text-slate-600 font-medium">
@@ -1414,7 +1553,7 @@ export default function BookingFunnelPage() {
                 {/* Excludes */}
                 <div className="pt-3 border-t border-slate-100">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-red-600 mb-2">
-                    <span>✕</span>
+                    <span className="w-4 h-4 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-[10px] font-bold">✕</span>
                     <span>Excludes</span>
                   </div>
                   <ul className="space-y-1.5 text-xs text-slate-600 font-medium">
@@ -1430,51 +1569,121 @@ export default function BookingFunnelPage() {
                       <span className="text-red-500 font-bold">✕</span>
                       <span>Night Allowance</span>
                     </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-red-500 font-bold">✕</span>
+                      <span>Multi-City Entries</span>
+                    </li>
                   </ul>
                 </div>
               </div>
             </div>
 
-            {/* Sticky Bottom Payment Bar (Matching Screenshot) */}
-            <div className="bg-white rounded-3xl p-4 border border-slate-100 shadow-lg sticky bottom-2 z-30 space-y-3">
-              {/* Hint Note */}
-              <div className="flex items-center justify-between text-xs text-slate-600">
+            {/* Cancellation Policy Banner (Matching Image 2) */}
+            <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-amber-950">
+                <span className="w-4 h-4 rounded-full bg-amber-700 text-white flex items-center justify-center text-[10px] font-black">!</span>
+                <span>Cancellation Policy: Advance Non-Refundable</span>
+              </div>
+              <p className="text-amber-900/80 text-[11px] leading-relaxed pl-5.5">
+                Free cancellation up to 3 hours before pickup. If cancelled within 3 hours, advance payment is non-refundable.
+              </p>
+            </div>
+
+            {/* Terms & Conditions Agreement Checkbox & Trust Badge (Matching Image 2) */}
+            <div className="space-y-2 pt-1 px-1">
+              <label className="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="w-4 h-4 accent-[#f0750f] rounded cursor-pointer"
+                />
                 <span>
-                  Pay ₹{selectedPricing.advancePayable.toLocaleString('en-IN')} now to reserve, rest ₹
-                  {selectedPricing.balanceToDriver.toLocaleString('en-IN')} to the driver
+                  I agree to the{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setTermsModalOpen(true);
+                    }}
+                    className="text-[#f0750f] font-bold hover:underline"
+                  >
+                    Terms &amp; Conditions
+                  </button>{' '}
+                  and{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setTermsModalOpen(true);
+                    }}
+                    className="text-[#f0750f] font-bold hover:underline"
+                  >
+                    Cancellation Policy
+                  </button>.
                 </span>
-                <span className="text-[#f0750f] font-semibold">Fare breakup ⌃</span>
+              </label>
+
+              <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 pl-6.5">
+                <svg className="w-4 h-4 text-blue-600 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" />
+                </svg>
+                <span>Safe &amp; Secure 256-bit SSL encrypted checkout</span>
+              </div>
+            </div>
+
+            {/* Sticky Bottom Payment Bar (Matching Image 2) */}
+            <div className="sticky bottom-2 z-30 pt-2">
+              {/* Top Mint Strip */}
+              <div className="bg-[#ecfdf5] border border-[#a7f3d0] rounded-t-2xl px-4 py-2 flex items-center justify-between text-xs font-semibold text-emerald-900 shadow-sm">
+                <span className="truncate pr-2">
+                  {paymentMode === 'ADVANCE'
+                    ? `Pay ₹${selectedPricing.advancePayable.toLocaleString('en-IN')} now, to reserve, rest ₹${selectedPricing.balanceToDriver.toLocaleString('en-IN')} to the driver`
+                    : `Pay ₹${selectedPricing.totalFare.toLocaleString('en-IN')} now, zero balance to the driver`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.scrollTo({ top: 380, behavior: 'smooth' });
+                  }}
+                  className="text-emerald-700 font-bold hover:underline flex items-center gap-0.5 flex-shrink-0"
+                >
+                  <span>Fare breakup</span>
+                  <span>⌃</span>
+                </button>
               </div>
 
-              {/* Tabs: Pay Advance vs Pay Full */}
-              <div className="flex items-center gap-3">
+              {/* Bottom Buttons Row */}
+              <div className="bg-white rounded-b-2xl p-3 border-x border-b border-slate-200 shadow-xl flex items-center gap-2.5">
+                {/* Pay Advance Pill */}
                 <button
                   type="button"
                   onClick={() => setPaymentMode('ADVANCE')}
-                  className={`flex-1 p-2.5 rounded-2xl border text-center transition-all ${
+                  className={`flex-1 p-2 rounded-xl border text-center transition-all ${
                     paymentMode === 'ADVANCE'
-                      ? 'border-[#162232] bg-slate-50 text-slate-900 shadow-sm'
-                      : 'border-slate-200 text-slate-500'
+                      ? 'border-[#162232] bg-slate-50 text-slate-900 ring-1 ring-[#162232]'
+                      : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
                   }`}
                 >
                   <span className="block text-[11px] font-bold">Pay Advance</span>
-                  <span className="block text-sm font-black text-slate-900">
-                    ₹ {selectedPricing.advancePayable.toLocaleString('en-IN')}
+                  <span className="block text-xs sm:text-sm font-black text-slate-900">
+                    ₹{selectedPricing.advancePayable.toLocaleString('en-IN')}
                   </span>
                 </button>
 
+                {/* Pay Full Pill */}
                 <button
                   type="button"
                   onClick={() => setPaymentMode('FULL')}
-                  className={`flex-1 p-2.5 rounded-2xl border text-center transition-all ${
+                  className={`flex-1 p-2 rounded-xl border text-center transition-all ${
                     paymentMode === 'FULL'
-                      ? 'border-[#162232] bg-slate-50 text-slate-900 shadow-sm'
-                      : 'border-slate-200 text-slate-500'
+                      ? 'border-[#162232] bg-slate-50 text-slate-900 ring-1 ring-[#162232]'
+                      : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
                   }`}
                 >
                   <span className="block text-[11px] font-bold">Pay Full</span>
-                  <span className="block text-sm font-black text-slate-900">
-                    ₹ {selectedPricing.totalFare.toLocaleString('en-IN')}
+                  <span className="block text-xs sm:text-sm font-black text-slate-900">
+                    ₹{selectedPricing.totalFare.toLocaleString('en-IN')}
                   </span>
                 </button>
 
@@ -1483,12 +1692,14 @@ export default function BookingFunnelPage() {
                   type="button"
                   disabled={isSubmitting}
                   onClick={handlePayNow}
-                  className="flex-[1.4] py-3.5 px-4 rounded-2xl font-black text-white bg-[#162232] hover:bg-slate-800 active:scale-95 transition-all shadow-md flex items-center justify-center gap-1.5 uppercase tracking-wide text-xs sm:text-sm disabled:opacity-50"
+                  className="flex-[1.3] py-3 px-3 rounded-xl font-black text-white bg-[#64748b] hover:bg-[#475569] active:scale-95 transition-all shadow-md flex items-center justify-center gap-1.5 uppercase tracking-wide text-xs sm:text-sm disabled:opacity-50"
+                  style={{
+                    backgroundColor: agreedToTerms ? '#f0750f' : '#64748b',
+                  }}
                 >
                   <span>PAY NOW</span>
                   <span>
-                    ₹{' '}
-                    {paymentMode === 'ADVANCE'
+                    ₹{paymentMode === 'ADVANCE'
                       ? selectedPricing.advancePayable.toLocaleString('en-IN')
                       : selectedPricing.totalFare.toLocaleString('en-IN')}
                   </span>
@@ -1666,6 +1877,13 @@ export default function BookingFunnelPage() {
       <WebAuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
+      />
+
+      {/* Terms and Conditions Modal */}
+      <TermsAndConditionsModal
+        isOpen={termsModalOpen}
+        onClose={() => setTermsModalOpen(false)}
+        onAgree={() => setAgreedToTerms(true)}
       />
 
       {/* Tempo Traveller & Force Urbania Fleet Availability Notice Modal */}
