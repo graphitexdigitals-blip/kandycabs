@@ -44,9 +44,11 @@ export function BookingFlowHeader({
             <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
               {title}
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5 font-medium">
-              {subtitle || `Step ${currentStep} of 3 • ${subStepLabel || 'Outstation One-Way'}`}
-            </p>
+            {(subtitle || subStepLabel) && (
+              <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                {subtitle || (subStepLabel ? `Step ${currentStep} of 3 • ${subStepLabel}` : '')}
+              </p>
+            )}
           </div>
 
           <div className="w-9" />

@@ -491,9 +491,7 @@ export default function BookingFunnelPage() {
         }
         subStepLabel={
           step === 2
-            ? tripType === TripType.ROUND
-              ? 'Round Trip'
-              : 'Outstation One-Way'
+            ? undefined
             : step === 3
             ? 'Passenger Info'
             : step === 4
