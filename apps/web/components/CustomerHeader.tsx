@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/AuthContext';
 
 interface CustomerHeaderProps {
   onOpenAuth?: () => void;
-  activeNav?: 'home' | 'booking' | 'fleets' | 'bookings' | 'support';
+  activeNav?: 'home' | 'bookings' | 'support' | 'profile';
 }
 
 export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeaderProps) {
@@ -46,40 +46,47 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
           </div>
         </Link>
 
-        {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
+        {/* Desktop Navigation Links (Home, My Bookings, Support, Profile) */}
+        <nav className="hidden md:flex items-center gap-7 text-sm font-semibold">
           <Link
             href="/"
             className={`transition-colors hover:text-[#f0750f] ${
-              activeNav === 'home' ? 'text-[#f0750f] font-semibold' : 'text-slate-300'
+              activeNav === 'home' ? 'text-[#f0750f]' : 'text-slate-300'
             }`}
           >
             Home
           </Link>
           <Link
-            href="/booking"
-            className={`transition-colors hover:text-[#f0750f] ${
-              activeNav === 'booking' ? 'text-[#f0750f] font-semibold' : 'text-slate-300'
-            }`}
-          >
-            Book Cab
-          </Link>
-          <a
-            href="/#fleets"
-            className={`transition-colors hover:text-[#f0750f] ${
-              activeNav === 'fleets' ? 'text-[#f0750f] font-semibold' : 'text-slate-300'
-            }`}
-          >
-            Fleet & Rates
-          </a>
-          <Link
             href="/customer/dashboard"
             className={`transition-colors hover:text-[#f0750f] ${
-              activeNav === 'bookings' ? 'text-[#f0750f] font-semibold' : 'text-slate-300'
+              activeNav === 'bookings' ? 'text-[#f0750f]' : 'text-slate-300'
             }`}
           >
             My Bookings
           </Link>
+          <a
+            href="tel:+919481086058"
+            className={`transition-colors hover:text-[#f0750f] ${
+              activeNav === 'support' ? 'text-[#f0750f]' : 'text-slate-300'
+            }`}
+          >
+            Support
+          </a>
+          <button
+            type="button"
+            onClick={() => {
+              if (isAuthenticated) {
+                setShowUserMenu(!showUserMenu);
+              } else if (onOpenAuth) {
+                onOpenAuth();
+              }
+            }}
+            className={`transition-colors hover:text-[#f0750f] ${
+              activeNav === 'profile' ? 'text-[#f0750f]' : 'text-slate-300'
+            }`}
+          >
+            Profile
+          </button>
         </nav>
 
         {/* User Greeting & Notification Bell (Matching App Header) */}
