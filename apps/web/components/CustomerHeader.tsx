@@ -32,7 +32,7 @@ export function CustomerHeader({ onOpenAuth }: CustomerHeaderProps) {
 
   return (
     <header className="bg-[#162232] text-white sticky top-0 z-40 shadow-md">
-      <div className="max-w-6xl mx-auto px-2.5 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between relative">
+      <div className="max-w-6xl xl:max-w-7xl mx-auto px-2.5 sm:px-4 md:px-6 py-2 sm:py-2.5 flex items-center justify-between relative">
         {/* Left: Brand Logo */}
         <Link href="/" className="flex items-center gap-2 group z-10 flex-shrink-0">
           <div className="relative h-7 sm:h-9 w-20 sm:w-28">

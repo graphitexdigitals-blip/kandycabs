@@ -334,9 +334,9 @@ export default function CustomerHomePage() {
       <CustomerHeader onOpenAuth={() => setAuthModalOpen(true)} activeNav="home" />
 
       {/* Main Content Container */}
-      <main className="max-w-4xl mx-auto px-2 sm:px-4 pt-1.5 sm:pt-3 space-y-2.5 sm:space-y-3.5">
+      <main className="max-w-6xl xl:max-w-7xl mx-auto px-2 sm:px-4 md:px-6 pt-1.5 sm:pt-3 space-y-2.5 sm:space-y-4">
         {/* Floating White Booking Search Card (Matching Mobile App Exact Layout) */}
-        <section id="booking-card" className="bg-white rounded-2xl sm:rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 p-2.5 sm:p-4 transition-all">
+        <section id="booking-card" className="bg-white rounded-2xl sm:rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 p-2.5 sm:p-5 transition-all">
           {/* Mobile View: Top 2 Tabs (ONE WAY vs ROUND TRIP) */}
           <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-2 md:hidden">
             {/* ONE WAY Tab */}
@@ -408,7 +408,7 @@ export default function CustomerHomePage() {
           </div>
 
           {/* Desktop/Tablet View (Excluding Mobile): All 6 Categories in Top Bar */}
-          <div className="hidden md:grid md:grid-cols-6 gap-1.5 lg:gap-2 mb-2.5">
+          <div className="hidden md:grid md:grid-cols-6 gap-2 lg:gap-3 mb-3">
             {DESKTOP_TABS.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -416,7 +416,7 @@ export default function CustomerHomePage() {
                   key={tab.id}
                   type="button"
                   onClick={() => handleTabClick(tab.id)}
-                  className={`flex items-center gap-2 p-2 lg:p-2.5 rounded-xl lg:rounded-2xl text-left transition-all ${
+                  className={`flex items-center gap-2 lg:gap-2.5 p-2 lg:p-2.5 xl:p-3 rounded-xl lg:rounded-2xl text-left transition-all ${
                     isActive
                       ? 'bg-[#f0750f] text-white shadow-md'
                       : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
@@ -429,12 +429,12 @@ export default function CustomerHomePage() {
                   >
                     {tab.icon}
                   </div>
-                  <div className="min-w-0 flex-1 truncate">
-                    <p className="text-xs font-extrabold tracking-wide uppercase truncate">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] lg:text-xs xl:text-sm font-extrabold tracking-wide uppercase whitespace-nowrap">
                       {tab.title}
                     </p>
                     <p
-                      className={`text-[10px] font-medium truncate ${
+                      className={`text-[9px] lg:text-[10px] xl:text-xs font-medium whitespace-nowrap ${
                         isActive ? 'text-white/85' : 'text-slate-400'
                       }`}
                     >
