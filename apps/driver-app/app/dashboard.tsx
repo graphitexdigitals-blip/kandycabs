@@ -3684,7 +3684,7 @@ export default function DriverDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   bgProtectionBanner: {
     flexDirection: 'row',
@@ -3853,6 +3853,7 @@ const styles = StyleSheet.create({
   },
   homeTabWrapper: {
     paddingBottom: 24,
+    backgroundColor: '#ffffff',
   },
   heroCardOuter: {
     marginHorizontal: 16,
@@ -3861,11 +3862,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 5,
   },
   heroCardOuterSmall: {
     marginHorizontal: 10,
@@ -4069,11 +4070,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     position: 'relative',
-    shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.10,
+    shadowRadius: 14,
+    elevation: 4,
     minHeight: 64,
   },
   heroTripCardPeach: {
@@ -4211,11 +4212,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     minHeight: 64,
-    shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.10,
+    shadowRadius: 14,
+    elevation: 4,
   },
   heroCardGridIconBox: {
     width: 28,
@@ -4634,7 +4635,7 @@ const styles = StyleSheet.create({
   },
   mainScrollView: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
     zIndex: 10,
   },
   mainScrollViewHome: {
@@ -5892,10 +5893,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     shadowColor: '#0f172a',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
   },
   floatingDispatchCardWhite: {
     backgroundColor: '#ffffff',
