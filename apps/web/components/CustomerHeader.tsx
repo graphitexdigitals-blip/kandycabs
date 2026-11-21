@@ -37,7 +37,7 @@ export function CustomerHeader({ onOpenAuth }: CustomerHeaderProps) {
         <Link href="/" className="flex items-center gap-2 group z-10">
           <div className="relative h-10 w-28 sm:w-32">
             <Image
-              src="/images/logo.png"
+              src="/images/logo-white.png"
               alt="Kandy Cabs Logo"
               fill
               className="object-contain"
