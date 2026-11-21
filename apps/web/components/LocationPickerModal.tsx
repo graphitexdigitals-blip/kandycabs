@@ -21,7 +21,6 @@ export function LocationPickerModal({
   onSelectLocation,
 }: LocationPickerModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<'ALL' | 'MANGALURU' | 'AIRPORTS' | 'OUTSTATION'>('ALL');
   const [osmResults, setOsmResults] = useState<PlaceLocation[]>([]);
   const [isSearchingOsm, setIsSearchingOsm] = useState(false);
   const [fetchingGps, setFetchingGps] = useState(false);
@@ -33,7 +32,6 @@ export function LocationPickerModal({
     if (isOpen) {
       setSearchQuery('');
       setOsmResults([]);
-      setActiveCategory('ALL');
       setGpsError('');
       setTimeout(() => inputRef.current?.focus(), 100);
     }
@@ -155,11 +153,6 @@ export function LocationPickerModal({
 
   // Filter verified locations
   const filteredPresetLocations = ALL_LOCATIONS.filter((loc) => {
-    // 1. Category Filter
-    if (activeCategory !== 'ALL' && loc.category !== activeCategory) {
-      return false;
-    }
-    // 2. Search Query Filter
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
     return (
@@ -187,7 +180,7 @@ export function LocationPickerModal({
       </div>
 
       {/* Search Bar & GPS Button */}
-      <div className="px-3.5 py-2 border-b border-slate-100 bg-slate-50/80 space-y-1.5 shrink-0">
+      <div className="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/80 space-y-2 shrink-0">
         <div className="relative flex items-center">
           <svg className="w-4 h-4 text-slate-400 absolute left-2.5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -242,63 +235,6 @@ export function LocationPickerModal({
             )}
           </div>
         )}
-
-        {/* Category Filter Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-xs no-scrollbar">
-          {[
-            {
-              id: 'ALL',
-              label: 'All Locations',
-              icon: (
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              ),
-            },
-            {
-              id: 'MANGALURU',
-              label: 'Mangaluru & Udupi',
-              icon: (
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              ),
-            },
-            {
-              id: 'AIRPORTS',
-              label: 'Airports & Stations',
-              icon: (
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-              ),
-            },
-            {
-              id: 'OUTSTATION',
-              label: 'Outstation Cities',
-              icon: (
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              ),
-            },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveCategory(tab.id as any)}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md whitespace-nowrap text-[11px] sm:text-xs font-bold transition shadow-2xs ${
-                activeCategory === tab.id
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Locations List — scrollable */}
