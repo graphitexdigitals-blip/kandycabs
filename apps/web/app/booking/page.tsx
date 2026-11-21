@@ -184,27 +184,19 @@ export default function BookingFunnelPage() {
 
   // Route & Schedule State
   const [tripType, setTripType] = useState<TripType>(TripType.ONEWAY);
-  const [pickupAddress, setPickupAddress] = useState('Mangaluru Airport (IXE)');
-  const [pickupLat, setPickupLat] = useState(12.9613);
-  const [pickupLng, setPickupLng] = useState(74.8901);
+  const [pickupAddress, setPickupAddress] = useState('');
+  const [pickupLat, setPickupLat] = useState(0);
+  const [pickupLng, setPickupLng] = useState(0);
 
-  const [dropAddress, setDropAddress] = useState('Kannur Intl Airport (CNN)');
-  const [dropLat, setDropLat] = useState(11.9189);
-  const [dropLng, setDropLng] = useState(75.5489);
+  const [dropAddress, setDropAddress] = useState('');
+  const [dropLat, setDropLat] = useState(0);
+  const [dropLng, setDropLng] = useState(0);
 
-  const [scheduledDate, setScheduledDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
-  });
-  const [scheduledTime, setScheduledTime] = useState('09:00');
-  const [returnDate, setReturnDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 2);
-    return d.toISOString().split('T')[0];
-  });
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [returnDate, setReturnDate] = useState('');
 
-  const [distanceKm, setDistanceKm] = useState(177);
+  const [distanceKm, setDistanceKm] = useState(0);
 
   // Selected Cab State
   const [selectedFleet, setSelectedFleet] = useState<FleetOption>(FLEET_LIST[0]);

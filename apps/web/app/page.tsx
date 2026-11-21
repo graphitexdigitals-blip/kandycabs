@@ -65,26 +65,18 @@ export default function CustomerHomePage() {
 
   // Search Widget State
   const [tripType, setTripType] = useState<TripType>(TripType.ONEWAY);
-  const [pickupAddress, setPickupAddress] = useState('Mangaluru Airport (IXE)');
-  const [pickupLat, setPickupLat] = useState(12.9613);
-  const [pickupLng, setPickupLng] = useState(74.8901);
+  const [pickupAddress, setPickupAddress] = useState('');
+  const [pickupLat, setPickupLat] = useState<number | null>(null);
+  const [pickupLng, setPickupLng] = useState<number | null>(null);
 
-  const [dropAddress, setDropAddress] = useState('Kannur Intl Airport (CNN)');
-  const [dropLat, setDropLat] = useState(11.9189);
-  const [dropLng, setDropLng] = useState(75.5489);
+  const [dropAddress, setDropAddress] = useState('');
+  const [dropLat, setDropLat] = useState<number | null>(null);
+  const [dropLng, setDropLng] = useState<number | null>(null);
 
-  // Scheduled date & time
-  const [scheduledDate, setScheduledDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
-  });
-  const [scheduledTime, setScheduledTime] = useState('09:00');
-  const [returnDate, setReturnDate] = useState(() => {
-    const dayAfter = new Date();
-    dayAfter.setDate(dayAfter.getDate() + 2);
-    return dayAfter.toISOString().split('T')[0];
-  });
+  // Scheduled date & time (default empty)
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [returnDate, setReturnDate] = useState('');
 
   // Waypoints
   const [stops, setStops] = useState<{ id: string; address: string; lat: number; lng: number }[]>([]);
@@ -176,13 +168,13 @@ export default function CustomerHomePage() {
       step: '2',
       tripType,
       pickup: pickupAddress,
-      pickupLat: pickupLat.toString(),
-      pickupLng: pickupLng.toString(),
+      pickupLat: (pickupLat ?? 0).toString(),
+      pickupLng: (pickupLng ?? 0).toString(),
       drop: dropAddress,
-      dropLat: dropLat.toString(),
-      dropLng: dropLng.toString(),
-      date: scheduledDate,
-      time: scheduledTime,
+      dropLat: (dropLat ?? 0).toString(),
+      dropLng: (dropLng ?? 0).toString(),
+      date: scheduledDate || new Date().toISOString().split('T')[0],
+      time: scheduledTime || '09:00',
       category: selectedCat || VehicleCategory.SEDAN,
     });
 
