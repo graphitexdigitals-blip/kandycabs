@@ -313,7 +313,7 @@ export default function CustomerHomePage() {
         {/* ======================================================== */}
         <section id="booking-card" className="hidden md:block relative bg-white rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 p-5 pb-8 mb-8 transition-all">
           {/* Merged Single-Bar Segmented Tabs */}
-          <div className="flex w-full rounded-xl border border-slate-200 overflow-hidden shadow-sm mb-3 bg-white">
+          <div className="inline-flex rounded-xl border border-slate-200 overflow-hidden mb-3 bg-white">
             {DESKTOP_TABS.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -321,7 +321,7 @@ export default function CustomerHomePage() {
                   key={tab.id}
                   type="button"
                   onClick={() => handleTabClick(tab.id)}
-                  className={`flex-1 py-3 px-2 text-center font-extrabold uppercase tracking-wide text-xs lg:text-sm whitespace-nowrap transition-all border-r last:border-r-0 ${
+                  className={`py-1.5 lg:py-2 px-3 lg:px-4 text-center font-extrabold uppercase tracking-wide text-xs whitespace-nowrap transition-all border-r last:border-r-0 ${
                     isActive
                       ? 'bg-[#f0750f] text-white border-[#f0750f]'
                       : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
