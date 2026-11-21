@@ -8,10 +8,10 @@ import { useAuth } from '@/lib/AuthContext';
 
 interface CustomerHeaderProps {
   onOpenAuth?: () => void;
-  activeNav?: string;
+  activeNav?: 'home' | 'booking' | 'fleets' | 'bookings' | 'support';
 }
 
-export function CustomerHeader({ onOpenAuth }: CustomerHeaderProps) {
+export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeaderProps) {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
   const [greeting, setGreeting] = useState('Good Morning');
@@ -46,7 +46,8 @@ export function CustomerHeader({ onOpenAuth }: CustomerHeaderProps) {
           </div>
         </Link>
 
-        {/* User Greeting & Notification Bell (Matching Customer Mobile App Exactly) */}
+
+        {/* User Greeting & Notification Bell (Matching App Header) */}
         <div className="flex items-center gap-3">
           {/* Greeting Box */}
           <div
