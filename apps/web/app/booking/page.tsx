@@ -218,12 +218,17 @@ export default function BookingFunnelPage() {
   const [additionalReqs, setAdditionalReqs] = useState<AdditionalRequirementsData>({
     travellers: 0,
     luggageType: 'NORMAL',
+    luggageCounts: { small: 1, medium: 1, large: 0, xlarge: 0 },
     seniorCitizens: false,
     returnJourneyLater: false,
     needAirportDrop: false,
     needAirportPickup: false,
     petFriendly: false,
+    petType: 'dog',
     babyOnBoard: false,
+    pregnancyFriendly: false,
+    accessibilityAssistance: false,
+    specialNotes: '',
   });
 
   // Payment Selection State in Review (Advance vs Full)
@@ -1091,13 +1096,24 @@ export default function BookingFunnelPage() {
                     <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
                   </svg>
                   <span className="block text-xs font-bold text-slate-800">
-                    {additionalReqs.luggageType === 'NONE'
-                      ? 'No Luggage'
-                      : additionalReqs.luggageType === 'NORMAL'
-                      ? 'Normal Luggage'
-                      : additionalReqs.luggageType === 'MEDIUM'
-                      ? 'Medium Bags'
-                      : 'Heavy Luggage'}
+                    {(() => {
+                      if (additionalReqs.luggageCounts) {
+                        const total =
+                          additionalReqs.luggageCounts.small +
+                          additionalReqs.luggageCounts.medium +
+                          additionalReqs.luggageCounts.large +
+                          additionalReqs.luggageCounts.xlarge;
+                        if (total === 0) return 'No Luggage';
+                        return `${total} Luggage Bag${total > 1 ? 's' : ''}`;
+                      }
+                      return additionalReqs.luggageType === 'NONE'
+                        ? 'No Luggage'
+                        : additionalReqs.luggageType === 'NORMAL'
+                        ? 'Normal Luggage'
+                        : additionalReqs.luggageType === 'MEDIUM'
+                        ? 'Medium Bags'
+                        : 'Heavy Luggage';
+                    })()}
                   </span>
                 </button>
               </div>
