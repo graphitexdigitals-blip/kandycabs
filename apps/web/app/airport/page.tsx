@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { TripType, VehicleCategory } from '@kandy-cabs/shared';
@@ -52,6 +52,27 @@ export default function AirportBookingPage() {
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [locationModalTarget, setLocationModalTarget] = useState<'PICKUP' | string>('PICKUP');
   const [timeModalOpen, setTimeModalOpen] = useState(false);
+  const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
+  const pickupWrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (pickupWrapperRef.current && !pickupWrapperRef.current.contains(event.target as Node)) {
+        setShowPickupSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredPickupLocations = ALL_LOCATIONS.filter((l) => {
+    const q = (pickupAddress || '').toLowerCase().trim();
+    if (!q) return true;
+    return (
+      l.label.toLowerCase().includes(q) ||
+      (l.sublabel && l.sublabel.toLowerCase().includes(q))
+    );
+  }).slice(0, 8);
 
   const handleSelectLocation = (place: PlaceLocation) => {
     if (locationModalTarget === 'PICKUP') {
@@ -140,7 +161,7 @@ export default function AirportBookingPage() {
           </div>
 
           {/* Pickup Location */}
-          <div>
+          <div ref={pickupWrapperRef} className="relative">
             <span className="block text-[8.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
               PICKUP LOCATION
             </span>
@@ -153,7 +174,15 @@ export default function AirportBookingPage() {
               <input
                 type="text"
                 value={pickupAddress}
-                onChange={(e) => setPickupAddress(e.target.value)}
+                onChange={(e) => {
+                  setPickupAddress(e.target.value);
+                  setShowPickupSuggestions(true);
+                }}
+                onFocus={() => {
+                  if (filteredPickupLocations.length > 0) {
+                    setShowPickupSuggestions(true);
+                  }
+                }}
                 placeholder="Enter pickup location"
                 className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400 truncate leading-tight"
               />
@@ -171,6 +200,32 @@ export default function AirportBookingPage() {
                 </svg>
               </button>
             </div>
+
+            {showPickupSuggestions && filteredPickupLocations.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl border border-slate-100 z-50 overflow-hidden divide-y divide-slate-50 max-h-56 overflow-y-auto">
+                {filteredPickupLocations.map((loc) => (
+                  <button
+                    key={loc.label}
+                    type="button"
+                    onClick={() => {
+                      setPickupAddress(loc.label);
+                      setPickupLat(loc.lat);
+                      setPickupLng(loc.lng);
+                      setShowPickupSuggestions(false);
+                    }}
+                    className="w-full text-left px-3 py-2.5 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                  >
+                    <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                    </svg>
+                    <div className="truncate">
+                      <p className="text-xs font-semibold text-slate-900 truncate">{loc.label}</p>
+                      {loc.sublabel && <p className="text-[10px] text-slate-400 truncate">{loc.sublabel}</p>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Destination Airport */}

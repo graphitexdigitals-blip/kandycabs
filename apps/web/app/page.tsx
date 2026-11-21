@@ -147,13 +147,23 @@ export default function CustomerHomePage() {
 
   const pickupWrapperRef = useRef<HTMLDivElement>(null);
   const dropWrapperRef = useRef<HTMLDivElement>(null);
+  const mobilePickupWrapperRef = useRef<HTMLDivElement>(null);
+  const mobileDropWrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (pickupWrapperRef.current && !pickupWrapperRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const insidePickup =
+        (pickupWrapperRef.current && pickupWrapperRef.current.contains(target)) ||
+        (mobilePickupWrapperRef.current && mobilePickupWrapperRef.current.contains(target));
+      if (!insidePickup) {
         setShowPickupSuggestions(false);
       }
-      if (dropWrapperRef.current && !dropWrapperRef.current.contains(event.target as Node)) {
+
+      const insideDrop =
+        (dropWrapperRef.current && dropWrapperRef.current.contains(target)) ||
+        (mobileDropWrapperRef.current && mobileDropWrapperRef.current.contains(target));
+      if (!insideDrop) {
         setShowDropSuggestions(false);
       }
     }
@@ -293,13 +303,23 @@ export default function CustomerHomePage() {
     }
   };
 
-  const filteredPickupLocations = ALL_LOCATIONS.filter((l) =>
-    l.label.toLowerCase().includes((pickupQuery || '').toLowerCase())
-  ).slice(0, 6);
+  const filteredPickupLocations = ALL_LOCATIONS.filter((l) => {
+    const q = (pickupQuery || pickupAddress || '').toLowerCase().trim();
+    if (!q) return true;
+    return (
+      l.label.toLowerCase().includes(q) ||
+      (l.sublabel && l.sublabel.toLowerCase().includes(q))
+    );
+  }).slice(0, 8);
 
-  const filteredDropLocations = ALL_LOCATIONS.filter((l) =>
-    l.label.toLowerCase().includes((dropQuery || '').toLowerCase())
-  ).slice(0, 6);
+  const filteredDropLocations = ALL_LOCATIONS.filter((l) => {
+    const q = (dropQuery || dropAddress || '').toLowerCase().trim();
+    if (!q) return true;
+    return (
+      l.label.toLowerCase().includes(q) ||
+      (l.sublabel && l.sublabel.toLowerCase().includes(q))
+    );
+  }).slice(0, 8);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 pb-12 sm:pb-16">
@@ -661,40 +681,68 @@ export default function CustomerHomePage() {
             {/* Pickup & Drop with Swap */}
             <div className="relative space-y-1.5">
               {/* Pickup */}
-              <div className="flex items-center gap-2 py-2 px-3 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
-                <div className="text-emerald-500 flex-shrink-0">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0 pr-1">
-                  <span className="block text-[9px] font-extrabold text-black uppercase tracking-wider leading-none mb-0.5">
-                    PICKUP LOCATION
-                  </span>
-                  <input
-                    type="text"
-                    value={pickupAddress}
-                    onChange={(e) => {
-                      setPickupAddress(e.target.value);
-                      setPickupQuery(e.target.value);
-                      setShowPickupSuggestions(true);
+              <div ref={mobilePickupWrapperRef} className="relative">
+                <div className="flex items-center gap-2 py-2 px-3 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                  <div className="text-emerald-500 flex-shrink-0">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0 pr-1">
+                    <span className="block text-[9px] font-extrabold text-black uppercase tracking-wider leading-none mb-0.5">
+                      PICKUP LOCATION
+                    </span>
+                    <input
+                      type="text"
+                      value={pickupAddress}
+                      onChange={(e) => {
+                        setPickupAddress(e.target.value);
+                        setPickupQuery(e.target.value);
+                        setShowPickupSuggestions(true);
+                      }}
+                      onFocus={() => {
+                        if (filteredPickupLocations.length > 0) {
+                          setShowPickupSuggestions(true);
+                        }
+                      }}
+                      placeholder="Enter pickup location"
+                      className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400 leading-tight"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocationModalTarget('PICKUP');
+                      setLocationModalOpen(true);
                     }}
-                    placeholder="Enter pickup location"
-                    className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400 leading-tight"
-                  />
+                    className="p-1 text-[#f0750f] hover:bg-orange-50 rounded-lg flex-shrink-0"
+                  >
+                    <svg className="w-4 h-4 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M21.43 2.57a1 1 0 00-1-.24l-18 6a1 1 0 00-.06 1.87l7.55 3.32 3.32 7.55a1 1 0 001.87-.06l6-18a1 1 0 00-.68-1.44z" />
+                    </svg>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLocationModalTarget('PICKUP');
-                    setLocationModalOpen(true);
-                  }}
-                  className="p-1 text-[#f0750f] hover:bg-orange-50 rounded-lg flex-shrink-0"
-                >
-                  <svg className="w-4 h-4 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M21.43 2.57a1 1 0 00-1-.24l-18 6a1 1 0 00-.06 1.87l7.55 3.32 3.32 7.55a1 1 0 001.87-.06l6-18a1 1 0 00-.68-1.44z" />
-                  </svg>
-                </button>
+
+                {showPickupSuggestions && filteredPickupLocations.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl border border-slate-100 z-50 overflow-hidden divide-y divide-slate-50 max-h-56 overflow-y-auto">
+                    {filteredPickupLocations.map((loc) => (
+                      <button
+                        key={loc.label}
+                        type="button"
+                        onClick={() => handleSelectPickup(loc)}
+                        className="w-full text-left px-3 py-2.5 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                      >
+                        <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                        </svg>
+                        <div className="truncate">
+                          <p className="text-xs font-semibold text-slate-900 truncate">{loc.label}</p>
+                          {loc.sublabel && <p className="text-[10px] text-slate-400 truncate">{loc.sublabel}</p>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Floating Swap Button */}
@@ -712,40 +760,68 @@ export default function CustomerHomePage() {
               </div>
 
               {/* Drop */}
-              <div className="flex items-center gap-2 py-2 px-3 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
-                <div className="text-red-500 flex-shrink-0">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0 pr-1">
-                  <span className="block text-[9px] font-extrabold text-black uppercase tracking-wider leading-none mb-0.5">
-                    DROP LOCATION
-                  </span>
-                  <input
-                    type="text"
-                    value={dropAddress}
-                    onChange={(e) => {
-                      setDropAddress(e.target.value);
-                      setDropQuery(e.target.value);
-                      setShowDropSuggestions(true);
+              <div ref={mobileDropWrapperRef} className="relative">
+                <div className="flex items-center gap-2 py-2 px-3 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                  <div className="text-red-500 flex-shrink-0">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0 pr-1">
+                    <span className="block text-[9px] font-extrabold text-black uppercase tracking-wider leading-none mb-0.5">
+                      DROP LOCATION
+                    </span>
+                    <input
+                      type="text"
+                      value={dropAddress}
+                      onChange={(e) => {
+                        setDropAddress(e.target.value);
+                        setDropQuery(e.target.value);
+                        setShowDropSuggestions(true);
+                      }}
+                      onFocus={() => {
+                        if (filteredDropLocations.length > 0) {
+                          setShowDropSuggestions(true);
+                        }
+                      }}
+                      placeholder="Enter drop location"
+                      className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400 leading-tight"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocationModalTarget('DROP');
+                      setLocationModalOpen(true);
                     }}
-                    placeholder="Enter drop location"
-                    className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400 leading-tight"
-                  />
+                    className="p-1 text-[#f0750f] hover:bg-orange-50 rounded-lg flex-shrink-0"
+                  >
+                    <svg className="w-4 h-4 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M21.43 2.57a1 1 0 00-1-.24l-18 6a1 1 0 00-.06 1.87l7.55 3.32 3.32 7.55a1 1 0 001.87-.06l6-18a1 1 0 00-.68-1.44z" />
+                    </svg>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLocationModalTarget('DROP');
-                    setLocationModalOpen(true);
-                  }}
-                  className="p-1 text-[#f0750f] hover:bg-orange-50 rounded-lg flex-shrink-0"
-                >
-                  <svg className="w-4 h-4 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M21.43 2.57a1 1 0 00-1-.24l-18 6a1 1 0 00-.06 1.87l7.55 3.32 3.32 7.55a1 1 0 001.87-.06l6-18a1 1 0 00-.68-1.44z" />
-                  </svg>
-                </button>
+
+                {showDropSuggestions && filteredDropLocations.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl border border-slate-100 z-50 overflow-hidden divide-y divide-slate-50 max-h-56 overflow-y-auto">
+                    {filteredDropLocations.map((loc) => (
+                      <button
+                        key={loc.label}
+                        type="button"
+                        onClick={() => handleSelectDrop(loc)}
+                        className="w-full text-left px-3 py-2.5 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                      >
+                        <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                        </svg>
+                        <div className="truncate">
+                          <p className="text-xs font-semibold text-slate-900 truncate">{loc.label}</p>
+                          {loc.sublabel && <p className="text-[10px] text-slate-400 truncate">{loc.sublabel}</p>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
