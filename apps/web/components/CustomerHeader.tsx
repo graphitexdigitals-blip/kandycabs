@@ -105,7 +105,7 @@ export function CustomerHeader({ onOpenAuth }: CustomerHeaderProps) {
           <a
             href="/kandy-cabs-customer.apk"
             download="kandy-cabs-customer.apk"
-            className="px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl font-bold text-[11px] sm:text-xs text-white hover:text-[#162232] bg-white/15 hover:bg-white border border-white transition-all flex items-center gap-1 active:scale-95 flex-shrink-0"
+            className="px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl font-bold text-[11px] sm:text-xs text-white hover:text-[#162232] bg-white/10 hover:bg-white border border-white/25 hover:border-white transition-all flex items-center gap-1 active:scale-95 flex-shrink-0"
             title="Download Kandy Cabs Customer App"
           >
             <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
