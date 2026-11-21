@@ -362,9 +362,13 @@ export default function CustomerHomePage() {
                     setLocationModalTarget('PICKUP');
                     setLocationModalOpen(true);
                   }}
-                  className="text-[11px] sm:text-xs text-[#f0750f] font-semibold hover:underline flex-shrink-0 px-1 py-0.5"
+                  className="p-1 text-[#f0750f] hover:bg-orange-50 rounded-lg transition-colors flex-shrink-0"
+                  title="Select on Map"
+                  aria-label="Select on Map"
                 >
-                  Map
+                  <svg className="w-4 h-4 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M21.43 2.57a1 1 0 00-1-.24l-18 6a1 1 0 00-.06 1.87l7.55 3.32 3.32 7.55a1 1 0 001.87-.06l6-18a1 1 0 00-.68-1.44z" />
+                  </svg>
                 </button>
               </div>
 
@@ -440,9 +444,13 @@ export default function CustomerHomePage() {
                     setLocationModalTarget('DROP');
                     setLocationModalOpen(true);
                   }}
-                  className="text-[11px] sm:text-xs text-[#f0750f] font-semibold hover:underline flex-shrink-0 px-1 py-0.5"
+                  className="p-1 text-[#f0750f] hover:bg-orange-50 rounded-lg transition-colors flex-shrink-0"
+                  title="Select on Map"
+                  aria-label="Select on Map"
                 >
-                  Map
+                  <svg className="w-4 h-4 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M21.43 2.57a1 1 0 00-1-.24l-18 6a1 1 0 00-.06 1.87l7.55 3.32 3.32 7.55a1 1 0 001.87-.06l6-18a1 1 0 00-.68-1.44z" />
+                  </svg>
                 </button>
               </div>
 
