@@ -149,12 +149,17 @@ export function AdditionalRequirementsModal({
             {/* 1. Senior Citizens */}
             <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
               <div className="flex items-center gap-3">
-                <span className="text-2xl flex items-center justify-center flex-shrink-0">
-                  👴
-                </span>
+                <div className="w-9 h-9 rounded-xl bg-orange-50 text-[#f0750f] flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="5" r="3" />
+                    <path d="M12 8v6l3 2" />
+                    <path d="M7 21l3-7" />
+                    <path d="M17 14l-2 7" />
+                  </svg>
+                </div>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Senior Citizens (Above Age 60)?</p>
-                  <p className="text-xs text-slate-500">Enable this for easy access seating & driver assistance.</p>
+                  <p className="text-xs text-slate-500">Enable this for easy access seating &amp; driver assistance.</p>
                 </div>
               </div>
               <input
@@ -168,9 +173,12 @@ export function AdditionalRequirementsModal({
             {/* 2. Need a Return Journey */}
             <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
               <div className="flex items-center gap-3">
-                <span className="text-2xl flex items-center justify-center flex-shrink-0">
-                  🔄
-                </span>
+                <div className="w-9 h-9 rounded-xl bg-orange-50 text-[#f0750f] flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="23 4 23 10 17 10" />
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                  </svg>
+                </div>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Need a Return Journey Later?</p>
                   <p className="text-xs text-slate-500">Enable this if you may need a return trip on a later date.</p>
@@ -187,9 +195,12 @@ export function AdditionalRequirementsModal({
             {/* 3. Need an Airport Drop */}
             <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
               <div className="flex items-center gap-3">
-                <span className="text-2xl flex items-center justify-center flex-shrink-0">
-                  🛫
-                </span>
+                <div className="w-9 h-9 rounded-xl bg-orange-50 text-[#f0750f] flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2.5 19h19" />
+                    <path d="M5 15l4.5-3 8 2.5 3.5-3.5a1.5 1.5 0 0 0-2.1-2.1L15.4 11 9 9l-2-4-2 1 1.5 4L3 12.5l2 2.5z" />
+                  </svg>
+                </div>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Need an Airport Drop?</p>
                   <p className="text-xs text-slate-500">Enable this if you need to be dropped at the airport.</p>
@@ -206,9 +217,12 @@ export function AdditionalRequirementsModal({
             {/* 4. Need an Airport Pickup */}
             <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
               <div className="flex items-center gap-3">
-                <span className="text-2xl flex items-center justify-center flex-shrink-0">
-                  🛬
-                </span>
+                <div className="w-9 h-9 rounded-xl bg-orange-50 text-[#f0750f] flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2.5 19h19" />
+                    <path d="M5 11l4.5 3 8-2.5 3.5 3.5a1.5 1.5 0 0 1-2.1 2.1L15.4 15 9 17l-2 4-2-1 1.5-4L3 13.5l2-2.5z" />
+                  </svg>
+                </div>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Need an Airport Pickup?</p>
                   <p className="text-xs text-slate-500">Enable this if you need to be picked up from the airport.</p>
@@ -225,9 +239,15 @@ export function AdditionalRequirementsModal({
             {/* 5. Pet Friendly */}
             <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
               <div className="flex items-center gap-3">
-                <span className="text-2xl flex items-center justify-center flex-shrink-0">
-                  🐾
-                </span>
+                <div className="w-9 h-9 rounded-xl bg-orange-50 text-[#f0750f] flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <circle cx="4.5" cy="9.5" r="2.5" />
+                    <circle cx="9" cy="5.5" r="2.5" />
+                    <circle cx="15" cy="5.5" r="2.5" />
+                    <circle cx="19.5" cy="9.5" r="2.5" />
+                    <path d="M12 11c-3.3 0-6 2.2-6 5 0 2.2 1.8 3 3.5 3 1.2 0 2-.8 2.5-1.2.5.4 1.3 1.2 2.5 1.2 1.7 0 3.5-.8 3.5-3 0-2.8-2.7-5-6-5z" />
+                  </svg>
+                </div>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Pet Friendly</p>
                   <p className="text-xs text-slate-500">Enable this if you are traveling with pets.</p>
@@ -244,9 +264,13 @@ export function AdditionalRequirementsModal({
             {/* 6. Baby on Board */}
             <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
               <div className="flex items-center gap-3">
-                <span className="text-2xl flex items-center justify-center flex-shrink-0">
-                  👶
-                </span>
+                <div className="w-9 h-9 rounded-xl bg-orange-50 text-[#f0750f] flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="9" cy="20" r="1" />
+                    <circle cx="19" cy="20" r="1" />
+                    <path d="M2.5 4h3l3.5 9h9.5l2-6H6" />
+                  </svg>
+                </div>
                 <div>
                   <p className="text-sm font-bold text-slate-900">Baby on Board</p>
                   <p className="text-xs text-slate-500">Enable this if traveling with an infant or child.</p>
@@ -268,7 +292,10 @@ export function AdditionalRequirementsModal({
             onClick={handleSave}
             className="w-full py-3.5 px-4 rounded-xl font-bold text-white bg-[#f0750f] hover:bg-[#ea580c] transition-colors shadow-sm flex items-center justify-center gap-2 text-sm"
           >
-            Save & Apply Requirements ✓
+            <span>Save &amp; Apply Requirements</span>
+            <svg className="w-4 h-4 text-white flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
           </button>
         </div>
       </div>
