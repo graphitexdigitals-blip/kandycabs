@@ -77,9 +77,7 @@ export default function LocalRentalPage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 pb-16">
-      <CustomerHeader activeNav="home" />
-
-      <main className="max-w-2xl mx-auto px-2.5 sm:px-6 pt-2 space-y-2.5">
+      <main className="max-w-2xl mx-auto px-2.5 sm:px-6 pt-3 sm:pt-4 space-y-2.5">
         {/* Navigation Breadcrumb / Back Link */}
         <div className="flex items-center">
           <Link
