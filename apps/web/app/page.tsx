@@ -12,6 +12,7 @@ import { CustomerBottomDock } from '@/components/CustomerBottomDock';
 import { WebAuthModal } from '@/components/WebAuthModal';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import { DriverAppModal } from '@/components/DriverAppModal';
+import { PromoBannerSlider } from '@/components/PromoBannerSlider';
 
 const POPULAR_LOCATIONS = ALL_LOCATIONS.map((l) => ({ name: l.label, lat: l.lat, lng: l.lng }));
 
@@ -346,7 +347,7 @@ export default function CustomerHomePage() {
       {/* Main Content Container */}
       <main className="max-w-4xl mx-auto px-4 pt-4 sm:pt-6 space-y-4 sm:space-y-6">
         {/* Floating White Booking Search Card (Matching Mobile App Exact Layout) */}
-        <section className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 p-4 sm:p-6 transition-all">
+        <section id="booking-card" className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 p-4 sm:p-6 transition-all">
           {/* Trip Type Tabs (ONE WAY vs ROUND TRIP) */}
           <div className="grid grid-cols-2 gap-2 mb-4">
             {/* ONE WAY Tab */}
@@ -690,16 +691,8 @@ export default function CustomerHomePage() {
           ))}
         </section>
 
-        {/* Promotional Banner: COMING SOON EV CAB SERVICE (Matching Screenshot) */}
-        <section className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-md border border-slate-100 aspect-[2.4/1] w-full">
-          <Image
-            src="/images/banner-ev-cab.jpg"
-            alt="Coming Soon EV Cab Service - Smart Rides Happy Rides"
-            fill
-            className="object-cover"
-            priority
-          />
-        </section>
+        {/* Interactive Promotional Banner Carousel Slider */}
+        <PromoBannerSlider onSelectCategory={handleCategorySelect} />
 
         {/* 24/7 Help & Support Card (Matching Screenshot) */}
         <section className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm flex items-center justify-between">
