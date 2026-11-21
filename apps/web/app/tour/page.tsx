@@ -134,7 +134,7 @@ export default function TourPilgrimagePage() {
 
       <main className="max-w-2xl mx-auto px-3 sm:px-6 pt-3 space-y-4">
         {/* Navigation Breadcrumb / Back Link */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center">
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-[#f0750f] bg-white border border-slate-200 px-3 py-1.5 rounded-full shadow-xs active:scale-95 transition-all"
@@ -144,9 +144,6 @@ export default function TourPilgrimagePage() {
             </svg>
             <span>Back to Home</span>
           </Link>
-          <span className="text-xs font-extrabold text-[#f0750f] uppercase tracking-wider">
-            Tour & Pilgrimage
-          </span>
         </div>
 
         {/* Card 1: Details (Matches User Reference Image 4) */}
@@ -381,26 +378,7 @@ export default function TourPilgrimagePage() {
           </div>
         </div>
 
-        {/* 24/7 Help & Support Card */}
-        <div className="bg-white rounded-xl p-3 border border-slate-100 shadow-sm flex items-center justify-between mt-6">
-          <div className="flex items-center gap-2.5">
-            <div className="text-emerald-600 flex-shrink-0">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-              </svg>
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-slate-900 leading-tight">Custom Tour Package?</h4>
-              <p className="text-[10px] text-slate-500">Call for customized itineraries & multi-day deals</p>
-            </div>
-          </div>
-          <a
-            href="tel:+919481086058"
-            className="bg-[#162232] hover:bg-slate-800 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all shadow-sm"
-          >
-            Call Support
-          </a>
-        </div>
+
       </main>
 
       {/* Location Picker Modal */}
