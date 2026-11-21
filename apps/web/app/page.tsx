@@ -126,19 +126,27 @@ export default function CustomerHomePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleSelectPickup = (place: PlaceLocation) => {
+    setPickupAddress(place.label);
+    setPickupLat(place.lat);
+    setPickupLng(place.lng);
+    setPickupQuery('');
+    setShowPickupSuggestions(false);
+  };
+
+  const handleSelectDrop = (place: PlaceLocation) => {
+    setDropAddress(place.label);
+    setDropLat(place.lat);
+    setDropLng(place.lng);
+    setDropQuery('');
+    setShowDropSuggestions(false);
+  };
+
   const handleSelectLocation = (place: PlaceLocation) => {
     if (locationModalTarget === 'PICKUP') {
-      setPickupAddress(place.label);
-      setPickupLat(place.lat);
-      setPickupLng(place.lng);
-      setPickupQuery('');
-      setShowPickupSuggestions(false);
+      handleSelectPickup(place);
     } else if (locationModalTarget === 'DROP') {
-      setDropAddress(place.label);
-      setDropLat(place.lat);
-      setDropLng(place.lng);
-      setDropQuery('');
-      setShowDropSuggestions(false);
+      handleSelectDrop(place);
     } else {
       setStops((prev) =>
         prev.map((s) => (s.id === locationModalTarget ? { ...s, address: place.label, lat: place.lat, lng: place.lng } : s))
@@ -340,7 +348,10 @@ export default function CustomerHomePage() {
                       setPickupQuery(e.target.value);
                       setShowPickupSuggestions(true);
                     }}
-                    onFocus={() => setShowPickupSuggestions(true)}
+                    onFocus={() => {
+                      setLocationModalTarget('PICKUP');
+                      setShowPickupSuggestions(true);
+                    }}
                     placeholder="Enter pickup location"
                     className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
                   />
@@ -364,7 +375,7 @@ export default function CustomerHomePage() {
                     <button
                       key={loc.label}
                       type="button"
-                      onClick={() => handleSelectLocation(loc)}
+                      onClick={() => handleSelectPickup(loc)}
                       className="w-full text-left px-4 py-2.5 hover:bg-slate-50 flex items-center gap-2.5 transition-colors"
                     >
                       <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -415,7 +426,10 @@ export default function CustomerHomePage() {
                       setDropQuery(e.target.value);
                       setShowDropSuggestions(true);
                     }}
-                    onFocus={() => setShowDropSuggestions(true)}
+                    onFocus={() => {
+                      setLocationModalTarget('DROP');
+                      setShowDropSuggestions(true);
+                    }}
                     placeholder="Enter drop location"
                     className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
                   />
@@ -439,7 +453,7 @@ export default function CustomerHomePage() {
                     <button
                       key={loc.label}
                       type="button"
-                      onClick={() => handleSelectLocation(loc)}
+                      onClick={() => handleSelectDrop(loc)}
                       className="w-full text-left px-4 py-2.5 hover:bg-slate-50 flex items-center gap-2.5 transition-colors"
                     >
                       <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
