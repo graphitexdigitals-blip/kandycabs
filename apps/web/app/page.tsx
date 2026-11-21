@@ -78,70 +78,12 @@ const SERVICE_CATEGORIES = [
 type TabCategory = 'ONEWAY' | 'ROUND' | 'LOCAL' | 'AIRPORT' | 'CORPORATE' | 'TOUR';
 
 const DESKTOP_TABS = [
-  {
-    id: 'ONEWAY' as const,
-    title: 'ONE WAY',
-    subtitle: 'Drop-off only',
-    icon: (
-      <svg className="w-4 h-4 lg:w-4.5 lg:h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 12h14M12 5l7 7-7 7" />
-      </svg>
-    ),
-  },
-  {
-    id: 'ROUND' as const,
-    title: 'ROUND TRIP',
-    subtitle: 'Return same cab',
-    icon: (
-      <svg className="w-4 h-4 lg:w-4.5 lg:h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 12a8 8 0 0 1 14.93-4M20 4v5h-5" />
-        <path d="M20 12a8 8 0 0 1-14.93 4M4 20v-5h5" />
-      </svg>
-    ),
-  },
-  {
-    id: 'LOCAL' as const,
-    title: 'LOCAL RENTAL',
-    subtitle: 'Hourly packages',
-    icon: (
-      <svg className="w-4 h-4 lg:w-4.5 lg:h-4.5" viewBox="0 0 512 512" fill="currentColor">
-        <path d="M256 48C141.13 48 48 141.13 48 256s93.13 208 208 208s208-93.13 208-208S370.87 48 256 48m96 240h-96a16 16 0 0 1-16-16V128a16 16 0 0 1 32 0v128h80a16 16 0 0 1 0 32" />
-      </svg>
-    ),
-  },
-  {
-    id: 'AIRPORT' as const,
-    title: 'AIRPORT',
-    subtitle: 'Pickup & drop',
-    icon: (
-      <svg className="w-4 h-4 lg:w-4.5 lg:h-4.5" viewBox="0 0 512 512" fill="currentColor">
-        <g transform="rotate(-45 256 256)">
-          <path d="M186.62 464H160a16 16 0 0 1-14.57-22.6l64.46-142.25L113.1 297l-35.3 42.77C71.07 348.23 65.7 352 52 352H34.08a17.66 17.66 0 0 1-14.7-7.06c-2.38-3.21-4.72-8.65-2.44-16.41l19.82-71c.15-.53.33-1.06.53-1.58a.4.4 0 0 0 0-.15 15 15 0 0 1-.53-1.59l-19.84-71.45c-2.15-7.61.2-12.93 2.56-16.06a16.83 16.83 0 0 1 13.6-6.7H52c10.23 0 20.16 4.59 26 12l34.57 42.05l97.32-1.44l-64.44-142A16 16 0 0 1 160 48h26.91a25 25 0 0 1 19.35 9.8l125.05 152l57.77-1.52c4.23-.23 15.95-.31 18.66-.31C463 208 496 225.94 496 256c0 9.46-3.78 27-29.07 38.16c-14.93 6.6-34.85 9.94-59.21 9.94-2.68 0-14.37-.08-18.66-.31l-57.76-1.54l-125.36 152a25 25 0 0 1-19.32 9.75" />
-        </g>
-      </svg>
-    ),
-  },
-  {
-    id: 'CORPORATE' as const,
-    title: 'CORPORATE',
-    subtitle: 'Business travel',
-    icon: (
-      <svg className="w-4 h-4 lg:w-4.5 lg:h-4.5" viewBox="0 0 512 512" fill="currentColor">
-        <path d="M432 112h-48V96a48.05 48.05 0 0 0-48-48H176a48.05 48.05 0 0 0-48 48v16H80a48.05 48.05 0 0 0-48 48v64h448v-64a48.05 48.05 0 0 0-48-48zM160 96a16 16 0 0 1 16-16h160a16 16 0 0 1 16 16v16H160zM32 256v144a48.05 48.05 0 0 0 48 48h352a48.05 48.05 0 0 0 48-48V256H336a16 16 0 0 1-16 16H192a16 16 0 0 1-16-16z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'TOUR' as const,
-    title: 'TOUR',
-    subtitle: 'Sightseeing trips',
-    icon: (
-      <svg className="w-4 h-4 lg:w-4.5 lg:h-4.5" viewBox="0 0 512 512" fill="currentColor">
-        <path d="M432 176H320V64a48 48 0 0 0-48-48H80a48 48 0 0 0-48 48v416a16 16 0 0 0 16 16h104a8 8 0 0 0 8-8v-71.55c0-8.61 6.62-16 15.23-16.43A16 16 0 0 1 192 416v72a8 8 0 0 0 8 8h264a16 16 0 0 0 16-16V224a48 48 0 0 0-48-48M98.08 431.87a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m80 240a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m80 320a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79M444 464H320V208h112a16 16 0 0 1 16 16v236a4 4 0 0 1-4 4" />
-        <path d="M400 400a16 16 0 1 0 16 16a16 16 0 0 0-16-16m0-80a16 16 0 1 0 16 16a16 16 0 0 0-16-16m0-80a16 16 0 1 0 16 16a16 16 0 0 0-16-16m-64 160a16 16 0 1 0 16 16a16 16 0 0 0-16-16m0-80a16 16 0 1 0 16 16a16 16 0 0 0-16-16m0-80a16 16 0 1 0 16 16a16 16 0 0 0-16-16" />
-      </svg>
-    ),
-  },
+  { id: 'ONEWAY' as const, title: 'ONE WAY' },
+  { id: 'ROUND' as const, title: 'ROUND TRIP' },
+  { id: 'LOCAL' as const, title: 'LOCAL RENTAL' },
+  { id: 'AIRPORT' as const, title: 'AIRPORT' },
+  { id: 'CORPORATE' as const, title: 'CORPORATE' },
+  { id: 'TOUR' as const, title: 'TOUR' },
 ];
 
 export default function CustomerHomePage() {
@@ -407,7 +349,7 @@ export default function CustomerHomePage() {
             </button>
           </div>
 
-          {/* Desktop/Tablet View (Excluding Mobile): All 6 Categories in Top Bar */}
+          {/* Desktop/Tablet View (Excluding Mobile): All 6 Categories in Top Bar (Text Only, No Icons or Subtitles) */}
           <div className="hidden md:grid md:grid-cols-6 gap-2 lg:gap-3 mb-3">
             {DESKTOP_TABS.map((tab) => {
               const isActive = activeTab === tab.id;
@@ -416,31 +358,13 @@ export default function CustomerHomePage() {
                   key={tab.id}
                   type="button"
                   onClick={() => handleTabClick(tab.id)}
-                  className={`flex items-center gap-2 lg:gap-2.5 p-2 lg:p-2.5 xl:p-3 rounded-xl lg:rounded-2xl text-left transition-all ${
+                  className={`py-2.5 sm:py-3 px-3 rounded-xl lg:rounded-2xl text-center font-extrabold uppercase tracking-wider text-xs lg:text-sm whitespace-nowrap transition-all ${
                     isActive
                       ? 'bg-[#f0750f] text-white shadow-md'
                       : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
                   }`}
                 >
-                  <div
-                    className={`flex items-center justify-center transition-colors flex-shrink-0 ${
-                      isActive ? 'text-white' : 'text-[#f0750f]'
-                    }`}
-                  >
-                    {tab.icon}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] lg:text-xs xl:text-sm font-extrabold tracking-wide uppercase whitespace-nowrap">
-                      {tab.title}
-                    </p>
-                    <p
-                      className={`text-[9px] lg:text-[10px] xl:text-xs font-medium whitespace-nowrap ${
-                        isActive ? 'text-white/85' : 'text-slate-400'
-                      }`}
-                    >
-                      {tab.subtitle}
-                    </p>
-                  </div>
+                  {tab.title}
                 </button>
               );
             })}
