@@ -508,80 +508,77 @@ export default function BookingFunnelPage() {
         onStep2Press={() => setStep(2)}
       />
 
-      <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
+      <div className="max-w-3xl mx-auto px-2.5 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4">
         {/* ========================================================================= */}
-        {/* STEP 2: SELECT YOUR CAB (Matching screenshot media_1795240412931_a227f139.jpg) */}
+        {/* STEP 2: SELECT YOUR CAB (Matching Customer App Mobile Layout) */}
         {/* ========================================================================= */}
         {step === 2 && (
-          <div className="space-y-4 animate-in fade-in duration-200">
-            {/* Route Summary Card with Edit Button */}
-            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm relative">
-              <div className="flex items-start justify-between">
-                <div className="space-y-3 flex-1 min-w-0 pr-4">
+          <div className="space-y-3 sm:space-y-3.5 animate-in fade-in duration-200">
+            {/* Route Summary Card with Edit Button (Matching Customer App) */}
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-slate-100 shadow-sm relative space-y-2.5">
+              <div className="flex items-start justify-between gap-2">
+                {/* Left: Pickup & Drop Location Line with Dotted Connector */}
+                <div className="space-y-1.5 flex-1 min-w-0 pr-1">
                   {/* Pickup Line */}
-                  <div className="flex items-center gap-2.5">
-                    <div className="text-emerald-600 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <span className="text-sm font-bold text-slate-900 truncate">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0 ring-2 ring-emerald-100" />
+                    <span className="text-xs sm:text-sm font-bold text-slate-900 truncate">
                       {pickupAddress}
                     </span>
                   </div>
 
+                  {/* Vertical Dotted Connector */}
+                  <div className="w-2.5 flex justify-center py-0.5">
+                    <div className="w-0.5 h-2 border-l border-dashed border-slate-300" />
+                  </div>
+
                   {/* Drop Line */}
-                  <div className="flex items-center gap-2.5">
-                    <div className="text-red-600 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <span className="text-sm font-bold text-slate-900 truncate">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0 ring-2 ring-red-100" />
+                    <span className="text-xs sm:text-sm font-bold text-slate-900 truncate">
                       {dropAddress}
                     </span>
                   </div>
-
-                  {/* Distance & Trip Type Info */}
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 pt-1 border-t border-slate-100">
-                    <span>
-                      {tripType === TripType.ROUND ? 'Round Trip' : 'One Way Drop'} • {distanceKm} km
-                    </span>
-                  </div>
                 </div>
 
-                {/* Right Side: Schedule & Edit Button */}
-                <div className="flex flex-col items-end justify-between self-stretch text-right">
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-slate-700 flex items-center justify-end gap-1.5">
-                      <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                        <line x1="16" y1="2" x2="16" y2="6" />
-                        <line x1="8" y1="2" x2="8" y2="6" />
-                        <line x1="3" y1="10" x2="21" y2="10" />
-                      </svg>
-                      <span>{formatFriendlyDate(scheduledDate)}</span>
-                    </p>
-                    <p className="text-xs font-semibold text-slate-700 flex items-center justify-end gap-1.5">
-                      <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" />
-                        <polyline points="12 6 12 12 16 14" />
-                      </svg>
-                      <span>{formatFriendlyTime(scheduledTime)}</span>
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => router.push('/')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
-                  >
-                    <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 20h9" />
-                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                {/* Right: Date & Time Badges */}
+                <div className="flex flex-col items-end text-right text-xs font-semibold text-slate-700 space-y-1 pl-2 flex-shrink-0">
+                  <p className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-700">
+                    <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
                     </svg>
-                    <span>Edit</span>
-                  </button>
+                    <span className="whitespace-nowrap">{formatFriendlyDate(scheduledDate)}</span>
+                  </p>
+                  <p className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-700">
+                    <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <span className="whitespace-nowrap">{formatFriendlyTime(scheduledTime)}</span>
+                  </p>
                 </div>
+              </div>
+
+              {/* Bottom Row: Trip Type & Distance on Left, Edit Button on Right */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                <span className="font-semibold text-slate-500 text-[11px] sm:text-xs">
+                  {tripType === TripType.ROUND ? 'Round Trip' : 'One Way Drop'} • {distanceKm} km
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => router.push('/')}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 transition-colors shadow-2xs"
+                >
+                  <svg className="w-3 h-3 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                  <span>Edit</span>
+                </button>
               </div>
             </div>
 
@@ -602,7 +599,7 @@ export default function BookingFunnelPage() {
             </div>
 
             {/* List of Fleet Cards */}
-            <div className="space-y-3.5">
+            <div className="space-y-3">
               {displayedFleets.map((fleet) => {
                 const fare = calculateFare(fleet);
                 const isExpanded = expandedDetailsId === fleet.id;
@@ -611,11 +608,11 @@ export default function BookingFunnelPage() {
                 return (
                   <div
                     key={fleet.id}
-                    className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden"
+                    className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-slate-200/80 shadow-2xs hover:shadow-md transition-shadow relative overflow-hidden"
                   >
                     {/* Top Badges (e.g. Recommended, Diesel with Boot) */}
                     {(fleet.recommended || fleet.specialBadge) && (
-                      <div className="flex items-center gap-1.5 mb-2">
+                      <div className="flex items-center gap-1.5 mb-1.5">
                         {fleet.recommended && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-50 text-[#f0750f] border border-orange-200">
                             Recommended
@@ -629,10 +626,10 @@ export default function BookingFunnelPage() {
                       </div>
                     )}
 
-                    {/* Main Row: Car Image (Left) + Details & Price (Right) */}
-                    <div className="flex items-center justify-between gap-3">
-                      {/* Left: Car Image */}
-                      <div className="relative w-28 sm:w-36 h-20 sm:h-24 flex-shrink-0">
+                    {/* Main Row: Car Image (Left) + Details (Center) + Fare/Action (Right) */}
+                    <div className="flex items-center justify-between gap-2 sm:gap-3">
+                      {/* Left: Car Image - Compact 80px on mobile */}
+                      <div className="relative w-20 sm:w-28 h-14 sm:h-20 flex-shrink-0">
                         <Image
                           src={fleet.image}
                           alt={fleet.name}
@@ -642,23 +639,23 @@ export default function BookingFunnelPage() {
                         />
                       </div>
 
-                      {/* Center: Title & Specs */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">
+                      {/* Center: Title & Specs Column */}
+                      <div className="flex-1 min-w-0 pr-1">
+                        <h3 className="text-xs sm:text-sm font-bold text-slate-900 truncate leading-snug">
                           {fleet.name}
                         </h3>
 
                         {/* Specs Row with Vector Icons */}
-                        <div className="flex items-center gap-2 text-xs text-slate-600 my-1 font-medium">
+                        <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-600 my-0.5 font-medium whitespace-nowrap">
                           <span className="flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-3 h-3 text-slate-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                             </svg>
                             {fleet.capacity}
                           </span>
                           <span className="text-slate-300">|</span>
                           <span className="flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg className="w-3 h-3 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <rect x="3" y="6" width="18" height="15" rx="2" />
                               <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
                             </svg>
@@ -666,7 +663,7 @@ export default function BookingFunnelPage() {
                           </span>
                           <span className="text-slate-300">|</span>
                           <span className="flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg className="w-3 h-3 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <line x1="12" y1="2" x2="12" y2="22" />
                               <line x1="2" y1="12" x2="22" y2="12" />
                               <path d="M17 7l-5 5-5-5" />
@@ -676,47 +673,47 @@ export default function BookingFunnelPage() {
                           </span>
                         </div>
 
-                        <p className="text-[11px] text-slate-400 font-medium">
+                        <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium whitespace-nowrap">
                           {fare.billedKm} km included
                         </p>
-
-                        {/* Fuel Badge with Solid Orange Dot */}
-                        <div className="flex items-center gap-1.5 mt-1 text-[11px] font-semibold text-slate-700">
-                          <span className="w-2 h-2 rounded-full bg-[#f0750f] inline-block flex-shrink-0" />
-                          <span>{fleet.fuelBadge}</span>
-                        </div>
                       </div>
 
-                      {/* Right: Fare Amount & Select Button */}
-                      <div className="flex flex-col items-end justify-center flex-shrink-0">
-                        <div className="text-right mb-1.5">
-                          <span className="text-base sm:text-lg font-black text-slate-900">
-                            ₹ {fare.totalFare.toLocaleString('en-IN')}
-                          </span>
-                        </div>
+                      {/* Right: Fare Amount & Select Button (Compact matching Customer App) */}
+                      <div className="w-20 sm:w-24 flex-shrink-0 flex flex-col items-end justify-center text-right">
+                        <span className="text-sm sm:text-base font-black text-slate-900 block leading-tight mb-1 whitespace-nowrap">
+                          ₹ {fare.totalFare.toLocaleString('en-IN')}
+                        </span>
 
                         <button
                           type="button"
                           onClick={() => handleSelectCab(fleet)}
-                          className="py-2 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-95 transition-all shadow-sm flex items-center gap-1"
+                          className="h-7 w-full py-1 px-2.5 rounded-lg font-bold text-xs text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-95 transition-all shadow-xs flex items-center justify-center gap-1"
                         >
                           <span>Select</span>
-                          <span>&gt;</span>
+                          <span className="text-sm font-bold">&gt;</span>
                         </button>
                       </div>
                     </div>
 
+                    {/* Fuel Badge Row - Located below Main Row on its own line */}
+                    <div className="flex items-center gap-1.5 mt-1.5 px-0.5 text-[11px] font-semibold text-slate-700">
+                      <span className="w-2 h-2 rounded-full bg-[#f0750f] inline-block flex-shrink-0" />
+                      <span>{fleet.fuelBadge}</span>
+                    </div>
+
                     {/* Action Buttons: + Add Requirements & Roof Carrier */}
-                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+                    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
                       <button
                         type="button"
                         onClick={() => {
                           setSelectedFleet(fleet);
                           setReqModalOpen(true);
                         }}
-                        className={`${fleet.roofCarrierAvailable ? 'flex-1' : 'w-full'} py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 shadow-xs transition-colors`}
+                        className={`${
+                          fleet.roofCarrierAvailable ? 'flex-1' : 'w-auto'
+                        } py-1.5 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-[11px] sm:text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 shadow-2xs transition-colors whitespace-nowrap`}
                       >
-                        <span className="text-[#f0750f] font-bold text-sm">+</span>
+                        <span className="text-[#f0750f] font-bold text-sm leading-none">+</span>
                         <span>Add Requirements</span>
                       </button>
 
@@ -729,14 +726,14 @@ export default function BookingFunnelPage() {
                               [fleet.id]: !prev[fleet.id],
                             }))
                           }
-                          className={`flex-1 py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-colors ${
+                          className={`flex-1 py-1.5 px-3 rounded-xl border text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap ${
                             carrierOn
                               ? 'border-[#f0750f] bg-orange-50 text-[#f0750f]'
                               : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
                           }`}
                         >
                           <span
-                            className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                            className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${
                               carrierOn ? 'border-[#f0750f] bg-[#f0750f]' : 'border-slate-400'
                             }`}
                           >
@@ -748,13 +745,13 @@ export default function BookingFunnelPage() {
                     </div>
 
                     {/* Accordion: View Details */}
-                    <div className="mt-2 text-center">
+                    <div className="mt-1.5 text-center">
                       <button
                         type="button"
                         onClick={() =>
                           setExpandedDetailsId(isExpanded ? null : fleet.id)
                         }
-                        className="text-xs font-semibold text-[#f0750f] hover:underline inline-flex items-center gap-1 py-1"
+                        className="text-[11px] sm:text-xs font-semibold text-[#f0750f] hover:underline inline-flex items-center gap-1 py-0.5"
                       >
                         <span>{isExpanded ? 'Hide Details' : 'View Details'}</span>
                         <svg className={`w-3 h-3 text-[#f0750f] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
