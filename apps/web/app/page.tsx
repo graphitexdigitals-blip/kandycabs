@@ -75,11 +75,81 @@ const SERVICE_CATEGORIES = [
 
 
 
+type TabCategory = 'ONEWAY' | 'ROUND' | 'LOCAL' | 'AIRPORT' | 'CORPORATE' | 'TOUR';
+
+const DESKTOP_TABS = [
+  {
+    id: 'ONEWAY' as const,
+    title: 'ONE WAY',
+    subtitle: 'Drop-off only',
+    icon: (
+      <svg className="w-4 h-4 lg:w-4.5 lg:h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 12h14M12 5l7 7-7 7" />
+      </svg>
+    ),
+  },
+  {
+    id: 'ROUND' as const,
+    title: 'ROUND TRIP',
+    subtitle: 'Return same cab',
+    icon: (
+      <svg className="w-4 h-4 lg:w-4.5 lg:h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 12a8 8 0 0 1 14.93-4M20 4v5h-5" />
+        <path d="M20 12a8 8 0 0 1-14.93 4M4 20v-5h5" />
+      </svg>
+    ),
+  },
+  {
+    id: 'LOCAL' as const,
+    title: 'LOCAL RENTAL',
+    subtitle: 'Hourly packages',
+    icon: (
+      <svg className="w-4 h-4 lg:w-4.5 lg:h-4.5" viewBox="0 0 512 512" fill="currentColor">
+        <path d="M256 48C141.13 48 48 141.13 48 256s93.13 208 208 208s208-93.13 208-208S370.87 48 256 48m96 240h-96a16 16 0 0 1-16-16V128a16 16 0 0 1 32 0v128h80a16 16 0 0 1 0 32" />
+      </svg>
+    ),
+  },
+  {
+    id: 'AIRPORT' as const,
+    title: 'AIRPORT',
+    subtitle: 'Pickup & drop',
+    icon: (
+      <svg className="w-4 h-4 lg:w-4.5 lg:h-4.5" viewBox="0 0 512 512" fill="currentColor">
+        <g transform="rotate(-45 256 256)">
+          <path d="M186.62 464H160a16 16 0 0 1-14.57-22.6l64.46-142.25L113.1 297l-35.3 42.77C71.07 348.23 65.7 352 52 352H34.08a17.66 17.66 0 0 1-14.7-7.06c-2.38-3.21-4.72-8.65-2.44-16.41l19.82-71c.15-.53.33-1.06.53-1.58a.4.4 0 0 0 0-.15 15 15 0 0 1-.53-1.59l-19.84-71.45c-2.15-7.61.2-12.93 2.56-16.06a16.83 16.83 0 0 1 13.6-6.7H52c10.23 0 20.16 4.59 26 12l34.57 42.05l97.32-1.44l-64.44-142A16 16 0 0 1 160 48h26.91a25 25 0 0 1 19.35 9.8l125.05 152l57.77-1.52c4.23-.23 15.95-.31 18.66-.31C463 208 496 225.94 496 256c0 9.46-3.78 27-29.07 38.16c-14.93 6.6-34.85 9.94-59.21 9.94-2.68 0-14.37-.08-18.66-.31l-57.76-1.54l-125.36 152a25 25 0 0 1-19.32 9.75" />
+        </g>
+      </svg>
+    ),
+  },
+  {
+    id: 'CORPORATE' as const,
+    title: 'CORPORATE',
+    subtitle: 'Business travel',
+    icon: (
+      <svg className="w-4 h-4 lg:w-4.5 lg:h-4.5" viewBox="0 0 512 512" fill="currentColor">
+        <path d="M432 112h-48V96a48.05 48.05 0 0 0-48-48H176a48.05 48.05 0 0 0-48 48v16H80a48.05 48.05 0 0 0-48 48v64h448v-64a48.05 48.05 0 0 0-48-48zM160 96a16 16 0 0 1 16-16h160a16 16 0 0 1 16 16v16H160zM32 256v144a48.05 48.05 0 0 0 48 48h352a48.05 48.05 0 0 0 48-48V256H336a16 16 0 0 1-16 16H192a16 16 0 0 1-16-16z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'TOUR' as const,
+    title: 'TOUR',
+    subtitle: 'Sightseeing trips',
+    icon: (
+      <svg className="w-4 h-4 lg:w-4.5 lg:h-4.5" viewBox="0 0 512 512" fill="currentColor">
+        <path d="M432 176H320V64a48 48 0 0 0-48-48H80a48 48 0 0 0-48 48v416a16 16 0 0 0 16 16h104a8 8 0 0 0 8-8v-71.55c0-8.61 6.62-16 15.23-16.43A16 16 0 0 1 192 416v72a8 8 0 0 0 8 8h264a16 16 0 0 0 16-16V224a48 48 0 0 0-48-48M98.08 431.87a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m80 240a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m80 320a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79m0-80a16 16 0 1 1 13.79-13.79a16 16 0 0 1-13.79 13.79M444 464H320V208h112a16 16 0 0 1 16 16v236a4 4 0 0 1-4 4" />
+        <path d="M400 400a16 16 0 1 0 16 16a16 16 0 0 0-16-16m0-80a16 16 0 1 0 16 16a16 16 0 0 0-16-16m0-80a16 16 0 1 0 16 16a16 16 0 0 0-16-16m-64 160a16 16 0 1 0 16 16a16 16 0 0 0-16-16m0-80a16 16 0 1 0 16 16a16 16 0 0 0-16-16m0-80a16 16 0 1 0 16 16a16 16 0 0 0-16-16" />
+      </svg>
+    ),
+  },
+];
+
 export default function CustomerHomePage() {
   const router = useRouter();
   const { user } = useAuth();
 
   // Search Widget State
+  const [activeTab, setActiveTab] = useState<TabCategory>('ONEWAY');
   const [tripType, setTripType] = useState<TripType>(TripType.ONEWAY);
   const [pickupAddress, setPickupAddress] = useState('');
   const [pickupLat, setPickupLat] = useState<number | null>(null);
@@ -203,7 +273,7 @@ export default function CustomerHomePage() {
       category: selectedCat || VehicleCategory.SEDAN,
     });
 
-    if (tripType === TripType.ROUND) {
+    if (tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') {
       params.set('returnDate', returnDate);
     }
 
@@ -214,7 +284,19 @@ export default function CustomerHomePage() {
     router.push(`/booking?${params.toString()}`);
   };
 
+  const handleTabClick = (tabId: TabCategory) => {
+    setActiveTab(tabId);
+    if (tabId === 'ONEWAY') {
+      setTripType(TripType.ONEWAY);
+    } else if (tabId === 'ROUND') {
+      setTripType(TripType.ROUND);
+    } else {
+      handleCategorySelect(tabId);
+    }
+  };
+
   const handleCategorySelect = (catId: string) => {
+    setActiveTab(catId as TabCategory);
     if (catId === 'AIRPORT') {
       setPickupAddress('Mangaluru Airport (IXE)');
       setPickupLat(12.9613);
@@ -222,9 +304,9 @@ export default function CustomerHomePage() {
       setDropAddress('Mangaluru Central Railway Station');
       setDropLat(12.8634);
       setDropLng(74.8436);
-      setTripType(TripType.ONEWAY);
+      setTripType(TripType.AIRPORT);
     } else if (catId === 'LOCAL') {
-      setTripType(TripType.ROUND);
+      setTripType(TripType.LOCAL);
     } else if (catId === 'CORPORATE') {
       setTripType(TripType.ONEWAY);
     } else if (catId === 'TOUR') {
@@ -234,7 +316,7 @@ export default function CustomerHomePage() {
       setDropAddress('Kollur Mookambika Temple');
       setDropLat(13.8655);
       setDropLng(74.8142);
-      setTripType(TripType.ROUND);
+      setTripType(TripType.PACKAGE);
     }
   };
 
@@ -255,21 +337,21 @@ export default function CustomerHomePage() {
       <main className="max-w-4xl mx-auto px-2 sm:px-4 pt-1.5 sm:pt-3 space-y-2.5 sm:space-y-3.5">
         {/* Floating White Booking Search Card (Matching Mobile App Exact Layout) */}
         <section id="booking-card" className="bg-white rounded-2xl sm:rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 p-2.5 sm:p-4 transition-all">
-          {/* Trip Type Tabs (ONE WAY vs ROUND TRIP) */}
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-2">
+          {/* Mobile View: Top 2 Tabs (ONE WAY vs ROUND TRIP) */}
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-2 md:hidden">
             {/* ONE WAY Tab */}
             <button
               type="button"
-              onClick={() => setTripType(TripType.ONEWAY)}
+              onClick={() => handleTabClick('ONEWAY')}
               className={`flex items-center gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl text-left transition-all ${
-                tripType === TripType.ONEWAY
+                activeTab === 'ONEWAY'
                   ? 'bg-[#f0750f] text-white shadow-sm'
                   : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
               }`}
             >
               <div
                 className={`flex items-center justify-center transition-colors flex-shrink-0 ${
-                  tripType === TripType.ONEWAY ? 'text-white' : 'text-slate-500'
+                  activeTab === 'ONEWAY' ? 'text-white' : 'text-slate-500'
                 }`}
               >
                 <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
@@ -282,7 +364,7 @@ export default function CustomerHomePage() {
                 </p>
                 <p
                   className={`text-[9px] sm:text-xs font-medium ${
-                    tripType === TripType.ONEWAY ? 'text-white/85' : 'text-slate-400'
+                    activeTab === 'ONEWAY' ? 'text-white/85' : 'text-slate-400'
                   }`}
                 >
                   Drop-off only
@@ -293,16 +375,16 @@ export default function CustomerHomePage() {
             {/* ROUND TRIP Tab */}
             <button
               type="button"
-              onClick={() => setTripType(TripType.ROUND)}
+              onClick={() => handleTabClick('ROUND')}
               className={`flex items-center gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl text-left transition-all ${
-                tripType === TripType.ROUND
+                activeTab === 'ROUND'
                   ? 'bg-[#f0750f] text-white shadow-sm'
                   : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
               }`}
             >
               <div
                 className={`flex items-center justify-center transition-colors flex-shrink-0 ${
-                  tripType === TripType.ROUND ? 'text-white' : 'text-slate-500'
+                  activeTab === 'ROUND' ? 'text-white' : 'text-slate-500'
                 }`}
               >
                 <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
@@ -316,13 +398,52 @@ export default function CustomerHomePage() {
                 </p>
                 <p
                   className={`text-[9px] sm:text-xs font-medium ${
-                    tripType === TripType.ROUND ? 'text-white/85' : 'text-slate-400'
+                    activeTab === 'ROUND' ? 'text-white/85' : 'text-slate-400'
                   }`}
                 >
                   Return with same cab
                 </p>
               </div>
             </button>
+          </div>
+
+          {/* Desktop/Tablet View (Excluding Mobile): All 6 Categories in Top Bar */}
+          <div className="hidden md:grid md:grid-cols-6 gap-1.5 lg:gap-2 mb-2.5">
+            {DESKTOP_TABS.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => handleTabClick(tab.id)}
+                  className={`flex items-center gap-2 p-2 lg:p-2.5 rounded-xl lg:rounded-2xl text-left transition-all ${
+                    isActive
+                      ? 'bg-[#f0750f] text-white shadow-md'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
+                  }`}
+                >
+                  <div
+                    className={`flex items-center justify-center transition-colors flex-shrink-0 ${
+                      isActive ? 'text-white' : 'text-[#f0750f]'
+                    }`}
+                  >
+                    {tab.icon}
+                  </div>
+                  <div className="min-w-0 flex-1 truncate">
+                    <p className="text-xs font-extrabold tracking-wide uppercase truncate">
+                      {tab.title}
+                    </p>
+                    <p
+                      className={`text-[10px] font-medium truncate ${
+                        isActive ? 'text-white/85' : 'text-slate-400'
+                      }`}
+                    >
+                      {tab.subtitle}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           {/* Locations Container with Integrated Swap Button */}
@@ -567,8 +688,8 @@ export default function CustomerHomePage() {
               </div>
             </div>
 
-            {/* If Round Trip: Return Date Row */}
-            {tripType === TripType.ROUND && (
+            {/* If Round Trip or Tour: Return Date Row */}
+            {(tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') && (
               <div className="col-span-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
                 <div className="flex items-center gap-1 text-black mb-0.5">
                   <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -606,20 +727,25 @@ export default function CustomerHomePage() {
 
         {/* 4-Card Quick Category Grid (Matching Screenshot) */}
         <section className="grid grid-cols-4 gap-1.5 sm:gap-2.5">
-          {SERVICE_CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => handleCategorySelect(cat.id)}
-              className="bg-white hover:bg-slate-50 active:scale-95 transition-all p-2 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group"
-            >
-              <div className="text-xl sm:text-3xl flex items-center justify-center mb-1">
-                {cat.icon}
-              </div>
-              <span className="text-[10px] sm:text-xs font-bold text-slate-800 leading-tight">
-                {cat.title}
-              </span>
-            </button>
-          ))}
+          {SERVICE_CATEGORIES.map((cat) => {
+            const isSelected = activeTab === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => handleCategorySelect(cat.id)}
+                className={`bg-white hover:bg-slate-50 active:scale-95 transition-all p-2 sm:p-3 rounded-xl sm:rounded-2xl border shadow-sm flex flex-col items-center justify-center text-center group ${
+                  isSelected ? 'border-[#f0750f] ring-2 ring-[#f0750f]/20' : 'border-slate-100'
+                }`}
+              >
+                <div className="text-xl sm:text-3xl flex items-center justify-center mb-1">
+                  {cat.icon}
+                </div>
+                <span className={`text-[10px] sm:text-xs font-bold leading-tight ${isSelected ? 'text-[#f0750f]' : 'text-slate-800'}`}>
+                  {cat.title}
+                </span>
+              </button>
+            );
+          })}
         </section>
 
         {/* Interactive Promotional Banner Carousel Slider */}
