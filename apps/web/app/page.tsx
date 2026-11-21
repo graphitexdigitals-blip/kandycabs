@@ -875,10 +875,10 @@ export default function CustomerHomePage() {
           <PromoBannerSlider onSelectCategory={handleCategorySelect} />
         </div>
 
-        {/* Desktop View (Excluding Mobile): 2 in a Row (Left: Slider, Right: Ratings Section) */}
-        <section className="hidden md:grid md:grid-cols-2 gap-4 lg:gap-5 items-stretch">
-          <div className="h-full">
-            <PromoBannerSlider onSelectCategory={handleCategorySelect} className="h-full" />
+        {/* Desktop & Tablet View (Excluding Mobile): 2 in a Row (Left: Slider, Right: Ratings Section) */}
+        <section className="hidden md:grid md:grid-cols-[1.15fr_0.85fr] lg:grid-cols-2 gap-3.5 lg:gap-5 items-center mt-7 md:mt-9 lg:mt-8">
+          <div className="w-full">
+            <PromoBannerSlider onSelectCategory={handleCategorySelect} className="w-full" />
           </div>
           <CustomerRatingsCard />
         </section>
