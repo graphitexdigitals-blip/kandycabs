@@ -1,74 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 
 const GOOGLE_MAPS_REVIEW_URL =
   'https://www.google.com/maps/place/Kandy+Cabs/@12.8210633,74.8382611,17z/data=!4m18!1m9!3m8!1s0x3ba35bd4b22d0263:0x6d0d06bc85a432f6!2sKandy+Cabs!8m2!3d12.8204879!4d74.8409326!9m1!1b1!16s%2Fg%2F11rxywzzz8!3m7!1s0x3ba35bd4b22d0263:0x6d0d06bc85a432f6!8m2!3d12.8204879!4d74.8409326!9m1!1b1!16s%2Fg%2F11rxywzzz8?entry=ttu&g_ep=EgoyMDI2MTExOC4xIKXMDSoASAFQAw%3D%3D';
 
-interface Review {
-  id: string;
-  name: string;
-  location: string;
-  tag: string;
-  rating: number;
-  date: string;
-  text: string;
-  initials: string;
-}
-
-const REVIEWS: Review[] = [
-  {
-    id: 'rev-1',
-    name: 'Karthik Hegde',
-    location: 'Mangaluru',
-    tag: 'Outstation Trip',
-    rating: 5,
-    date: 'Yesterday',
-    text: 'Booked an Innova Crysta for Bangalore. The driver was 15 mins early, drove very safely through the ghats, and the car was sparkling clean. Completely transparent billing with zero hidden costs!',
-    initials: 'KH',
-  },
-  {
-    id: 'rev-2',
-    name: 'Dr. Deepa Shenoy',
-    location: 'Manipal',
-    tag: 'Airport Transfer (IXE)',
-    rating: 5,
-    date: '3 days ago',
-    text: 'Our midnight flight was delayed, but the driver waited patiently with a name placard. Smooth ride, sanitized AC cabin, and polite service. Hands down the best cab service in Coastal Karnataka.',
-    initials: 'DS',
-  },
-  {
-    id: 'rev-3',
-    name: 'Gautham Prabhu',
-    location: 'Bengaluru',
-    tag: 'Temple Pilgrimage Tour',
-    rating: 5,
-    date: '1 week ago',
-    text: 'Took family on a 3-day Kollur and Murudeshwar pilgrimage package. The driver was knowledgeable, courteous, and accommodating with elders. Top notch hospitality and fair pricing!',
-    initials: 'GP',
-  },
-];
-
 export function CustomerRatingsCard() {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-
-  useEffect(() => {
-    if (isPaused) return;
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % REVIEWS.length);
-    }, 4500);
-    return () => clearInterval(interval);
-  }, [isPaused]);
-
-  const activeReview = REVIEWS[currentIndex];
-
   return (
-    <div
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-      className="flex flex-col justify-between h-full select-none relative py-1 px-1 lg:px-2"
-    >
+    <div className="flex flex-col justify-between h-full select-none relative py-1 px-1 lg:px-2">
       {/* Top Header: Trust Badge & Overall Rating */}
       <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
         <div className="flex items-center gap-2">
@@ -115,27 +54,16 @@ export function CustomerRatingsCard() {
         </a>
       </div>
 
-      {/* Middle Body: Active Testimonial Quote */}
+      {/* Middle Body: Feedback & Experience Invitation */}
       <div className="py-2.5 flex-1 flex flex-col justify-center">
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center flex-shrink-0 border border-slate-200">
-              {activeReview.initials}
-            </div>
-            <div className="min-w-0">
-              <span className="text-xs font-extrabold text-slate-800 truncate block">
-                {activeReview.name}
-              </span>
-              <span className="text-[10px] text-slate-400 block -mt-0.5">
-                {activeReview.location}
-              </span>
-            </div>
-          </div>
+        <div className="space-y-1">
+          <p className="text-xs lg:text-[13px] font-extrabold text-slate-900 leading-snug">
+            Kindly add your valuable feedback and share your experience with Kandy Cabs!
+          </p>
+          <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+            Your review helps fellow travelers and enables us to continuously improve our taxi, outstation, and airport transfer services.
+          </p>
         </div>
-
-        <p className="text-[11px] lg:text-xs font-medium text-slate-600 leading-relaxed italic line-clamp-3">
-          &ldquo;{activeReview.text}&rdquo;
-        </p>
 
         {/* Rating Actions Bar */}
         <div className="mt-2.5 pt-2 border-t border-dashed border-slate-200/70 flex items-center justify-between gap-2">
@@ -168,7 +96,7 @@ export function CustomerRatingsCard() {
         </div>
       </div>
 
-      {/* Bottom Footer: Trust Pillars & Carousel Dots */}
+      {/* Bottom Footer: Trust Pillars */}
       <div className="border-t border-slate-200/80 pt-2.5 flex items-center justify-between text-[10px] text-slate-500 font-semibold">
         <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
           <span className="inline-flex items-center gap-1 text-slate-600">
@@ -190,21 +118,10 @@ export function CustomerRatingsCard() {
             Clean & Sanitized
           </span>
         </div>
-
-        {/* Dots */}
-        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-          {REVIEWS.map((rev, idx) => (
-            <button
-              key={rev.id}
-              type="button"
-              onClick={() => setCurrentIndex(idx)}
-              className={`h-1.5 rounded-full transition-all ${currentIndex === idx ? 'w-4 bg-[#f0750f]' : 'w-1.5 bg-slate-200 hover:bg-slate-300'
-                }`}
-              aria-label={`Go to review ${idx + 1}`}
-            />
-          ))}
-        </div>
       </div>
+    </div>
+  );
+}
     </div>
   );
 }
