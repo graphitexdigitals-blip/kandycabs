@@ -253,19 +253,21 @@ export default function CustomerHomePage() {
             <button
               type="button"
               onClick={() => setTripType(TripType.ONEWAY)}
-              className={`flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl text-left transition-all ${
+              className={`flex items-center gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl text-left transition-all ${
                 tripType === TripType.ONEWAY
                   ? 'bg-[#f0750f] text-white shadow-sm'
                   : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
               }`}
             >
-              <span
-                className={`text-sm sm:text-lg font-black transition-colors ${
+              <div
+                className={`flex items-center justify-center transition-colors flex-shrink-0 ${
                   tripType === TripType.ONEWAY ? 'text-white' : 'text-slate-500'
                 }`}
               >
-                →
-              </span>
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </div>
               <div>
                 <p className="text-[11px] sm:text-sm font-extrabold tracking-wide uppercase">
                   ONE WAY
@@ -284,19 +286,22 @@ export default function CustomerHomePage() {
             <button
               type="button"
               onClick={() => setTripType(TripType.ROUND)}
-              className={`flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl text-left transition-all ${
+              className={`flex items-center gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl text-left transition-all ${
                 tripType === TripType.ROUND
                   ? 'bg-[#f0750f] text-white shadow-sm'
                   : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
               }`}
             >
-              <span
-                className={`text-sm sm:text-lg font-black transition-colors ${
+              <div
+                className={`flex items-center justify-center transition-colors flex-shrink-0 ${
                   tripType === TripType.ROUND ? 'text-white' : 'text-slate-500'
                 }`}
               >
-                ↻
-              </span>
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 12a8 8 0 0 1 14.93-4M20 4v5h-5" />
+                  <path d="M20 12a8 8 0 0 1-14.93 4M4 20v-5h5" />
+                </svg>
+              </div>
               <div>
                 <p className="text-[11px] sm:text-sm font-extrabold tracking-wide uppercase">
                   ROUND TRIP
@@ -318,13 +323,9 @@ export default function CustomerHomePage() {
             <div ref={pickupWrapperRef} className="relative">
               <div className="flex items-center gap-2 p-2 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all">
                 {/* Green Pin */}
-                <div className="text-emerald-600 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                      clipRule="evenodd"
-                    />
+                <div className="text-emerald-500 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0 pr-1 sm:pr-2">
@@ -397,13 +398,9 @@ export default function CustomerHomePage() {
             <div ref={dropWrapperRef} className="relative">
               <div className="flex items-center gap-2 p-2 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all">
                 {/* Red Pin */}
-                <div className="text-red-600 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                      clipRule="evenodd"
-                    />
+                <div className="text-red-500 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0 pr-1 sm:pr-2">
