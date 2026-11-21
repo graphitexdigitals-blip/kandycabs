@@ -122,6 +122,3 @@ export function CustomerRatingsCard() {
     </div>
   );
 }
-    </div>
-  );
-}
