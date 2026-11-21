@@ -42,7 +42,7 @@ export default function AirportBookingPage() {
   const [pickupLat, setPickupLat] = useState<number | null>(null);
   const [pickupLng, setPickupLng] = useState<number | null>(null);
 
-  const [selectedAirport, setSelectedAirport] = useState('Mangaluru Airport (IXE)');
+  const [selectedAirport, setSelectedAirport] = useState('');
   const [airportDropdownOpen, setAirportDropdownOpen] = useState(false);
   const [flightNumber, setFlightNumber] = useState('');
 
@@ -107,6 +107,14 @@ export default function AirportBookingPage() {
       alert('Please select a destination airport');
       return;
     }
+    if (!scheduledDate) {
+      alert('Please select your trip start date');
+      return;
+    }
+    if (!scheduledTime) {
+      alert('Please select your pickup time');
+      return;
+    }
 
     const params = new URLSearchParams({
       step: '2',
@@ -117,8 +125,8 @@ export default function AirportBookingPage() {
       drop: selectedAirport,
       dropLat: '0',
       dropLng: '0',
-      date: scheduledDate || new Date().toISOString().split('T')[0],
-      time: scheduledTime || '09:00',
+      date: scheduledDate,
+      time: scheduledTime,
       category: VehicleCategory.SEDAN,
     });
 
@@ -238,7 +246,7 @@ export default function AirportBookingPage() {
                   <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" transform="rotate(45 12 12)" />
                 </svg>
               </div>
-              <span className="flex-1 text-xs font-semibold text-slate-800 truncate leading-tight">
+              <span className={`flex-1 text-xs font-semibold truncate leading-tight ${selectedAirport ? 'text-slate-800' : 'text-slate-400'}`}>
                 {selectedAirport || 'Select destination airport'}
               </span>
               <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${airportDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">

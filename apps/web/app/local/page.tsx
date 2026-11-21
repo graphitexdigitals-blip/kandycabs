@@ -72,6 +72,14 @@ export default function LocalRentalPage() {
       alert('Please enter a pickup location');
       return;
     }
+    if (!scheduledDate) {
+      alert('Please select your rental start date');
+      return;
+    }
+    if (!scheduledTime) {
+      alert('Please select your pickup time');
+      return;
+    }
 
     const pkgLabel =
       localPackage === '4_40'
@@ -89,8 +97,8 @@ export default function LocalRentalPage() {
       drop: pkgLabel,
       dropLat: '0',
       dropLng: '0',
-      date: scheduledDate || new Date().toISOString().split('T')[0],
-      time: scheduledTime || '09:00',
+      date: scheduledDate,
+      time: scheduledTime,
       category: VehicleCategory.SEDAN,
     });
 

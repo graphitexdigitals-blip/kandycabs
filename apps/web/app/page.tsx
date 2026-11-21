@@ -241,6 +241,21 @@ export default function CustomerHomePage() {
       return;
     }
 
+    if (!scheduledDate) {
+      alert('Please select your trip start date');
+      return;
+    }
+
+    if (!scheduledTime) {
+      alert('Please select your pickup time');
+      return;
+    }
+
+    if ((tripType === TripType.ROUND || activeTab === 'ROUND') && !returnDate) {
+      alert('Please select your return journey date');
+      return;
+    }
+
     const params = new URLSearchParams({
       step: '2',
       tripType: activeTab === 'CORPORATE' ? 'CORPORATE' : tripType,
@@ -250,8 +265,8 @@ export default function CustomerHomePage() {
       drop: effectiveDrop,
       dropLat: (dropLat ?? 0).toString(),
       dropLng: (dropLng ?? 0).toString(),
-      date: scheduledDate || new Date().toISOString().split('T')[0],
-      time: scheduledTime || '09:00',
+      date: scheduledDate,
+      time: scheduledTime,
       category: selectedCat || VehicleCategory.SEDAN,
     });
 

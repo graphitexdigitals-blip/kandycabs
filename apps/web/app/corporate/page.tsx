@@ -37,7 +37,7 @@ export default function CorporateTravelPage() {
   const [dropLng, setDropLng] = useState<number | null>(null);
 
   const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('09:00');
+  const [scheduledTime, setScheduledTime] = useState('');
 
   const [stops, setStops] = useState<{ id: string; address: string; lat: number; lng: number }[]>([]);
   const [locationModalOpen, setLocationModalOpen] = useState(false);
@@ -94,6 +94,14 @@ export default function CorporateTravelPage() {
       alert('Please enter a destination drop location');
       return;
     }
+    if (!scheduledDate) {
+      alert('Please select your trip start date');
+      return;
+    }
+    if (!scheduledTime) {
+      alert('Please select your pickup time');
+      return;
+    }
 
     const params = new URLSearchParams({
       step: '2',
@@ -104,8 +112,8 @@ export default function CorporateTravelPage() {
       drop: dropAddress,
       dropLat: (dropLat ?? 0).toString(),
       dropLng: (dropLng ?? 0).toString(),
-      date: scheduledDate || new Date().toISOString().split('T')[0],
-      time: scheduledTime || '09:00',
+      date: scheduledDate,
+      time: scheduledTime,
       category: VehicleCategory.SEDAN,
     });
 

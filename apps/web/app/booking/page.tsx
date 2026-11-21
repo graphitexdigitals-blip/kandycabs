@@ -357,8 +357,10 @@ export default function BookingFunnelPage() {
 
   // Formatter for Date display (e.g., "22 Nov 2026 (Sun)")
   const formatFriendlyDate = (dateStr: string) => {
+    if (!dateStr || !dateStr.trim()) return 'Select Date';
     try {
       const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} (${days[d.getDay()]})`;
@@ -369,8 +371,10 @@ export default function BookingFunnelPage() {
 
   // Formatter for Time display (e.g., "09:00 AM")
   const formatFriendlyTime = (timeStr: string) => {
+    if (!timeStr || !timeStr.trim()) return 'Select Time';
     try {
       const [h, m] = timeStr.split(':').map(Number);
+      if (isNaN(h) || isNaN(m)) return timeStr;
       const period = h >= 12 ? 'PM' : 'AM';
       const formattedH = h % 12 === 0 ? 12 : h % 12;
       return `${String(formattedH).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
@@ -400,6 +404,14 @@ export default function BookingFunnelPage() {
   };
 
   const handleContinueToReview = () => {
+    if (!scheduledDate) {
+      alert('Please select your trip date before proceeding');
+      return;
+    }
+    if (!scheduledTime) {
+      alert('Please select your pickup time before proceeding');
+      return;
+    }
     if (!passengerName.trim()) {
       alert('Please enter Lead Passenger Name');
       return;
@@ -415,6 +427,10 @@ export default function BookingFunnelPage() {
 
   const handlePayNow = async () => {
     if (isSubmitting) return;
+    if (!scheduledDate || !scheduledTime) {
+      alert('Trip date and time are required to complete booking.');
+      return;
+    }
     if (!agreedToTerms) {
       setTermsModalOpen(true);
       return;

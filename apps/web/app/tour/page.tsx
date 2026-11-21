@@ -32,9 +32,9 @@ export default function TourPilgrimagePage() {
   const [pickupLat, setPickupLat] = useState<number | null>(null);
   const [pickupLng, setPickupLng] = useState<number | null>(null);
 
-  const [dropAddress, setDropAddress] = useState('Kollur Mookambika Temple');
-  const [dropLat, setDropLat] = useState<number | null>(13.8655);
-  const [dropLng, setDropLng] = useState<number | null>(74.8142);
+  const [dropAddress, setDropAddress] = useState('');
+  const [dropLat, setDropLat] = useState<number | null>(null);
+  const [dropLng, setDropLng] = useState<number | null>(null);
 
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
@@ -97,6 +97,18 @@ export default function TourPilgrimagePage() {
       alert('Please enter a pilgrimage / tour destination');
       return;
     }
+    if (!scheduledDate) {
+      alert('Please select your tour start date');
+      return;
+    }
+    if (!scheduledTime) {
+      alert('Please select your pickup time');
+      return;
+    }
+    if (!returnDate) {
+      alert('Please select your return date');
+      return;
+    }
 
     const params = new URLSearchParams({
       step: '2',
@@ -107,8 +119,8 @@ export default function TourPilgrimagePage() {
       drop: dropAddress,
       dropLat: (dropLat ?? 0).toString(),
       dropLng: (dropLng ?? 0).toString(),
-      date: scheduledDate || new Date().toISOString().split('T')[0],
-      time: scheduledTime || '09:00',
+      date: scheduledDate,
+      time: scheduledTime,
       category: VehicleCategory.SEDAN,
     });
 
