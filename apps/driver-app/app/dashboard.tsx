@@ -1891,17 +1891,21 @@ export default function DriverDashboardScreen() {
                       {driver?.fullName || (driver?.phone ? `Partner (${driver.phone.replace(/\D/g, '').slice(-4)})` : 'Driver Partner')}
                     </Text>
 
-                    <View style={styles.heroCardPlateRow}>
-                      <Ionicons name="car" size={isSmallDevice ? 12 : 13.5} color="#475569" style={{ marginRight: 4, flexShrink: 0 }} />
+                    <TouchableOpacity
+                      style={[styles.heroCardPlateRow, isSmallDevice && styles.heroCardPlateRowSmall]}
+                      onPress={() => setIsVehicleModalOpen(true)}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="car" size={isSmallDevice ? 11 : 12.5} color="#475569" style={{ marginRight: 4.5, flexShrink: 0 }} />
                       <Text
                         style={[styles.heroCardPlate, isSmallDevice && styles.heroCardPlateSmall]}
                         numberOfLines={1}
                         adjustsFontSizeToFit
                         minimumFontScale={0.8}
                       >
-                        {(activeFleetVeh?.plateNumber || driver?.vehicle?.plateNumber || (driver?.verificationStatus === 'APPROVED' ? 'KA-01-SD-2045' : 'PENDING')).toUpperCase()}
+                        {(activeFleetVeh?.plateNumber || driver?.vehicle?.plateNumber || (driver?.verificationStatus === 'APPROVED' ? 'KA 01 MJ 2023' : 'PENDING')).toUpperCase()}
                       </Text>
-                    </View>
+                    </TouchableOpacity>
                   </View>
                 </View>
 
@@ -3976,19 +3980,33 @@ const styles = StyleSheet.create({
   heroCardPlateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2.5,
+    marginTop: 4,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    alignSelf: 'flex-start',
     flexWrap: 'nowrap',
     minWidth: 0,
   },
+  heroCardPlateRowSmall: {
+    marginTop: 3,
+    paddingHorizontal: 5.5,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
   heroCardPlate: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
-    color: '#334155',
-    letterSpacing: 0.3,
+    color: '#1e293b',
+    letterSpacing: 0.5,
     flexShrink: 0,
   },
   heroCardPlateSmall: {
-    fontSize: 11.5,
+    fontSize: 10.5,
+    letterSpacing: 0.3,
   },
   heroDutyToggleTrack: {
     flexDirection: 'row',
