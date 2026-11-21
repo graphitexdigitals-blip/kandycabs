@@ -1891,21 +1891,17 @@ export default function DriverDashboardScreen() {
                       {driver?.fullName || (driver?.phone ? `Partner (${driver.phone.replace(/\D/g, '').slice(-4)})` : 'Driver Partner')}
                     </Text>
 
-                    <TouchableOpacity
-                      style={[styles.heroCardPlateRow, isSmallDevice && styles.heroCardPlateRowSmall]}
-                      onPress={() => setIsVehicleModalOpen(true)}
-                      activeOpacity={0.75}
-                    >
-                      <Ionicons name="car" size={isSmallDevice ? 11 : 12.5} color="#475569" style={{ marginRight: 4.5, flexShrink: 0 }} />
+                    <View style={styles.heroCardPlateRow}>
+                      <Ionicons name="car" size={isSmallDevice ? 12 : 13.5} color="#475569" style={{ marginRight: 4, flexShrink: 0 }} />
                       <Text
                         style={[styles.heroCardPlate, isSmallDevice && styles.heroCardPlateSmall]}
                         numberOfLines={1}
                         adjustsFontSizeToFit
                         minimumFontScale={0.8}
                       >
-                        {(activeFleetVeh?.plateNumber || driver?.vehicle?.plateNumber || (driver?.verificationStatus === 'APPROVED' ? 'KA 01 MJ 2023' : 'PENDING')).toUpperCase()}
+                        {(activeFleetVeh?.plateNumber || driver?.vehicle?.plateNumber || (driver?.verificationStatus === 'APPROVED' ? 'KA-01-SD-2045' : 'PENDING')).toUpperCase()}
                       </Text>
-                    </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
 
@@ -1960,12 +1956,11 @@ export default function DriverDashboardScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
+            </View>
 
-              {/* Inside the profile section below it: If admin dispatched trip(s) pending acceptance, show Accept / Decline card and hide menu cards */}
-              <View style={styles.heroCardDivider} />
-
-              {newTripsList.length > 0 ? (
-                <View style={styles.homeDirectDispatchSection}>
+            {/* Direct Dispatches (if any pending) or Assigned Trips & Menu Cards */}
+            {newTripsList.length > 0 ? (
+              <View style={styles.homeDirectDispatchSection}>
                   {newTripsList.map((d: any, index: number) => {
                     const b = d?.booking || {};
                     const bookingId = d.bookingId || b.id || d.id;
@@ -2177,7 +2172,7 @@ export default function DriverDashboardScreen() {
                   })}
                 </View>
               ) : (
-                <>
+                <View style={styles.homeMenuSectionWrapper}>
                   {/* Trips: New Trips & Upcoming Trips (1 Section Per Row, White Card) */}
                   <View style={styles.heroTripsSummaryRow}>
                     {/* 1. Assigned Trips */}
@@ -2376,9 +2371,8 @@ export default function DriverDashboardScreen() {
                       <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
                     </TouchableOpacity>
                   </View>
-                </>
+                </View>
               )}
-            </View>
 
             {/* FLOATING CARD CONTAINER */}
             <View style={styles.homeCardsContainer}>
@@ -3866,7 +3860,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -3882,12 +3876,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   heroCardContentSmall: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  homeMenuSectionWrapper: {
+    marginTop: 12,
   },
   heroDriverGroupLeft: {
     flexDirection: 'row',
@@ -3980,33 +3977,19 @@ const styles = StyleSheet.create({
   heroCardPlateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    alignSelf: 'flex-start',
+    marginTop: 2.5,
     flexWrap: 'nowrap',
     minWidth: 0,
   },
-  heroCardPlateRowSmall: {
-    marginTop: 3,
-    paddingHorizontal: 5.5,
-    paddingVertical: 2,
-    borderRadius: 5,
-  },
   heroCardPlate: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
-    color: '#1e293b',
-    letterSpacing: 0.5,
+    color: '#334155',
+    letterSpacing: 0.3,
     flexShrink: 0,
   },
   heroCardPlateSmall: {
-    fontSize: 10.5,
-    letterSpacing: 0.3,
+    fontSize: 11.5,
   },
   heroDutyToggleTrack: {
     flexDirection: 'row',
@@ -4072,7 +4055,7 @@ const styles = StyleSheet.create({
   heroTripsSummaryRow: {
     flexDirection: 'column',
     gap: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     marginBottom: 10,
   },
   heroTripWhiteCard: {
@@ -4212,7 +4195,7 @@ const styles = StyleSheet.create({
   },
   heroCardsGridInside: {
     flexDirection: 'column',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingBottom: 8,
     gap: 10,
   },
@@ -5896,9 +5879,10 @@ const styles = StyleSheet.create({
     color: '#0f2744',
   },
   homeDirectDispatchSection: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingTop: 4,
     paddingBottom: 14,
+    marginTop: 12,
     gap: 12,
   },
   homeDirectDispatchCard: {
