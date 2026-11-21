@@ -577,26 +577,6 @@ export default function BookingFunnelPage() {
               </div>
             </div>
 
-            {/* One-Way Notice for Tempo Traveller / Force Urbania */}
-            {tripType === TripType.ONEWAY && (
-              <div className="p-3 sm:p-3.5 bg-amber-50/90 border border-amber-200/80 rounded-2xl flex items-center justify-between gap-3 text-xs text-amber-950 shadow-2xs">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xl flex-shrink-0">🚐</span>
-                  <div>
-                    <span className="font-bold">Tempo Traveller & Force Urbania:</span>{' '}
-                    <span className="text-amber-900/90">Available for <strong>Round Trips</strong> & group tour charters.</span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setTripType(TripType.ROUND)}
-                  className="font-bold text-[#f0750f] hover:underline whitespace-nowrap text-xs bg-white px-3 py-1.5 rounded-xl border border-orange-200 shadow-2xs flex-shrink-0"
-                >
-                  Round Trip &gt;
-                </button>
-              </div>
-            )}
-
             {/* List of Fleet Cards */}
             <div className="space-y-3.5">
               {displayedFleets.map((fleet) => {
