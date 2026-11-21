@@ -564,9 +564,11 @@ export default function CustomerHomePage() {
                 <span className={`text-sm font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
                   {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
                 </span>
-                <span className="text-[10px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
-                  {scheduledTime ? 'Change' : 'Set'}
-                </span>
+                {scheduledTime && (
+                  <span className="text-[10px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
+                    Change
+                  </span>
+                )}
               </div>
             </div>
 
@@ -805,9 +807,11 @@ export default function CustomerHomePage() {
                   <span className={`text-xs font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
                     {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
                   </span>
-                  <span className="text-[9px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
-                    {scheduledTime ? 'Change' : 'Set'}
-                  </span>
+                  {scheduledTime && (
+                    <span className="text-[9px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
+                      Change
+                    </span>
+                  )}
                 </div>
               </div>
 
