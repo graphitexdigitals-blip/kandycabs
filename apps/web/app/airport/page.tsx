@@ -260,30 +260,30 @@ export default function AirportBookingPage() {
         </div>
 
         {/* Card 2: Trip Schedule + Straddling Button */}
-        <div className="relative bg-white rounded-2xl border border-slate-100 shadow-sm p-2.5 pb-7">
-          <div className="flex items-center gap-1.5 text-[#f0750f] mb-2">
+        <div className="relative bg-white rounded-2xl border border-slate-100 shadow-sm p-3 pb-8 mb-6">
+          <div className="flex items-center gap-1.5 text-[#f0750f] mb-2.5">
             <svg className="w-3.5 h-3.5 text-[#f0750f]" fill="currentColor" viewBox="0 0 24 24">
               <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z" />
             </svg>
             <h4 className="text-xs font-extrabold text-[#f0750f]">Trip Schedule</h4>
           </div>
 
-          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+          <div className="grid grid-cols-2 gap-2 mb-1.5">
             {/* Pickup Date */}
             <div className="relative">
               <span className="block text-[8.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
                 PICKUP DATE
               </span>
-              <div className="flex items-center justify-between py-1.5 px-2 rounded-xl border border-slate-200 bg-slate-50/70">
+              <div className="flex items-center justify-between py-2 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70">
                 <div className="flex items-center gap-1.5 truncate">
-                  <svg className="w-3 h-3 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <span className={`text-xs font-semibold truncate ${scheduledDate ? 'text-slate-900' : 'text-slate-400'}`}>
                     {scheduledDate || 'Select Date'}
                   </span>
                 </div>
-                <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
                 <input
@@ -303,17 +303,17 @@ export default function AirportBookingPage() {
               </span>
               <div
                 onClick={() => setTimeModalOpen(true)}
-                className="flex items-center justify-between py-1.5 px-2 rounded-xl border border-slate-200 bg-slate-50/70 cursor-pointer"
+                className="flex items-center justify-between py-2 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70 cursor-pointer"
               >
                 <div className="flex items-center gap-1.5 truncate">
-                  <svg className="w-3 h-3 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span className={`text-xs font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
                     {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
                   </span>
                 </div>
-                <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
@@ -325,7 +325,7 @@ export default function AirportBookingPage() {
             <button
               type="button"
               onClick={handleBookYourRide}
-              className="py-2 px-7 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-md shadow-orange-500/25 flex items-center justify-center gap-1.5 text-xs tracking-wider uppercase whitespace-nowrap"
+              className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-md shadow-orange-500/25 flex items-center justify-center gap-1.5 text-xs tracking-wider uppercase whitespace-nowrap"
             >
               <span>BOOK YOUR RIDE</span>
               <span className="text-sm leading-none">→</span>
