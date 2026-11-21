@@ -349,8 +349,8 @@ export default function CustomerHomePage() {
             </button>
           </div>
 
-          {/* Desktop/Tablet View (Excluding Mobile): All 6 Categories in Top Bar (Text Only, No Icons or Subtitles) */}
-          <div className="hidden md:grid md:grid-cols-6 gap-2 lg:gap-3 mb-3">
+          {/* Desktop/Tablet View (Excluding Mobile): Merged Single-Bar Segmented Tabs */}
+          <div className="hidden md:flex w-full rounded-xl border border-slate-200 overflow-hidden shadow-sm mb-3 bg-white">
             {DESKTOP_TABS.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -358,10 +358,10 @@ export default function CustomerHomePage() {
                   key={tab.id}
                   type="button"
                   onClick={() => handleTabClick(tab.id)}
-                  className={`py-2.5 sm:py-3 px-3 rounded-xl lg:rounded-2xl text-center font-extrabold uppercase tracking-wider text-xs lg:text-sm whitespace-nowrap transition-all ${
+                  className={`flex-1 py-2.5 sm:py-3 px-2 text-center font-extrabold uppercase tracking-wide text-xs lg:text-sm whitespace-nowrap transition-all border-r last:border-r-0 ${
                     isActive
-                      ? 'bg-[#f0750f] text-white shadow-md'
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
+                      ? 'bg-[#f0750f] text-white border-[#f0750f]'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
                   }`}
                 >
                   {tab.title}
