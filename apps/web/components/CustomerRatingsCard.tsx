@@ -129,10 +129,6 @@ export function CustomerRatingsCard() {
               </span>
             </div>
           </div>
-
-          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full flex-shrink-0">
-            ✓ {activeReview.tag}
-          </span>
         </div>
 
         <p className="text-[11px] lg:text-xs font-medium text-slate-600 leading-relaxed italic line-clamp-3">
