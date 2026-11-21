@@ -1113,14 +1113,16 @@ export default function BookingFunnelPage() {
               </p>
             </div>
 
-            {/* Bottom Green Continue Button */}
+            {/* Bottom Green Continue Button (Matching Customer App #16a34a) */}
             <button
               type="button"
               onClick={handleContinueToReview}
-              className="w-full py-4 px-6 rounded-2xl font-bold text-white bg-[#10b981] hover:bg-[#059669] active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-2 text-base tracking-wide"
+              className="w-full py-4 px-6 rounded-2xl font-bold text-white bg-[#16a34a] hover:bg-[#15803d] active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-2 text-base tracking-wide"
             >
               <span>Continue to Review &amp; Pay</span>
-              <span>&gt;</span>
+              <svg className="w-4 h-4 text-white flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
             </button>
           </div>
         )}
