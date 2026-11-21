@@ -145,17 +145,17 @@ export function CustomerRatingsCard() {
             href={GOOGLE_MAPS_REVIEW_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#f0750f] hover:bg-[#ea580c] text-white text-[11px] font-bold shadow-xs active:scale-95 transition-all group"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 text-[11px] font-bold shadow-md hover:shadow-lg active:scale-95 transition-all group"
           >
             {/* Google G logo */}
-            <svg className="w-3.5 h-3.5 bg-white rounded-full p-0.5 flex-shrink-0" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z" />
               <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.94H1.24v3.15C3.26 21.36 7.33 24 12 24z" />
               <path fill="#FBBC05" d="M5.28 14.26c-.25-.72-.38-1.49-.38-2.26s.13-1.54.38-2.26V6.59H1.24C.45 8.16 0 9.97 0 12c0 2.03.45 3.84 1.24 5.41l4.04-3.15z" />
               <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.59l4.04 3.15c.95-2.84 3.6-4.99 6.72-4.99z" />
             </svg>
             <span>Rate Us on Google</span>
-            <span className="text-amber-200">★★★★★</span>
+            <span className="text-amber-400 text-xs tracking-tight">★★★★★</span>
           </a>
 
           <a
