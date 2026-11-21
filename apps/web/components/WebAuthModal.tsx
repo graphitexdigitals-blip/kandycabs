@@ -11,11 +11,13 @@ interface WebAuthModalProps {
 
 export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) {
   const { sendOtp, verifyOtp } = useAuth();
-  const [step, setStep] = useState<'PHONE' | 'OTP'>('PHONE');
+  const [step, setStep] = useState<'PHONE' | 'OTP' | 'NAME'>('PHONE');
   const [phone, setPhone] = useState('');
   const [fullName, setFullName] = useState('');
   const [otp, setOtp] = useState('');
   const [debugOtp, setDebugOtp] = useState<string | null>(null);
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [existingName, setExistingName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -27,10 +29,13 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
     setFullName('');
     setOtp('');
     setDebugOtp(null);
+    setIsRegistered(false);
+    setExistingName(null);
     setErrorMsg(null);
     onClose();
   };
 
+  // Step 1: Send OTP for mobile number
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const cleaned = phone.replace(/\D/g, '');
@@ -44,6 +49,12 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
     try {
       const res = await sendOtp(cleaned);
       if (res && res.success) {
+        setIsRegistered(!!res.isRegistered);
+        const name = res.existingName?.trim() || null;
+        setExistingName(name);
+        if (name) {
+          setFullName(name);
+        }
         if (res.debugOtp) {
           setDebugOtp(res.debugOtp);
           setOtp(res.debugOtp);
@@ -56,16 +67,52 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
       // Fallback debug OTP in demo/dev mode
       setDebugOtp('1234');
       setOtp('1234');
+      setIsRegistered(false);
       setStep('OTP');
     } finally {
       setLoading(false);
     }
   };
 
+  // Step 2: Verify OTP
   const handleVerifyOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (otp.length < 4) {
       setErrorMsg('Please enter the 4-digit OTP code');
+      return;
+    }
+
+    const cleaned = phone.replace(/\D/g, '');
+
+    // If customer is already registered and name is known, verify and sign in immediately
+    if (isRegistered && existingName) {
+      setLoading(true);
+      setErrorMsg(null);
+      try {
+        const res = await verifyOtp(cleaned, otp, existingName);
+        if (res && res.success) {
+          handleClose();
+          if (onSuccess) onSuccess();
+        } else {
+          setErrorMsg(res?.message || 'Invalid OTP code. Please retry.');
+        }
+      } catch (err: any) {
+        setErrorMsg(err?.message || 'Verification failed. Try again.');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // New customer without registered name -> ask to enter full name!
+      setErrorMsg(null);
+      setStep('NAME');
+    }
+  };
+
+  // Step 3: Enter Name for new customer
+  const handleCompleteName = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!fullName.trim()) {
+      setErrorMsg('Please enter your full name');
       return;
     }
 
@@ -74,12 +121,12 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
     const cleaned = phone.replace(/\D/g, '');
 
     try {
-      const res = await verifyOtp(cleaned, otp, fullName || undefined);
+      const res = await verifyOtp(cleaned, otp, fullName.trim());
       if (res && res.success) {
         handleClose();
         if (onSuccess) onSuccess();
       } else {
-        setErrorMsg(res?.message || 'Invalid OTP code. Please retry.');
+        setErrorMsg(res?.message || 'Registration failed. Try again.');
       }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Verification failed. Try again.');
@@ -94,12 +141,12 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
         {/* Close Button */}
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"
+          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors"
         >
           ✕
         </button>
 
-        {/* Modal Header */}
+        {/* Modal Icon & Header */}
         <div className="text-center mb-6">
           <div className="w-14 h-14 bg-orange-50 border border-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-3 text-[#f0750f]">
             <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -107,12 +154,18 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
             </svg>
           </div>
           <h3 className="text-xl font-bold text-slate-900">
-            {step === 'PHONE' ? 'Sign In / Register' : 'Verify OTP'}
+            {step === 'PHONE'
+              ? 'Sign In / Register'
+              : step === 'OTP'
+              ? 'Verify OTP'
+              : 'Enter Your Name'}
           </h3>
           <p className="text-xs text-slate-500 mt-1">
             {step === 'PHONE'
               ? 'Enter your mobile number to access your rides and book cabs seamlessly.'
-              : `Code sent to +91 ${phone}`}
+              : step === 'OTP'
+              ? `Code sent to +91 ${phone}`
+              : 'Please tell us your name to complete your registration.'}
           </p>
         </div>
 
@@ -122,26 +175,15 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
           </div>
         )}
 
-        {debugOtp && (
+        {debugOtp && step === 'OTP' && (
           <div className="mb-4 p-2.5 rounded-xl bg-amber-50 text-amber-800 text-xs font-mono text-center border border-amber-200">
             Auto-fill Test OTP: <span className="font-bold tracking-widest">{debugOtp}</span>
           </div>
         )}
 
-        {step === 'PHONE' ? (
+        {/* Step 1: PHONE ONLY */}
+        {step === 'PHONE' && (
           <form onSubmit={handleSendOtp} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Full Name (Optional)
-              </label>
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="e.g. Mukesh Rao"
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#f0750f]"
-              />
-            </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 Mobile Number *
@@ -169,8 +211,19 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
               {loading ? 'Sending OTP...' : 'Get OTP Code →'}
             </button>
           </form>
-        ) : (
+        )}
+
+        {/* Step 2: OTP VERIFICATION */}
+        {step === 'OTP' && (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
+            {/* If user is already registered, welcome them with their name */}
+            {isRegistered && existingName && (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-semibold flex items-center gap-2">
+                <span>👋</span>
+                <span>Welcome back, <strong className="font-bold">{existingName}</strong>!</span>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 4-Digit OTP Code *
@@ -190,7 +243,11 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
               disabled={loading}
               className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#10b981] hover:bg-[#059669] transition-colors shadow-sm disabled:opacity-50 text-sm flex items-center justify-center gap-2"
             >
-              {loading ? 'Verifying...' : 'Verify & Continue ✓'}
+              {loading
+                ? 'Verifying...'
+                : isRegistered && existingName
+                ? 'Verify & Sign In ✓'
+                : 'Verify & Continue →'}
             </button>
             <div className="flex justify-between items-center pt-2">
               <button
@@ -210,8 +267,45 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
             </div>
           </form>
         )}
+
+        {/* Step 3: ENTER NAME (ONLY FOR NEW CUSTOMERS) */}
+        {step === 'NAME' && (
+          <form onSubmit={handleCompleteName} className="space-y-4">
+            <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-xs text-blue-800">
+              New customer account for <strong className="font-bold">+91 {phone}</strong>.
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Full Name *
+              </label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Enter your full name"
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#f0750f]"
+                autoFocus
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#10b981] hover:bg-[#059669] transition-colors shadow-sm disabled:opacity-50 text-sm flex items-center justify-center gap-2"
+            >
+              {loading ? 'Completing Registration...' : 'Complete Registration ✓'}
+            </button>
+            <div className="text-center pt-1">
+              <button
+                type="button"
+                onClick={() => setStep('OTP')}
+                className="text-xs text-slate-500 hover:text-slate-800"
+              >
+                ← Back to OTP
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
 }
-
