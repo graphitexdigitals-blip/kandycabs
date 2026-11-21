@@ -93,14 +93,14 @@ export function CustomerRatingsCard() {
           target="_blank"
           rel="noopener noreferrer"
           title="Rate Kandy Cabs on Google Maps"
-          className="flex items-center gap-1.5 bg-orange-50/90 hover:bg-orange-100 border border-orange-200/80 px-2.5 py-1 rounded-full flex-shrink-0 transition-all group cursor-pointer hover:shadow-xs"
+          className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-full flex-shrink-0 shadow-sm cursor-pointer"
         >
           <span className="text-xs font-black text-[#f0750f]">4.9</span>
           <div className="flex text-amber-400 text-xs tracking-tight">
             {'★★★★★'}
           </div>
           <svg
-            className="w-3 h-3 text-[#f0750f]/80 group-hover:text-[#f0750f] transition-transform group-hover:translate-x-0.5"
+            className="w-3 h-3 text-[#f0750f]"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
