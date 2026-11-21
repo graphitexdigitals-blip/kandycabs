@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import nextDynamic from 'next/dynamic';
 import { BookingStatus, getSupabaseClient, UserRole, VehicleCategory } from '@kandy-cabs/shared';
 import { useAuth } from '@/lib/AuthContext';
@@ -35,6 +36,7 @@ const VEHICLE_META: Record<
 };
 
 export default function CustomerDashboardPage() {
+  const router = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -278,7 +280,25 @@ export default function CustomerDashboardPage() {
         {/* Header & Filter Tabs */}
         <div className="bg-white p-3 sm:p-3.5 px-3.5 sm:px-4 rounded-xl sm:rounded-2xl shadow-xs border border-slate-200 space-y-2.5">
           <div className="flex items-center justify-between gap-3">
-            <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">My Bookings</h1>
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined' && window.history.length > 1) {
+                    router.back();
+                  } else {
+                    router.push('/');
+                  }
+                }}
+                aria-label="Go back"
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all active:scale-95 shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">My Bookings</h1>
+            </div>
             <Link
               href="/booking"
               className="px-3 py-1.5 bg-[#F05323] hover:bg-orange-600 text-white text-xs font-semibold rounded-xl transition shadow-xs whitespace-nowrap shrink-0"
