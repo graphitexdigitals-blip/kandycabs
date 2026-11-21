@@ -86,6 +86,22 @@ const DESKTOP_TABS = [
   { id: 'TOUR' as const, title: 'TOUR' },
 ];
 
+const POPULAR_AIRPORTS = [
+  'Mangaluru Airport (IXE)',
+  'Kempegowda Intl Airport Bengaluru (BLR)',
+  'Kannur International Airport (CNN)',
+  'Calicut International Airport (CCJ)',
+  'Cochin International Airport (COK)',
+  'Manohar Intl Airport, Goa (GOX)',
+  'Dabolim Airport, Goa (GOI)',
+];
+
+const LOCAL_RENTAL_PACKAGES = [
+  { id: '4_40', hours: 4, km: 40, label: '4 Hours', sublabel: '40 km included' },
+  { id: '8_80', hours: 8, km: 80, label: '8 Hours', sublabel: '80 km included' },
+  { id: '12_120', hours: 12, km: 120, label: '12 Hours', sublabel: '120 km included' },
+];
+
 export default function CustomerHomePage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -105,6 +121,13 @@ export default function CustomerHomePage() {
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
   const [returnDate, setReturnDate] = useState('');
+  const [returnTime, setReturnTime] = useState('');
+
+  // Specialized Service States
+  const [flightNumber, setFlightNumber] = useState('');
+  const [selectedAirport, setSelectedAirport] = useState('Mangaluru Airport (IXE)');
+  const [airportDropdownOpen, setAirportDropdownOpen] = useState(false);
+  const [localPackage, setLocalPackage] = useState<'4_40' | '8_80' | '12_120'>('8_80');
 
   // Waypoints
   const [stops, setStops] = useState<{ id: string; address: string; lat: number; lng: number }[]>([]);
@@ -115,6 +138,7 @@ export default function CustomerHomePage() {
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [locationModalTarget, setLocationModalTarget] = useState<'PICKUP' | 'DROP' | string>('PICKUP');
   const [timeModalOpen, setTimeModalOpen] = useState(false);
+  const [returnTimeModalOpen, setReturnTimeModalOpen] = useState(false);
 
   // Autocomplete suggestions
   const [pickupQuery, setPickupQuery] = useState('');
@@ -196,18 +220,25 @@ export default function CustomerHomePage() {
       alert('Please enter a pickup location');
       return;
     }
-    if (!dropAddress.trim()) {
+    const effectiveDrop =
+      activeTab === 'AIRPORT'
+        ? selectedAirport
+        : activeTab === 'LOCAL'
+        ? `Local Rental (${localPackage === '4_40' ? '4 Hrs / 40 km' : localPackage === '12_120' ? '12 Hrs / 120 km' : '8 Hrs / 80 km'})`
+        : dropAddress;
+
+    if (!effectiveDrop.trim()) {
       alert('Please enter a destination or drop location');
       return;
     }
 
     const params = new URLSearchParams({
       step: '2',
-      tripType,
+      tripType: activeTab === 'CORPORATE' ? 'CORPORATE' : tripType,
       pickup: pickupAddress,
       pickupLat: (pickupLat ?? 0).toString(),
       pickupLng: (pickupLng ?? 0).toString(),
-      drop: dropAddress,
+      drop: effectiveDrop,
       dropLat: (dropLat ?? 0).toString(),
       dropLng: (dropLng ?? 0).toString(),
       date: scheduledDate || new Date().toISOString().split('T')[0],
@@ -215,8 +246,15 @@ export default function CustomerHomePage() {
       category: selectedCat || VehicleCategory.SEDAN,
     });
 
+    if (flightNumber) {
+      params.set('flightNumber', flightNumber);
+    }
+    if (activeTab === 'LOCAL') {
+      params.set('localPackage', localPackage);
+    }
     if (tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') {
       params.set('returnDate', returnDate);
+      if (returnTime) params.set('returnTime', returnTime);
     }
 
     if (stops.length > 0) {
@@ -240,24 +278,18 @@ export default function CustomerHomePage() {
   const handleCategorySelect = (catId: string) => {
     setActiveTab(catId as TabCategory);
     if (catId === 'AIRPORT') {
-      setPickupAddress('Mangaluru Airport (IXE)');
-      setPickupLat(12.9613);
-      setPickupLng(74.8901);
-      setDropAddress('Mangaluru Central Railway Station');
-      setDropLat(12.8634);
-      setDropLng(74.8436);
+      setSelectedAirport('Mangaluru Airport (IXE)');
       setTripType(TripType.AIRPORT);
     } else if (catId === 'LOCAL') {
       setTripType(TripType.LOCAL);
     } else if (catId === 'CORPORATE') {
       setTripType(TripType.ONEWAY);
     } else if (catId === 'TOUR') {
-      setPickupAddress('Mangaluru Central Railway Station');
-      setPickupLat(12.8634);
-      setPickupLng(74.8436);
-      setDropAddress('Kollur Mookambika Temple');
-      setDropLat(13.8655);
-      setDropLng(74.8142);
+      if (!dropAddress || dropAddress.includes('Airport') || dropAddress.includes('Local')) {
+        setDropAddress('Kollur Mookambika Temple');
+        setDropLat(13.8655);
+        setDropLng(74.8142);
+      }
       setTripType(TripType.PACKAGE);
     }
   };
@@ -277,80 +309,13 @@ export default function CustomerHomePage() {
 
       {/* Main Content Container */}
       <main className="max-w-6xl xl:max-w-7xl mx-auto px-2 sm:px-4 md:px-6 pt-1.5 sm:pt-3 space-y-2.5 sm:space-y-4">
-        {/* Floating White Booking Search Card (Matching Mobile App Exact Layout) */}
-        <section id="booking-card" className="relative bg-white rounded-2xl sm:rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 p-2.5 sm:p-5 pb-7 sm:pb-8 mb-6 sm:mb-8 transition-all">
-          {/* Mobile View: Top 2 Tabs (ONE WAY vs ROUND TRIP) */}
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-2 md:hidden">
-            {/* ONE WAY Tab */}
-            <button
-              type="button"
-              onClick={() => handleTabClick('ONEWAY')}
-              className={`flex items-center gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl text-left transition-all ${
-                activeTab === 'ONEWAY'
-                  ? 'bg-[#f0750f] text-white shadow-sm'
-                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
-              }`}
-            >
-              <div
-                className={`flex items-center justify-center transition-colors flex-shrink-0 ${
-                  activeTab === 'ONEWAY' ? 'text-white' : 'text-slate-500'
-                }`}
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[11px] sm:text-sm font-extrabold tracking-wide uppercase">
-                  ONE WAY
-                </p>
-                <p
-                  className={`text-[9px] sm:text-xs font-medium ${
-                    activeTab === 'ONEWAY' ? 'text-white/85' : 'text-slate-400'
-                  }`}
-                >
-                  Drop-off only
-                </p>
-              </div>
-            </button>
-
-            {/* ROUND TRIP Tab */}
-            <button
-              type="button"
-              onClick={() => handleTabClick('ROUND')}
-              className={`flex items-center gap-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl text-left transition-all ${
-                activeTab === 'ROUND'
-                  ? 'bg-[#f0750f] text-white shadow-sm'
-                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-100'
-              }`}
-            >
-              <div
-                className={`flex items-center justify-center transition-colors flex-shrink-0 ${
-                  activeTab === 'ROUND' ? 'text-white' : 'text-slate-500'
-                }`}
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 12a8 8 0 0 1 14.93-4M20 4v5h-5" />
-                  <path d="M20 12a8 8 0 0 1-14.93 4M4 20v-5h5" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[11px] sm:text-sm font-extrabold tracking-wide uppercase">
-                  ROUND TRIP
-                </p>
-                <p
-                  className={`text-[9px] sm:text-xs font-medium ${
-                    activeTab === 'ROUND' ? 'text-white/85' : 'text-slate-400'
-                  }`}
-                >
-                  Return with same cab
-                </p>
-              </div>
-            </button>
-          </div>
-
-          {/* Desktop/Tablet View (Excluding Mobile): Merged Single-Bar Segmented Tabs */}
-          <div className="hidden md:flex w-full rounded-xl border border-slate-200 overflow-hidden shadow-sm mb-3 bg-white">
+        
+        {/* ======================================================== */}
+        {/* DESKTOP VIEW (Excluding Mobile): Unified 6-Tab Single Card */}
+        {/* ======================================================== */}
+        <section id="booking-card" className="hidden md:block relative bg-white rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 p-5 pb-8 mb-8 transition-all">
+          {/* Merged Single-Bar Segmented Tabs */}
+          <div className="flex w-full rounded-xl border border-slate-200 overflow-hidden shadow-sm mb-3 bg-white">
             {DESKTOP_TABS.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -358,7 +323,7 @@ export default function CustomerHomePage() {
                   key={tab.id}
                   type="button"
                   onClick={() => handleTabClick(tab.id)}
-                  className={`flex-1 py-2.5 sm:py-3 px-2 text-center font-extrabold uppercase tracking-wide text-xs lg:text-sm whitespace-nowrap transition-all border-r last:border-r-0 ${
+                  className={`flex-1 py-3 px-2 text-center font-extrabold uppercase tracking-wide text-xs lg:text-sm whitespace-nowrap transition-all border-r last:border-r-0 ${
                     isActive
                       ? 'bg-[#f0750f] text-white border-[#f0750f]'
                       : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
@@ -374,15 +339,14 @@ export default function CustomerHomePage() {
           <div className="relative space-y-1.5 mb-2">
             {/* Pickup Location Box */}
             <div ref={pickupWrapperRef} className="relative">
-              <div className="flex items-center gap-2 p-2 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all">
-                {/* Green Pin */}
+              <div className="flex items-center gap-2 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all">
                 <div className="text-emerald-500 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                     <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <div className="flex-1 min-w-0 pr-1 sm:pr-2">
-                  <span className="block text-[9px] sm:text-[10px] font-extrabold text-black uppercase tracking-wider">
+                <div className="flex-1 min-w-0 pr-2">
+                  <span className="block text-[10px] font-extrabold text-black uppercase tracking-wider">
                     PICKUP LOCATION
                   </span>
                   <input
@@ -398,7 +362,7 @@ export default function CustomerHomePage() {
                       setShowPickupSuggestions(true);
                     }}
                     placeholder="Enter pickup location"
-                    className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
+                    className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
                   />
                 </div>
                 <button
@@ -417,7 +381,6 @@ export default function CustomerHomePage() {
                 </button>
               </div>
 
-              {/* Autocomplete Suggestions Dropdown */}
               {showPickupSuggestions && filteredPickupLocations.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden divide-y divide-slate-50">
                   {filteredPickupLocations.map((loc) => (
@@ -440,15 +403,15 @@ export default function CustomerHomePage() {
               )}
             </div>
 
-            {/* Swap Button (Floating Circle Between Pickup & Drop) */}
-            <div className="absolute right-2 sm:right-4 top-[50%] -translate-y-1/2 z-20">
+            {/* Swap Button */}
+            <div className="absolute right-4 top-[50%] -translate-y-1/2 z-20">
               <button
                 type="button"
                 onClick={handleSwapLocations}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white hover:bg-slate-50 border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:text-[#f0750f] transition-all active:scale-95"
+                className="w-8 h-8 rounded-full bg-white hover:bg-slate-50 border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:text-[#f0750f] transition-all active:scale-95"
                 title="Swap Pickup and Drop"
               >
-                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                 </svg>
               </button>
@@ -456,15 +419,14 @@ export default function CustomerHomePage() {
 
             {/* Drop Location Box */}
             <div ref={dropWrapperRef} className="relative">
-              <div className="flex items-center gap-2 p-2 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all">
-                {/* Red Pin */}
+              <div className="flex items-center gap-2 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all">
                 <div className="text-red-500 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                     <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <div className="flex-1 min-w-0 pr-1 sm:pr-2">
-                  <span className="block text-[9px] sm:text-[10px] font-extrabold text-black uppercase tracking-wider">
+                <div className="flex-1 min-w-0 pr-2">
+                  <span className="block text-[10px] font-extrabold text-black uppercase tracking-wider">
                     DROP LOCATION
                   </span>
                   <input
@@ -480,7 +442,7 @@ export default function CustomerHomePage() {
                       setShowDropSuggestions(true);
                     }}
                     placeholder="Enter drop location"
-                    className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
+                    className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
                   />
                 </div>
                 <button
@@ -499,7 +461,6 @@ export default function CustomerHomePage() {
                 </button>
               </div>
 
-              {/* Drop Autocomplete Suggestions */}
               {showDropSuggestions && filteredDropLocations.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden divide-y divide-slate-50">
                   {filteredDropLocations.map((loc) => (
@@ -523,11 +484,11 @@ export default function CustomerHomePage() {
             </div>
           </div>
 
-          {/* Stops / Waypoints List (if added) */}
+          {/* Stops List */}
           {stops.map((stop, index) => (
             <div
               key={stop.id}
-              className="flex items-center gap-2 p-1.5 sm:p-2 mb-1.5 rounded-xl bg-orange-50/70 border border-orange-100 text-xs"
+              className="flex items-center gap-2 p-2 mb-1.5 rounded-xl bg-orange-50/70 border border-orange-100 text-xs"
             >
               <span className="font-bold text-[#f0750f]">{index + 1}. Stop:</span>
               <span className="flex-1 truncate font-medium text-slate-800">
@@ -553,26 +514,25 @@ export default function CustomerHomePage() {
             </div>
           ))}
 
-          {/* + Add a Stop Button */}
+          {/* Add Stop Button */}
           <div className="mb-2">
             <button
               type="button"
               onClick={handleAddStop}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] sm:text-xs font-semibold shadow-sm transition-all"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-sm transition-all"
             >
-              <span className="text-[#f0750f] font-bold text-xs sm:text-sm">+</span> Add a Stop
+              <span className="text-[#f0750f] font-bold text-sm">+</span> Add a Stop
             </button>
           </div>
 
-          {/* Schedule Row (Date & Time) */}
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-2.5">
-            {/* Trip Start Date */}
-            <div className="p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+          {/* Schedule Row */}
+          <div className="grid grid-cols-2 gap-2 mb-2.5">
+            <div className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
               <div className="flex items-center gap-1 text-black mb-0.5">
-                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-black">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-black">
                   TRIP START DATE
                 </span>
               </div>
@@ -581,45 +541,41 @@ export default function CustomerHomePage() {
                 value={scheduledDate}
                 min={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setScheduledDate(e.target.value)}
-                className={`w-full bg-transparent text-xs sm:text-sm font-semibold focus:outline-none cursor-pointer ${
-                  scheduledDate
-                    ? 'text-slate-900 font-semibold'
-                    : 'text-slate-400 [&::-webkit-datetime-edit]:text-slate-400 [&::-webkit-datetime-edit-fields-wrapper]:text-slate-400 [&::-webkit-datetime-edit-text]:text-slate-400 [&::-webkit-datetime-edit-month-field]:text-slate-400 [&::-webkit-datetime-edit-day-field]:text-slate-400 [&::-webkit-datetime-edit-year-field]:text-slate-400'
+                className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer ${
+                  scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
                 }`}
               />
             </div>
 
-            {/* Pickup Time (12-Hour) */}
             <div
               onClick={() => setTimeModalOpen(true)}
-              className="p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-[#f0750f]/50 cursor-pointer focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] transition-all select-none"
+              className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-[#f0750f]/50 cursor-pointer focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] transition-all select-none"
             >
               <div className="flex items-center gap-1 text-black mb-0.5">
-                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-black">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-black">
                   PICKUP TIME
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className={`text-xs sm:text-sm font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
+                <span className={`text-sm font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
                   {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
                 </span>
-                <span className="text-[9px] sm:text-[10px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
+                <span className="text-[10px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
                   {scheduledTime ? 'Change' : 'Set'}
                 </span>
               </div>
             </div>
 
-            {/* If Round Trip or Tour: Return Date Row */}
             {(tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') && (
-              <div className="col-span-2 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+              <div className="col-span-2 p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
                 <div className="flex items-center gap-1 text-black mb-0.5">
-                  <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-black">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-black">
                     RETURN JOURNEY DATE
                   </span>
                 </div>
@@ -628,30 +584,1011 @@ export default function CustomerHomePage() {
                   value={returnDate}
                   min={scheduledDate}
                   onChange={(e) => setReturnDate(e.target.value)}
-                  className={`w-full bg-transparent text-xs sm:text-sm font-semibold focus:outline-none cursor-pointer ${
-                    returnDate
-                      ? 'text-slate-900 font-semibold'
-                      : 'text-slate-400 [&::-webkit-datetime-edit]:text-slate-400 [&::-webkit-datetime-edit-fields-wrapper]:text-slate-400 [&::-webkit-datetime-edit-text]:text-slate-400 [&::-webkit-datetime-edit-month-field]:text-slate-400 [&::-webkit-datetime-edit-day-field]:text-slate-400 [&::-webkit-datetime-edit-year-field]:text-slate-400'
+                  className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer ${
+                    returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
                   }`}
                 />
               </div>
             )}
           </div>
 
-          {/* BOOK YOUR RIDE Button (Straddling the bottom border in the middle) */}
+          {/* Centered Straddling Button */}
           <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-20">
             <button
               type="button"
               onClick={() => handleBookYourRide()}
-              className="py-2.5 sm:py-3.5 px-8 sm:px-12 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 text-xs sm:text-base tracking-wider uppercase whitespace-nowrap"
+              className="py-3 px-10 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 text-sm tracking-wider uppercase whitespace-nowrap"
             >
               <span>BOOK YOUR RIDE</span>
-              <span className="text-base sm:text-xl leading-none">→</span>
+              <span className="text-xl leading-none">→</span>
             </button>
           </div>
         </section>
 
-        {/* 4-Card Quick Category Grid (Mobile Only - Hidden on Desktop/Tablet) */}
+        {/* ======================================================== */}
+        {/* MOBILE VIEW (Excluding Desktop): Dedicated Custom Cards  */}
+        {/* ======================================================== */}
+        <div className="md:hidden space-y-3 mb-6">
+          {/* Top 2 Tabs (ONE WAY vs ROUND TRIP) */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleTabClick('ONEWAY')}
+              className={`flex items-center gap-2 p-2 rounded-xl text-left transition-all ${
+                activeTab === 'ONEWAY'
+                  ? 'bg-[#f0750f] text-white shadow-sm'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+              }`}
+            >
+              <div className={`flex items-center justify-center flex-shrink-0 ${activeTab === 'ONEWAY' ? 'text-white' : 'text-slate-500'}`}>
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs font-extrabold uppercase">ONE WAY</p>
+                <p className={`text-[9px] font-medium ${activeTab === 'ONEWAY' ? 'text-white/85' : 'text-slate-400'}`}>Drop-off only</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTabClick('ROUND')}
+              className={`flex items-center gap-2 p-2 rounded-xl text-left transition-all ${
+                activeTab === 'ROUND'
+                  ? 'bg-[#f0750f] text-white shadow-sm'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+              }`}
+            >
+              <div className={`flex items-center justify-center flex-shrink-0 ${activeTab === 'ROUND' ? 'text-white' : 'text-slate-500'}`}>
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 12a8 8 0 0 1 14.93-4M20 4v5h-5" />
+                  <path d="M20 12a8 8 0 0 1-14.93 4M4 20v-5h5" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs font-extrabold uppercase">ROUND TRIP</p>
+                <p className={`text-[9px] font-medium ${activeTab === 'ROUND' ? 'text-white/85' : 'text-slate-400'}`}>Return same cab</p>
+              </div>
+            </button>
+          </div>
+
+          {/* 1. AIRPORT TRANSFER MOBILE VIEW (Matches Reference Image 1) */}
+          {activeTab === 'AIRPORT' && (
+            <div className="space-y-3">
+              {/* Card 1: Details */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 space-y-3">
+                <div className="flex items-center gap-2 text-[#f0750f]">
+                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+                  </svg>
+                  <h3 className="text-sm font-extrabold text-[#f0750f]">Airport Transfer</h3>
+                </div>
+
+                {/* Pickup Location */}
+                <div>
+                  <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                    PICKUP LOCATION
+                  </span>
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                    <div className="text-emerald-500 flex-shrink-0">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      value={pickupAddress}
+                      onChange={(e) => setPickupAddress(e.target.value)}
+                      placeholder="Enter pickup location"
+                      className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400 truncate"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLocationModalTarget('PICKUP');
+                        setLocationModalOpen(true);
+                      }}
+                      className="text-slate-400 hover:text-[#f0750f] p-0.5 flex-shrink-0"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Destination Airport */}
+                <div className="relative">
+                  <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                    DESTINATION AIRPORT
+                  </span>
+                  <div
+                    onClick={() => setAirportDropdownOpen(!airportDropdownOpen)}
+                    className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white cursor-pointer select-none"
+                  >
+                    <div className="text-red-500 flex-shrink-0">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+                      </svg>
+                    </div>
+                    <span className="flex-1 text-xs font-semibold text-slate-800 truncate">
+                      {selectedAirport || 'Select destination airport'}
+                    </span>
+                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${airportDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+
+                  {airportDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100 max-h-56 overflow-y-auto">
+                      {POPULAR_AIRPORTS.map((airport) => (
+                        <button
+                          key={airport}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAirport(airport);
+                            setAirportDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 text-xs font-semibold flex items-center gap-2 transition-colors ${
+                            selectedAirport === airport ? 'bg-orange-50 text-[#f0750f]' : 'hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5 text-red-400" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+                          </svg>
+                          <span className="truncate">{airport}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Flight No + Add Stop Row */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={flightNumber}
+                    onChange={(e) => setFlightNumber(e.target.value)}
+                    placeholder="Flight no. (optional)"
+                    className="flex-1 min-w-0 p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#f0750f]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddStop}
+                    className="bg-[#162232] hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-1 flex-shrink-0 transition-all shadow-sm"
+                  >
+                    <span>+</span> Add a Stop
+                  </button>
+                </div>
+
+                {/* Stops Display if any */}
+                {stops.map((stop, index) => (
+                  <div key={stop.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-orange-50 border border-orange-100 text-xs">
+                    <span className="font-bold text-[#f0750f]">{index + 1}. Stop:</span>
+                    <span className="flex-1 truncate text-slate-800">{stop.address || 'Select Stop'}</span>
+                    <button type="button" onClick={() => handleRemoveStop(stop.id)} className="text-red-500 font-bold ml-1">✕</button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Card 2: Trip Schedule + Straddling Book Button */}
+              <div className="relative bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 pb-8">
+                <div className="flex items-center gap-1.5 text-[#f0750f] mb-3">
+                  <svg className="w-4 h-4 text-[#f0750f]" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z" />
+                  </svg>
+                  <h4 className="text-xs font-extrabold text-[#f0750f]">Trip Schedule</h4>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  {/* Pickup Date */}
+                  <div className="relative">
+                    <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                      PICKUP DATE
+                    </span>
+                    <div className="flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-slate-50/70">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className={`text-xs font-semibold truncate ${scheduledDate ? 'text-slate-900' : 'text-slate-400'}`}>
+                          {scheduledDate || 'Select Date'}
+                        </span>
+                      </div>
+                      <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                      <input
+                        type="date"
+                        value={scheduledDate}
+                        min={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => setScheduledDate(e.target.value)}
+                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Pickup Time */}
+                  <div>
+                    <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                      PICKUP TIME
+                    </span>
+                    <div
+                      onClick={() => setTimeModalOpen(true)}
+                      className="flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-slate-50/70 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 truncate">
+                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className={`text-xs font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
+                          {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
+                        </span>
+                      </div>
+                      <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Straddling Button */}
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-20">
+                  <button
+                    type="button"
+                    onClick={() => handleBookYourRide()}
+                    className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 text-xs tracking-wider uppercase whitespace-nowrap"
+                  >
+                    <span>BOOK YOUR RIDE</span>
+                    <span className="text-base leading-none">→</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 2. LOCAL RENTAL MOBILE VIEW (Matches Reference Image 2) */}
+          {activeTab === 'LOCAL' && (
+            <div className="space-y-3">
+              {/* Card 1: Details */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 space-y-3">
+                <div className="flex items-center gap-2 text-[#f0750f]">
+                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 512 512" fill="currentColor">
+                    <path d="M256 48C141.13 48 48 141.13 48 256s93.13 208 208 208s208-93.13 208-208S370.87 48 256 48m96 240h-96a16 16 0 0 1-16-16V128a16 16 0 0 1 32 0v128h80a16 16 0 0 1 0 32" />
+                  </svg>
+                  <h3 className="text-sm font-extrabold text-[#f0750f]">Local Rental</h3>
+                </div>
+
+                {/* Pickup Location */}
+                <div>
+                  <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                    PICKUP LOCATION
+                  </span>
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                    <div className="text-emerald-500 flex-shrink-0">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      value={pickupAddress}
+                      onChange={(e) => setPickupAddress(e.target.value)}
+                      placeholder="Enter pickup location"
+                      className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400 truncate"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLocationModalTarget('PICKUP');
+                        setLocationModalOpen(true);
+                      }}
+                      className="text-slate-400 hover:text-[#f0750f] p-0.5 flex-shrink-0"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Rental Duration & Distance Segmented Options */}
+                <div>
+                  <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                    RENTAL DURATION & DISTANCE
+                  </span>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { id: '4_40', label: '4 Hours / 40 km' },
+                      { id: '8_80', label: '8 Hours / 80 km' },
+                      { id: '12_120', label: '12 Hours / 120 km' },
+                    ].map((pkg) => {
+                      const isSelected = localPackage === pkg.id;
+                      return (
+                        <button
+                          key={pkg.id}
+                          type="button"
+                          onClick={() => setLocalPackage(pkg.id as any)}
+                          className={`p-2 rounded-xl text-center text-[10px] font-bold leading-tight transition-all border ${
+                            isSelected
+                              ? 'bg-[#f0750f] text-white border-[#f0750f] shadow-sm'
+                              : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          {pkg.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Trip Schedule + Straddling Button */}
+              <div className="relative bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 pb-8">
+                <div className="flex items-center gap-1.5 text-[#f0750f] mb-3">
+                  <svg className="w-4 h-4 text-[#f0750f]" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z" />
+                  </svg>
+                  <h4 className="text-xs font-extrabold text-[#f0750f]">Trip Schedule</h4>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div className="relative">
+                    <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                      PICKUP DATE
+                    </span>
+                    <div className="flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-slate-50/70">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className={`text-xs font-semibold truncate ${scheduledDate ? 'text-slate-900' : 'text-slate-400'}`}>
+                          {scheduledDate || 'Select Date'}
+                        </span>
+                      </div>
+                      <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                      <input
+                        type="date"
+                        value={scheduledDate}
+                        min={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => setScheduledDate(e.target.value)}
+                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                      PICKUP TIME
+                    </span>
+                    <div
+                      onClick={() => setTimeModalOpen(true)}
+                      className="flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-slate-50/70 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 truncate">
+                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className={`text-xs font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
+                          {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
+                        </span>
+                      </div>
+                      <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Straddling Button */}
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-20">
+                  <button
+                    type="button"
+                    onClick={() => handleBookYourRide()}
+                    className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 text-xs tracking-wider uppercase whitespace-nowrap"
+                  >
+                    <span>BOOK YOUR RIDE</span>
+                    <span className="text-base leading-none">→</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 3. CORPORATE TRAVEL MOBILE VIEW (Matches Reference Image 3) */}
+          {activeTab === 'CORPORATE' && (
+            <div className="space-y-3">
+              {/* Card 1: Details */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[#f0750f]">
+                    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 512 512" fill="currentColor">
+                      <path d="M432 112h-48V96a48.05 48.05 0 0 0-48-48H176a48.05 48.05 0 0 0-48 48v16H80a48.05 48.05 0 0 0-48 48v64h448v-64a48.05 48.05 0 0 0-48-48zM160 96a16 16 0 0 1 16-16h160a16 16 0 0 1 16 16v16H160zM32 256v144a48.05 48.05 0 0 0 48 48h352a48.05 48.05 0 0 0 48-48V256H336a16 16 0 0 1-16 16H192a16 16 0 0 1-16-16z" />
+                    </svg>
+                    <h3 className="text-sm font-extrabold text-[#f0750f]">Corporate Travel</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSwapLocations}
+                    className="w-7 h-7 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-[#f0750f] active:scale-95 transition-all shadow-xs"
+                    title="Swap"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Pickup Location */}
+                <div>
+                  <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                    PICKUP LOCATION
+                  </span>
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                    <div className="text-emerald-500 flex-shrink-0">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      value={pickupAddress}
+                      onChange={(e) => setPickupAddress(e.target.value)}
+                      placeholder="Enter pickup location"
+                      className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400 truncate"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLocationModalTarget('PICKUP');
+                        setLocationModalOpen(true);
+                      }}
+                      className="text-slate-400 hover:text-[#f0750f] p-0.5 flex-shrink-0"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Destination Drop */}
+                <div>
+                  <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                    DESTINATION DROP
+                  </span>
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                    <div className="text-red-500 flex-shrink-0">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      value={dropAddress}
+                      onChange={(e) => setDropAddress(e.target.value)}
+                      placeholder="Enter drop location"
+                      className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400 truncate"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLocationModalTarget('DROP');
+                        setLocationModalOpen(true);
+                      }}
+                      className="text-slate-400 hover:text-[#f0750f] p-0.5 flex-shrink-0"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Add a Stop */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleAddStop}
+                    className="inline-flex items-center gap-1 text-slate-700 text-xs font-semibold hover:text-[#f0750f]"
+                  >
+                    <span className="text-[#f0750f] font-bold">+</span> Add a Stop
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 2: Schedule + Straddling Button */}
+              <div className="relative bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 pb-8 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-[#f0750f]">
+                  <svg className="w-4 h-4 text-[#f0750f]" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z" />
+                  </svg>
+                  <h4 className="text-xs font-extrabold text-[#f0750f]">Schedule</h4>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                      PICKUP DATE
+                    </span>
+                    <div className="flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-slate-50/70">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className={`text-xs font-semibold truncate ${scheduledDate ? 'text-slate-900' : 'text-slate-400'}`}>
+                          {scheduledDate || 'Select Date'}
+                        </span>
+                      </div>
+                      <input
+                        type="date"
+                        value={scheduledDate}
+                        min={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => setScheduledDate(e.target.value)}
+                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                      ADD PICKUP TIME
+                    </span>
+                    <div
+                      onClick={() => setTimeModalOpen(true)}
+                      className="flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-slate-50/70 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 truncate">
+                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className={`text-xs font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
+                          {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Primary Pickup Indicator */}
+                <div className="flex items-center justify-between p-2 rounded-xl bg-orange-50/60 border border-orange-100 text-xs">
+                  <span className="font-semibold text-slate-700">Primary Pickup</span>
+                  <span className="font-bold text-[#f0750f]">
+                    {scheduledTime ? format12HourTime(scheduledTime) : '9:00 AM'}
+                  </span>
+                </div>
+
+                {/* Straddling Button */}
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-20">
+                  <button
+                    type="button"
+                    onClick={() => handleBookYourRide()}
+                    className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 text-xs tracking-wider uppercase whitespace-nowrap"
+                  >
+                    <span>BOOK YOUR RIDE</span>
+                    <span className="text-base leading-none">→</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 4. TOUR & PILGRIMAGE MOBILE VIEW (Matches Reference Image 4) */}
+          {activeTab === 'TOUR' && (
+            <div className="space-y-3">
+              {/* Card 1: Details */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[#f0750f]">
+                    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 512 512" fill="currentColor">
+                      <path d="M432 176H320V64a48 48 0 0 0-48-48H80a48 48 0 0 0-48 48v416a16 16 0 0 0 16 16h104a8 8 0 0 0 8-8v-71.55c0-8.61 6.62-16 15.23-16.43A16 16 0 0 1 192 416v72a8 8 0 0 0 8 8h264a16 16 0 0 0 16-16V224a48 48 0 0 0-48-48" />
+                    </svg>
+                    <h3 className="text-sm font-extrabold text-[#f0750f]">Tour & Pilgrimage</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSwapLocations}
+                    className="w-7 h-7 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-[#f0750f] active:scale-95 transition-all shadow-xs"
+                    title="Swap"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Pickup Location */}
+                <div>
+                  <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                    PICKUP LOCATION
+                  </span>
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                    <div className="text-emerald-500 flex-shrink-0">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      value={pickupAddress}
+                      onChange={(e) => setPickupAddress(e.target.value)}
+                      placeholder="Enter pickup location"
+                      className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400 truncate"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLocationModalTarget('PICKUP');
+                        setLocationModalOpen(true);
+                      }}
+                      className="text-slate-400 hover:text-[#f0750f] p-0.5 flex-shrink-0"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Destination Drop */}
+                <div>
+                  <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                    DESTINATION DROP
+                  </span>
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                    <div className="text-red-500 flex-shrink-0">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      value={dropAddress}
+                      onChange={(e) => setDropAddress(e.target.value)}
+                      placeholder="Enter drop location"
+                      className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400 truncate"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLocationModalTarget('DROP');
+                        setLocationModalOpen(true);
+                      }}
+                      className="text-slate-400 hover:text-[#f0750f] p-0.5 flex-shrink-0"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Add a Stop */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleAddStop}
+                    className="inline-flex items-center gap-1 text-slate-700 text-xs font-semibold hover:text-[#f0750f]"
+                  >
+                    <span className="text-[#f0750f] font-bold">+</span> Add a Stop
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 2: Schedule (Departure & Return Rows) + Straddling Button */}
+              <div className="relative bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 pb-8 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-[#f0750f]">
+                  <svg className="w-4 h-4 text-[#f0750f]" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z" />
+                  </svg>
+                  <h4 className="text-xs font-extrabold text-[#f0750f]">Trip Schedule</h4>
+                </div>
+
+                {/* Row 1: Departure Date & Time */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                      DEPARTURE DATE
+                    </span>
+                    <div className="flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-slate-50/70">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className={`text-xs font-semibold truncate ${scheduledDate ? 'text-slate-900' : 'text-slate-400'}`}>
+                          {scheduledDate || 'Select Date'}
+                        </span>
+                      </div>
+                      <input
+                        type="date"
+                        value={scheduledDate}
+                        min={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => setScheduledDate(e.target.value)}
+                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                      DEPARTURE TIME
+                    </span>
+                    <div
+                      onClick={() => setTimeModalOpen(true)}
+                      className="flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-slate-50/70 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 truncate">
+                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className={`text-xs font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
+                          {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 2: Return Date & Time */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                      RETURN DATE
+                    </span>
+                    <div className="flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-slate-50/70">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className={`text-xs font-semibold truncate ${returnDate ? 'text-slate-900' : 'text-slate-400'}`}>
+                          {returnDate || 'Select Date'}
+                        </span>
+                      </div>
+                      <input
+                        type="date"
+                        value={returnDate}
+                        min={scheduledDate}
+                        onChange={(e) => setReturnDate(e.target.value)}
+                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="block text-[9px] font-extrabold text-slate-700 uppercase tracking-wider mb-1">
+                      RETURN TIME
+                    </span>
+                    <div
+                      onClick={() => setReturnTimeModalOpen(true)}
+                      className="flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-slate-50/70 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 truncate">
+                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className={`text-xs font-semibold truncate ${returnTime ? format12HourTime(returnTime) : 'Select Time'}`}>
+                          {returnTime ? format12HourTime(returnTime) : 'Select Time'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Straddling Button */}
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-20">
+                  <button
+                    type="button"
+                    onClick={() => handleBookYourRide()}
+                    className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 text-xs tracking-wider uppercase whitespace-nowrap"
+                  >
+                    <span>BOOK YOUR RIDE</span>
+                    <span className="text-base leading-none">→</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 5. DEFAULT MOBILE VIEW: ONE WAY & ROUND TRIP */}
+          {(activeTab === 'ONEWAY' || activeTab === 'ROUND') && (
+            <div className="relative bg-white rounded-2xl border border-slate-100 shadow-sm p-3.5 pb-8 space-y-2.5">
+              {/* Pickup & Drop with Swap */}
+              <div className="relative space-y-1.5">
+                {/* Pickup */}
+                <div className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                  <div className="text-emerald-500 flex-shrink-0">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0 pr-1">
+                    <span className="block text-[9px] font-extrabold text-black uppercase tracking-wider">
+                      PICKUP LOCATION
+                    </span>
+                    <input
+                      type="text"
+                      value={pickupAddress}
+                      onChange={(e) => {
+                        setPickupAddress(e.target.value);
+                        setPickupQuery(e.target.value);
+                        setShowPickupSuggestions(true);
+                      }}
+                      placeholder="Enter pickup location"
+                      className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocationModalTarget('PICKUP');
+                      setLocationModalOpen(true);
+                    }}
+                    className="p-1 text-[#f0750f] hover:bg-orange-50 rounded-lg flex-shrink-0"
+                  >
+                    <svg className="w-4 h-4 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M21.43 2.57a1 1 0 00-1-.24l-18 6a1 1 0 00-.06 1.87l7.55 3.32 3.32 7.55a1 1 0 001.87-.06l6-18a1 1 0 00-.68-1.44z" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Floating Swap Button */}
+                <div className="absolute right-2 top-[50%] -translate-y-1/2 z-20">
+                  <button
+                    type="button"
+                    onClick={handleSwapLocations}
+                    className="w-7 h-7 rounded-full bg-white hover:bg-slate-50 border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:text-[#f0750f] active:scale-95 transition-all"
+                    title="Swap"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Drop */}
+                <div className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f]">
+                  <div className="text-red-500 flex-shrink-0">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path fillRule="evenodd" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0 pr-1">
+                    <span className="block text-[9px] font-extrabold text-black uppercase tracking-wider">
+                      DROP LOCATION
+                    </span>
+                    <input
+                      type="text"
+                      value={dropAddress}
+                      onChange={(e) => {
+                        setDropAddress(e.target.value);
+                        setDropQuery(e.target.value);
+                        setShowDropSuggestions(true);
+                      }}
+                      placeholder="Enter drop location"
+                      className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocationModalTarget('DROP');
+                      setLocationModalOpen(true);
+                    }}
+                    className="p-1 text-[#f0750f] hover:bg-orange-50 rounded-lg flex-shrink-0"
+                  >
+                    <svg className="w-4 h-4 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M21.43 2.57a1 1 0 00-1-.24l-18 6a1 1 0 00-.06 1.87l7.55 3.32 3.32 7.55a1 1 0 001.87-.06l6-18a1 1 0 00-.68-1.44z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Add a Stop */}
+              <div>
+                <button
+                  type="button"
+                  onClick={handleAddStop}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-semibold shadow-sm transition-all"
+                >
+                  <span className="text-[#f0750f] font-bold text-xs">+</span> Add a Stop
+                </button>
+              </div>
+
+              {/* Stops list if any */}
+              {stops.map((stop, index) => (
+                <div key={stop.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-orange-50 border border-orange-100 text-xs">
+                  <span className="font-bold text-[#f0750f]">{index + 1}. Stop:</span>
+                  <span className="flex-1 truncate text-slate-800">{stop.address || 'Select Stop'}</span>
+                  <button type="button" onClick={() => handleRemoveStop(stop.id)} className="text-red-500 font-bold ml-1">✕</button>
+                </div>
+              ))}
+
+              {/* Dates & Times */}
+              <div className="grid grid-cols-2 gap-1.5">
+                <div className="p-2 rounded-xl border border-slate-200 bg-slate-50/70">
+                  <div className="flex items-center gap-1 text-black mb-0.5">
+                    <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-black">
+                      TRIP START DATE
+                    </span>
+                  </div>
+                  <input
+                    type="date"
+                    value={scheduledDate}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    className={`w-full bg-transparent text-xs font-semibold focus:outline-none cursor-pointer ${
+                      scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                    }`}
+                  />
+                </div>
+
+                <div
+                  onClick={() => setTimeModalOpen(true)}
+                  className="p-2 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-1 text-black mb-0.5">
+                    <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-black">
+                      PICKUP TIME
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
+                      {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
+                    </span>
+                    <span className="text-[9px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
+                      {scheduledTime ? 'Change' : 'Set'}
+                    </span>
+                  </div>
+                </div>
+
+                {activeTab === 'ROUND' && (
+                  <div className="col-span-2 p-2 rounded-xl border border-slate-200 bg-slate-50/70">
+                    <div className="flex items-center gap-1 text-black mb-0.5">
+                      <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-[9px] font-extrabold uppercase tracking-wider text-black">
+                        RETURN JOURNEY DATE
+                      </span>
+                    </div>
+                    <input
+                      type="date"
+                      value={returnDate}
+                      min={scheduledDate}
+                      onChange={(e) => setReturnDate(e.target.value)}
+                      className={`w-full bg-transparent text-xs font-semibold focus:outline-none cursor-pointer ${
+                        returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                      }`}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Centered Straddling Button */}
+              <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-20">
+                <button
+                  type="button"
+                  onClick={() => handleBookYourRide()}
+                  className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 text-xs tracking-wider uppercase whitespace-nowrap"
+                >
+                  <span>BOOK YOUR RIDE</span>
+                  <span className="text-base leading-none">→</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 4-Card Quick Category Grid (Mobile Only - Hidden on Desktop/Tablet, Matching Reference Image 5) */}
         <section className="grid grid-cols-4 gap-1.5 sm:gap-2.5 md:hidden">
           {SERVICE_CATEGORIES.map((cat) => {
             const isSelected = activeTab === cat.id;
@@ -735,13 +1672,22 @@ export default function CustomerHomePage() {
         onClose={() => setDriverModalOpen(false)}
       />
 
-      {/* 12-Hour Time Picker Modal */}
+      {/* 12-Hour Time Picker Modal (Pickup) */}
       <TimePickerModal
         isOpen={timeModalOpen}
         onClose={() => setTimeModalOpen(false)}
         onSelectTime={(t) => setScheduledTime(t)}
         currentTime={scheduledTime}
         title="Select Pickup Time"
+      />
+
+      {/* 12-Hour Time Picker Modal (Return) */}
+      <TimePickerModal
+        isOpen={returnTimeModalOpen}
+        onClose={() => setReturnTimeModalOpen(false)}
+        onSelectTime={(t) => setReturnTime(t)}
+        currentTime={returnTime}
+        title="Select Return Time"
       />
     </div>
   );
