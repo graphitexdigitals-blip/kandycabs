@@ -18,6 +18,9 @@
   },
   "header": {
     "welcome": "Welcome",
+    "good_morning": "Good Morning",
+    "good_afternoon": "Good Afternoon",
+    "good_evening": "Good Evening",
     "partner": "Partner",
     "driver_app": "Driver App",
     "online": "Online",

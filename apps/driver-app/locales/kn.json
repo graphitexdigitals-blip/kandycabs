@@ -18,6 +18,9 @@
   },
   "header": {
     "welcome": "ಸ್ವಾಗತ",
+    "good_morning": "ಶುಭೋದಯ",
+    "good_afternoon": "ಶುಭ ಮಧ್ಯಾಹ್ನ",
+    "good_evening": "ಶುಭ ಸಂಜೆ",
     "partner": "Partner",
     "driver_app": "Driver App",
     "online": "ಆನ್‌ಲೈನ್",

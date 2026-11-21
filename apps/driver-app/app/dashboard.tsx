@@ -351,6 +351,14 @@ export default function DriverDashboardScreen() {
   // Bottom Navigation State: 'HOME' | 'MY_TRIPS' | 'SUPPORT' | 'PROFILE'
   const [activeBottomTab, setActiveBottomTab] = useState<'HOME' | 'MY_TRIPS' | 'SUPPORT' | 'PROFILE'>('HOME');
 
+  // Dynamic time-of-day greeting (Good Morning, Good Afternoon, Good Evening)
+  const greetingText = useMemo(() => {
+    const hours = new Date().getHours();
+    if (hours < 12) return t('header.good_morning', 'Good Morning');
+    if (hours < 17) return t('header.good_afternoon', 'Good Afternoon');
+    return t('header.good_evening', 'Good Evening');
+  }, [t]);
+
   // Top Card Sub-Tab State: 'MY_TRIPS' | 'UPCOMING' | 'HISTORY'
   const [activeCardTab, setActiveCardTab] = useState<'MY_TRIPS' | 'UPCOMING' | 'HISTORY'>('MY_TRIPS');
 
@@ -1872,7 +1880,7 @@ export default function DriverDashboardScreen() {
 
                   <View style={[styles.heroInfoBlock, isSmallDevice && { marginLeft: 8 }]}>
                     <Text style={[styles.heroGreetingText, isSmallDevice && styles.heroGreetingTextSmall]} numberOfLines={1}>
-                      {t('header.welcome', 'Welcome')}
+                      {greetingText}
                     </Text>
                     <Text
                       style={[styles.heroCardName, isSmallDevice && styles.heroCardNameSmall]}

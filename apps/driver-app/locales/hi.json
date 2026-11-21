@@ -18,6 +18,9 @@
   },
   "header": {
     "welcome": "स्वागत",
+    "good_morning": "शुभ प्रभात",
+    "good_afternoon": "शुभ दोपहर",
+    "good_evening": "शुभ संध्या",
     "partner": "Partner",
     "driver_app": "Driver App",
     "online": "ऑनलाइन",
