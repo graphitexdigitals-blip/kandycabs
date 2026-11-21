@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useAuth } from '@/lib/AuthContext';
 
 interface WebAuthModalProps {
@@ -146,12 +147,16 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
           ✕
         </button>
 
-        {/* Modal Icon & Header */}
-        <div className="text-center mb-6">
-          <div className="w-14 h-14 bg-orange-50 border border-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-3 text-[#f0750f]">
-            <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
+        {/* Modal Logo & Header */}
+        <div className="text-center mb-5">
+          <div className="relative h-12 w-36 mx-auto mb-2">
+            <Image
+              src="/images/logo.png"
+              alt="Kandy Cabs Logo"
+              fill
+              className="object-contain"
+              priority
+            />
           </div>
           <h3 className="text-xl font-bold text-slate-900">
             {step === 'PHONE'
