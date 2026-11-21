@@ -3529,7 +3529,7 @@ export default function DriverDashboardScreen() {
           <Ionicons
             name={activeBottomTab === 'HOME' ? 'home' : 'home-outline'}
             size={23}
-            color={activeBottomTab === 'HOME' ? '#f0750f' : '#94a3b8'}
+            color={activeBottomTab === 'HOME' ? '#ff6b00' : '#94a3b8'}
           />
           <Text style={[styles.bottomNavText, activeBottomTab === 'HOME' && styles.bottomNavTextActive]}>
             {t('tabs.home')}
@@ -3548,7 +3548,7 @@ export default function DriverDashboardScreen() {
           <Ionicons
             name={activeBottomTab === 'MY_TRIPS' ? 'receipt' : 'receipt-outline'}
             size={23}
-            color={activeBottomTab === 'MY_TRIPS' ? '#f0750f' : '#94a3b8'}
+            color={activeBottomTab === 'MY_TRIPS' ? '#ff6b00' : '#94a3b8'}
           />
           <Text style={[styles.bottomNavText, activeBottomTab === 'MY_TRIPS' && styles.bottomNavTextActive]}>
             {t('tabs.my_trips')}
@@ -3567,7 +3567,7 @@ export default function DriverDashboardScreen() {
           <Ionicons
             name={activeBottomTab === 'SUPPORT' ? 'headset' : 'headset-outline'}
             size={23}
-            color={activeBottomTab === 'SUPPORT' ? '#f0750f' : '#94a3b8'}
+            color={activeBottomTab === 'SUPPORT' ? '#ff6b00' : '#94a3b8'}
           />
           <Text style={[styles.bottomNavText, activeBottomTab === 'SUPPORT' && styles.bottomNavTextActive]}>
             {t('tabs.support')}
@@ -3587,7 +3587,7 @@ export default function DriverDashboardScreen() {
             <Ionicons
               name={activeBottomTab === 'PROFILE' ? 'person' : 'person-outline'}
               size={23}
-              color={activeBottomTab === 'PROFILE' ? '#f0750f' : '#94a3b8'}
+              color={activeBottomTab === 'PROFILE' ? '#ff6b00' : '#94a3b8'}
             />
             {hasAnyProfilePending && (
               <View style={styles.profilePendingNotificationBadge}>
@@ -3900,7 +3900,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     backgroundColor: '#ffffff',
     borderWidth: 2,
-    borderColor: '#f97316',
+    borderColor: '#ff6b00',
     padding: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -5699,11 +5699,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardOrangeDivider: {
-    width: 2,
+    width: 2.5,
     height: 24,
-    backgroundColor: '#ea580c',
+    backgroundColor: '#ff6b00',
     marginHorizontal: 12,
-    borderRadius: 1,
+    borderRadius: 1.5,
   },
   cardRightGroup: {
     flexDirection: 'row',
@@ -5714,7 +5714,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#ea580c',
+    backgroundColor: '#ff6b00',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 4,
@@ -5726,7 +5726,7 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   cardNotifCountBadge: {
-    backgroundColor: '#ea580c',
+    backgroundColor: '#ff6b00',
     borderRadius: 11,
     minWidth: 22,
     height: 22,
@@ -7452,7 +7452,7 @@ const styles = StyleSheet.create({
   bottomActiveBar: {
     width: 26,
     height: 3,
-    backgroundColor: '#f0750f',
+    backgroundColor: '#ff6b00',
     borderRadius: 1.5,
     marginTop: 3,
   },
@@ -7471,7 +7471,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.15,
   },
   bottomNavTextActive: {
-    color: '#f0750f',
+    color: '#ff6b00',
     fontWeight: '900',
   },
   tabIconWrapper: {
@@ -7483,7 +7483,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -8,
-    backgroundColor: '#ea580c',
+    backgroundColor: '#ff6b00',
     width: 16,
     height: 16,
     borderRadius: 8,
@@ -8165,10 +8165,10 @@ const styles = StyleSheet.create({
   profileSectionLangBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#ea580c',
+    color: '#ff6b00',
   },
   profileNotifCountBadge: {
-    backgroundColor: '#ea580c',
+    backgroundColor: '#ff6b00',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
