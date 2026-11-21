@@ -10,7 +10,7 @@ interface TimePickerModalProps {
   title?: string;
 }
 
-const ITEM_HEIGHT = 44;
+const ITEM_HEIGHT = 40;
 const HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 const PERIODS = ['AM', 'PM'] as const;
@@ -58,7 +58,7 @@ function WheelColumn({
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="flex-1 h-[308px] overflow-y-auto scroll-smooth snap-y snap-mandatory relative z-20 py-[132px]"
+      className="flex-1 h-[200px] overflow-y-auto scroll-smooth snap-y snap-mandatory relative z-20 py-[80px]"
       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
     >
       {items.map((item, idx) => {
@@ -73,14 +73,14 @@ function WheelColumn({
                 containerRef.current.scrollTo({ top: idx * ITEM_HEIGHT, behavior: 'smooth' });
               }
             }}
-            className={`h-[44px] flex items-center justify-center snap-center cursor-pointer select-none transition-all duration-150 ${
+            className={`h-[40px] flex items-center justify-center snap-center cursor-pointer select-none transition-all duration-150 ${
               isSelected
-                ? 'text-2xl font-black text-slate-900 scale-105'
+                ? 'text-xl sm:text-2xl font-black text-slate-900 scale-105'
                 : dist === 1
-                ? 'text-lg font-bold text-slate-500'
+                ? 'text-base font-bold text-slate-500'
                 : dist === 2
-                ? 'text-base font-medium text-slate-300'
-                : 'text-sm font-light text-slate-200'
+                ? 'text-sm font-medium text-slate-300'
+                : 'text-xs font-light text-slate-200'
             }`}
           >
             {item}
@@ -167,11 +167,11 @@ export function TimePickerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-3xl max-w-sm w-full p-4 sm:p-5 shadow-2xl border border-slate-100 space-y-3 relative animate-scale-in">
+      <div className="bg-white rounded-3xl max-w-[340px] w-full p-3.5 sm:p-4 shadow-2xl border border-slate-100 space-y-2 relative animate-scale-in">
         {/* Header matching Customer App */}
         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-          <div className="flex items-center gap-2.5">
-            <svg className="w-[22px] h-[22px] text-[#162232] flex-shrink-0" viewBox="0 0 512 512" fill="currentColor">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-[#162232] flex-shrink-0" viewBox="0 0 512 512" fill="currentColor">
               <path d="M256 48C141.13 48 48 141.13 48 256s93.13 208 208 208 208-93.13 208-208S370.87 48 256 48zm96 240h-96a16 16 0 01-16-16V128a16 16 0 0132 0v128h80a16 16 0 010 32z" />
             </svg>
             <h3 className="text-sm sm:text-base font-bold text-slate-900">{title}</h3>
@@ -180,20 +180,20 @@ export function TimePickerModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold transition"
+            className="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold transition"
           >
             ✕
           </button>
         </div>
 
         {/* 3-Column Scrollable Wheel Cylinder Picker */}
-        <div className="relative h-[308px] overflow-hidden my-1">
+        <div className="relative h-[200px] overflow-hidden my-0.5">
           {/* Center Selection Highlight Bar spanning all columns */}
-          <div className="absolute left-2 right-2 top-[132px] h-[44px] bg-[#f1f5f9] rounded-2xl pointer-events-none z-0" />
+          <div className="absolute left-1.5 right-1.5 top-[80px] h-[40px] bg-[#f1f5f9] rounded-xl pointer-events-none z-0" />
 
           {/* Top & Bottom Depth Fade Overlays */}
-          <div className="absolute top-0 left-0 right-0 h-[100px] bg-gradient-to-b from-white via-white/80 to-transparent pointer-events-none z-30" />
-          <div className="absolute bottom-0 left-0 right-0 h-[100px] bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none z-30" />
+          <div className="absolute top-0 left-0 right-0 h-[65px] bg-gradient-to-b from-white via-white/80 to-transparent pointer-events-none z-30" />
+          <div className="absolute bottom-0 left-0 right-0 h-[65px] bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none z-30" />
 
           {/* Columns */}
           <div className="flex items-center h-full relative z-20">
@@ -221,9 +221,9 @@ export function TimePickerModal({
         </div>
 
         {/* Bottom Bar: Selected Time Preview & Confirm Button */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+        <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">
               SELECTED TIME
             </span>
             <span className="text-base sm:text-lg font-black text-slate-900 leading-tight">
@@ -234,7 +234,7 @@ export function TimePickerModal({
           <button
             type="button"
             onClick={handleConfirm}
-            className="bg-[#f0750f] hover:bg-[#ea580c] active:scale-95 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-md flex items-center gap-1.5 transition-all"
+            className="bg-[#f0750f] hover:bg-[#ea580c] active:scale-95 text-white font-bold text-xs sm:text-sm px-3.5 py-2 rounded-xl shadow-md flex items-center gap-1.5 transition-all"
           >
             <span>Confirm Time</span>
             <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
