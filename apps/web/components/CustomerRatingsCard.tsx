@@ -60,8 +60,8 @@ export function CustomerRatingsCard() {
           <p className="text-xs md:text-sm lg:text-[14px] font-extrabold text-slate-900 leading-snug">
             Kindly add your valuable feedback and share your experience with Kandy Cabs!
           </p>
-          <p className="text-[9px] sm:text-[9.5px] md:text-[10px] text-slate-500 font-normal leading-normal">
-            Your review helps fellow travelers and enables us to continuously improve our taxi, outstation, and airport transfer services.
+          <p className="text-[9.5px] sm:text-[10px] md:text-[10.5px] text-slate-500 font-normal leading-normal">
+            Your review helps fellow travelers and improves our service.
           </p>
         </div>
 
