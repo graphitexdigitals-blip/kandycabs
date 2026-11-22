@@ -107,6 +107,7 @@ export function AdditionalRequirementsModal({
   // Reset/sync state whenever modal opens with initialData
   useEffect(() => {
     if (isOpen) {
+      setIsLuggageDropdownOpen(false); // Default arrange as closed
       setTravellers(initialData.travellers || 0);
       setLuggageCounts(
         initialData.luggageCounts || {
@@ -203,6 +204,7 @@ export function AdditionalRequirementsModal({
       accessibilityAssistance,
       specialNotes: specialNotes.trim() || undefined,
     });
+    setIsLuggageDropdownOpen(false);
     onClose();
   };
 
