@@ -2215,9 +2215,9 @@ export default function BookingFunnelPage() {
                   type="button"
                   disabled={isSubmitting}
                   onClick={handlePayNow}
-                  className="flex-[1.3] py-3 px-3 rounded-xl font-black text-white bg-[#64748b] hover:bg-[#475569] active:scale-95 transition-all shadow-md flex items-center justify-center gap-1.5 uppercase tracking-wide text-xs sm:text-sm disabled:opacity-50"
+                  className="flex-[1.3] py-3 px-3 rounded-xl font-black text-white hover:opacity-95 active:scale-95 transition-all shadow-md flex items-center justify-center gap-1.5 uppercase tracking-wide text-xs sm:text-sm disabled:opacity-50"
                   style={{
-                    backgroundColor: agreedToTerms ? '#f0750f' : '#64748b',
+                    backgroundColor: agreedToTerms ? '#16a34a' : '#64748b',
                   }}
                 >
                   <span>PAY NOW</span>

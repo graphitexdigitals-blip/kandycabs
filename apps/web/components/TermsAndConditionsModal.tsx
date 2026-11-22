@@ -274,7 +274,7 @@ export function TermsAndConditionsModal({
             onClick={handleAgreeAndContinue}
             className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 tracking-wide shadow-sm ${
               agreed
-                ? 'bg-[#162232] text-white hover:bg-slate-800 active:scale-[0.99]'
+                ? 'bg-[#16a34a] hover:bg-[#15803d] text-white active:scale-[0.99]'
                 : 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-70'
             }`}
           >
