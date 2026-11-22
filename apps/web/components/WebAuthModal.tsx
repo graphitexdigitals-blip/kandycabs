@@ -193,7 +193,7 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 Mobile Number *
               </label>
-              <div className="flex rounded-xl border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#f0750f]">
+              <div className="flex rounded-xl border border-slate-200 overflow-hidden focus-within:border-slate-400 focus-within:ring-1 focus-within:ring-slate-400 transition-colors">
                 <span className="bg-slate-50 px-3 py-2.5 text-sm text-slate-600 font-medium border-r border-slate-200 flex items-center">
                   +91
                 </span>
@@ -243,7 +243,7 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                 placeholder="• • • •"
-                className="w-full py-3 text-center text-2xl font-bold tracking-widest rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#f0750f]"
+                className="w-full py-3 text-center text-2xl font-bold tracking-widest rounded-xl border border-slate-200 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-colors"
                 autoFocus
               />
             </div>
@@ -292,7 +292,7 @@ export function WebAuthModal({ isOpen, onClose, onSuccess }: WebAuthModalProps) 
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Enter your full name"
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#f0750f]"
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-colors"
                 autoFocus
               />
             </div>
