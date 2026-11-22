@@ -7,9 +7,9 @@ const GOOGLE_MAPS_REVIEW_URL =
 
 export function CustomerRatingsCard() {
   return (
-    <div className="flex flex-col justify-between h-full select-none relative py-0.5 px-0.5 lg:py-1.5 lg:px-2">
+    <div className="flex flex-col justify-between lg:justify-center lg:gap-3 h-full select-none relative py-0.5 px-0.5 lg:py-2 lg:px-2">
       {/* Top Header: Trust Badge & Overall Rating */}
-      <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-2.5 border-b border-slate-100 pb-1.5 lg:pb-2.5">
+      <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-2.5 border-b border-slate-100 pb-1.5 lg:pb-2 lg:pt-1">
         {/* Rating Pill linking directly to Google Reviews arranged on LEFT */}
         <a
           href={GOOGLE_MAPS_REVIEW_URL}
@@ -43,7 +43,7 @@ export function CustomerRatingsCard() {
       </div>
 
       {/* Middle Body: Feedback & Experience Invitation */}
-      <div className="py-1 lg:py-2.5 flex-1 flex flex-col justify-center">
+      <div className="py-1 lg:py-1 flex-1 lg:flex-initial flex flex-col justify-center">
         <div className="space-y-0.5 lg:space-y-1">
           <p className="text-[10.5px] sm:text-[11.5px] lg:text-sm xl:text-[14.5px] font-bold text-slate-800 leading-snug">
             Kindly add your valuable feedback and share your experience with Kandy Cabs!
@@ -54,7 +54,7 @@ export function CustomerRatingsCard() {
         </div>
 
         {/* Rating Actions Bar */}
-        <div className="mt-1.5 pt-1 lg:mt-3 lg:pt-2 border-t border-dashed border-slate-200/70 flex items-center justify-start">
+        <div className="mt-1.5 pt-1 lg:mt-2 lg:pt-1.5 border-t border-dashed border-slate-200/70 flex items-center justify-start">
           <a
             href={GOOGLE_MAPS_REVIEW_URL}
             target="_blank"
@@ -75,7 +75,7 @@ export function CustomerRatingsCard() {
       </div>
 
       {/* Bottom Footer: Trust Pillars */}
-      <div className="border-t border-slate-100 pt-1 lg:pt-2 flex items-center justify-between text-[8.5px] sm:text-[9px] lg:text-[10.5px] xl:text-[11px] text-slate-500 font-medium">
+      <div className="border-t border-slate-100 pt-1 lg:pt-1.5 flex items-center justify-between text-[8.5px] sm:text-[9px] lg:text-[10.5px] xl:text-[11px] text-slate-500 font-medium">
         <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 flex-wrap">
           <span className="inline-flex items-center gap-0.5 lg:gap-1 text-slate-600">
             <svg className="w-2 h-2 sm:w-2.5 sm:h-2.5 lg:w-3 lg:h-3 text-[#f0750f]" viewBox="0 0 20 20" fill="currentColor">
