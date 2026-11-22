@@ -226,7 +226,7 @@ export function TermsAndConditionsModal({
                 className="p-4 rounded-2xl border border-slate-100 bg-white shadow-2xs space-y-2"
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="w-6 h-6 rounded-lg bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-[11px] flex-shrink-0">
+                  <span className="w-6.5 h-6.5 rounded-lg bg-[#e0e7ff] text-[#162232] font-extrabold flex items-center justify-center text-[11.5px] flex-shrink-0">
                     {String(section.id).padStart(2, '0')}
                   </span>
                   <h5 className="font-bold text-sm text-slate-900">{section.title}</h5>
