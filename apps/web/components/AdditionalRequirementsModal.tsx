@@ -580,12 +580,11 @@ export function AdditionalRequirementsModal({
             {/* 7. Pregnancy Friendly (New Option from Image 3) */}
             <ToggleRow
               icon={
-                <div className="relative w-5 h-5 flex items-center justify-center">
+                <div className="relative w-5 h-5">
                   <Image
                     src="/images/pregnancy-orange.png"
                     alt="Pregnancy Friendly"
-                    width={18}
-                    height={22}
+                    fill
                     className="object-contain"
                   />
                 </div>
@@ -601,12 +600,11 @@ export function AdditionalRequirementsModal({
             {/* 8. Accessibility Assistance (New Option from Image 3) */}
             <ToggleRow
               icon={
-                <div className="relative w-5 h-5 flex items-center justify-center">
+                <div className="relative w-5 h-5">
                   <Image
                     src="/images/wheelchair-orange.png"
                     alt="Accessibility Assistance"
-                    width={20}
-                    height={22}
+                    fill
                     className="object-contain"
                   />
                 </div>
