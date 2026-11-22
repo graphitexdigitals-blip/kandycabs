@@ -928,12 +928,12 @@ export default function BookingFunnelPage() {
         {/* STEP 3: PASSENGER CONTACT (Matching screenshot media_1795240423537_36a85c99.jpg) */}
         {/* ========================================================================= */}
         {step === 3 && (
-          <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="space-y-2.5 sm:space-y-3 animate-in fade-in duration-200">
             {/* Selected Vehicle Card */}
-            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="relative w-16 h-12 flex-shrink-0">
+            <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-xs">
+              <div className="flex items-start justify-between gap-2.5 pb-2.5 border-b border-slate-100">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="relative w-14 h-10 sm:w-16 sm:h-12 flex-shrink-0">
                     <Image
                       src={selectedFleet.image}
                       alt={selectedFleet.name}
@@ -941,26 +941,28 @@ export default function BookingFunnelPage() {
                       className="object-contain"
                     />
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">{selectedFleet.name}</h3>
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <span className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 truncate leading-snug">
+                      {selectedFleet.name}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500 font-medium leading-none my-0.5">
+                      <span className="flex items-center gap-0.5">
+                        <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                         </svg>
                         {selectedFleet.capacity}
                       </span>
                       <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <span className="flex items-center gap-0.5">
+                        <svg className="w-3 h-3 text-slate-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <rect x="3" y="6" width="18" height="15" rx="2" />
                           <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
                         </svg>
                         {selectedFleet.luggage}
                       </span>
                       <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <span className="flex items-center gap-0.5">
+                        <svg className="w-3 h-3 text-slate-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <line x1="12" y1="2" x2="12" y2="22" />
                           <line x1="2" y1="12" x2="22" y2="12" />
                           <path d="M17 7l-5 5-5-5" />
@@ -971,7 +973,7 @@ export default function BookingFunnelPage() {
                       {(additionalReqs.roofCarrier || roofCarrierEnabled[selectedFleet.id]) && (
                         <>
                           <span>•</span>
-                          <span className="flex items-center gap-1 text-[#f0750f] font-semibold">
+                          <span className="flex items-center gap-1 text-[#f0750f] font-semibold whitespace-nowrap">
                             <span className="w-1.5 h-1.5 rounded-full bg-[#f0750f]" />
                             Roof Carrier
                           </span>
@@ -981,7 +983,7 @@ export default function BookingFunnelPage() {
                     <button
                       type="button"
                       onClick={() => setStep(2)}
-                      className="text-xs font-semibold text-[#f0750f] hover:underline flex items-center gap-0.5 mt-0.5"
+                      className="text-[11px] sm:text-xs font-semibold text-[#f0750f] hover:underline flex items-center gap-0.5"
                     >
                       <span>Change Vehicle</span>
                       <svg className="w-2.5 h-2.5 text-[#f0750f]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -991,28 +993,32 @@ export default function BookingFunnelPage() {
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <p className="text-base font-black text-slate-900">
-                    ₹ {selectedPricing.totalFare.toLocaleString('en-IN')}
+                <div className="text-right flex-shrink-0 pl-1 whitespace-nowrap">
+                  <p className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                    ₹{selectedPricing.totalFare.toLocaleString('en-IN')}
                   </p>
-                  <p className="text-[10px] text-slate-400 font-medium">
-                    Full Payment (Total Fare)
+                  <p className="text-[9.5px] sm:text-[10px] text-slate-400 font-medium leading-tight mt-0.5">
+                    Total Fare
                   </p>
                 </div>
               </div>
 
               {/* Route & Schedule Row */}
-              <div className="pt-3 space-y-2 text-xs">
-                <div className="flex items-center gap-2 text-slate-700">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="font-semibold truncate">{pickupAddress}</span>
-                  <span className="text-slate-400">→</span>
-                  <span className="w-2 h-2 rounded-full bg-red-500" />
-                  <span className="font-semibold truncate">{dropAddress}</span>
+              <div className="pt-2 space-y-1.5 text-xs">
+                <div className="flex items-center gap-2 text-slate-700 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                    <span className="font-semibold text-slate-800 text-[11.5px] sm:text-xs truncate">{pickupAddress}</span>
+                  </div>
+                  <span className="text-slate-400 flex-shrink-0 text-xs">→</span>
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                    <span className="font-semibold text-slate-800 text-[11.5px] sm:text-xs truncate">{dropAddress}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4 text-slate-500 font-medium">
-                  <span className="flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div className="flex items-center gap-3 text-slate-500 text-[11px] sm:text-xs font-medium">
+                  <span className="flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                       <line x1="16" y1="2" x2="16" y2="6" />
                       <line x1="8" y1="2" x2="8" y2="6" />
@@ -1020,8 +1026,9 @@ export default function BookingFunnelPage() {
                     </svg>
                     {formatFriendlyDate(scheduledDate)}
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10" />
                       <polyline points="12 6 12 12 16 14" />
                     </svg>
@@ -1032,18 +1039,18 @@ export default function BookingFunnelPage() {
             </div>
 
             {/* Lead Passenger Card */}
-            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm space-y-3.5">
+            <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-xs space-y-2.5 sm:space-y-3">
               <div className="flex items-center gap-2 text-slate-900">
                 <svg className="w-4 h-4 text-[#f0750f] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                 </svg>
-                <h3 className="text-sm font-bold">Lead Passenger</h3>
+                <h3 className="text-xs sm:text-sm font-bold">Lead Passenger</h3>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
                 {/* Full Name */}
-                <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus-within:bg-white transition-all">
+                  <span className="block text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
                     FULL NAME *
                   </span>
                   <div className="flex items-center gap-2">
@@ -1055,14 +1062,14 @@ export default function BookingFunnelPage() {
                       value={passengerName}
                       onChange={(e) => setPassengerName(e.target.value)}
                       placeholder="Enter full name"
-                      className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400"
+                      className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400"
                     />
                   </div>
                 </div>
 
                 {/* Mobile Number */}
-                <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus-within:bg-white transition-all">
+                  <span className="block text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
                     MOBILE NUMBER *
                   </span>
                   <div className="flex items-center gap-2">
@@ -1076,14 +1083,14 @@ export default function BookingFunnelPage() {
                       value={passengerPhone}
                       onChange={(e) => setPassengerPhone(e.target.value.replace(/\D/g, ''))}
                       placeholder="Enter 10-digit number"
-                      className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400"
+                      className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400"
                     />
                   </div>
                 </div>
 
                 {/* Email ID */}
-                <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus-within:bg-white transition-all">
+                  <span className="block text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
                     EMAIL ID
                   </span>
                   <div className="flex items-center gap-2">
@@ -1096,14 +1103,14 @@ export default function BookingFunnelPage() {
                       value={passengerEmail}
                       onChange={(e) => setPassengerEmail(e.target.value)}
                       placeholder="Enter email address"
-                      className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400"
+                      className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400"
                     />
                   </div>
                 </div>
 
                 {/* Alternate Mobile Number */}
-                <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus-within:bg-white transition-all">
+                  <span className="block text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
                     ALTERNATE MOBILE NUMBER
                   </span>
                   <div className="flex items-center gap-2">
@@ -1116,25 +1123,25 @@ export default function BookingFunnelPage() {
                       value={alternatePhone}
                       onChange={(e) => setAlternatePhone(e.target.value.replace(/\D/g, ''))}
                       placeholder="Enter alternate number"
-                      className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400"
+                      className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Action Chips: + Alternate Email, + Add GST */}
-              <div className="flex items-center gap-2 pt-1">
+              <div className="flex items-center gap-2 pt-0.5">
                 <button
                   type="button"
                   onClick={() => setShowAlternateEmail(!showAlternateEmail)}
-                  className="px-3.5 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs"
+                  className="px-3 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] sm:text-xs font-semibold shadow-2xs cursor-pointer"
                 >
                   <span className="text-[#f0750f] font-bold">+</span> Alternate Email
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowGst(!showGst)}
-                  className="px-3.5 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs"
+                  className="px-3 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] sm:text-xs font-semibold shadow-2xs cursor-pointer"
                 >
                   <span className="text-[#f0750f] font-bold">+</span> Add GST
                 </button>
@@ -1142,8 +1149,8 @@ export default function BookingFunnelPage() {
 
               {/* Optional Alternate Email Input */}
               {showAlternateEmail && (
-                <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 animate-in fade-in">
-                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 animate-in fade-in">
+                  <span className="block text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
                     ALTERNATE EMAIL ADDRESS
                   </span>
                   <input
@@ -1151,16 +1158,16 @@ export default function BookingFunnelPage() {
                     value={alternateEmail}
                     onChange={(e) => setAlternateEmail(e.target.value)}
                     placeholder="e.g. travel@company.com"
-                    className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none"
+                    className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400"
                   />
                 </div>
               )}
 
               {/* Optional GST Inputs */}
               {showGst && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-2xl border border-slate-200 bg-slate-50/70 animate-in fade-in">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 animate-in fade-in">
                   <div>
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    <span className="block text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
                       GSTIN (15-DIGIT)
                     </span>
                     <input
@@ -1169,11 +1176,11 @@ export default function BookingFunnelPage() {
                       value={gstNumber}
                       onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
                       placeholder="e.g. 29AAAAA0000A1Z5"
-                      className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none"
+                      className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    <span className="block text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
                       COMPANY NAME
                     </span>
                     <input
@@ -1181,7 +1188,7 @@ export default function BookingFunnelPage() {
                       value={gstCompanyName}
                       onChange={(e) => setGstCompanyName(e.target.value)}
                       placeholder="Company Legal Name"
-                      className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none"
+                      className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -1189,7 +1196,7 @@ export default function BookingFunnelPage() {
             </div>
 
             {/* Additional Details Card (Pill Boxes) */}
-            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm space-y-3">
+            <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-xs space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <svg className="w-5 h-5 text-[#f0750f] flex-shrink-0" viewBox="0 0 512 512" fill="none">
@@ -1199,15 +1206,15 @@ export default function BookingFunnelPage() {
                     <circle cx="336" cy="384" r="32" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" />
                   </svg>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">Additional Details</h3>
-                    <p className="text-xs text-slate-400">Add your requirements for a better travel experience.</p>
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900">Additional Details</h3>
+                    <p className="text-[11px] text-slate-400">Add your requirements for a better travel experience.</p>
                   </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setReqModalOpen(true)}
-                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 shadow-xs flex items-center gap-1"
+                  className="px-3 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-[11px] sm:text-xs font-bold text-slate-700 shadow-2xs flex items-center gap-1 cursor-pointer"
                 >
                   <span>Configure</span>
                   <span>&gt;</span>
@@ -1215,7 +1222,7 @@ export default function BookingFunnelPage() {
               </div>
 
               {/* Two Big Pill Boxes for Travellers & Luggage (Matching Customer App Image 1) */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="grid grid-cols-2 gap-2 sm:gap-2.5 pt-0.5">
                 {(() => {
                   const totalLuggage = additionalReqs.luggageCounts
                     ? (additionalReqs.luggageCounts.small || 0) +
@@ -1234,16 +1241,16 @@ export default function BookingFunnelPage() {
                       <button
                         type="button"
                         onClick={() => setReqModalOpen(true)}
-                        className="p-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-md hover:shadow-lg"
+                        className="p-2.5 sm:p-3 rounded-xl border border-slate-200 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-2xs hover:shadow-xs"
                       >
                         <svg
-                          className="w-6 h-6 mb-1 text-slate-900"
+                          className="w-5 h-5 mb-1 text-slate-900"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
                           <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
                         </svg>
-                        <span className={`block text-xs font-bold ${isTravellersZero ? 'text-[#c2410c]' : 'text-slate-800'}`}>
+                        <span className={`block text-[11px] sm:text-xs font-bold ${isTravellersZero ? 'text-[#c2410c]' : 'text-slate-800'}`}>
                           {additionalReqs.travellers || 0} Travellers
                         </span>
                       </button>
@@ -1251,10 +1258,10 @@ export default function BookingFunnelPage() {
                       <button
                         type="button"
                         onClick={() => setReqModalOpen(true)}
-                        className="p-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-md hover:shadow-lg"
+                        className="p-2.5 sm:p-3 rounded-xl border border-slate-200 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-2xs hover:shadow-xs"
                       >
                         <svg
-                          className="w-6 h-6 mb-1 text-slate-900"
+                          className="w-5 h-5 mb-1 text-slate-900"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -1265,7 +1272,7 @@ export default function BookingFunnelPage() {
                           <rect x="3" y="6" width="18" height="15" rx="2" />
                           <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
                         </svg>
-                        <span className={`block text-xs font-bold ${isLuggageZero ? 'text-[#c2410c]' : 'text-slate-800'}`}>
+                        <span className={`block text-[11px] sm:text-xs font-bold ${isLuggageZero ? 'text-[#c2410c]' : 'text-slate-800'}`}>
                           {isLuggageZero ? '0 Luggage' : `${totalLuggage} Luggage Bag${totalLuggage > 1 ? 's' : ''}`}
                         </span>
                       </button>
@@ -1276,7 +1283,7 @@ export default function BookingFunnelPage() {
             </div>
 
             {/* Info Helper Note */}
-            <div className="p-3 rounded-2xl bg-blue-50 border border-blue-100 text-xs text-blue-700 flex items-start gap-2.5">
+            <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-100 text-[11px] sm:text-xs text-blue-700 flex items-start gap-2">
               <svg className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="16" x2="12" y2="12" />
@@ -1291,7 +1298,7 @@ export default function BookingFunnelPage() {
             <button
               type="button"
               onClick={handleContinueToReview}
-              className="w-full py-4 px-6 rounded-2xl font-bold text-white bg-[#16a34a] hover:bg-[#15803d] active:scale-[0.99] transition-all shadow-md flex items-center justify-center gap-2 text-base tracking-wide"
+              className="w-full py-3 sm:py-3.5 px-5 rounded-xl font-bold text-white bg-[#16a34a] hover:bg-[#15803d] active:scale-[0.99] transition-all shadow-sm flex items-center justify-center gap-2 text-sm sm:text-base tracking-wide cursor-pointer"
             >
               <span>Continue to Review &amp; Pay</span>
               <svg className="w-4 h-4 text-white flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1344,10 +1351,10 @@ export default function BookingFunnelPage() {
             </div>
 
             {/* Selected Vehicle Card (Matching Image 1) */}
-            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm space-y-3.5">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="relative w-20 h-14 flex-shrink-0">
+            <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-xs">
+              <div className="flex items-start justify-between gap-2.5 pb-2.5 border-b border-slate-100">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="relative w-14 h-10 sm:w-16 sm:h-12 flex-shrink-0">
                     <Image
                       src={selectedFleet.image}
                       alt={selectedFleet.name}
@@ -1355,26 +1362,28 @@ export default function BookingFunnelPage() {
                       className="object-contain"
                     />
                   </div>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900">{selectedFleet.name}</h3>
-                    <div className="flex items-center gap-2 text-xs text-slate-500 my-0.5 font-medium">
-                      <span className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 truncate leading-snug">
+                      {selectedFleet.name}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500 font-medium leading-none my-0.5">
+                      <span className="flex items-center gap-0.5">
+                        <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                         </svg>
                         {selectedFleet.capacity}
                       </span>
                       <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <span className="flex items-center gap-0.5">
+                        <svg className="w-3 h-3 text-slate-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <rect x="3" y="6" width="18" height="15" rx="2" />
                           <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
                         </svg>
                         {selectedFleet.luggage}
                       </span>
                       <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <span className="flex items-center gap-0.5">
+                        <svg className="w-3 h-3 text-slate-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <line x1="12" y1="2" x2="12" y2="22" />
                           <line x1="2" y1="12" x2="22" y2="12" />
                           <path d="M17 7l-5 5-5-5" />
@@ -1385,7 +1394,7 @@ export default function BookingFunnelPage() {
                       {(additionalReqs.roofCarrier || roofCarrierEnabled[selectedFleet.id]) && (
                         <>
                           <span>•</span>
-                          <span className="flex items-center gap-1 text-[#f0750f] font-semibold">
+                          <span className="flex items-center gap-1 text-[#f0750f] font-semibold whitespace-nowrap">
                             <span className="w-1.5 h-1.5 rounded-full bg-[#f0750f]" />
                             Roof Carrier
                           </span>
@@ -1395,22 +1404,22 @@ export default function BookingFunnelPage() {
                     <button
                       type="button"
                       onClick={() => setStep(2)}
-                      className="text-xs font-semibold text-[#f0750f] hover:underline flex items-center gap-0.5 mt-0.5"
+                      className="text-[11px] sm:text-xs font-semibold text-[#f0750f] hover:underline flex items-center gap-0.5"
                     >
                       <span>Change Vehicle</span>
-                      <svg className="w-3 h-3 text-[#f0750f]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M9 18l6-6-6-6" />
+                      <svg className="w-2.5 h-2.5 text-[#f0750f]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M6 9l6 6 6-6" />
                       </svg>
                     </button>
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <p className="text-base sm:text-lg font-black text-slate-900">
-                    ₹ {selectedPricing.totalFare.toLocaleString('en-IN')}
+                <div className="text-right flex-shrink-0 pl-1 whitespace-nowrap">
+                  <p className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                    ₹{selectedPricing.totalFare.toLocaleString('en-IN')}
                   </p>
-                  <p className="text-[10px] text-slate-400 font-medium">
-                    Full Payment (Total Fare)
+                  <p className="text-[9.5px] sm:text-[10px] text-slate-400 font-medium leading-tight mt-0.5">
+                    Total Fare
                   </p>
                 </div>
               </div>
@@ -1468,7 +1477,7 @@ export default function BookingFunnelPage() {
             </div>
 
             {/* Passenger Details Card (2x2 Grid with Edit Button - Matching Image 1) */}
-            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm space-y-3">
+            <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-xs space-y-2.5">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <svg className="w-4 h-4 text-[#f0750f] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -1494,7 +1503,7 @@ export default function BookingFunnelPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+                <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
                     PASSENGER NAME
                   </span>
@@ -1503,7 +1512,7 @@ export default function BookingFunnelPage() {
                   </span>
                 </div>
 
-                <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+                <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
                     PHONE NUMBER
                   </span>
@@ -1512,7 +1521,7 @@ export default function BookingFunnelPage() {
                   </span>
                 </div>
 
-                <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+                <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
                     EMAIL ADDRESS
                   </span>
@@ -1521,7 +1530,7 @@ export default function BookingFunnelPage() {
                   </span>
                 </div>
 
-                <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+                <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
                     ALTERNATE PHONE
                   </span>
@@ -1535,7 +1544,7 @@ export default function BookingFunnelPage() {
             {/* 2-Column Pricing Card: Left Fare Breakdown vs Right Includes / Excludes (Matching Images 1 & 2) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Left Column: Fare Breakdown */}
-              <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm space-y-3">
+              <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-xs space-y-2.5">
                 <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
                   <svg className="w-4 h-4 text-[#f0750f] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -1682,7 +1691,7 @@ export default function BookingFunnelPage() {
               </div>
 
               {/* Right Column: Includes vs Excludes (Matching Images 1 & 2) */}
-              <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm space-y-4">
+              <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-xs space-y-3">
                 {/* Includes */}
                 <div>
                   <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 mb-2">
@@ -1738,7 +1747,7 @@ export default function BookingFunnelPage() {
             </div>
 
             {/* Cancellation Policy Banner (Matching Image 2) */}
-            <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs space-y-1">
+            <div className="p-2.5 sm:p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-xs space-y-1">
               <div className="flex items-center gap-1.5 font-bold text-amber-950">
                 <span className="w-4 h-4 rounded-full bg-amber-700 text-white flex items-center justify-center text-[10px] font-black">!</span>
                 <span>Cancellation Policy: Advance Non-Refundable</span>
