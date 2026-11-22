@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -128,6 +128,94 @@ export default function CustomerHomePage() {
   const [selectedAirport, setSelectedAirport] = useState('Mangaluru Airport (IXE)');
   const [airportDropdownOpen, setAirportDropdownOpen] = useState(false);
   const [localPackage, setLocalPackage] = useState<'4_40' | '8_80' | '12_120'>('8_80');
+
+  // Corporate Travel State (Matching Customer App Image 2)
+  const [corporateMode, setCorporateMode] = useState<'ONCE' | 'DAILY'>('ONCE');
+  const [corporateStartDate, setCorporateStartDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [corporateEndDate, setCorporateEndDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 6);
+    return d.toISOString().split('T')[0];
+  });
+  const [corporateExcludedDates, setCorporateExcludedDates] = useState<string[]>([]);
+  const [corporatePickupTimes, setCorporatePickupTimes] = useState<string[]>(['09:00']);
+  const [activeEditingTimeIndex, setActiveEditingTimeIndex] = useState<number | null>(null);
+
+interface CorporateDateItem {
+  formatted: string;
+  dayName: string;
+  dayNum: string;
+  monthName: string;
+  isWeekend: boolean;
+}
+
+  // Corporate Travel Calculations & Helpers
+  const corporateDatesList: CorporateDateItem[] = useMemo(() => {
+    const start = new Date(corporateStartDate);
+    const end = new Date(corporateEndDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) {
+      return [{
+        formatted: corporateStartDate,
+        dayName: 'Day',
+        dayNum: corporateStartDate.slice(8, 10),
+        monthName: 'Date',
+        isWeekend: false,
+      }];
+    }
+    const list: CorporateDateItem[] = [];
+    const cur = new Date(start);
+    let count = 0;
+    while (cur <= end && count < 60) {
+      const formatted = cur.toISOString().split('T')[0];
+      const isWeekend = cur.getDay() === 0 || cur.getDay() === 6;
+      list.push({
+        formatted,
+        dayName: cur.toLocaleDateString('en-US', { weekday: 'short' }),
+        dayNum: String(cur.getDate()).padStart(2, '0'),
+        monthName: cur.toLocaleDateString('en-US', { month: 'short' }),
+        isWeekend,
+      });
+      cur.setDate(cur.getDate() + 1);
+      count++;
+    }
+    return list;
+  }, [corporateStartDate, corporateEndDate]);
+
+  const corporateActiveDatesCount = useMemo(() => {
+    return corporateDatesList.filter((d: CorporateDateItem) => !corporateExcludedDates.includes(d.formatted)).length;
+  }, [corporateDatesList, corporateExcludedDates]);
+
+  const corporateHasWeekendExcluded = useMemo(() => {
+    const weekends = corporateDatesList.filter((d: CorporateDateItem) => d.isWeekend).map((d: CorporateDateItem) => d.formatted);
+    return weekends.length > 0 && weekends.every((w: string) => corporateExcludedDates.includes(w));
+  }, [corporateDatesList, corporateExcludedDates]);
+
+  const handleToggleExcludeCorporateDate = (dateStr: string) => {
+    setCorporateExcludedDates((prev) =>
+      prev.includes(dateStr) ? prev.filter((d) => d !== dateStr) : [...prev, dateStr]
+    );
+  };
+
+  const handleToggleExcludeWeekends = () => {
+    const weekends = corporateDatesList.filter((d: CorporateDateItem) => d.isWeekend).map((d: CorporateDateItem) => d.formatted);
+    if (weekends.length === 0) return;
+    setCorporateExcludedDates((prev) => {
+      const allWeekendsExcluded = weekends.every((w: string) => prev.includes(w));
+      return allWeekendsExcluded ? prev.filter((d) => !weekends.includes(d)) : Array.from(new Set([...prev, ...weekends]));
+    });
+  };
+
+  const handleExcludeCorporateWeekends = handleToggleExcludeWeekends;
+
+  const handleAddCorporatePickupTime = () => {
+    if (corporatePickupTimes.length >= 6) return;
+    setCorporatePickupTimes((prev) => [...prev, '18:00']);
+  };
+
+  const handleRemoveCorporatePickupTime = (index: number) => {
+    if (corporatePickupTimes.length <= 1) return;
+    setCorporatePickupTimes((prev) => prev.filter((_, i) => i !== index));
+  };
 
   // Waypoints
   const [stops, setStops] = useState<{ id: string; address: string; lat: number; lng: number }[]>([]);
@@ -301,6 +389,7 @@ export default function CustomerHomePage() {
     // 2. Same city / local distance check for outstation or airport bookings!
     if (
       activeTab !== 'LOCAL' &&
+      activeTab !== 'CORPORATE' &&
       (tripType === TripType.ONEWAY ||
         tripType === TripType.ROUND ||
         activeTab === 'AIRPORT' ||
@@ -332,12 +421,17 @@ export default function CustomerHomePage() {
       }
     }
 
-    if (!scheduledDate) {
+    if (activeTab === 'CORPORATE' && corporateMode === 'DAILY' && corporateActiveDatesCount <= 0) {
+      alert('Please select at least 1 ride date in your schedule');
+      return;
+    }
+
+    if (activeTab !== 'CORPORATE' && !scheduledDate) {
       alert('Please select your trip start date');
       return;
     }
 
-    if (!scheduledTime) {
+    if (activeTab !== 'CORPORATE' && !scheduledTime) {
       alert('Please select your pickup time');
       return;
     }
@@ -346,6 +440,14 @@ export default function CustomerHomePage() {
       alert('Please select your return journey date');
       return;
     }
+
+    const finalDate = activeTab === 'CORPORATE' && corporateMode === 'DAILY'
+      ? `${corporateStartDate} to ${corporateEndDate} (${corporateActiveDatesCount} days)`
+      : scheduledDate;
+
+    const finalTime = activeTab === 'CORPORATE'
+      ? corporatePickupTimes.map(format12HourTime).join(', ')
+      : scheduledTime;
 
     const params = new URLSearchParams({
       step: '2',
@@ -356,8 +458,8 @@ export default function CustomerHomePage() {
       drop: effectiveDrop,
       dropLat: (dropLat ?? 0).toString(),
       dropLng: (dropLng ?? 0).toString(),
-      date: scheduledDate,
-      time: scheduledTime,
+      date: finalDate,
+      time: finalTime,
       category: selectedCat || VehicleCategory.SEDAN,
     });
 
@@ -366,6 +468,16 @@ export default function CustomerHomePage() {
     }
     if (activeTab === 'LOCAL') {
       params.set('localPackage', localPackage);
+    }
+    if (activeTab === 'CORPORATE') {
+      params.set('corporateMode', corporateMode);
+      if (corporateMode === 'DAILY') {
+        params.set('corporateStartDate', corporateStartDate);
+        params.set('corporateEndDate', corporateEndDate);
+        params.set('corporateTotalDays', String(corporateActiveDatesCount));
+        params.set('corporateExcludedDatesJson', JSON.stringify(corporateExcludedDates));
+      }
+      params.set('corporatePickupTimesJson', JSON.stringify(corporatePickupTimes));
     }
     if (tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') {
       params.set('returnDate', returnDate);
@@ -395,10 +507,18 @@ export default function CustomerHomePage() {
     if (catId === 'AIRPORT') {
       setSelectedAirport('Mangaluru Airport (IXE)');
       setTripType(TripType.AIRPORT);
+      if (dropAddress.includes('Temple') || dropAddress.includes('Local')) {
+        setDropAddress('');
+        setDropLat(null);
+        setDropLng(null);
+      }
     } else if (catId === 'LOCAL') {
       setTripType(TripType.LOCAL);
     } else if (catId === 'CORPORATE') {
       setTripType(TripType.ONEWAY);
+      setDropAddress('');
+      setDropLat(null);
+      setDropLng(null);
     } else if (catId === 'TOUR') {
       if (!dropAddress || dropAddress.includes('Airport') || dropAddress.includes('Local')) {
         setDropAddress('Kollur Mookambika Temple');
@@ -461,6 +581,67 @@ export default function CustomerHomePage() {
               })}
             </div>
           </div>
+
+          {/* Corporate Mode Selector: Book Once vs Daily Rides (Matching Customer App Image 2) */}
+          {activeTab === 'CORPORATE' && (
+            <div className="grid grid-cols-2 gap-2.5 mb-3 max-w-xl mx-auto">
+              <button
+                type="button"
+                onClick={() => setCorporateMode('ONCE')}
+                className={`py-2 px-3 rounded-2xl border text-left transition-all flex items-center gap-2.5 cursor-pointer shadow-xs ${
+                  corporateMode === 'ONCE'
+                    ? 'border-2 border-slate-900 bg-[#eef2f6]'
+                    : 'border-slate-200 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all ${
+                    corporateMode === 'ONCE'
+                      ? 'bg-slate-900 border-slate-900 text-white'
+                      : 'bg-white border-slate-300'
+                  }`}
+                >
+                  {corporateMode === 'ONCE' && (
+                    <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">Book Once</p>
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium mt-0.5 leading-tight">Single day ride</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCorporateMode('DAILY')}
+                className={`py-2 px-3 rounded-2xl border text-left transition-all flex items-center gap-2.5 cursor-pointer shadow-xs ${
+                  corporateMode === 'DAILY'
+                    ? 'border-2 border-slate-900 bg-[#eef2f6]'
+                    : 'border-slate-200 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all ${
+                    corporateMode === 'DAILY'
+                      ? 'bg-slate-900 border-slate-900 text-white'
+                      : 'bg-white border-slate-300'
+                  }`}
+                >
+                  {corporateMode === 'DAILY' && (
+                    <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">Daily Rides</p>
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium mt-0.5 leading-tight">Daily commute</p>
+                </div>
+              </button>
+            </div>
+          )}
 
           {/* Locations Container with Integrated Swap Button */}
           <div className="relative space-y-1.5 mb-2">
@@ -557,7 +738,7 @@ export default function CustomerHomePage() {
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
                       <span className="block text-[11px] font-extrabold text-black uppercase tracking-wider">
-                        DROP LOCATION
+                        {activeTab === 'CORPORATE' ? 'DESTINATION DROP' : 'DROP LOCATION'}
                       </span>
                       <input
                         type="text"
@@ -571,7 +752,7 @@ export default function CustomerHomePage() {
                           setLocationModalTarget('DROP');
                           setShowDropSuggestions(true);
                         }}
-                        placeholder="Enter drop location"
+                        placeholder={activeTab === 'CORPORATE' ? 'Enter destination drop' : 'Enter drop location'}
                         className="w-full bg-transparent text-[15px] font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
                       />
                     </div>
@@ -689,81 +870,318 @@ export default function CustomerHomePage() {
               <button
                 type="button"
                 onClick={handleAddStop}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-sm transition-all"
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold shadow-xs transition-all active:scale-95 ${
+                  activeTab === 'CORPORATE'
+                    ? 'bg-[#162232] hover:bg-slate-800 text-white text-xs'
+                    : 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs'
+                }`}
               >
-                <span className="text-[#f0750f] font-bold text-sm">+</span> Add a Stop
+                <span className={activeTab === 'CORPORATE' ? 'text-white font-black' : 'text-[#f0750f] font-bold text-sm'}>+</span>
+                <span>Add a Stop</span>
               </button>
             </div>
           )}
 
           {/* Schedule Row */}
-          <div className="grid grid-cols-2 gap-2 mb-2.5">
-            <div className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
-              <div className="flex items-center gap-1 text-black mb-0.5">
-                <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
-                  {activeTab === 'LOCAL' ? 'PICKUP DATE' : 'TRIP START DATE'}
-                </span>
-              </div>
-              <input
-                type="date"
-                value={scheduledDate}
-                min={new Date().toISOString().split('T')[0]}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
-                  scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
-                }`}
-              />
-            </div>
+          {activeTab === 'CORPORATE' ? (
+            corporateMode === 'DAILY' ? (
+              /* Corporate Daily Rides Schedule (Matching Customer App) */
+              <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-3 mb-2.5">
+                <div className="flex items-center gap-1.5 text-[#f0750f]">
+                  <svg className="w-4 h-4 text-[#f0750f]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-xs font-extrabold text-[#f0750f]">Daily Rides Schedule</span>
+                </div>
 
-            <div
-              onClick={() => setTimeModalOpen(true)}
-              className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-white cursor-pointer focus-within:bg-white transition-all select-none"
-            >
-              <div className="flex items-center gap-1 text-black mb-0.5">
-                <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
-                  PICKUP TIME
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className={`text-[15px] font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
-                  {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
-                </span>
-                {scheduledTime && (
-                  <span className="text-[11px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
-                    Change
-                  </span>
-                )}
-              </div>
-            </div>
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                  <div>
+                    <span className="block text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
+                      FROM DATE
+                    </span>
+                    <input
+                      type="date"
+                      value={corporateStartDate}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={(e) => setCorporateStartDate(e.target.value)}
+                      className="w-full py-2 px-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:outline-none"
+                    />
+                  </div>
+                  <div className="pt-3 text-slate-400">→</div>
+                  <div>
+                    <span className="block text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
+                      TO DATE
+                    </span>
+                    <input
+                      type="date"
+                      value={corporateEndDate}
+                      min={corporateStartDate}
+                      onChange={(e) => setCorporateEndDate(e.target.value)}
+                      className="w-full py-2 px-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:outline-none"
+                    />
+                  </div>
+                </div>
 
-            {(tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') && (
-              <div className="col-span-2 p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
+                <div className="p-2.5 rounded-xl bg-white border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-extrabold text-slate-900">Included Dates ({corporateActiveDatesCount})</p>
+                      <p className="text-[10px] text-slate-500 font-medium">Tap any date below to exclude it from schedule</p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-[#162232] text-white text-[10px] font-bold">
+                      {corporateActiveDatesCount} {corporateActiveDatesCount === 1 ? 'Ride' : 'Rides'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleExcludeCorporateWeekends}
+                      className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold transition-all"
+                    >
+                      {corporateHasWeekendExcluded ? 'Include Weekends' : 'Exclude Weekends (Sat/Sun)'}
+                    </button>
+                    {corporateExcludedDates.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setCorporateExcludedDates([])}
+                        className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold transition-all"
+                      >
+                        Include All
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 pt-1 max-h-40 overflow-y-auto">
+                    {corporateDatesList.map((item) => {
+                      const isExcluded = corporateExcludedDates.includes(item.formatted);
+                      return (
+                        <button
+                          key={item.formatted}
+                          type="button"
+                          onClick={() => handleToggleExcludeCorporateDate(item.formatted)}
+                          className={`p-1.5 rounded-xl border text-center transition-all cursor-pointer ${
+                            isExcluded
+                              ? 'bg-slate-100/70 border-slate-200 text-slate-400 opacity-60'
+                              : 'bg-white border-slate-900/40 text-slate-900 shadow-2xs'
+                          }`}
+                        >
+                          <p className="text-[10px] font-bold uppercase leading-none">{item.dayName}</p>
+                          <p className="text-sm font-black my-0.5 leading-none">{item.dayNum}</p>
+                          <p className="text-[9px] font-medium leading-none">{item.monthName}</p>
+                          <span className={`inline-block mt-1 text-[9px] font-bold px-1 rounded ${isExcluded ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-800'}`}>
+                            {isExcluded ? 'Skip' : 'Ride'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider leading-none">
+                      DAILY PICKUP TIMES ({corporatePickupTimes.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleAddCorporatePickupTime}
+                      className="inline-flex items-center gap-1 text-[11px] font-extrabold text-[#162232] hover:text-[#f0750f]"
+                    >
+                      <span className="w-4 h-4 rounded-full bg-[#162232] text-white flex items-center justify-center text-xs font-black leading-none">+</span>
+                      <span>Add Pickup Time</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {corporatePickupTimes.map((time, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <div
+                          onClick={() => {
+                            setActiveEditingTimeIndex(idx);
+                            setTimeModalOpen(true);
+                          }}
+                          className="flex-1 flex items-center justify-between py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-all"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <svg className="w-4 h-4 text-slate-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-bold text-slate-500 leading-tight">
+                                {idx === 0 ? 'Morning / Primary Pickup' : idx === 1 ? 'Evening / Return Pickup' : `Pickup Time ${idx + 1}`}
+                              </p>
+                              <p className="text-xs font-bold text-slate-900 leading-tight">{format12HourTime(time)}</p>
+                            </div>
+                          </div>
+                          <span className="text-[11px] text-[#f0750f] font-bold uppercase ml-1">Change</span>
+                        </div>
+                        {corporatePickupTimes.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCorporatePickupTime(idx)}
+                            className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Corporate Book Once Schedule (Matching Image 2) */
+              <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2.5 mb-2.5">
+                <div className="flex items-center gap-1.5 text-[#f0750f]">
+                  <svg className="w-4 h-4 text-[#f0750f]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-xs font-extrabold text-[#f0750f]">Schedule</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2.5 rounded-2xl border border-slate-200 bg-white">
+                    <div className="flex items-center gap-1 text-black mb-0.5">
+                      <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">PICKUP DATE</span>
+                    </div>
+                    <input
+                      type="date"
+                      value={scheduledDate}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={(e) => setScheduledDate(e.target.value)}
+                      className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
+                        scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider leading-none">
+                        {corporatePickupTimes.length > 1 ? `PICKUP TIMES (${corporatePickupTimes.length})` : 'ADD PICKUP TIME'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddCorporatePickupTime}
+                        className="inline-flex items-center gap-1 text-[11px] font-extrabold text-[#162232] hover:text-[#f0750f]"
+                      >
+                        <span className="w-4 h-4 rounded-full bg-[#162232] text-white flex items-center justify-center text-xs font-black leading-none">+</span>
+                        <span>Add Time</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {corporatePickupTimes.map((time, idx) => (
+                        <div key={idx} className="flex items-center gap-1.5">
+                          <div
+                            onClick={() => {
+                              setActiveEditingTimeIndex(idx);
+                              setTimeModalOpen(true);
+                            }}
+                            className="flex-1 flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-all"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <svg className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <div className="min-w-0">
+                                <p className="text-[9.5px] font-bold text-slate-500 leading-tight">
+                                  {idx === 0 ? 'Primary Pickup' : idx === 1 ? 'Evening / Return' : `Time ${idx + 1}`}
+                                </p>
+                                <p className="text-xs font-bold text-slate-900 leading-tight">{format12HourTime(time)}</p>
+                              </div>
+                            </div>
+                            <span className="text-[10px] text-[#f0750f] font-bold uppercase ml-1">Change</span>
+                          </div>
+                          {corporatePickupTimes.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCorporatePickupTime(idx)}
+                              className="p-1 text-red-500 hover:text-red-700"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          ) : (
+            <div className="grid grid-cols-2 gap-2 mb-2.5">
+              <div className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
                 <div className="flex items-center gap-1 text-black mb-0.5">
                   <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
-                    RETURN JOURNEY DATE
+                    {activeTab === 'LOCAL' ? 'PICKUP DATE' : 'TRIP START DATE'}
                   </span>
                 </div>
                 <input
                   type="date"
-                  value={returnDate}
-                  min={scheduledDate}
-                  onChange={(e) => setReturnDate(e.target.value)}
+                  value={scheduledDate}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setScheduledDate(e.target.value)}
                   className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
-                    returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                    scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
                   }`}
                 />
               </div>
-            )}
-          </div>
+
+              <div
+                onClick={() => setTimeModalOpen(true)}
+                className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-white cursor-pointer focus-within:bg-white transition-all select-none"
+              >
+                <div className="flex items-center gap-1 text-black mb-0.5">
+                  <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
+                    PICKUP TIME
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[15px] font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
+                    {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
+                  </span>
+                  {scheduledTime && (
+                    <span className="text-[11px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
+                      Change
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {(tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') && (
+                <div className="col-span-2 p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
+                  <div className="flex items-center gap-1 text-black mb-0.5">
+                    <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
+                      RETURN JOURNEY DATE
+                    </span>
+                  </div>
+                  <input
+                    type="date"
+                    value={returnDate}
+                    min={scheduledDate}
+                    onChange={(e) => setReturnDate(e.target.value)}
+                    className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
+                      returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                    }`}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Centered Straddling Button */}
           <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-20">
@@ -784,7 +1202,7 @@ export default function CustomerHomePage() {
         <div className="md:hidden space-y-2.5 mb-9">
           {/* Clean Compact Mobile Booking Card (Tabs Arranged Inside the Same Box Card) */}
           <div className="relative bg-white rounded-2xl border border-slate-100 shadow-sm p-3 pb-8 space-y-2.5">
-            {/* Top Tabs (ONE WAY vs ROUND TRIP or LOCAL RENTAL) */}
+            {/* Top Tabs (ONE WAY vs ROUND TRIP or LOCAL RENTAL or CORPORATE) */}
             {activeTab === 'LOCAL' ? (
               <div className="flex items-center justify-between py-1.5 px-2 bg-orange-50/70 border border-orange-100 rounded-xl mb-0.5">
                 <div className="flex items-center gap-2">
@@ -794,6 +1212,25 @@ export default function CustomerHomePage() {
                   <div>
                     <p className="text-xs font-black text-slate-900 leading-tight">Local Rental</p>
                     <p className="text-[10px] text-slate-500 font-medium leading-tight">Hourly packages with included km</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleTabClick('ONEWAY')}
+                  className="text-[11px] font-bold text-[#f0750f] hover:underline"
+                >
+                  Switch
+                </button>
+              </div>
+            ) : activeTab === 'CORPORATE' ? (
+              <div className="flex items-center justify-between py-1.5 px-2 bg-orange-50/70 border border-orange-100 rounded-xl mb-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-[#f0750f] text-white flex items-center justify-center text-xs">
+                    💼
+                  </span>
+                  <div>
+                    <p className="text-xs font-black text-slate-900 leading-tight">Corporate Travel</p>
+                    <p className="text-[10px] text-slate-500 font-medium leading-tight">Business & official travel</p>
                   </div>
                 </div>
                 <button
@@ -844,6 +1281,67 @@ export default function CustomerHomePage() {
                   <div className="min-w-0">
                     <p className="text-[13px] font-extrabold uppercase leading-tight truncate">ROUND TRIP</p>
                     <p className={`text-[10px] font-medium leading-tight truncate ${activeTab === 'ROUND' ? 'text-white/85' : 'text-slate-400'}`}>Return same cab</p>
+                  </div>
+                </button>
+              </div>
+            )}
+
+            {/* Corporate Mode Selector: Book Once vs Daily Rides (Mobile) */}
+            {activeTab === 'CORPORATE' && (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCorporateMode('ONCE')}
+                  className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer shadow-xs ${
+                    corporateMode === 'ONCE'
+                      ? 'border-2 border-slate-900 bg-[#eef2f6]'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-md flex items-center justify-center border transition-all ${
+                      corporateMode === 'ONCE'
+                        ? 'bg-slate-900 border-slate-900 text-white'
+                        : 'bg-white border-slate-300'
+                    }`}
+                  >
+                    {corporateMode === 'ONCE' && (
+                      <svg className="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 leading-tight">Book Once</p>
+                    <p className="text-[9.5px] text-slate-500 font-medium mt-0.5 leading-tight">Single day ride</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCorporateMode('DAILY')}
+                  className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer shadow-xs ${
+                    corporateMode === 'DAILY'
+                      ? 'border-2 border-slate-900 bg-[#eef2f6]'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-md flex items-center justify-center border transition-all ${
+                      corporateMode === 'DAILY'
+                        ? 'bg-slate-900 border-slate-900 text-white'
+                        : 'bg-white border-slate-300'
+                    }`}
+                  >
+                    {corporateMode === 'DAILY' && (
+                      <svg className="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 leading-tight">Daily Rides</p>
+                    <p className="text-[9.5px] text-slate-500 font-medium mt-0.5 leading-tight">Daily commute</p>
                   </div>
                 </button>
               </div>
@@ -942,7 +1440,7 @@ export default function CustomerHomePage() {
                       </div>
                       <div className="flex-1 min-w-0 pr-1">
                         <span className="block text-[10.5px] font-extrabold text-black uppercase tracking-wider leading-none mb-0.5">
-                          DROP LOCATION
+                          {activeTab === 'CORPORATE' ? 'DESTINATION DROP' : 'DROP LOCATION'}
                         </span>
                         <input
                           type="text"
@@ -957,7 +1455,7 @@ export default function CustomerHomePage() {
                               setShowDropSuggestions(true);
                             }
                           }}
-                          placeholder="Enter drop location"
+                          placeholder={activeTab === 'CORPORATE' ? 'Enter destination drop' : 'Enter drop location'}
                           className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400 leading-tight"
                         />
                       </div>
@@ -1043,9 +1541,13 @@ export default function CustomerHomePage() {
                 <button
                   type="button"
                   onClick={handleAddStop}
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-all"
+                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold shadow-xs transition-all ${
+                    activeTab === 'CORPORATE'
+                      ? 'bg-[#162232] text-white hover:bg-slate-800 border border-slate-900'
+                      : 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                  }`}
                 >
-                  <span className="text-[#f0750f] font-bold text-xs">+</span> Add a Stop
+                  <span className={activeTab === 'CORPORATE' ? 'text-white font-bold text-xs' : 'text-[#f0750f] font-bold text-xs'}>+</span> Add a Stop
                 </button>
               </div>
             )}
@@ -1059,6 +1561,219 @@ export default function CustomerHomePage() {
               </div>
             ))}
 
+            {/* Corporate Daily Rides Schedule (Mobile) */}
+            {activeTab === 'CORPORATE' && corporateMode === 'DAILY' && (
+              <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-[#f0750f]">
+                  <svg className="w-4 h-4 text-[#f0750f]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-xs font-extrabold text-[#f0750f]">Daily Rides Schedule</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 rounded-xl border border-slate-200 bg-white">
+                    <span className="block text-[10px] font-extrabold text-black uppercase tracking-wider leading-none mb-1">
+                      FROM DATE
+                    </span>
+                    <input
+                      type="date"
+                      value={corporateStartDate}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={(e) => setCorporateStartDate(e.target.value)}
+                      className="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-none cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="p-2 rounded-xl border border-slate-200 bg-white">
+                    <span className="block text-[10px] font-extrabold text-black uppercase tracking-wider leading-none mb-1">
+                      TO DATE
+                    </span>
+                    <input
+                      type="date"
+                      value={corporateEndDate}
+                      min={corporateStartDate}
+                      onChange={(e) => setCorporateEndDate(e.target.value)}
+                      className="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-none cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider leading-none">
+                      Included Dates ({corporateActiveDatesCount})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleToggleExcludeWeekends}
+                      className="text-[10px] font-bold text-[#f0750f] hover:underline"
+                    >
+                      {corporateHasWeekendExcluded ? 'Include Weekends' : 'Exclude Weekends'}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 max-h-36 overflow-y-auto pr-0.5">
+                    {corporateDatesList.map((item) => {
+                      const isExcluded = corporateExcludedDates.includes(item.formatted);
+                      return (
+                        <button
+                          key={item.formatted}
+                          type="button"
+                          onClick={() => handleToggleExcludeCorporateDate(item.formatted)}
+                          className={`p-1 rounded-lg border text-center transition-all cursor-pointer ${
+                            isExcluded
+                              ? 'bg-slate-100/70 border-slate-200 text-slate-400 opacity-60'
+                              : 'bg-white border-slate-900/40 text-slate-900 shadow-2xs'
+                          }`}
+                        >
+                          <p className="text-[9px] font-bold uppercase leading-none">{item.dayName}</p>
+                          <p className="text-xs font-black my-0.5 leading-none">{item.dayNum}</p>
+                          <span className={`inline-block text-[8px] font-bold px-1 rounded ${isExcluded ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-800'}`}>
+                            {isExcluded ? 'Skip' : 'Ride'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider leading-none">
+                      DAILY PICKUP TIMES ({corporatePickupTimes.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleAddCorporatePickupTime}
+                      className="inline-flex items-center gap-1 text-[10.5px] font-extrabold text-[#162232] hover:text-[#f0750f]"
+                    >
+                      <span className="w-3.5 h-3.5 rounded-full bg-[#162232] text-white flex items-center justify-center text-[10px] font-black leading-none">+</span>
+                      <span>Add Time</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {corporatePickupTimes.map((time, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5">
+                        <div
+                          onClick={() => {
+                            setActiveEditingTimeIndex(idx);
+                            setTimeModalOpen(true);
+                          }}
+                          className="flex-1 flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-all"
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <svg className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div className="min-w-0">
+                              <p className="text-[9px] font-bold text-slate-500 leading-tight">
+                                {idx === 0 ? 'Primary Pickup' : idx === 1 ? 'Evening / Return Pickup' : `Pickup Time ${idx + 1}`}
+                              </p>
+                              <p className="text-xs font-bold text-slate-900 leading-tight">{format12HourTime(time)}</p>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-[#f0750f] font-bold uppercase ml-1">Change</span>
+                        </div>
+                        {corporatePickupTimes.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCorporatePickupTime(idx)}
+                            className="p-1.5 text-red-500 hover:text-red-700"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Corporate Book Once Schedule (Mobile) */}
+            {activeTab === 'CORPORATE' && corporateMode === 'ONCE' && (
+              <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2">
+                <div className="flex items-center gap-1.5 text-[#f0750f]">
+                  <svg className="w-4 h-4 text-[#f0750f]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-xs font-extrabold text-[#f0750f]">Schedule</span>
+                </div>
+
+                <div className="p-2 rounded-xl border border-slate-200 bg-white">
+                  <div className="flex items-center gap-1 text-black mb-0.5">
+                    <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">PICKUP DATE</span>
+                  </div>
+                  <input
+                    type="date"
+                    value={scheduledDate}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer leading-tight ${
+                      scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider leading-none">
+                      {corporatePickupTimes.length > 1 ? `PICKUP TIMES (${corporatePickupTimes.length})` : 'ADD PICKUP TIME'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleAddCorporatePickupTime}
+                      className="inline-flex items-center gap-1 text-[10.5px] font-extrabold text-[#162232] hover:text-[#f0750f]"
+                    >
+                      <span className="w-3.5 h-3.5 rounded-full bg-[#162232] text-white flex items-center justify-center text-[10px] font-black leading-none">+</span>
+                      <span>Add Time</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {corporatePickupTimes.map((time, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5">
+                        <div
+                          onClick={() => {
+                            setActiveEditingTimeIndex(idx);
+                            setTimeModalOpen(true);
+                          }}
+                          className="flex-1 flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-all"
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <svg className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div className="min-w-0">
+                              <p className="text-[9px] font-bold text-slate-500 leading-tight">
+                                {idx === 0 ? 'Primary Pickup' : idx === 1 ? 'Evening / Return Pickup' : `Time ${idx + 1}`}
+                              </p>
+                              <p className="text-xs font-bold text-slate-900 leading-tight">{format12HourTime(time)}</p>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-[#f0750f] font-bold uppercase ml-1">Change</span>
+                        </div>
+                        {corporatePickupTimes.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCorporatePickupTime(idx)}
+                            className="p-1.5 text-red-500 hover:text-red-700"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Trip Schedule Header (for Local Rental) */}
             {activeTab === 'LOCAL' && (
               <div className="flex items-center gap-1.5 text-[#f0750f] pt-0.5">
@@ -1069,74 +1784,76 @@ export default function CustomerHomePage() {
               </div>
             )}
 
-            {/* Dates & Times */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="py-2 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70">
-                <div className="flex items-center gap-1 text-black mb-0.5">
-                  <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
-                    {activeTab === 'LOCAL' ? 'PICKUP DATE' : 'TRIP START DATE'}
-                  </span>
-                </div>
-                <input
-                  type="date"
-                  value={scheduledDate}
-                  min={new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setScheduledDate(e.target.value)}
-                  className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer leading-tight ${
-                    scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
-                  }`}
-                />
-              </div>
-
-              <div
-                onClick={() => setTimeModalOpen(true)}
-                className="py-2 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white cursor-pointer select-none"
-              >
-                <div className="flex items-center gap-1 text-black mb-0.5">
-                  <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
-                    PICKUP TIME
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className={`text-sm font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
-                    {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
-                  </span>
-                  {scheduledTime && (
-                    <span className="text-[10px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
-                      Change
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {activeTab === 'ROUND' && (
-                <div className="col-span-2 py-2 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70">
+            {/* Dates & Times (for Non-Corporate) */}
+            {activeTab !== 'CORPORATE' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="py-2 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70">
                   <div className="flex items-center gap-1 text-black mb-0.5">
                     <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
-                      RETURN JOURNEY DATE
+                      {activeTab === 'LOCAL' ? 'PICKUP DATE' : 'TRIP START DATE'}
                     </span>
                   </div>
                   <input
                     type="date"
-                    value={returnDate}
-                    min={scheduledDate}
-                    onChange={(e) => setReturnDate(e.target.value)}
+                    value={scheduledDate}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setScheduledDate(e.target.value)}
                     className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer leading-tight ${
-                      returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                      scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
                     }`}
                   />
                 </div>
-              )}
-            </div>
+
+                <div
+                  onClick={() => setTimeModalOpen(true)}
+                  className="py-2 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-1 text-black mb-0.5">
+                    <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
+                      PICKUP TIME
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
+                      {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
+                    </span>
+                    {scheduledTime && (
+                      <span className="text-[10px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
+                        Change
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {activeTab === 'ROUND' && (
+                  <div className="col-span-2 py-2 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70">
+                    <div className="flex items-center gap-1 text-black mb-0.5">
+                      <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
+                        RETURN JOURNEY DATE
+                      </span>
+                    </div>
+                    <input
+                      type="date"
+                      value={returnDate}
+                      min={scheduledDate}
+                      onChange={(e) => setReturnDate(e.target.value)}
+                      className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer leading-tight ${
+                        returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                      }`}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Centered Straddling Button */}
             <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-20">
@@ -1244,9 +1961,27 @@ export default function CustomerHomePage() {
       {/* 12-Hour Time Picker Modal (Pickup) */}
       <TimePickerModal
         isOpen={timeModalOpen}
-        onClose={() => setTimeModalOpen(false)}
-        onSelectTime={(t) => setScheduledTime(t)}
-        currentTime={scheduledTime}
+        onClose={() => {
+          setTimeModalOpen(false);
+          setActiveEditingTimeIndex(null);
+        }}
+        onSelectTime={(t) => {
+          if (activeTab === 'CORPORATE' && activeEditingTimeIndex !== null) {
+            setCorporatePickupTimes((prev) =>
+              prev.map((time, i) => (i === activeEditingTimeIndex ? t : time))
+            );
+          } else {
+            setScheduledTime(t);
+            setCorporatePickupTimes((prev) => (prev.length > 0 ? [t, ...prev.slice(1)] : [t]));
+          }
+          setTimeModalOpen(false);
+          setActiveEditingTimeIndex(null);
+        }}
+        currentTime={
+          activeTab === 'CORPORATE' && activeEditingTimeIndex !== null && corporatePickupTimes[activeEditingTimeIndex]
+            ? corporatePickupTimes[activeEditingTimeIndex]
+            : scheduledTime || '09:00'
+        }
         title="Select Pickup Time"
       />
 

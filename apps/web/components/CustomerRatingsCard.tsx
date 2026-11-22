@@ -8,38 +8,43 @@ const GOOGLE_MAPS_REVIEW_URL =
 export function CustomerRatingsCard() {
   return (
     <div className="flex flex-col justify-between lg:justify-center lg:gap-3 h-full select-none relative py-0.5 px-0.5 lg:py-2 lg:px-2">
-      {/* Top Header: Trust Badge & Overall Rating */}
-      <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-2.5 border-b border-slate-100 pb-1.5 lg:pb-2 lg:pt-1">
-        {/* Rating Pill linking directly to Google Reviews arranged on LEFT */}
-        <a
-          href={GOOGLE_MAPS_REVIEW_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Rate Kandy Cabs on Google Maps"
-          className="inline-flex items-center gap-1 sm:gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 px-1.5 py-0.5 lg:px-2.5 lg:py-1 rounded-full shadow-2xs hover:shadow-xs transition-all cursor-pointer flex-shrink-0"
-        >
-          <span className="text-[11px] sm:text-xs lg:text-sm font-black text-black">4.9</span>
-          <div className="flex text-[#F4B400] text-[10px] sm:text-[11px] lg:text-xs tracking-tight">
-            {'★★★★★'}
-          </div>
-          <svg
-            className="w-2.5 h-2.5 lg:w-3 lg:h-3 text-slate-600"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2.5}
-              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-            />
-          </svg>
-        </a>
+      {/* Top Header: Trust Badge & Overall Rating (Matching Image 1 & 2) */}
+      <div className="border-b border-slate-100 pb-1.5 lg:pb-2 lg:pt-0.5 space-y-1">
+        <div className="flex items-center gap-1.5 text-slate-900">
+          <span className="text-[#F4B400] text-sm lg:text-base leading-none">★</span>
+          <h4 className="text-xs sm:text-sm lg:text-[15px] font-black text-slate-900 leading-tight">
+            Customer Ratings & Reviews
+          </h4>
+        </div>
 
-        <h4 className="text-[11px] sm:text-xs lg:text-sm xl:text-[15px] font-extrabold text-slate-900 leading-tight truncate">
-          Customer Ratings & Reviews
-        </h4>
+        {/* Rating Pill linking directly to Google Reviews arranged on LEFT */}
+        <div>
+          <a
+            href={GOOGLE_MAPS_REVIEW_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Rate Kandy Cabs on Google Maps"
+            className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full shadow-2xs hover:shadow-xs transition-all cursor-pointer"
+          >
+            <span className="text-[11px] sm:text-xs lg:text-sm font-black text-black">4.9</span>
+            <div className="flex text-[#F4B400] text-[10px] sm:text-[11px] lg:text-xs tracking-tight">
+              {'★★★★★'}
+            </div>
+            <svg
+              className="w-2.5 h-2.5 lg:w-3 lg:h-3 text-slate-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+              />
+            </svg>
+          </a>
+        </div>
       </div>
 
       {/* Middle Body: Feedback & Experience Invitation */}

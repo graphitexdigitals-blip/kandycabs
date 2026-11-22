@@ -251,6 +251,11 @@ export default function BookingFunnelPage() {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
 
+  // Corporate Travel Booking Details
+  const [corporateMode, setCorporateMode] = useState<'ONCE' | 'DAILY' | null>(null);
+  const [corporateTotalDays, setCorporateTotalDays] = useState<number | null>(null);
+  const [corporatePickupTimes, setCorporatePickupTimes] = useState<string[]>([]);
+
   // Sync user profile when user logs in
   useEffect(() => {
     if (user?.fullName && !passengerName) {
@@ -300,9 +305,22 @@ export default function BookingFunnelPage() {
         if (found) setSelectedFleet(found);
       }
 
-      // Check if this route is within same city / local distance (< 22 km)
+      // Read Corporate travel parameters
+      const corpMode = sp.get('corporateMode') as 'ONCE' | 'DAILY' | null;
+      if (corpMode) setCorporateMode(corpMode);
+      const corpTotalDays = sp.get('corporateTotalDays');
+      if (corpTotalDays) setCorporateTotalDays(Number(corpTotalDays));
+      const corpTimesJson = sp.get('corporatePickupTimesJson');
+      if (corpTimesJson) {
+        try {
+          setCorporatePickupTimes(JSON.parse(corpTimesJson));
+        } catch {}
+      }
+
+      // Check if this route is within same city / local distance (< 22 km) (never convert corporate bookings)
       let effectiveTrip = trip;
-      if (p && d && trip !== TripType.LOCAL) {
+      const isCorporate = Boolean(corpMode || (trip as string) === 'CORPORATE');
+      if (p && d && trip !== TripType.LOCAL && !isCorporate) {
         const pLoc = ALL_LOCATIONS.find((l) => l.label.toLowerCase() === p.toLowerCase().trim()) || {
           label: p,
           lat: pLat || 12.9613,
@@ -637,7 +655,11 @@ export default function BookingFunnelPage() {
               {/* Bottom Row: Trip Type & Distance on Left, Edit Button on Right */}
               <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 text-xs">
                 <span className="font-semibold text-slate-500 text-[10.5px] sm:text-xs">
-                  {tripType === TripType.LOCAL
+                  {corporateMode
+                    ? corporateMode === 'DAILY'
+                      ? `Corporate Daily Rides (${corporateTotalDays || 1} days) • ${distanceKm} km/day`
+                      : `Corporate Travel • Book Once • ${distanceKm} km`
+                    : tripType === TripType.LOCAL
                     ? `Local Rental • ${localPackage === '4_40' ? '4 Hrs / 40 km' : localPackage === '12_120' ? '12 Hrs / 120 km' : '8 Hrs / 80 km'}`
                     : `${tripType === TripType.ROUND ? 'Round Trip' : 'One Way Drop'} • ${distanceKm} km`}
                 </span>
