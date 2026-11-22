@@ -29,6 +29,18 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
     }
   }, []);
 
+  // Prevent background scrolling when drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
   const loggedInName = isAuthenticated ? (user?.fullName || (user?.phone ? `+91 ${user.phone.slice(-10)}` : '')) : '';
 
   return (
@@ -164,122 +176,183 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
           {/* Mobile & Tablet Menu Hamburger Button (Visible on screens < lg) */}
           <button
             type="button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle navigation menu"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open navigation menu"
             className="lg:hidden p-1.5 sm:p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors flex items-center justify-center flex-shrink-0"
           >
-            {mobileMenuOpen ? (
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
           </button>
         </div>
       </div>
 
-      {/* Mobile & Tablet Drawer Dropdown (< lg) */}
+      {/* Full-Height Slide-Over Drawer (Right-to-Left on Mobile & Tablet) */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-[#121c2a] border-t border-slate-800 px-4 py-3 sm:py-4 space-y-2 animate-in slide-in-from-top-2 duration-150">
-          <div className="max-w-6xl mx-auto space-y-2">
-            {/* User Profile Card inside Hamburger Menu for Tablet and Mobile */}
-            {isAuthenticated && loggedInName ? (
-              <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/60 mb-2">
-                <div className="flex items-center justify-between">
-                  <div className="min-w-0 pr-2">
-                    <p className="text-[11px] text-slate-400 font-medium leading-tight">{greeting}</p>
-                    <p className="text-sm font-extrabold text-[#f0750f] tracking-wide truncate">{loggedInName}</p>
-                    {user?.phone && (
-                      <p className="text-[11px] text-slate-400 mt-0.5">+91 {user.phone.slice(-10)}</p>
-                    )}
-                  </div>
-                  <button
-                    onClick={async () => {
-                      setMobileMenuOpen(false);
-                      await logout();
-                      router.push('/');
-                    }}
-                    className="px-2.5 py-1 text-xs font-semibold text-red-400 hover:text-red-300 bg-red-950/40 hover:bg-red-900/50 rounded-lg border border-red-800/40 transition-colors flex-shrink-0"
-                  >
-                    Sign Out
-                  </button>
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop Overlay */}
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 bg-black/65 backdrop-blur-sm transition-opacity animate-in fade-in duration-300"
+          />
+
+          {/* Side Drawer Panel */}
+          <div className="fixed top-0 right-0 bottom-0 h-full w-full sm:w-80 md:w-96 max-w-full bg-[#121c2a] text-white z-50 shadow-2xl flex flex-col justify-between p-5 sm:p-6 animate-in slide-in-from-right duration-300 ease-out">
+            {/* Top Area: Header, User Profile Card, Nav Links */}
+            <div className="flex flex-col space-y-5 overflow-y-auto">
+              {/* Drawer Top Bar: Brand Logo & Close Button */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                <div className="relative h-7 w-24">
+                  <Image
+                    src="/images/logo-white.png"
+                    alt="Kandy Cabs Logo"
+                    fill
+                    className="object-contain"
+                  />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  aria-label="Close menu"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenAuth?.();
-                }}
-                className="w-full mb-2 px-3 py-2.5 rounded-xl font-bold text-xs text-white bg-[#f0750f] hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                </svg>
-                Sign In / Register
-              </button>
-            )}
 
-            {/* Navigation Links inside Drawer */}
-            <Link
-              href="/"
-              onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-colors ${
-                activeNav === 'home'
-                  ? 'bg-[#f0750f] text-white'
-                  : 'text-slate-200 hover:bg-slate-800/80'
-              }`}
-            >
-              <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-              </svg>
-              Home
-            </Link>
-            <Link
-              href="/about"
-              onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-colors ${
-                activeNav === 'about'
-                  ? 'bg-[#f0750f] text-white'
-                  : 'text-slate-200 hover:bg-slate-800/80'
-              }`}
-            >
-              <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              About
-            </Link>
-            <Link
-              href="/support"
-              onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-colors ${
-                activeNav === 'support'
-                  ? 'bg-[#f0750f] text-white'
-                  : 'text-slate-200 hover:bg-slate-800/80'
-              }`}
-            >
-              <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-              Support
-            </Link>
+              {/* User Profile Card inside Hamburger Drawer */}
+              {isAuthenticated && loggedInName ? (
+                <div className="bg-slate-800/80 rounded-2xl p-4 border border-slate-700/60 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#f0750f]/20 border border-[#f0750f]/40 flex items-center justify-center text-[#f0750f] font-black text-base flex-shrink-0">
+                      {loggedInName.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] text-slate-400 font-medium leading-tight">{greeting}</p>
+                      <p className="text-sm sm:text-base font-extrabold text-[#f0750f] tracking-wide truncate">{loggedInName}</p>
+                      {user?.phone && (
+                        <p className="text-xs text-slate-400 mt-0.5">+91 {user.phone.slice(-10)}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenAuth?.();
+                  }}
+                  className="w-full px-4 py-3 rounded-xl font-bold text-sm text-white bg-[#f0750f] hover:bg-[#d96509] transition-colors flex items-center justify-center gap-2 shadow-md active:scale-95"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
+                  Sign In / Register
+                </button>
+              )}
 
-            {isAuthenticated && (
-              <Link
-                href="/customer/dashboard"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs sm:text-sm font-bold text-slate-200 hover:bg-slate-800/80 transition-colors"
-              >
-                <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                My Bookings
-              </Link>
-            )}
+              {/* Navigation Links inside Drawer */}
+              <div className="space-y-1.5 pt-1">
+                <Link
+                  href="/"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold transition-colors ${
+                    activeNav === 'home'
+                      ? 'bg-[#f0750f] text-white shadow-md'
+                      : 'text-slate-200 hover:bg-slate-800/80'
+                  }`}
+                >
+                  <svg className="w-5 h-5 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                  Home
+                </Link>
+
+                <Link
+                  href="/about"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold transition-colors ${
+                    activeNav === 'about'
+                      ? 'bg-[#f0750f] text-white shadow-md'
+                      : 'text-slate-200 hover:bg-slate-800/80'
+                  }`}
+                >
+                  <svg className="w-5 h-5 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  About
+                </Link>
+
+                <Link
+                  href="/support"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold transition-colors ${
+                    activeNav === 'support'
+                      ? 'bg-[#f0750f] text-white shadow-md'
+                      : 'text-slate-200 hover:bg-slate-800/80'
+                  }`}
+                >
+                  <svg className="w-5 h-5 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  Support
+                </Link>
+
+                {isAuthenticated && (
+                  <Link
+                    href="/customer/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold transition-colors ${
+                      activeNav === 'bookings'
+                        ? 'bg-[#f0750f] text-white shadow-md'
+                        : 'text-slate-200 hover:bg-slate-800/80'
+                    }`}
+                  >
+                    <svg className="w-5 h-5 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    My Bookings
+                  </Link>
+                )}
+
+                <a
+                  href="/kandy-cabs-customer.apk"
+                  download="kandy-cabs-customer.apk"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold text-slate-200 hover:bg-slate-800/80 transition-colors"
+                >
+                  <svg className="w-5 h-5 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download Mobile App
+                </a>
+              </div>
+            </div>
+
+            {/* Bottom Section: Sign Out Button Pinned at Bottom */}
+            <div className="pt-4 border-t border-slate-800 space-y-3">
+              {isAuthenticated && (
+                <button
+                  onClick={async () => {
+                    setMobileMenuOpen(false);
+                    await logout();
+                    router.push('/');
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-red-400 hover:text-red-300 bg-red-950/30 hover:bg-red-950/50 rounded-xl border border-red-800/40 transition-colors active:scale-98"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  Sign Out
+                </button>
+              )}
+              <p className="text-center text-[10px] text-slate-500 font-medium">
+                Kandy Cabs • Safe | Reliable | Hassle-Free
+              </p>
+            </div>
           </div>
         </div>
       )}
