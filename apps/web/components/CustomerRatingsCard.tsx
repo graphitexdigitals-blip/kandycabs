@@ -10,14 +10,14 @@ export function CustomerRatingsCard() {
     <div className="flex flex-col justify-between h-full select-none relative py-0.5 px-0.5 lg:py-1 lg:px-2">
       {/* Top Header: Trust Badge & Overall Rating */}
       <div className="flex items-center justify-between gap-1.5 sm:gap-2 border-b border-slate-200/80 pb-2 md:pb-2.5">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="text-[#F4B400] flex items-center justify-center flex-shrink-0 self-start mt-0.5">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="text-[#F4B400] flex items-center justify-center flex-shrink-0">
             <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[#F4B400]" viewBox="0 0 20 20" fill="currentColor">
               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
           </div>
-          <div className="min-w-0 flex flex-col items-start gap-1">
-            <h4 className="text-xs sm:text-sm lg:text-base font-extrabold text-slate-900 leading-tight">
+          <div className="min-w-0 flex flex-col md:flex-row md:items-center gap-1.5 md:gap-2.5 flex-1 flex-wrap">
+            <h4 className="text-xs sm:text-sm lg:text-[15px] font-extrabold text-slate-900 leading-tight whitespace-nowrap">
               Customer Ratings & Reviews
             </h4>
             {/* Rating Pill linking directly to Google Reviews */}
@@ -26,7 +26,7 @@ export function CustomerRatingsCard() {
               target="_blank"
               rel="noopener noreferrer"
               title="Rate Kandy Cabs on Google Maps"
-              className="inline-flex items-center gap-1 sm:gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full shadow-2xs hover:shadow-xs transition-all cursor-pointer w-fit"
+              className="inline-flex items-center gap-1 sm:gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full shadow-2xs hover:shadow-xs transition-all cursor-pointer flex-shrink-0 w-fit"
             >
               <span className="text-xs sm:text-sm font-black text-black">4.9</span>
               <div className="flex text-[#F4B400] text-xs sm:text-sm tracking-tight">
