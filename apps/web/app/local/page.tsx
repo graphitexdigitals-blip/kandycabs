@@ -76,6 +76,11 @@ export default function LocalRentalPage() {
       alert('Please select your rental start date');
       return;
     }
+    const today = new Date().toISOString().split('T')[0];
+    if (scheduledDate < today) {
+      alert('The selected rental start date has already crossed! Please select today or a future date.');
+      return;
+    }
     if (!scheduledTime) {
       alert('Please select your pickup time');
       return;

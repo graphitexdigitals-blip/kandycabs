@@ -123,6 +123,23 @@ export default function CustomerHomePage() {
   const [returnDate, setReturnDate] = useState('');
   const [returnTime, setReturnTime] = useState('');
 
+  // Local date helper in YYYY-MM-DD
+  const getTodayDateStr = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayStr = getTodayDateStr();
+  const isTripDatePassed = Boolean(scheduledDate && scheduledDate < todayStr);
+  const isReturnDatePassed = Boolean(
+    (tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') &&
+    returnDate &&
+    (returnDate < (scheduledDate || todayStr))
+  );
+
   // Specialized Service States
   const [flightNumber, setFlightNumber] = useState('');
   const [selectedAirport, setSelectedAirport] = useState('Mangaluru Airport (IXE)');
@@ -455,9 +472,26 @@ export default function CustomerHomePage() {
       return;
     }
 
-    if (activeTab !== 'CORPORATE' && !scheduledDate) {
-      alert('Please select your trip start date');
-      return;
+    if (activeTab !== 'CORPORATE') {
+      if (!scheduledDate) {
+        alert('Please select your trip start date');
+        return;
+      }
+      if (scheduledDate < todayStr) {
+        alert('The selected trip date has already crossed! Please change the date to today or a future date to proceed.');
+        return;
+      }
+    }
+
+    if (activeTab === 'CORPORATE' && corporateMode === 'ONCE') {
+      if (!scheduledDate) {
+        alert('Please select your pickup date');
+        return;
+      }
+      if (scheduledDate < todayStr) {
+        alert('The selected pickup date has already crossed! Please change the date to today or a future date to proceed.');
+        return;
+      }
     }
 
     if (activeTab !== 'CORPORATE' && !scheduledTime) {
@@ -465,9 +499,15 @@ export default function CustomerHomePage() {
       return;
     }
 
-    if ((tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') && !returnDate) {
-      alert('Please select your return date');
-      return;
+    if (tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') {
+      if (!returnDate) {
+        alert('Please select your return date');
+        return;
+      }
+      if (returnDate < scheduledDate) {
+        alert('Return date cannot be earlier than the departure date. Please change the return date.');
+        return;
+      }
     }
 
     const finalDate = activeTab === 'CORPORATE' && corporateMode === 'DAILY'
@@ -1091,22 +1131,45 @@ export default function CustomerHomePage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2.5 rounded-2xl border border-slate-200 bg-white">
-                    <div className="flex items-center gap-1 text-black mb-0.5">
-                      <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">PICKUP DATE</span>
+                  <div className={`p-2.5 rounded-2xl border transition-all ${
+                    isTripDatePassed
+                      ? 'border-red-400 bg-red-50/80 ring-1 ring-red-400'
+                      : 'border-slate-200 bg-white'
+                  }`}>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <div className="flex items-center gap-1 text-black">
+                        <svg className={`w-3.5 h-3.5 ${isTripDatePassed ? 'text-red-600' : 'text-black'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className={`text-[11px] font-extrabold uppercase tracking-wider ${isTripDatePassed ? 'text-red-700' : 'text-black'}`}>PICKUP DATE</span>
+                      </div>
+                      {isTripDatePassed && (
+                        <span className="text-[10px] font-bold text-red-600 uppercase bg-red-100 px-1.5 py-0.5 rounded">Passed</span>
+                      )}
                     </div>
                     <input
                       type="date"
                       value={scheduledDate}
-                      min={new Date().toISOString().split('T')[0]}
-                      onChange={(e) => setScheduledDate(e.target.value)}
+                      min={todayStr}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setScheduledDate(val);
+                        if (val && val < todayStr) {
+                          alert('This date has already crossed! Please change the date.');
+                        }
+                      }}
                       className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
-                        scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                        isTripDatePassed ? 'text-red-700 font-bold' : (scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400')
                       }`}
                     />
+                    {isTripDatePassed && (
+                      <p className="text-[11px] font-bold text-red-600 mt-1 flex items-center gap-1 leading-tight animate-in fade-in duration-150">
+                        <svg className="w-3.5 h-3.5 flex-shrink-0 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <span>Date has already crossed. Please change the date.</span>
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -1175,24 +1238,47 @@ export default function CustomerHomePage() {
               )}
 
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
-                  <div className="flex items-center gap-1 text-black mb-0.5">
-                    <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
-                      {activeTab === 'TOUR' || activeTab === 'ROUND' ? 'DEPARTURE DATE' : activeTab === 'LOCAL' ? 'PICKUP DATE' : 'TRIP START DATE'}
-                    </span>
+                <div className={`p-2.5 rounded-2xl border transition-all ${
+                  isTripDatePassed
+                    ? 'border-red-400 bg-red-50/80 ring-1 ring-red-400'
+                    : 'border-slate-200 bg-slate-50/70 focus-within:bg-white'
+                }`}>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <div className="flex items-center gap-1 text-black">
+                      <svg className={`w-3.5 h-3.5 ${isTripDatePassed ? 'text-red-600' : 'text-black'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className={`text-[11px] font-extrabold uppercase tracking-wider ${isTripDatePassed ? 'text-red-700' : 'text-black'}`}>
+                        {activeTab === 'TOUR' || activeTab === 'ROUND' ? 'DEPARTURE DATE' : activeTab === 'LOCAL' ? 'PICKUP DATE' : 'TRIP START DATE'}
+                      </span>
+                    </div>
+                    {isTripDatePassed && (
+                      <span className="text-[10px] font-bold text-red-600 uppercase bg-red-100 px-1.5 py-0.5 rounded">Passed</span>
+                    )}
                   </div>
                   <input
                     type="date"
                     value={scheduledDate}
-                    min={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => setScheduledDate(e.target.value)}
+                    min={todayStr}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setScheduledDate(val);
+                      if (val && val < todayStr) {
+                        alert('This date has already crossed! Please change the date.');
+                      }
+                    }}
                     className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
-                      scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                      isTripDatePassed ? 'text-red-700 font-bold' : (scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400')
                     }`}
                   />
+                  {isTripDatePassed && (
+                    <p className="text-[11px] font-bold text-red-600 mt-1 flex items-center gap-1 leading-tight animate-in fade-in duration-150">
+                      <svg className="w-3.5 h-3.5 flex-shrink-0 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <span>Date has already crossed. Please change the date.</span>
+                    </p>
+                  )}
                 </div>
 
                 <div
@@ -1221,24 +1307,47 @@ export default function CustomerHomePage() {
 
                 {(tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') && (
                   <>
-                    <div className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
-                      <div className="flex items-center gap-1 text-black mb-0.5">
-                        <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
-                          RETURN DATE
-                        </span>
+                    <div className={`p-2.5 rounded-2xl border transition-all ${
+                      isReturnDatePassed
+                        ? 'border-red-400 bg-red-50/80 ring-1 ring-red-400'
+                        : 'border-slate-200 bg-slate-50/70 focus-within:bg-white'
+                    }`}>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <div className="flex items-center gap-1 text-black">
+                          <svg className={`w-3.5 h-3.5 ${isReturnDatePassed ? 'text-red-600' : 'text-black'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span className={`text-[11px] font-extrabold uppercase tracking-wider ${isReturnDatePassed ? 'text-red-700' : 'text-black'}`}>
+                            RETURN DATE
+                          </span>
+                        </div>
+                        {isReturnDatePassed && (
+                          <span className="text-[10px] font-bold text-red-600 uppercase bg-red-100 px-1.5 py-0.5 rounded">Invalid</span>
+                        )}
                       </div>
                       <input
                         type="date"
                         value={returnDate}
-                        min={scheduledDate}
-                        onChange={(e) => setReturnDate(e.target.value)}
+                        min={scheduledDate || todayStr}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setReturnDate(val);
+                          if (val && val < (scheduledDate || todayStr)) {
+                            alert('Return date cannot be earlier than departure date.');
+                          }
+                        }}
                         className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
-                          returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                          isReturnDatePassed ? 'text-red-700 font-bold' : (returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400')
                         }`}
                       />
+                      {isReturnDatePassed && (
+                        <p className="text-[11px] font-bold text-red-600 mt-1 flex items-center gap-1 leading-tight animate-in fade-in duration-150">
+                          <svg className="w-3.5 h-3.5 flex-shrink-0 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          <span>Return date cannot be before departure date.</span>
+                        </p>
+                      )}
                     </div>
 
                     <div
@@ -1828,22 +1937,45 @@ export default function CustomerHomePage() {
                   <span className="text-xs font-extrabold text-[#f0750f]">Schedule</span>
                 </div>
 
-                <div className="p-2 rounded-xl border border-slate-200 bg-white">
-                  <div className="flex items-center gap-1 text-black mb-0.5">
-                    <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">PICKUP DATE</span>
+                <div className={`p-2 rounded-xl border transition-all ${
+                  isTripDatePassed
+                    ? 'border-red-400 bg-red-50/80 ring-1 ring-red-400'
+                    : 'border-slate-200 bg-white'
+                }`}>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <div className="flex items-center gap-1 text-black">
+                      <svg className={`w-3.5 h-3.5 ${isTripDatePassed ? 'text-red-600' : 'text-black'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className={`text-[10.5px] font-extrabold uppercase tracking-wider ${isTripDatePassed ? 'text-red-700' : 'text-black'}`}>PICKUP DATE</span>
+                    </div>
+                    {isTripDatePassed && (
+                      <span className="text-[9px] font-bold text-red-600 uppercase bg-red-100 px-1 py-0.2 rounded">Passed</span>
+                    )}
                   </div>
                   <input
                     type="date"
                     value={scheduledDate}
-                    min={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => setScheduledDate(e.target.value)}
+                    min={todayStr}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setScheduledDate(val);
+                      if (val && val < todayStr) {
+                        alert('This date has already crossed! Please change the date.');
+                      }
+                    }}
                     className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer leading-tight ${
-                      scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                      isTripDatePassed ? 'text-red-700 font-bold' : (scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400')
                     }`}
                   />
+                  {isTripDatePassed && (
+                    <p className="text-[10px] font-bold text-red-600 mt-1 flex items-center gap-1 leading-tight animate-in fade-in duration-150">
+                      <svg className="w-3 h-3 flex-shrink-0 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <span>Date has crossed. Please change the date.</span>
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -1913,24 +2045,47 @@ export default function CustomerHomePage() {
             {/* Dates & Times (for Non-Corporate) */}
             {activeTab !== 'CORPORATE' && (
               <div className="grid grid-cols-2 gap-2">
-                <div className="py-2 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70">
-                  <div className="flex items-center gap-1 text-black mb-0.5">
-                    <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
-                      {activeTab === 'TOUR' || activeTab === 'ROUND' ? 'DEPARTURE DATE' : activeTab === 'LOCAL' ? 'PICKUP DATE' : 'TRIP START DATE'}
-                    </span>
+                <div className={`py-2 px-2.5 rounded-xl border transition-all ${
+                  isTripDatePassed
+                    ? 'border-red-400 bg-red-50/80 ring-1 ring-red-400'
+                    : 'border-slate-200 bg-slate-50/70'
+                }`}>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <div className="flex items-center gap-1 text-black">
+                      <svg className={`w-3.5 h-3.5 ${isTripDatePassed ? 'text-red-600' : 'text-black'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className={`text-[10.5px] font-extrabold uppercase tracking-wider ${isTripDatePassed ? 'text-red-700' : 'text-black'}`}>
+                        {activeTab === 'TOUR' || activeTab === 'ROUND' ? 'DEPARTURE DATE' : activeTab === 'LOCAL' ? 'PICKUP DATE' : 'TRIP START DATE'}
+                      </span>
+                    </div>
+                    {isTripDatePassed && (
+                      <span className="text-[9px] font-bold text-red-600 uppercase bg-red-100 px-1 py-0.2 rounded">Passed</span>
+                    )}
                   </div>
                   <input
                     type="date"
                     value={scheduledDate}
-                    min={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => setScheduledDate(e.target.value)}
+                    min={todayStr}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setScheduledDate(val);
+                      if (val && val < todayStr) {
+                        alert('This date has already crossed! Please change the date.');
+                      }
+                    }}
                     className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer leading-tight ${
-                      scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                      isTripDatePassed ? 'text-red-700 font-bold' : (scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400')
                     }`}
                   />
+                  {isTripDatePassed && (
+                    <p className="text-[10px] font-bold text-red-600 mt-1 flex items-center gap-1 leading-tight animate-in fade-in duration-150">
+                      <svg className="w-3 h-3 flex-shrink-0 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <span>Date has crossed. Please change the date.</span>
+                    </p>
+                  )}
                 </div>
 
                 <div
@@ -1959,24 +2114,47 @@ export default function CustomerHomePage() {
 
                 {(activeTab === 'ROUND' || activeTab === 'TOUR' || tripType === TripType.ROUND || tripType === TripType.PACKAGE) && (
                   <>
-                    <div className="py-2 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70">
-                      <div className="flex items-center gap-1 text-black mb-0.5">
-                        <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
-                          RETURN DATE
-                        </span>
+                    <div className={`py-2 px-2.5 rounded-xl border transition-all ${
+                      isReturnDatePassed
+                        ? 'border-red-400 bg-red-50/80 ring-1 ring-red-400'
+                        : 'border-slate-200 bg-slate-50/70'
+                    }`}>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <div className="flex items-center gap-1 text-black">
+                          <svg className={`w-3.5 h-3.5 ${isReturnDatePassed ? 'text-red-600' : 'text-black'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span className={`text-[10.5px] font-extrabold uppercase tracking-wider ${isReturnDatePassed ? 'text-red-700' : 'text-black'}`}>
+                            RETURN DATE
+                          </span>
+                        </div>
+                        {isReturnDatePassed && (
+                          <span className="text-[9px] font-bold text-red-600 uppercase bg-red-100 px-1 py-0.2 rounded">Invalid</span>
+                        )}
                       </div>
                       <input
                         type="date"
                         value={returnDate}
-                        min={scheduledDate}
-                        onChange={(e) => setReturnDate(e.target.value)}
+                        min={scheduledDate || todayStr}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setReturnDate(val);
+                          if (val && val < (scheduledDate || todayStr)) {
+                            alert('Return date cannot be earlier than departure date.');
+                          }
+                        }}
                         className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer leading-tight ${
-                          returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                          isReturnDatePassed ? 'text-red-700 font-bold' : (returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400')
                         }`}
                       />
+                      {isReturnDatePassed && (
+                        <p className="text-[10px] font-bold text-red-600 mt-1 flex items-center gap-1 leading-tight animate-in fade-in duration-150">
+                          <svg className="w-3 h-3 flex-shrink-0 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          <span>Return date cannot be before departure date.</span>
+                        </p>
+                      )}
                     </div>
 
                     <div

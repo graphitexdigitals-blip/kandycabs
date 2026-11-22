@@ -140,12 +140,21 @@ export default function TourPilgrimagePage() {
       alert('Please select your tour start date');
       return;
     }
+    const today = new Date().toISOString().split('T')[0];
+    if (scheduledDate < today) {
+      alert('The selected tour start date has already crossed! Please select today or a future date.');
+      return;
+    }
     if (!scheduledTime) {
       alert('Please select your pickup time');
       return;
     }
     if (!returnDate) {
       alert('Please select your return date');
+      return;
+    }
+    if (returnDate < scheduledDate) {
+      alert('Return date cannot be earlier than tour departure date. Please change the return date.');
       return;
     }
 

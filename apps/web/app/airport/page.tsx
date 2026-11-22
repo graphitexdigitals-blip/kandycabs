@@ -111,6 +111,11 @@ export default function AirportBookingPage() {
       alert('Please select your trip start date');
       return;
     }
+    const today = new Date().toISOString().split('T')[0];
+    if (scheduledDate < today) {
+      alert('The selected trip start date has already crossed! Please select today or a future date.');
+      return;
+    }
     if (!scheduledTime) {
       alert('Please select your pickup time');
       return;
