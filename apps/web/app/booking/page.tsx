@@ -219,8 +219,8 @@ export default function BookingFunnelPage() {
   // Additional Requirements State
   const [additionalReqs, setAdditionalReqs] = useState<AdditionalRequirementsData>({
     travellers: 0,
-    luggageType: 'NORMAL',
-    luggageCounts: { small: 1, medium: 1, large: 0, xlarge: 0 },
+    luggageType: 'NONE',
+    luggageCounts: { small: 0, medium: 0, large: 0, xlarge: 0 },
     seniorCitizens: false,
     returnJourneyLater: false,
     needAirportDrop: false,
@@ -240,6 +240,7 @@ export default function BookingFunnelPage() {
 
   // Modals & Terms
   const [reqModalOpen, setReqModalOpen] = useState(false);
+  const [showTravellersRequiredModal, setShowTravellersRequiredModal] = useState(false);
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [locationModalTarget, setLocationModalTarget] = useState<'PICKUP' | 'DROP'>('PICKUP');
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -493,6 +494,30 @@ export default function BookingFunnelPage() {
       alert('Please enter a valid 10-digit Indian Mobile Number');
       return;
     }
+
+    // Validate travellers and luggage (matching customer app Image 1)
+    const isLuggageOptional =
+      tripType === TripType.LOCAL ||
+      corporateMode !== null ||
+      (tripType as string) === 'CORPORATE';
+
+    const totalLuggageBags = additionalReqs.luggageCounts
+      ? (additionalReqs.luggageCounts.small || 0) +
+        (additionalReqs.luggageCounts.medium || 0) +
+        (additionalReqs.luggageCounts.large || 0) +
+        (additionalReqs.luggageCounts.xlarge || 0)
+      : additionalReqs.luggageType === 'NONE'
+      ? 0
+      : 1;
+
+    const isTravellersMissing = (additionalReqs.travellers || 0) <= 0;
+    const isLuggageMissing = !isLuggageOptional && totalLuggageBags <= 0;
+
+    if (isTravellersMissing || isLuggageMissing) {
+      setShowTravellersRequiredModal(true);
+      return;
+    }
+
     setStep(4); // Navigate to Step 4: Review & Confirm Booking
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -1174,51 +1199,72 @@ export default function BookingFunnelPage() {
                 </button>
               </div>
 
-              {/* Two Big Pill Boxes for Travellers & Luggage */}
+              {/* Two Big Pill Boxes for Travellers & Luggage (Matching Customer App Image 1) */}
               <div className="grid grid-cols-2 gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setReqModalOpen(true)}
-                  className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-slate-100 flex flex-col items-center justify-center transition-colors"
-                >
-                  <svg className="w-6 h-6 text-slate-600 mb-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-                  </svg>
-                  <span className="block text-xs font-bold text-slate-800">
-                    {additionalReqs.travellers} Travellers
-                  </span>
-                </button>
+                {(() => {
+                  const totalLuggage = additionalReqs.luggageCounts
+                    ? (additionalReqs.luggageCounts.small || 0) +
+                      (additionalReqs.luggageCounts.medium || 0) +
+                      (additionalReqs.luggageCounts.large || 0) +
+                      (additionalReqs.luggageCounts.xlarge || 0)
+                    : additionalReqs.luggageType === 'NONE'
+                    ? 0
+                    : 1;
 
-                <button
-                  type="button"
-                  onClick={() => setReqModalOpen(true)}
-                  className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-slate-100 flex flex-col items-center justify-center transition-colors"
-                >
-                  <svg className="w-6 h-6 text-slate-600 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="6" width="18" height="15" rx="2" />
-                    <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                  </svg>
-                  <span className="block text-xs font-bold text-slate-800">
-                    {(() => {
-                      if (additionalReqs.luggageCounts) {
-                        const total =
-                          additionalReqs.luggageCounts.small +
-                          additionalReqs.luggageCounts.medium +
-                          additionalReqs.luggageCounts.large +
-                          additionalReqs.luggageCounts.xlarge;
-                        if (total === 0) return 'No Luggage';
-                        return `${total} Luggage Bag${total > 1 ? 's' : ''}`;
-                      }
-                      return additionalReqs.luggageType === 'NONE'
-                        ? 'No Luggage'
-                        : additionalReqs.luggageType === 'NORMAL'
-                        ? 'Normal Luggage'
-                        : additionalReqs.luggageType === 'MEDIUM'
-                        ? 'Medium Bags'
-                        : 'Heavy Luggage';
-                    })()}
-                  </span>
-                </button>
+                  const isTravellersZero = (additionalReqs.travellers || 0) <= 0;
+                  const isLuggageZero = totalLuggage <= 0;
+
+                  return (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setReqModalOpen(true)}
+                        className={`p-3.5 rounded-2xl border flex flex-col items-center justify-center transition-all cursor-pointer ${
+                          isTravellersZero
+                            ? 'border-orange-200 bg-orange-50/50 hover:bg-orange-100/60 shadow-2xs'
+                            : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100'
+                        }`}
+                      >
+                        <svg
+                          className={`w-6 h-6 mb-1 ${isTravellersZero ? 'text-[#c2410c]' : 'text-slate-600'}`}
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                        </svg>
+                        <span className={`block text-xs font-bold ${isTravellersZero ? 'text-[#c2410c]' : 'text-slate-800'}`}>
+                          {additionalReqs.travellers || 0} Travellers
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setReqModalOpen(true)}
+                        className={`p-3.5 rounded-2xl border flex flex-col items-center justify-center transition-all cursor-pointer ${
+                          isLuggageZero
+                            ? 'border-orange-200 bg-orange-50/50 hover:bg-orange-100/60 shadow-2xs'
+                            : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100'
+                        }`}
+                      >
+                        <svg
+                          className={`w-6 h-6 mb-1 ${isLuggageZero ? 'text-[#c2410c]' : 'text-slate-600'}`}
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect x="3" y="6" width="18" height="15" rx="2" />
+                          <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                        </svg>
+                        <span className={`block text-xs font-bold ${isLuggageZero ? 'text-[#c2410c]' : 'text-slate-800'}`}>
+                          {isLuggageZero ? '0 Luggage' : `${totalLuggage} Luggage Bag${totalLuggage > 1 ? 's' : ''}`}
+                        </span>
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
@@ -1945,6 +1991,44 @@ export default function BookingFunnelPage() {
         onClose={() => setReqModalOpen(false)}
         onApply={(data) => setAdditionalReqs(data)}
       />
+
+      {/* Travellers & Luggage Required Alert Modal (Exact replica of Customer App Image 1) */}
+      {showTravellersRequiredModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className="fixed inset-0"
+            onClick={() => setShowTravellersRequiredModal(false)}
+          />
+          <div className="relative bg-white rounded-3xl p-6 sm:p-7 max-w-[360px] w-full shadow-2xl border border-slate-100 z-10 animate-in zoom-in-95 duration-150">
+            <h3 className="text-xl font-bold text-[#0f172a] mb-3">
+              Select Travellers
+            </h3>
+            <p className="text-[15px] leading-relaxed text-[#334155] mb-6">
+              Please select the number of <strong className="font-extrabold text-[#0f172a]">travellers</strong> and{' '}
+              <strong className="font-extrabold text-[#0f172a]">luggage</strong> before continuing.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowTravellersRequiredModal(false)}
+                className="px-3.5 py-2 text-sm font-bold text-[#64748b] hover:text-[#0f172a] tracking-wider uppercase transition-colors"
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowTravellersRequiredModal(false);
+                  setReqModalOpen(true);
+                }}
+                className="px-3.5 py-2 text-sm font-black text-black hover:text-[#f0750f] tracking-wider uppercase transition-colors"
+              >
+                SELECT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Location Picker Modal */}
       <LocationPickerModal

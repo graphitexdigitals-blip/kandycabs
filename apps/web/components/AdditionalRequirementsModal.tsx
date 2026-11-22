@@ -147,6 +147,11 @@ export function AdditionalRequirementsModal({
   const luggageSummary = getLuggageSummary();
 
   const handleSave = () => {
+    if (travellers <= 0) {
+      alert('Please select at least 1 traveller before proceeding.');
+      return;
+    }
+
     // Determine legacy luggageType for backwards compatibility
     let legacyType = 'NONE';
     if (totalBags === 0) legacyType = 'NONE';
