@@ -196,15 +196,15 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
             className="fixed inset-0 bg-black/65 backdrop-blur-sm transition-opacity animate-in fade-in duration-300"
           />
 
-          {/* Side Drawer Panel */}
-          <div className="fixed top-0 right-0 bottom-0 h-full w-full sm:w-80 md:w-96 max-w-full bg-[#121c2a] text-white z-50 shadow-2xl flex flex-col justify-between p-5 sm:p-6 animate-in slide-in-from-right duration-300 ease-out">
+          {/* Side Drawer Panel (White Background) */}
+          <div className="fixed top-0 right-0 bottom-0 h-full w-full sm:w-80 md:w-96 max-w-full bg-white text-slate-800 z-50 shadow-2xl flex flex-col justify-between p-5 sm:p-6 animate-in slide-in-from-right duration-300 ease-out border-l border-slate-100">
             {/* Top Area: Header, User Profile Card, Nav Links */}
             <div className="flex flex-col space-y-5 overflow-y-auto">
               {/* Drawer Top Bar: Brand Logo & Close Button */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-                <div className="relative h-7 w-24">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="relative h-8 w-28">
                   <Image
-                    src="/images/logo-white.png"
+                    src="/images/logo.png"
                     alt="Kandy Cabs Logo"
                     fill
                     className="object-contain"
@@ -213,10 +213,10 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
                 <button
                   type="button"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
                   aria-label="Close menu"
                 >
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -224,16 +224,16 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
 
               {/* User Profile Card inside Hamburger Drawer */}
               {isAuthenticated && loggedInName ? (
-                <div className="bg-slate-800/80 rounded-2xl p-4 border border-slate-700/60 shadow-sm">
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#f0750f]/20 border border-[#f0750f]/40 flex items-center justify-center text-[#f0750f] font-black text-base flex-shrink-0">
+                    <div className="w-11 h-11 rounded-full bg-orange-100/80 border border-orange-200 text-[#f0750f] font-black text-base flex items-center justify-center flex-shrink-0">
                       {loggedInName.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] text-slate-400 font-medium leading-tight">{greeting}</p>
+                      <p className="text-[11px] text-slate-500 font-medium leading-tight">{greeting}</p>
                       <p className="text-sm sm:text-base font-extrabold text-[#f0750f] tracking-wide truncate">{loggedInName}</p>
                       {user?.phone && (
-                        <p className="text-xs text-slate-400 mt-0.5">+91 {user.phone.slice(-10)}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">+91 {user.phone.slice(-10)}</p>
                       )}
                     </div>
                   </div>
@@ -259,10 +259,10 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
                 <Link
                   href="/"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold transition-colors ${
+                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold transition-all ${
                     activeNav === 'home'
-                      ? 'bg-[#f0750f] text-white shadow-md'
-                      : 'text-slate-200 hover:bg-slate-800/80'
+                      ? 'bg-[#f0750f] text-white shadow-md shadow-orange-500/20'
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <svg className="w-5 h-5 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -274,10 +274,10 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
                 <Link
                   href="/about"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold transition-colors ${
+                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold transition-all ${
                     activeNav === 'about'
-                      ? 'bg-[#f0750f] text-white shadow-md'
-                      : 'text-slate-200 hover:bg-slate-800/80'
+                      ? 'bg-[#f0750f] text-white shadow-md shadow-orange-500/20'
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <svg className="w-5 h-5 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -289,10 +289,10 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
                 <Link
                   href="/support"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold transition-colors ${
+                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold transition-all ${
                     activeNav === 'support'
-                      ? 'bg-[#f0750f] text-white shadow-md'
-                      : 'text-slate-200 hover:bg-slate-800/80'
+                      ? 'bg-[#f0750f] text-white shadow-md shadow-orange-500/20'
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <svg className="w-5 h-5 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -305,10 +305,10 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
                   <Link
                     href="/customer/dashboard"
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold transition-colors ${
+                    className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold transition-all ${
                       activeNav === 'bookings'
-                        ? 'bg-[#f0750f] text-white shadow-md'
-                        : 'text-slate-200 hover:bg-slate-800/80'
+                        ? 'bg-[#f0750f] text-white shadow-md shadow-orange-500/20'
+                        : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
                     }`}
                   >
                     <svg className="w-5 h-5 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -322,7 +322,7 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
                   href="/kandy-cabs-customer.apk"
                   download="kandy-cabs-customer.apk"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold text-slate-200 hover:bg-slate-800/80 transition-colors"
+                  className="flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-all"
                 >
                   <svg className="w-5 h-5 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -333,7 +333,7 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
             </div>
 
             {/* Bottom Section: Sign Out Button Pinned at Bottom */}
-            <div className="pt-4 border-t border-slate-800 space-y-3">
+            <div className="pt-4 border-t border-slate-100 space-y-3">
               {isAuthenticated && (
                 <button
                   onClick={async () => {
@@ -341,7 +341,7 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
                     await logout();
                     router.push('/');
                   }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-red-400 hover:text-red-300 bg-red-950/30 hover:bg-red-950/50 rounded-xl border border-red-800/40 transition-colors active:scale-98"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-xl border border-red-200 transition-colors active:scale-98"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -349,7 +349,7 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
                   Sign Out
                 </button>
               )}
-              <p className="text-center text-[10px] text-slate-500 font-medium">
+              <p className="text-center text-[10px] text-slate-400 font-medium">
                 Kandy Cabs • Safe | Reliable | Hassle-Free
               </p>
             </div>
