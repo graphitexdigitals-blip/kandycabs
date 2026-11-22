@@ -197,12 +197,12 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
           />
 
           {/* Side Drawer Panel (White Background) */}
-          <div className="fixed top-0 right-0 bottom-0 h-full w-full sm:w-80 md:w-96 max-w-full bg-white text-slate-800 z-50 shadow-2xl flex flex-col justify-between p-5 sm:p-6 animate-in slide-in-from-right duration-300 ease-out border-l border-slate-100">
+          <div className="fixed top-0 right-0 bottom-0 h-full w-full sm:w-80 md:w-96 max-w-full bg-white text-slate-800 z-50 shadow-2xl flex flex-col justify-between p-4 sm:p-5 animate-in slide-in-from-right duration-300 ease-out border-l border-slate-100">
             {/* Top Area: Header, User Profile Card, Nav Links */}
-            <div className="flex flex-col space-y-5 overflow-y-auto">
+            <div className="flex flex-col space-y-3.5 overflow-y-auto">
               {/* Drawer Top Bar: Brand Logo & Close Button */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div className="relative h-8 w-28">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="relative h-7 sm:h-8 w-24 sm:w-28">
                   <Image
                     src="/images/logo.png"
                     alt="Kandy Cabs Logo"
@@ -213,7 +213,7 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
                 <button
                   type="button"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                  className="p-1 sm:p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
                   aria-label="Close menu"
                 >
                   <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -224,16 +224,16 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
 
               {/* User Profile Card inside Hamburger Drawer */}
               {isAuthenticated && loggedInName ? (
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full bg-orange-100/80 border border-orange-200 text-[#f0750f] font-black text-base flex items-center justify-center flex-shrink-0">
+                <div className="bg-slate-50/90 rounded-xl px-3.5 py-2.5 sm:px-4 sm:py-3 border border-slate-200/80 shadow-sm -mt-0.5">
+                  <div className="flex items-center gap-2.5 sm:gap-3">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-orange-100/90 border border-orange-200 text-[#f0750f] font-black text-sm sm:text-base flex items-center justify-center flex-shrink-0">
                       {loggedInName.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] text-slate-500 font-medium leading-tight">{greeting}</p>
-                      <p className="text-sm sm:text-base font-extrabold text-[#f0750f] tracking-wide truncate">{loggedInName}</p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium leading-none">{greeting}</p>
+                      <p className="text-xs sm:text-sm font-extrabold text-[#f0750f] tracking-wide truncate mt-0.5">{loggedInName}</p>
                       {user?.phone && (
-                        <p className="text-xs text-slate-500 mt-0.5">+91 {user.phone.slice(-10)}</p>
+                        <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 leading-none">+91 {user.phone.slice(-10)}</p>
                       )}
                     </div>
                   </div>
