@@ -1345,11 +1345,11 @@ export default function BookingFunnelPage() {
                   ...(additionalReqs.returnJourneyLater ? [{
                     key: 'return',
                     icon: (
-                      <svg className="w-5 h-5 mb-1 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M8 3L4 7l4 4" />
-                        <path d="M4 7h16" />
-                        <path d="M16 21l4-4-4-4" />
-                        <path d="M20 17H4" />
+                      <svg className="w-5 h-5 mb-1 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 8h16" />
+                        <path d="M15 4l5 4-5 4" />
+                        <path d="M20 16H4" />
+                        <path d="M9 12l-5 4 5 4" />
                       </svg>
                     ),
                     text: 'Return Later',
@@ -1803,11 +1803,11 @@ export default function BookingFunnelPage() {
                   ...(additionalReqs.returnJourneyLater ? [{
                     key: 'return',
                     icon: (
-                      <svg className="w-5 h-5 mb-1 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M8 3L4 7l4 4" />
-                        <path d="M4 7h16" />
-                        <path d="M16 21l4-4-4-4" />
-                        <path d="M20 17H4" />
+                      <svg className="w-5 h-5 mb-1 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 8h16" />
+                        <path d="M15 4l5 4-5 4" />
+                        <path d="M20 16H4" />
+                        <path d="M9 12l-5 4 5 4" />
                       </svg>
                     ),
                     text: 'Return Later',

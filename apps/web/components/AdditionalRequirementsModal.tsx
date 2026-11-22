@@ -463,8 +463,11 @@ export function AdditionalRequirementsModal({
             {/* 2. Need a Return Journey Later? */}
             <ToggleRow
               icon={
-                <svg className="w-5 h-5 text-[#f0750f]" viewBox="0 0 512 512" fill="none">
-                  <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="36" d="M304 96l112 112-112 112M400 208H96M208 416L96 304l112-112M112 304h304" />
+                <svg className="w-5 h-5 text-[#f0750f]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 8h16" />
+                  <path d="M15 4l5 4-5 4" />
+                  <path d="M20 16H4" />
+                  <path d="M9 12l-5 4 5 4" />
                 </svg>
               }
               title="Need a Return Journey Later?"
