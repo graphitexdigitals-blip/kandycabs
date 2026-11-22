@@ -274,162 +274,165 @@ export function AdditionalRequirementsModal({
           {/* 2. Luggage Load Section (Matching Image 2 & Image 4) */}
           {/* ========================================================================= */}
           <div>
-            <div className="flex items-start gap-2.5 sm:gap-3">
-              {/* Dual suitcase icon on left */}
-              <div className="relative w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 mt-2">
-                <Image
-                  src="/images/luggage-two-suitcases.png"
-                  alt="Luggage"
-                  fill
-                  className="object-contain"
-                />
-              </div>
-
-              {/* Luggage Dropdown Container */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-900 mb-1">Luggage Load</p>
-
-                {/* Dropdown Header Trigger Pill */}
-                <button
-                  type="button"
-                  onClick={() => setIsLuggageDropdownOpen(!isLuggageDropdownOpen)}
-                  className={`w-full py-2.5 px-3 rounded-2xl border text-left flex items-center justify-between transition-all bg-white cursor-pointer ${
-                    isLuggageDropdownOpen
-                      ? 'border-[#f0750f] ring-2 ring-orange-100 shadow-sm'
-                      : 'border-slate-200 hover:border-slate-300 shadow-2xs'
-                  }`}
-                >
-                  <div className="min-w-0 pr-2">
-                    <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                      {luggageSummary.title}
-                    </p>
-                    <p className="text-[10.5px] sm:text-[11px] text-slate-400 truncate mt-0.5">
-                      {luggageSummary.desc}
-                    </p>
-                  </div>
-
-                  <svg
-                    className={`w-4 h-4 text-slate-500 transition-transform duration-200 flex-shrink-0 ${
-                      isLuggageDropdownOpen ? 'rotate-180' : ''
-                    }`}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                </button>
-
-                {/* Expanded Multi-Bag Selector (Matching Customer App) */}
-                {isLuggageDropdownOpen && (
-                  <div className="mt-2 p-2.5 sm:p-3 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-2.5 animate-in fade-in duration-150">
-                    {LUGGAGE_ITEMS.map((item) => {
-                      const count = luggageCounts[item.id];
-                      return (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-2.5 pb-2.5 border-b border-slate-100 last:border-b-0 last:pb-0"
-                        >
-                          <div className="relative w-11 h-11 sm:w-12 sm:h-12 flex-shrink-0">
-                            <Image
-                              src={item.image}
-                              alt={item.name}
-                              fill
-                              className="object-contain"
-                            />
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                                {item.name}
-                              </h4>
-                              {count > 0 && (
-                                <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-black flex-shrink-0">
-                                  ✓
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[10.5px] text-slate-400 line-clamp-1 mb-1">
-                              {item.desc}
-                            </p>
-
-                            {/* Stepper or + Add Button - Full Width Matching Customer App */}
-                            <div>
-                              {count > 0 ? (
-                                <div className="w-full h-7 sm:h-8 rounded-xl border border-slate-200 bg-white flex items-center justify-between px-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDecrementBag(item.id)}
-                                    className="w-6 h-5 sm:w-7 sm:h-6 rounded-lg bg-[#f0f4f8] hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition"
-                                  >
-                                    −
-                                  </button>
-                                  <div className="text-[11px] sm:text-xs font-semibold text-slate-500">
-                                    <span className="text-[#f0750f] font-bold mr-1">{count}</span>
-                                    <span>{count === 1 ? 'bag' : 'bags'}</span>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleIncrementBag(item.id)}
-                                    className="w-6 h-5 sm:w-7 sm:h-6 rounded-lg bg-[#f0f4f8] hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleIncrementBag(item.id)}
-                                  className="w-full py-1 px-2.5 rounded-xl bg-[#f0f4f8] hover:bg-[#e2e8f0] text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5 transition cursor-pointer"
-                                >
-                                  <span>+</span>
-                                  <span>Add</span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    <button
-                      type="button"
-                      onClick={() => setIsLuggageDropdownOpen(false)}
-                      className="w-full py-2 rounded-xl bg-[#f8fafc] hover:bg-slate-100 border border-slate-200 text-xs sm:text-sm font-bold text-slate-800 transition text-center shadow-2xs mt-1 cursor-pointer"
-                    >
-                      Done
-                    </button>
-                  </div>
-                )}
-
-                {/* Collapsed view showing selected bag items in a row (Matching Image 2) */}
-                {!isLuggageDropdownOpen && totalBags > 0 && (
-                  <div className="flex items-center gap-2 overflow-x-auto py-1.5 mt-0.5">
-                    {LUGGAGE_ITEMS.filter((item) => luggageCounts[item.id] > 0).map((item) => (
-                      <div
-                        key={item.id}
-                        onClick={() => setIsLuggageDropdownOpen(true)}
-                        className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-xl cursor-pointer hover:bg-slate-100 flex-shrink-0"
-                      >
-                        <div className="relative w-5 h-5 flex-shrink-0">
-                          <Image src={item.image} alt={item.name} fill className="object-contain" />
-                        </div>
-                        <span className="text-xs font-bold text-slate-900">
-                          {luggageCounts[item.id]}×
-                        </span>
-                        <span className="text-[10.5px] font-medium text-slate-600 truncate max-w-[80px]">
-                          {item.name.split(' - ')[0]}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            {/* Luggage Header - Matching Travellers Header Alignment */}
+            <div className="flex items-center justify-between py-0.5 mb-2">
+              <div className="flex items-center gap-2.5">
+                <div className="relative w-7 h-7 sm:w-8 sm:h-8 flex-shrink-0">
+                  <Image
+                    src="/images/luggage-two-suitcases.png"
+                    alt="Luggage"
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Luggage Load</p>
+                  <p className="text-[11px] sm:text-xs text-slate-500">
+                    {totalBags === 0 ? 'No bags selected' : `${totalBags} bag${totalBags > 1 ? 's' : ''} selected`}
+                  </p>
+                </div>
               </div>
             </div>
+
+            {/* Dropdown Header Trigger Pill - Full Width */}
+            <button
+              type="button"
+              onClick={() => setIsLuggageDropdownOpen(!isLuggageDropdownOpen)}
+              className={`w-full py-2.5 px-3 rounded-2xl border text-left flex items-center justify-between transition-all bg-white cursor-pointer ${
+                isLuggageDropdownOpen
+                  ? 'border-[#f0750f] ring-2 ring-orange-100 shadow-sm'
+                  : 'border-slate-200 hover:border-slate-300 shadow-2xs'
+              }`}
+            >
+              <div className="min-w-0 pr-2">
+                <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                  {luggageSummary.title}
+                </p>
+                <p className="text-[10.5px] sm:text-[11px] text-slate-400 truncate mt-0.5">
+                  {luggageSummary.desc}
+                </p>
+              </div>
+
+              <svg
+                className={`w-4 h-4 text-slate-500 transition-transform duration-200 flex-shrink-0 ${
+                  isLuggageDropdownOpen ? 'rotate-180' : ''
+                }`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+
+            {/* Expanded Multi-Bag Selector - Full Width Filling Entire Container */}
+            {isLuggageDropdownOpen && (
+              <div className="mt-2 w-full p-2.5 sm:p-3 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-2.5 animate-in fade-in duration-150">
+                {LUGGAGE_ITEMS.map((item) => {
+                  const count = luggageCounts[item.id];
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-2.5 pb-2.5 border-b border-slate-100 last:border-b-0 last:pb-0"
+                    >
+                      <div className="relative w-11 h-11 sm:w-12 sm:h-12 flex-shrink-0">
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          className="object-contain"
+                        />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                            {item.name}
+                          </h4>
+                          {count > 0 && (
+                            <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-black flex-shrink-0">
+                              ✓
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10.5px] text-slate-400 line-clamp-1 mb-1">
+                          {item.desc}
+                        </p>
+
+                        {/* Stepper or + Add Button - Full Width Matching Customer App */}
+                        <div>
+                          {count > 0 ? (
+                            <div className="w-full h-7 sm:h-8 rounded-xl border border-slate-200 bg-white flex items-center justify-between px-1">
+                              <button
+                                type="button"
+                                onClick={() => handleDecrementBag(item.id)}
+                                className="w-6 h-5 sm:w-7 sm:h-6 rounded-lg bg-[#f0f4f8] hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition"
+                              >
+                                −
+                              </button>
+                              <div className="text-[11px] sm:text-xs font-semibold text-slate-500">
+                                <span className="text-[#f0750f] font-bold mr-1">{count}</span>
+                                <span>{count === 1 ? 'bag' : 'bags'}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleIncrementBag(item.id)}
+                                className="w-6 h-5 sm:w-7 sm:h-6 rounded-lg bg-[#f0f4f8] hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition"
+                              >
+                                +
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleIncrementBag(item.id)}
+                              className="w-full py-1 px-2.5 rounded-xl bg-[#f0f4f8] hover:bg-[#e2e8f0] text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                            >
+                              <span>+</span>
+                              <span>Add</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() => setIsLuggageDropdownOpen(false)}
+                  className="w-full py-2 rounded-xl bg-[#f8fafc] hover:bg-slate-100 border border-slate-200 text-xs sm:text-sm font-bold text-slate-800 transition text-center shadow-2xs mt-1 cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            )}
+
+            {/* Collapsed view showing selected bag items in a row (Matching Image 2) */}
+            {!isLuggageDropdownOpen && totalBags > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto py-1.5 mt-1.5">
+                {LUGGAGE_ITEMS.filter((item) => luggageCounts[item.id] > 0).map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => setIsLuggageDropdownOpen(true)}
+                    className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-xl cursor-pointer hover:bg-slate-100 flex-shrink-0"
+                  >
+                    <div className="relative w-5 h-5 flex-shrink-0">
+                      <Image src={item.image} alt={item.name} fill className="object-contain" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-900">
+                      {luggageCounts[item.id]}×
+                    </span>
+                    <span className="text-[10.5px] font-medium text-slate-600 truncate max-w-[80px]">
+                      {item.name.split(' - ')[0]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="h-px bg-slate-100" />
