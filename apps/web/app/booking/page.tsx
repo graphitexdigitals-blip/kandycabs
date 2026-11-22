@@ -400,7 +400,7 @@ export default function BookingFunnelPage() {
 
     if (tripType === TripType.LOCAL) {
       const packageKm = localPackage === '4_40' ? 40 : localPackage === '12_120' ? 120 : 80;
-      const effectiveKm = Math.max(fleet.minKm || 0, packageKm);
+      const effectiveKm = packageKm;
       const baseDistanceFare = Math.round(effectiveKm * fleet.baseRatePerKm);
       const chauffeurAllowance = 0; // Local rental package includes driver
       const tollStateTax = 'Included';
