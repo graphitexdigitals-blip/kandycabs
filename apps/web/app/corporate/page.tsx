@@ -266,33 +266,33 @@ export default function CorporateTravelPage() {
 
       <main className="max-w-2xl mx-auto px-2.5 sm:px-6 pt-3 sm:pt-4 space-y-3">
         {/* Top Corporate Mode Row: "Book Once" vs "Daily Rides" (Image 2) */}
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2 max-w-md mx-auto">
           {/* Option 1: Book Once */}
           <button
             type="button"
             onClick={() => setCorporateMode('ONCE')}
-            className={`p-3 rounded-2xl border text-left transition-all flex items-center gap-2.5 cursor-pointer shadow-xs ${
+            className={`py-1 px-2.5 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer shadow-xs ${
               corporateMode === 'ONCE'
                 ? 'border-2 border-slate-900 bg-[#eef2f6]'
                 : 'border-slate-200 bg-white hover:bg-slate-50'
             }`}
           >
             <div
-              className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all ${
+              className={`w-4 h-4 rounded-md flex items-center justify-center border transition-all flex-shrink-0 ${
                 corporateMode === 'ONCE'
                   ? 'bg-slate-900 border-slate-900 text-white'
                   : 'bg-white border-slate-300'
               }`}
             >
               {corporateMode === 'ONCE' && (
-                <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                <svg className="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-slate-900 leading-tight">Book Once</p>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-tight">Single day ride</p>
+              <p className="text-xs sm:text-[13px] font-bold text-slate-900 leading-tight">Book Once</p>
+              <p className="text-[9.5px] sm:text-[10px] text-slate-500 font-medium mt-0.5 leading-tight">Single day ride</p>
             </div>
           </button>
 
@@ -300,28 +300,28 @@ export default function CorporateTravelPage() {
           <button
             type="button"
             onClick={() => setCorporateMode('DAILY')}
-            className={`p-3 rounded-2xl border text-left transition-all flex items-center gap-2.5 cursor-pointer shadow-xs ${
+            className={`py-1 px-2.5 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer shadow-xs ${
               corporateMode === 'DAILY'
                 ? 'border-2 border-slate-900 bg-[#eef2f6]'
                 : 'border-slate-200 bg-white hover:bg-slate-50'
             }`}
           >
             <div
-              className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all ${
+              className={`w-4 h-4 rounded-md flex items-center justify-center border transition-all flex-shrink-0 ${
                 corporateMode === 'DAILY'
                   ? 'bg-slate-900 border-slate-900 text-white'
                   : 'bg-white border-slate-300'
               }`}
             >
               {corporateMode === 'DAILY' && (
-                <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                <svg className="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-slate-900 leading-tight">Daily Rides</p>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-tight">Daily commute</p>
+              <p className="text-xs sm:text-[13px] font-bold text-slate-900 leading-tight">Daily Rides</p>
+              <p className="text-[9.5px] sm:text-[10px] text-slate-500 font-medium mt-0.5 leading-tight">Daily commute</p>
             </div>
           </button>
         </div>
