@@ -618,9 +618,11 @@ export function AdditionalRequirementsModal({
             {/* 8. Accessibility Assistance */}
             <ToggleRow
               icon={
-                <svg className="w-5 h-5 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
-                  <circle cx="12" cy="4" r="2" />
-                  <path d="M19 13v-2c-1.54.02-3.09-.75-4.07-1.83l-1.29-1.43c-.17-.19-.38-.34-.61-.45H13c-.35-.2-.75-.3-1.19-.26C10.76 7.11 10 8.04 10 9.09V15c0 1.1.9 2 2 2h5v5h2v-5.5c0-.83-.67-1.5-1.5-1.5H14v-3.5c1.07.72 2.38 1.1 3.75 1.1 1.25 0 2.25-1 2.25-2.25-.01-.13-.03-.26-.06-.38l-.94.03zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c.55 0 1 .45 1 1s-.45 1-1 1c-2.21 0-4 1.79-4 4s1.79 4 4 4c1.1 0 2.09-.45 2.81-1.17l1.42 1.42C15.02 17.47 13.6 18 12 18z" />
+                <svg className="w-5 h-5 text-[#f0750f]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="4" r="2" fill="currentColor" stroke="none" />
+                  <path d="M11.5 8.5 L13 14 H18.5 L20 19.5 H22" />
+                  <path d="M12.6 11 H16.5" />
+                  <path d="M10.5 11 A 5.5 5.5 0 1 0 16 16.8" />
                 </svg>
               }
               title="Accessibility Assistance"
