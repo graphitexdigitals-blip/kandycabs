@@ -192,14 +192,14 @@ export default function LocalRentalPage() {
 
           {/* Rental Duration & Distance Segmented Options */}
           <div>
-            <span className="block text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-1 leading-none">
-              RENTAL DURATION & DISTANCE
+            <span className="block text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-1.5 leading-none">
+              RENTAL DURATION &amp; DISTANCE
             </span>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-3 gap-2">
               {[
-                { id: '4_40', label: '4 Hours / 40 km' },
-                { id: '8_80', label: '8 Hours / 80 km' },
-                { id: '12_120', label: '12 Hours / 120 km' },
+                { id: '4_40', hours: 4, km: 40, label: '4 Hours', sublabel: '40 km included' },
+                { id: '8_80', hours: 8, km: 80, label: '8 Hours', sublabel: '80 km included' },
+                { id: '12_120', hours: 12, km: 120, label: '12 Hours', sublabel: '120 km included' },
               ].map((pkg) => {
                 const isSelected = localPackage === pkg.id;
                 return (
@@ -207,13 +207,18 @@ export default function LocalRentalPage() {
                     key={pkg.id}
                     type="button"
                     onClick={() => setLocalPackage(pkg.id as any)}
-                    className={`py-2 px-1 rounded-xl text-center text-[11px] font-bold leading-tight transition-all border ${
+                    className={`py-2.5 px-2 rounded-2xl text-center transition-all cursor-pointer border ${
                       isSelected
-                        ? 'bg-[#f0750f] text-white border-[#f0750f]'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                        ? 'bg-[#eef2f6] border-2 border-slate-900 shadow-xs'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
                     }`}
                   >
-                    {pkg.label}
+                    <p className={`text-xs sm:text-sm font-extrabold leading-tight ${isSelected ? 'text-slate-900' : 'text-slate-800'}`}>
+                      {pkg.label}
+                    </p>
+                    <p className={`text-[10px] sm:text-[11px] font-medium mt-1 leading-tight ${isSelected ? 'text-slate-600' : 'text-slate-400'}`}>
+                      {pkg.sublabel}
+                    </p>
                   </button>
                 );
               })}
