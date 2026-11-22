@@ -183,7 +183,7 @@ export function getDynamicBaseUrl(): string {
     }
   }
 
-  return 'https://kandycabs-8kew.vercel.app';
+  return 'https://proven-differences-sole-replace.trycloudflare.com';
 }
 
 export const customerApiClient = new KandyApiClient({

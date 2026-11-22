@@ -16,7 +16,7 @@ if (-not (Test-Path $distDir)) {
     New-Item -ItemType Directory -Path $distDir -Force | Out-Null
 }
 
-$env:EXPO_PUBLIC_API_URL = "https://kandycabs-8kew.vercel.app"
+$env:EXPO_PUBLIC_API_URL = "https://proven-differences-sole-replace.trycloudflare.com"
 Write-Host "Using EXPO_PUBLIC_API_URL = $env:EXPO_PUBLIC_API_URL" -ForegroundColor Green
 
 Write-Host "Generating native Android launcher icons from official brand assets..." -ForegroundColor Green

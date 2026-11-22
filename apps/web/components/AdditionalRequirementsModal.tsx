@@ -302,11 +302,10 @@ export function AdditionalRequirementsModal({
             <button
               type="button"
               onClick={() => setIsLuggageDropdownOpen(!isLuggageDropdownOpen)}
-              className={`w-full py-1.5 px-2.5 sm:py-2.5 sm:px-3 rounded-xl sm:rounded-2xl border text-left flex items-center justify-between transition-all bg-white cursor-pointer ${
-                isLuggageDropdownOpen
+              className={`w-full py-1.5 px-2.5 sm:py-2.5 sm:px-3 rounded-xl sm:rounded-2xl border text-left flex items-center justify-between transition-all bg-white cursor-pointer ${isLuggageDropdownOpen
                   ? 'border-[#f0750f] ring-2 ring-orange-100 shadow-sm'
                   : 'border-slate-200 hover:border-slate-300 shadow-2xs'
-              }`}
+                }`}
             >
               <div className="min-w-0 pr-2">
                 <p className="text-[11.5px] sm:text-sm font-bold text-slate-900 truncate">
@@ -318,9 +317,8 @@ export function AdditionalRequirementsModal({
               </div>
 
               <svg
-                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 transition-transform duration-200 flex-shrink-0 ${
-                  isLuggageDropdownOpen ? 'rotate-180' : ''
-                }`}
+                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 transition-transform duration-200 flex-shrink-0 ${isLuggageDropdownOpen ? 'rotate-180' : ''
+                  }`}
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -544,11 +542,10 @@ export function AdditionalRequirementsModal({
                           key={item.type}
                           type="button"
                           onClick={() => setPetType(item.type)}
-                          className={`py-2 px-1 rounded-xl border flex flex-col items-center justify-center transition-all ${
-                            isSelected
+                          className={`py-2 px-1 rounded-xl border flex flex-col items-center justify-center transition-all ${isSelected
                               ? 'bg-white border-[#f0750f] shadow-xs text-[#f0750f]'
                               : 'bg-white/60 border-slate-200 text-slate-700 hover:bg-white'
-                          }`}
+                            }`}
                         >
                           <div className="relative w-7 h-7 mb-1">
                             <Image src={item.image} alt={item.label} fill className="object-contain" />
@@ -643,10 +640,10 @@ export function AdditionalRequirementsModal({
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4 text-slate-800 flex-shrink-0" viewBox="0 0 512 512" fill="none">
-                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="36" d="M368 128h80M64 128h240M368 384h80M64 384h240M208 256h240M64 256h80"/>
-                <circle cx="336" cy="128" r="32" stroke="currentColor" strokeWidth="36"/>
-                <circle cx="176" cy="256" r="32" stroke="currentColor" strokeWidth="36"/>
-                <circle cx="336" cy="384" r="32" stroke="currentColor" strokeWidth="36"/>
+                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="36" d="M368 128h80M64 128h240M368 384h80M64 384h240M208 256h240M64 256h80" />
+                <circle cx="336" cy="128" r="32" stroke="currentColor" strokeWidth="36" />
+                <circle cx="176" cy="256" r="32" stroke="currentColor" strokeWidth="36" />
+                <circle cx="336" cy="384" r="32" stroke="currentColor" strokeWidth="36" />
               </svg>
               <h4 className="text-sm font-bold text-slate-900">Ride Preferences</h4>
               <span className="text-xs text-slate-400">(Optional)</span>
@@ -725,14 +722,12 @@ function ToggleRow({ icon, title, description, checked, onChange }: ToggleRowPro
           e.stopPropagation();
           onChange(!checked);
         }}
-        className={`w-9 h-5 sm:w-11 sm:h-6 rounded-full transition-colors duration-200 relative flex items-center p-0.5 cursor-pointer flex-shrink-0 ${
-          checked ? 'bg-[#f0750f]' : 'bg-[#e2e8f0]'
-        }`}
+        className={`w-9 h-5 sm:w-11 sm:h-6 rounded-full transition-colors duration-200 relative flex items-center p-0.5 cursor-pointer flex-shrink-0 ${checked ? 'bg-[#f0750f]' : 'bg-[#e2e8f0]'
+          }`}
       >
         <span
-          className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${
-            checked ? 'translate-x-4 sm:translate-x-5' : 'translate-x-0'
-          }`}
+          className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${checked ? 'translate-x-4 sm:translate-x-5' : 'translate-x-0'
+            }`}
         />
       </button>
     </div>

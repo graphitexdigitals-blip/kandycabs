@@ -64,7 +64,7 @@ class MobileTokenStorage implements TokenStorage {
 export const driverTokenStorage = new MobileTokenStorage();
 
 const SECURE_API_URL_KEY = 'kandy_driver_api_url_v2';
-export const PROD_API_URL = 'https://kandycabs-8kew.vercel.app';
+export const PROD_API_URL = 'https://proven-differences-sole-replace.trycloudflare.com';
 export const DEFAULT_DEV_PORT = '3001';
 export const DEFAULT_LAN_HOST = '192.168.29.207';
 export const DEFAULT_EMULATOR_HOST = '10.0.2.2';

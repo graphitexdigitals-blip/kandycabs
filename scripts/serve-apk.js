@@ -101,7 +101,7 @@ const server = http.createServer((req, res) => {
             
             <div class="meta">
               Package: com.kandycabs.customer<br>
-              Production API: https://kandycabs-8kew.vercel.app
+              Production API: https://proven-differences-sole-replace.trycloudflare.com
             </div>
           </div>
         </body>

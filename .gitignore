@@ -91,3 +91,5 @@ scripts/update-apk.ps1
 scripts/list-db-drivers.js
 scripts/terms-multilingual.html
 .gradle/
+
+cloudflared.exe

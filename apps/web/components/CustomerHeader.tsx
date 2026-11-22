@@ -8,14 +8,15 @@ import { useAuth } from '@/lib/AuthContext';
 
 interface CustomerHeaderProps {
   onOpenAuth?: () => void;
-  activeNav?: 'home' | 'booking' | 'fleets' | 'bookings' | 'support';
+  activeNav?: 'home' | 'about' | 'support' | 'booking' | 'fleets' | 'bookings';
 }
 
-export function CustomerHeader({ onOpenAuth }: CustomerHeaderProps) {
+export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeaderProps) {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
   const [greeting, setGreeting] = useState('Good Morning');
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -33,22 +34,58 @@ export function CustomerHeader({ onOpenAuth }: CustomerHeaderProps) {
   return (
     <header className="bg-[#162232] text-white sticky top-0 z-40 shadow-md">
       <div className="max-w-6xl xl:max-w-7xl mx-auto px-2.5 sm:px-4 md:px-6 py-2 sm:py-2.5 flex items-center justify-between relative">
-        {/* Left: Brand Logo */}
-        <Link href="/" className="flex items-center gap-2 group z-10 flex-shrink-0">
-          <div className="relative h-7 sm:h-9 w-20 sm:w-28">
-            <Image
-              src="/images/logo-white.png"
-              alt="Kandy Cabs Logo"
-              fill
-              className="object-contain"
-              priority
-            />
-          </div>
-        </Link>
+        {/* Left: Brand Logo & Desktop Nav Links */}
+        <div className="flex items-center gap-4 lg:gap-8 z-10 flex-shrink-0">
+          <Link href="/" className="flex items-center gap-2 group flex-shrink-0">
+            <div className="relative h-7 sm:h-9 w-20 sm:w-28">
+              <Image
+                src="/images/logo-white.png"
+                alt="Kandy Cabs Logo"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+          </Link>
+
+          {/* Desktop Navigation Links */}
+          <nav className="hidden md:flex items-center gap-5 lg:gap-7">
+            <Link
+              href="/"
+              className={`text-xs sm:text-sm font-bold tracking-wide transition-all py-1 ${
+                activeNav === 'home'
+                  ? 'text-[#f0750f] border-b-2 border-[#f0750f]'
+                  : 'text-slate-200 hover:text-white hover:text-[#f0750f]'
+              }`}
+            >
+              Home
+            </Link>
+            <Link
+              href="/about"
+              className={`text-xs sm:text-sm font-bold tracking-wide transition-all py-1 ${
+                activeNav === 'about'
+                  ? 'text-[#f0750f] border-b-2 border-[#f0750f]'
+                  : 'text-slate-200 hover:text-white hover:text-[#f0750f]'
+              }`}
+            >
+              About
+            </Link>
+            <Link
+              href="/support"
+              className={`text-xs sm:text-sm font-bold tracking-wide transition-all py-1 ${
+                activeNav === 'support'
+                  ? 'text-[#f0750f] border-b-2 border-[#f0750f]'
+                  : 'text-slate-200 hover:text-white hover:text-[#f0750f]'
+              }`}
+            >
+              Support
+            </Link>
+          </nav>
+        </div>
 
         {/* Center: Greeting & Logged-in Name (Only displayed when signed in) */}
         {isAuthenticated && loggedInName && (
-          <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 z-10 max-w-[36%] sm:max-w-[48%] text-center pointer-events-auto">
+          <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 z-10 max-w-[32%] sm:max-w-[44%] text-center pointer-events-auto">
             <div
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex flex-col items-center justify-center text-center cursor-pointer select-none group min-w-0"
@@ -100,7 +137,7 @@ export function CustomerHeader({ onOpenAuth }: CustomerHeaderProps) {
           </div>
         )}
 
-        {/* Right: Download App Button & Sign In */}
+        {/* Right: Download App Button, Sign In, and Mobile Menu Toggle */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 z-10 flex-shrink-0">
           <a
             href="/kandy-cabs-customer.apk"
@@ -126,8 +163,87 @@ export function CustomerHeader({ onOpenAuth }: CustomerHeaderProps) {
               <span>Sign In</span>
             </button>
           )}
+
+          {/* Mobile Menu Hamburger (Visible on mobile screens) */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle navigation menu"
+            className="md:hidden p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/80 transition-colors flex items-center justify-center flex-shrink-0"
+          >
+            {mobileMenuOpen ? (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Drawer Dropdown */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-[#121c2a] border-t border-slate-800 px-4 py-3 space-y-1.5 animate-in slide-in-from-top-2 duration-150">
+          <Link
+            href="/"
+            onClick={() => setMobileMenuOpen(false)}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
+              activeNav === 'home'
+                ? 'bg-[#f0750f] text-white'
+                : 'text-slate-200 hover:bg-slate-800/80'
+            }`}
+          >
+            <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            Home
+          </Link>
+          <Link
+            href="/about"
+            onClick={() => setMobileMenuOpen(false)}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
+              activeNav === 'about'
+                ? 'bg-[#f0750f] text-white'
+                : 'text-slate-200 hover:bg-slate-800/80'
+            }`}
+          >
+            <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            About
+          </Link>
+          <Link
+            href="/support"
+            onClick={() => setMobileMenuOpen(false)}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
+              activeNav === 'support'
+                ? 'bg-[#f0750f] text-white'
+                : 'text-slate-200 hover:bg-slate-800/80'
+            }`}
+          >
+            <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            Support
+          </Link>
+
+          {isAuthenticated && (
+            <Link
+              href="/customer/dashboard"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold text-slate-200 hover:bg-slate-800/80 transition-colors"
+            >
+              <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              My Bookings
+            </Link>
+          )}
+        </div>
+      )}
     </header>
   );
 }
