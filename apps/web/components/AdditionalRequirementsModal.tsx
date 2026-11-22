@@ -204,29 +204,29 @@ export function AdditionalRequirementsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-lg w-full max-h-[92vh] overflow-y-auto p-5 sm:p-6 shadow-2xl relative border border-slate-100 flex flex-col space-y-4">
-        {/* Header matching Customer App */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-shrink-0">
+      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full max-h-[90vh] shadow-2xl relative border border-slate-100 flex flex-col overflow-hidden">
+        {/* Fixed Pinned Header matching Customer App */}
+        <div className="flex items-center justify-between px-4 py-2.5 sm:px-5 sm:py-3 border-b border-slate-100 flex-shrink-0 bg-white">
           <div>
-            <h3 className="text-base sm:text-lg font-black text-slate-900">Additional Requirements</h3>
-            <p className="text-xs text-slate-500">Configure options for your ride</p>
+            <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">Additional Requirements</h3>
+            <p className="text-[11px] sm:text-xs text-slate-500 leading-tight">Configure options for your ride</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-bold transition-colors"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-bold transition-colors cursor-pointer"
           >
             ✕
           </button>
         </div>
 
-        {/* Modal Scroll Content */}
-        <div className="space-y-4 pb-2">
+        {/* Scrollable Middle Content with Reduced Compact Paddings */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-5 sm:py-3.5 space-y-3">
           {/* ========================================================================= */}
           {/* 1. Travellers Section (Matching Image 2) */}
           {/* ========================================================================= */}
-          <div className="flex items-center justify-between py-1">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between py-0.5">
+            <div className="flex items-center gap-2.5">
               <div className="w-6 h-6 flex items-center justify-center text-[#f0750f]">
                 <svg className="w-5 h-5 text-[#f0750f]" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
@@ -234,7 +234,7 @@ export function AdditionalRequirementsModal({
               </div>
               <div>
                 <p className="text-sm font-bold text-slate-900">Travellers</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-[11px] sm:text-xs text-slate-500">
                   {travellers} of max {maxSeats} seats selected
                 </p>
               </div>
@@ -246,18 +246,18 @@ export function AdditionalRequirementsModal({
                 type="button"
                 onClick={() => setTravellers((prev) => Math.max(0, prev - 1))}
                 disabled={travellers <= 0}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed font-bold text-base transition-colors"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed font-bold text-base transition-colors"
               >
                 −
               </button>
-              <span className="w-9 text-center font-black text-sm text-[#f0750f]">
+              <span className="w-8 sm:w-9 text-center font-black text-sm text-[#f0750f]">
                 {travellers}
               </span>
               <button
                 type="button"
                 onClick={() => setTravellers((prev) => Math.min(maxSeats, prev + 1))}
                 disabled={travellers >= maxSeats}
-                className="w-8 h-8 rounded-lg bg-white shadow-2xs flex items-center justify-center text-[#f0750f] hover:bg-orange-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-base transition-colors border border-slate-200"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white shadow-2xs flex items-center justify-center text-[#f0750f] hover:bg-orange-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-base transition-colors border border-slate-200"
               >
                 +
               </button>
@@ -270,9 +270,9 @@ export function AdditionalRequirementsModal({
           {/* 2. Luggage Load Section (Matching Image 2 & Image 4) */}
           {/* ========================================================================= */}
           <div>
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-2.5 sm:gap-3">
               {/* Dual suitcase icon on left */}
-              <div className="relative w-11 h-11 flex-shrink-0 mt-3">
+              <div className="relative w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 mt-2">
                 <Image
                   src="/images/luggage-two-suitcases.png"
                   alt="Luggage"
@@ -283,13 +283,13 @@ export function AdditionalRequirementsModal({
 
               {/* Luggage Dropdown Container */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-900 mb-1.5">Luggage Load</p>
+                <p className="text-sm font-bold text-slate-900 mb-1">Luggage Load</p>
 
                 {/* Dropdown Header Trigger Pill */}
                 <button
                   type="button"
                   onClick={() => setIsLuggageDropdownOpen(!isLuggageDropdownOpen)}
-                  className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition-all bg-white ${
+                  className={`w-full py-2.5 px-3 rounded-2xl border text-left flex items-center justify-between transition-all bg-white cursor-pointer ${
                     isLuggageDropdownOpen
                       ? 'border-[#f0750f] ring-2 ring-orange-100 shadow-sm'
                       : 'border-slate-200 hover:border-slate-300 shadow-2xs'
@@ -299,7 +299,7 @@ export function AdditionalRequirementsModal({
                     <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">
                       {luggageSummary.title}
                     </p>
-                    <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                    <p className="text-[10.5px] sm:text-[11px] text-slate-400 truncate mt-0.5">
                       {luggageSummary.desc}
                     </p>
                   </div>
@@ -321,15 +321,15 @@ export function AdditionalRequirementsModal({
 
                 {/* Expanded Multi-Bag Selector (Matching Customer App) */}
                 {isLuggageDropdownOpen && (
-                  <div className="mt-2.5 p-3 sm:p-4 rounded-3xl border border-slate-200 bg-white shadow-xs space-y-3.5 animate-in fade-in duration-150">
+                  <div className="mt-2 p-2.5 sm:p-3 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-2.5 animate-in fade-in duration-150">
                     {LUGGAGE_ITEMS.map((item) => {
                       const count = luggageCounts[item.id];
                       return (
                         <div
                           key={item.id}
-                          className="flex items-center gap-3.5 pb-3 border-b border-slate-100 last:border-b-0 last:pb-0"
+                          className="flex items-center gap-2.5 pb-2.5 border-b border-slate-100 last:border-b-0 last:pb-0"
                         >
-                          <div className="relative w-14 h-14 flex-shrink-0">
+                          <div className="relative w-11 h-11 sm:w-12 sm:h-12 flex-shrink-0">
                             <Image
                               src={item.image}
                               alt={item.name}
@@ -344,34 +344,34 @@ export function AdditionalRequirementsModal({
                                 {item.name}
                               </h4>
                               {count > 0 && (
-                                <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black flex-shrink-0">
+                                <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-black flex-shrink-0">
                                   ✓
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] text-slate-400 line-clamp-1 mb-1.5">
+                            <p className="text-[10.5px] text-slate-400 line-clamp-1 mb-1">
                               {item.desc}
                             </p>
 
                             {/* Stepper or + Add Button - Full Width Matching Customer App */}
                             <div>
                               {count > 0 ? (
-                                <div className="w-full h-8 rounded-xl border border-slate-200 bg-white flex items-center justify-between px-1">
+                                <div className="w-full h-7 sm:h-8 rounded-xl border border-slate-200 bg-white flex items-center justify-between px-1">
                                   <button
                                     type="button"
                                     onClick={() => handleDecrementBag(item.id)}
-                                    className="w-7 h-6 rounded-lg bg-[#f0f4f8] hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition"
+                                    className="w-6 h-5 sm:w-7 sm:h-6 rounded-lg bg-[#f0f4f8] hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition"
                                   >
                                     −
                                   </button>
-                                  <div className="text-xs font-semibold text-slate-500">
+                                  <div className="text-[11px] sm:text-xs font-semibold text-slate-500">
                                     <span className="text-[#f0750f] font-bold mr-1">{count}</span>
                                     <span>{count === 1 ? 'bag' : 'bags'}</span>
                                   </div>
                                   <button
                                     type="button"
                                     onClick={() => handleIncrementBag(item.id)}
-                                    className="w-7 h-6 rounded-lg bg-[#f0f4f8] hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition"
+                                    className="w-6 h-5 sm:w-7 sm:h-6 rounded-lg bg-[#f0f4f8] hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition"
                                   >
                                     +
                                   </button>
@@ -380,7 +380,7 @@ export function AdditionalRequirementsModal({
                                 <button
                                   type="button"
                                   onClick={() => handleIncrementBag(item.id)}
-                                  className="w-full py-1.5 px-3 rounded-xl bg-[#f0f4f8] hover:bg-[#e2e8f0] text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5 transition"
+                                  className="w-full py-1 px-2.5 rounded-xl bg-[#f0f4f8] hover:bg-[#e2e8f0] text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5 transition cursor-pointer"
                                 >
                                   <span>+</span>
                                   <span>Add</span>
@@ -395,7 +395,7 @@ export function AdditionalRequirementsModal({
                     <button
                       type="button"
                       onClick={() => setIsLuggageDropdownOpen(false)}
-                      className="w-full py-2.5 rounded-xl bg-[#f8fafc] hover:bg-slate-100 border border-slate-200 text-xs sm:text-sm font-bold text-slate-800 transition text-center shadow-2xs mt-2"
+                      className="w-full py-2 rounded-xl bg-[#f8fafc] hover:bg-slate-100 border border-slate-200 text-xs sm:text-sm font-bold text-slate-800 transition text-center shadow-2xs mt-1 cursor-pointer"
                     >
                       Done
                     </button>
@@ -404,20 +404,20 @@ export function AdditionalRequirementsModal({
 
                 {/* Collapsed view showing selected bag items in a row (Matching Image 2) */}
                 {!isLuggageDropdownOpen && totalBags > 0 && (
-                  <div className="flex items-center gap-3 overflow-x-auto py-2 mt-1">
+                  <div className="flex items-center gap-2 overflow-x-auto py-1.5 mt-0.5">
                     {LUGGAGE_ITEMS.filter((item) => luggageCounts[item.id] > 0).map((item) => (
                       <div
                         key={item.id}
                         onClick={() => setIsLuggageDropdownOpen(true)}
-                        className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-xl cursor-pointer hover:bg-slate-100 flex-shrink-0"
+                        className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-xl cursor-pointer hover:bg-slate-100 flex-shrink-0"
                       >
-                        <div className="relative w-6 h-6 flex-shrink-0">
+                        <div className="relative w-5 h-5 flex-shrink-0">
                           <Image src={item.image} alt={item.name} fill className="object-contain" />
                         </div>
                         <span className="text-xs font-bold text-slate-900">
                           {luggageCounts[item.id]}×
                         </span>
-                        <span className="text-[11px] font-medium text-slate-600 truncate max-w-[80px]">
+                        <span className="text-[10.5px] font-medium text-slate-600 truncate max-w-[80px]">
                           {item.name.split(' - ')[0]}
                         </span>
                       </div>
@@ -617,7 +617,7 @@ export function AdditionalRequirementsModal({
               <span className="text-xs text-slate-400">(Optional)</span>
             </div>
 
-            <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/60 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all flex items-start gap-2.5">
+            <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#f0750f] focus-within:border-transparent transition-all flex items-start gap-2">
               <svg className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 20h9" />
                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
@@ -634,13 +634,13 @@ export function AdditionalRequirementsModal({
         </div>
 
         {/* ========================================================================= */}
-        {/* 5. Sticky Bottom Action CTA (Matching Image 3) */}
+        {/* 5. Fixed Pinned Bottom Action CTA (Always Visible & Accessible) */}
         {/* ========================================================================= */}
-        <div className="pt-3 border-t border-slate-100 flex-shrink-0">
+        <div className="px-4 py-2.5 sm:px-5 sm:py-3 border-t border-slate-100 flex-shrink-0 bg-white shadow-md z-10">
           <button
             type="button"
             onClick={handleSave}
-            className="w-full py-3.5 px-4 rounded-xl font-bold text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.99] transition-all shadow-sm flex items-center justify-center gap-2 text-sm tracking-wide"
+            className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.99] transition-all shadow-sm flex items-center justify-center gap-2 text-sm tracking-wide cursor-pointer"
           >
             <span>Save &amp; Apply Requirements</span>
             <svg className="w-4 h-4 text-white flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -666,18 +666,18 @@ function ToggleRow({ icon, title, description, checked, onChange }: ToggleRowPro
   return (
     <div
       onClick={() => onChange(!checked)}
-      className="flex items-center justify-between gap-3 p-1 rounded-2xl hover:bg-slate-50/70 transition-colors cursor-pointer select-none"
+      className="flex items-center justify-between gap-2.5 py-1 px-0.5 rounded-xl hover:bg-slate-50/70 transition-colors cursor-pointer select-none"
     >
-      <div className="flex items-center gap-3 min-w-0 flex-1">
+      <div className="flex items-center gap-2.5 min-w-0 flex-1">
         {/* Circular Floating Badge */}
-        <div className="w-11 h-11 rounded-full bg-white shadow-sm border border-slate-100 flex items-center justify-center flex-shrink-0">
+        <div className="w-9 h-9 rounded-full bg-white shadow-xs border border-slate-100 flex items-center justify-center flex-shrink-0">
           {icon}
         </div>
 
         {/* Text */}
         <div className="min-w-0 pr-1">
-          <p className="text-sm font-bold text-slate-900 leading-snug">{title}</p>
-          <p className="text-xs text-slate-500 mt-0.5 leading-snug">{description}</p>
+          <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">{title}</p>
+          <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">{description}</p>
         </div>
       </div>
 
@@ -690,12 +690,12 @@ function ToggleRow({ icon, title, description, checked, onChange }: ToggleRowPro
           e.stopPropagation();
           onChange(!checked);
         }}
-        className={`w-12 h-7 rounded-full transition-colors duration-200 relative flex items-center p-1 cursor-pointer flex-shrink-0 ${
+        className={`w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center p-0.5 cursor-pointer flex-shrink-0 ${
           checked ? 'bg-[#f0750f]' : 'bg-[#e2e8f0]'
         }`}
       >
         <span
-          className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-200 ${
+          className={`w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${
             checked ? 'translate-x-5' : 'translate-x-0'
           }`}
         />
