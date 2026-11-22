@@ -534,7 +534,7 @@ export function AdditionalRequirementsModal({
 
               {/* Sub-selector when Pet Friendly is switched ON */}
               {petFriendly && (
-                <div className="mt-2.5 ml-10 sm:ml-14 p-2.5 sm:p-3 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 animate-in fade-in duration-150">
+                <div className="mt-2 ml-0 sm:ml-11 p-2 sm:p-3 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 animate-in fade-in duration-150 w-full">
                   <div className="flex items-center justify-between">
                     <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                       Select Pet Type:
@@ -543,7 +543,7 @@ export function AdditionalRequirementsModal({
                       Surcharge: ₹{petRates[petType] ?? (petType === 'cat' ? 200 : petType === 'bird' ? 100 : 500)}
                     </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                     {[
                       { type: 'cat' as const, label: 'Cat', image: '/images/pet-cat-icon.png' },
                       { type: 'dog' as const, label: 'Dog', image: '/images/pet-dog-icon.png' },
@@ -556,7 +556,7 @@ export function AdditionalRequirementsModal({
                           key={item.type}
                           type="button"
                           onClick={() => setPetType(item.type)}
-                          className={`p-2 rounded-xl border flex flex-col items-center justify-center transition-all ${
+                          className={`py-2 px-1 rounded-xl border flex flex-col items-center justify-center transition-all ${
                             isSelected
                               ? 'bg-white border-[#f0750f] shadow-xs text-[#f0750f]'
                               : 'bg-white/60 border-slate-200 text-slate-700 hover:bg-white'
