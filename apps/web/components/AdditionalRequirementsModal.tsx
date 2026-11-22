@@ -209,38 +209,38 @@ export function AdditionalRequirementsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full max-h-[90vh] shadow-2xl relative border border-slate-100 flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full max-h-[92vh] sm:max-h-[90vh] shadow-2xl relative border border-slate-100 flex flex-col overflow-hidden">
         {/* Fixed Pinned Header matching Customer App */}
-        <div className="flex items-center justify-between px-4 py-2.5 sm:px-5 sm:py-3 border-b border-slate-100 flex-shrink-0 bg-white">
+        <div className="flex items-center justify-between px-3 py-2 sm:px-5 sm:py-3 border-b border-slate-100 flex-shrink-0 bg-white">
           <div>
-            <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">Additional Requirements</h3>
-            <p className="text-[11px] sm:text-xs text-slate-500 leading-tight">Configure options for your ride</p>
+            <h3 className="text-sm sm:text-base font-black text-slate-900 leading-tight">Additional Requirements</h3>
+            <p className="text-[10px] sm:text-xs text-slate-500 leading-tight">Configure options for your ride</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-bold transition-colors cursor-pointer"
+            className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-bold transition-colors cursor-pointer text-xs sm:text-sm"
           >
             ✕
           </button>
         </div>
 
         {/* Scrollable Middle Content with Reduced Compact Paddings */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-5 sm:py-3.5 space-y-3">
+        <div className="flex-1 overflow-y-auto px-3 py-2 sm:px-5 sm:py-3.5 space-y-2 sm:space-y-3">
           {/* ========================================================================= */}
           {/* 1. Travellers Section (Matching Image 2) */}
           {/* ========================================================================= */}
-          <div className="flex items-center justify-between py-0.5">
-            <div className="flex items-center gap-2.5">
-              <div className="w-6 h-6 flex items-center justify-center text-[#f0750f]">
-                <svg className="w-5 h-5 text-[#f0750f]" viewBox="0 0 20 20" fill="currentColor">
+          <div className="flex items-center justify-between py-0 sm:py-0.5">
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-[#f0750f]">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-[#f0750f]" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-bold text-slate-900">Travellers</p>
-                <p className="text-[11px] sm:text-xs text-slate-500">
+                <p className="text-xs sm:text-sm font-bold text-slate-900">Travellers</p>
+                <p className="text-[10px] sm:text-xs text-slate-500">
                   {travellers} of max {maxSeats} seats selected
                 </p>
               </div>
@@ -252,18 +252,18 @@ export function AdditionalRequirementsModal({
                 type="button"
                 onClick={() => setTravellers((prev) => Math.max(0, prev - 1))}
                 disabled={travellers <= 0}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed font-bold text-base transition-colors"
+                className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed font-bold text-sm sm:text-base transition-colors"
               >
                 −
               </button>
-              <span className="w-8 sm:w-9 text-center font-black text-sm text-[#f0750f]">
+              <span className="w-7 sm:w-9 text-center font-black text-xs sm:text-sm text-[#f0750f]">
                 {travellers}
               </span>
               <button
                 type="button"
                 onClick={() => setTravellers((prev) => Math.min(maxSeats, prev + 1))}
                 disabled={travellers >= maxSeats}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white shadow-2xs flex items-center justify-center text-[#f0750f] hover:bg-orange-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-base transition-colors border border-slate-200"
+                className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-white shadow-2xs flex items-center justify-center text-[#f0750f] hover:bg-orange-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-sm sm:text-base transition-colors border border-slate-200"
               >
                 +
               </button>
@@ -277,9 +277,9 @@ export function AdditionalRequirementsModal({
           {/* ========================================================================= */}
           <div>
             {/* Luggage Header - Matching Travellers Header Alignment */}
-            <div className="flex items-center justify-between py-0.5 mb-2">
-              <div className="flex items-center gap-2.5">
-                <div className="relative w-7 h-7 sm:w-8 sm:h-8 flex-shrink-0">
+            <div className="flex items-center justify-between py-0 sm:py-0.5 mb-1 sm:mb-2">
+              <div className="flex items-center gap-2 sm:gap-2.5">
+                <div className="relative w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0">
                   <Image
                     src="/images/luggage-two-suitcases.png"
                     alt="Luggage"
@@ -288,35 +288,35 @@ export function AdditionalRequirementsModal({
                   />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-900">Luggage Load</p>
-                  <p className="text-[11px] sm:text-xs text-slate-500">
+                  <p className="text-xs sm:text-sm font-bold text-slate-900">Luggage Load</p>
+                  <p className="text-[10px] sm:text-xs text-slate-500">
                     {totalBags === 0 ? 'No bags selected' : `${totalBags} bag${totalBags > 1 ? 's' : ''} selected`}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Dropdown Header Trigger Pill - Full Width */}
+            {/* Dropdown Header Trigger Pill - Full Width with Compact Padding */}
             <button
               type="button"
               onClick={() => setIsLuggageDropdownOpen(!isLuggageDropdownOpen)}
-              className={`w-full py-2.5 px-3 rounded-2xl border text-left flex items-center justify-between transition-all bg-white cursor-pointer ${
+              className={`w-full py-1.5 px-2.5 sm:py-2.5 sm:px-3 rounded-xl sm:rounded-2xl border text-left flex items-center justify-between transition-all bg-white cursor-pointer ${
                 isLuggageDropdownOpen
                   ? 'border-[#f0750f] ring-2 ring-orange-100 shadow-sm'
                   : 'border-slate-200 hover:border-slate-300 shadow-2xs'
               }`}
             >
               <div className="min-w-0 pr-2">
-                <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                <p className="text-[11.5px] sm:text-sm font-bold text-slate-900 truncate">
                   {luggageSummary.title}
                 </p>
-                <p className="text-[10.5px] sm:text-[11px] text-slate-400 truncate mt-0.5">
+                <p className="text-[10px] sm:text-[11px] text-slate-400 truncate mt-0.5">
                   {luggageSummary.desc}
                 </p>
               </div>
 
               <svg
-                className={`w-4 h-4 text-slate-500 transition-transform duration-200 flex-shrink-0 ${
+                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 transition-transform duration-200 flex-shrink-0 ${
                   isLuggageDropdownOpen ? 'rotate-180' : ''
                 }`}
                 viewBox="0 0 24 24"
@@ -415,20 +415,20 @@ export function AdditionalRequirementsModal({
 
             {/* Collapsed view showing selected bag items in a row (Matching Image 2) */}
             {!isLuggageDropdownOpen && totalBags > 0 && (
-              <div className="flex items-center gap-2 overflow-x-auto py-1.5 mt-1.5">
+              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto py-1 mt-1">
                 {LUGGAGE_ITEMS.filter((item) => luggageCounts[item.id] > 0).map((item) => (
                   <div
                     key={item.id}
                     onClick={() => setIsLuggageDropdownOpen(true)}
-                    className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-xl cursor-pointer hover:bg-slate-100 flex-shrink-0"
+                    className="flex items-center gap-1 sm:gap-1.5 bg-slate-50 border border-slate-200 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg sm:rounded-xl cursor-pointer hover:bg-slate-100 flex-shrink-0"
                   >
-                    <div className="relative w-5 h-5 flex-shrink-0">
+                    <div className="relative w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0">
                       <Image src={item.image} alt={item.name} fill className="object-contain" />
                     </div>
-                    <span className="text-xs font-bold text-slate-900">
+                    <span className="text-[11px] sm:text-xs font-bold text-slate-900">
                       {luggageCounts[item.id]}×
                     </span>
-                    <span className="text-[10.5px] font-medium text-slate-600 truncate max-w-[80px]">
+                    <span className="text-[10px] sm:text-[10.5px] font-medium text-slate-600 truncate max-w-[70px] sm:max-w-[80px]">
                       {item.name.split(' - ')[0]}
                     </span>
                   </div>
@@ -442,7 +442,7 @@ export function AdditionalRequirementsModal({
           {/* ========================================================================= */}
           {/* 3. Toggle List with Smooth iOS Sliders (Matching Image 2 & Image 3) */}
           {/* ========================================================================= */}
-          <div className="space-y-3 pt-1">
+          <div className="space-y-1.5 sm:space-y-3 pt-0.5">
             {/* 1. Senior Citizens (Above Age 60)? */}
             <ToggleRow
               icon={
@@ -673,11 +673,11 @@ export function AdditionalRequirementsModal({
         {/* ========================================================================= */}
         {/* 5. Fixed Pinned Bottom Action CTA (Always Visible & Accessible) */}
         {/* ========================================================================= */}
-        <div className="px-4 py-2.5 sm:px-5 sm:py-3 border-t border-slate-100 flex-shrink-0 bg-white shadow-md z-10">
+        <div className="px-3 py-2 sm:px-5 sm:py-3 border-t border-slate-100 flex-shrink-0 bg-white shadow-md z-10">
           <button
             type="button"
             onClick={handleSave}
-            className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.99] transition-all shadow-sm flex items-center justify-center gap-2 text-sm tracking-wide cursor-pointer"
+            className="w-full py-2.5 sm:py-3 px-4 rounded-xl font-bold text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.99] transition-all shadow-sm flex items-center justify-center gap-2 text-xs sm:text-sm tracking-wide cursor-pointer"
           >
             <span>Save &amp; Apply Requirements</span>
             <svg className="w-4 h-4 text-white flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -703,18 +703,18 @@ function ToggleRow({ icon, title, description, checked, onChange }: ToggleRowPro
   return (
     <div
       onClick={() => onChange(!checked)}
-      className="flex items-center justify-between gap-2.5 py-1 px-0.5 rounded-xl hover:bg-slate-50/70 transition-colors cursor-pointer select-none"
+      className="flex items-center justify-between gap-2 sm:gap-2.5 py-0.5 sm:py-1 px-0.5 rounded-lg sm:rounded-xl hover:bg-slate-50/70 transition-colors cursor-pointer select-none"
     >
-      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+      <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
         {/* Circular Floating Badge */}
-        <div className="w-9 h-9 rounded-full bg-white shadow-xs border border-slate-100 flex items-center justify-center flex-shrink-0">
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-xs border border-slate-100 flex items-center justify-center flex-shrink-0">
           {icon}
         </div>
 
         {/* Text */}
         <div className="min-w-0 pr-1">
-          <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">{title}</p>
-          <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">{description}</p>
+          <p className="text-[11.5px] sm:text-sm font-bold text-slate-900 leading-tight sm:leading-snug">{title}</p>
+          <p className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 leading-tight sm:leading-snug">{description}</p>
         </div>
       </div>
 
@@ -727,13 +727,13 @@ function ToggleRow({ icon, title, description, checked, onChange }: ToggleRowPro
           e.stopPropagation();
           onChange(!checked);
         }}
-        className={`w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center p-0.5 cursor-pointer flex-shrink-0 ${
+        className={`w-9 h-5 sm:w-11 sm:h-6 rounded-full transition-colors duration-200 relative flex items-center p-0.5 cursor-pointer flex-shrink-0 ${
           checked ? 'bg-[#f0750f]' : 'bg-[#e2e8f0]'
         }`}
       >
         <span
-          className={`w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${
-            checked ? 'translate-x-5' : 'translate-x-0'
+          className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${
+            checked ? 'translate-x-4 sm:translate-x-5' : 'translate-x-0'
           }`}
         />
       </button>
