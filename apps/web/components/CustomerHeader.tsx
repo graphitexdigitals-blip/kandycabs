@@ -34,54 +34,52 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
   return (
     <header className="bg-[#162232] text-white sticky top-0 z-40 shadow-md">
       <div className="max-w-6xl xl:max-w-7xl mx-auto px-2.5 sm:px-4 md:px-6 py-2 sm:py-2.5 flex items-center justify-between relative">
-        {/* Left: Brand Logo & Desktop Navigation Links */}
-        <div className="flex items-center gap-4 lg:gap-8 z-10 flex-shrink-0">
-          <Link href="/" className="flex items-center gap-2 group flex-shrink-0">
-            <div className="relative h-7 sm:h-9 w-20 sm:w-28">
-              <Image
-                src="/images/logo-white.png"
-                alt="Kandy Cabs Logo"
-                fill
-                className="object-contain"
-                priority
-              />
-            </div>
-          </Link>
+        {/* Left: Brand Logo */}
+        <Link href="/" className="flex items-center gap-2 group z-10 flex-shrink-0">
+          <div className="relative h-7 sm:h-9 w-20 sm:w-28">
+            <Image
+              src="/images/logo-white.png"
+              alt="Kandy Cabs Logo"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
+        </Link>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-5 lg:gap-7">
-            <Link
-              href="/"
-              className={`text-xs sm:text-sm font-bold tracking-wide transition-all py-1 ${
-                activeNav === 'home'
-                  ? 'text-[#f0750f] border-b-2 border-[#f0750f]'
-                  : 'text-slate-200 hover:text-white hover:text-[#f0750f]'
-              }`}
-            >
-              Home
-            </Link>
-            <Link
-              href="/about"
-              className={`text-xs sm:text-sm font-bold tracking-wide transition-all py-1 ${
-                activeNav === 'about'
-                  ? 'text-[#f0750f] border-b-2 border-[#f0750f]'
-                  : 'text-slate-200 hover:text-white hover:text-[#f0750f]'
-              }`}
-            >
-              About
-            </Link>
-            <Link
-              href="/support"
-              className={`text-xs sm:text-sm font-bold tracking-wide transition-all py-1 ${
-                activeNav === 'support'
-                  ? 'text-[#f0750f] border-b-2 border-[#f0750f]'
-                  : 'text-slate-200 hover:text-white hover:text-[#f0750f]'
-              }`}
-            >
-              Support
-            </Link>
-          </nav>
-        </div>
+        {/* Center: Desktop Navigation Links (Home, About, Support) */}
+        <nav className="hidden md:flex items-center gap-6 lg:gap-8 absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 z-10 pointer-events-auto">
+          <Link
+            href="/"
+            className={`text-sm lg:text-base font-bold tracking-wide transition-all py-1 ${
+              activeNav === 'home'
+                ? 'text-[#f0750f] border-b-2 border-[#f0750f]'
+                : 'text-slate-200 hover:text-white hover:text-[#f0750f]'
+            }`}
+          >
+            Home
+          </Link>
+          <Link
+            href="/about"
+            className={`text-sm lg:text-base font-bold tracking-wide transition-all py-1 ${
+              activeNav === 'about'
+                ? 'text-[#f0750f] border-b-2 border-[#f0750f]'
+                : 'text-slate-200 hover:text-white hover:text-[#f0750f]'
+            }`}
+          >
+            About
+          </Link>
+          <Link
+            href="/support"
+            className={`text-sm lg:text-base font-bold tracking-wide transition-all py-1 ${
+              activeNav === 'support'
+                ? 'text-[#f0750f] border-b-2 border-[#f0750f]'
+                : 'text-slate-200 hover:text-white hover:text-[#f0750f]'
+            }`}
+          >
+            Support
+          </Link>
+        </nav>
 
         {/* Right Section: Download App, Good Evening [User] (or Sign In), and Mobile Toggle */}
         <div className="flex items-center gap-2 sm:gap-3.5 z-10 flex-shrink-0">
