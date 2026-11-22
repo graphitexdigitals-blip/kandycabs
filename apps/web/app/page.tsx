@@ -15,6 +15,7 @@ import { PromoBannerSlider } from '@/components/PromoBannerSlider';
 import { CustomerRatingsCard } from '@/components/CustomerRatingsCard';
 import { TimePickerModal } from '@/components/TimePickerModal';
 import { LocalSwitchModal } from '@/components/LocalSwitchModal';
+import { AppRatingsBanner } from '@/components/AppRatingsBanner';
 
 function format12HourTime(timeStr: string): string {
   if (!timeStr) return '';
@@ -2210,13 +2211,18 @@ export default function CustomerHomePage() {
           ))}
         </section>
 
+        {/* App Store, Google & Play Store Reviews Banner (Matching Reference Image) */}
+        <div className="w-full mt-4 mb-2 sm:mt-6 sm:mb-2.5">
+          <AppRatingsBanner />
+        </div>
+
         {/* Mobile View (Excluding Desktop): Single Banner Slider */}
         <div className="md:hidden">
           <PromoBannerSlider onSelectCategory={handleCategorySelect} />
         </div>
 
         {/* Desktop & Tablet View (Excluding Mobile): 2 in a Row (Left: Slider, Right: Ratings Section) */}
-        <section className="hidden md:grid md:grid-cols-[1.5fr_0.85fr] lg:grid-cols-[1.55fr_0.85fr] gap-3.5 lg:gap-5 items-center mt-7 md:mt-9 lg:mt-8">
+        <section className="hidden md:grid md:grid-cols-[1.5fr_0.85fr] lg:grid-cols-[1.55fr_0.85fr] gap-3.5 lg:gap-5 items-center mt-3 sm:mt-4">
           <div className="w-full">
             <PromoBannerSlider onSelectCategory={handleCategorySelect} className="w-full" />
           </div>
