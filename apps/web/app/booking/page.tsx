@@ -221,6 +221,7 @@ export default function BookingFunnelPage() {
     travellers: 0,
     luggageType: 'NONE',
     luggageCounts: { small: 0, medium: 0, large: 0, xlarge: 0 },
+    roofCarrier: false,
     seniorCitizens: false,
     returnJourneyLater: false,
     needAirportDrop: false,
@@ -843,12 +844,17 @@ export default function BookingFunnelPage() {
                       {fleet.roofCarrierAvailable && (
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
+                            const nextVal = !roofCarrierEnabled[fleet.id];
                             setRoofCarrierEnabled((prev) => ({
                               ...prev,
-                              [fleet.id]: !prev[fleet.id],
-                            }))
-                          }
+                              [fleet.id]: nextVal,
+                            }));
+                            setAdditionalReqs((prev) => ({
+                              ...prev,
+                              roofCarrier: nextVal,
+                            }));
+                          }}
                           className={`flex-1 py-1 px-2 sm:py-1.5 sm:px-3 rounded-lg sm:rounded-xl border text-[10.5px] sm:text-xs font-semibold flex items-center justify-center gap-1 transition-colors whitespace-nowrap ${
                             carrierOn
                               ? 'border-[#f0750f] bg-orange-50 text-[#f0750f]'
@@ -962,6 +968,15 @@ export default function BookingFunnelPage() {
                         </svg>
                         A/C
                       </span>
+                      {(additionalReqs.roofCarrier || roofCarrierEnabled[selectedFleet.id]) && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center gap-1 text-[#f0750f] font-semibold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#f0750f]" />
+                            Roof Carrier
+                          </span>
+                        </>
+                      )}
                     </div>
                     <button
                       type="button"
@@ -1367,6 +1382,15 @@ export default function BookingFunnelPage() {
                         </svg>
                         A/C
                       </span>
+                      {(additionalReqs.roofCarrier || roofCarrierEnabled[selectedFleet.id]) && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center gap-1 text-[#f0750f] font-semibold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#f0750f]" />
+                            Roof Carrier
+                          </span>
+                        </>
+                      )}
                     </div>
                     <button
                       type="button"
@@ -1979,9 +2003,20 @@ export default function BookingFunnelPage() {
       <AdditionalRequirementsModal
         isOpen={reqModalOpen}
         maxSeats={4}
-        initialData={additionalReqs}
+        initialData={{
+          ...additionalReqs,
+          roofCarrier: additionalReqs.roofCarrier ?? Boolean(roofCarrierEnabled[selectedFleet.id]),
+        }}
         onClose={() => setReqModalOpen(false)}
-        onApply={(data) => setAdditionalReqs(data)}
+        onApply={(data) => {
+          setAdditionalReqs(data);
+          if (data.roofCarrier !== undefined) {
+            setRoofCarrierEnabled((prev) => ({
+              ...prev,
+              [selectedFleet.id]: Boolean(data.roofCarrier),
+            }));
+          }
+        }}
       />
 
       {/* Travellers & Luggage Required Alert Modal (Exact replica of Customer App Image 1) */}

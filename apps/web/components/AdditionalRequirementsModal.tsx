@@ -14,6 +14,7 @@ export interface AdditionalRequirementsData {
   travellers: number;
   luggageType: string;
   luggageCounts?: LuggageCounts;
+  roofCarrier?: boolean;
   seniorCitizens: boolean;
   returnJourneyLater: boolean;
   needAirportDrop: boolean;
@@ -89,6 +90,7 @@ export function AdditionalRequirementsModal({
   );
 
   // Toggle options state
+  const [roofCarrier, setRoofCarrier] = useState(initialData.roofCarrier || false);
   const [seniorCitizens, setSeniorCitizens] = useState(initialData.seniorCitizens || false);
   const [returnJourneyLater, setReturnJourneyLater] = useState(initialData.returnJourneyLater || false);
   const [needAirportDrop, setNeedAirportDrop] = useState(initialData.needAirportDrop || false);
@@ -115,6 +117,7 @@ export function AdditionalRequirementsModal({
         }
       );
       setSeniorCitizens(initialData.seniorCitizens || false);
+      setRoofCarrier(initialData.roofCarrier || false);
       setReturnJourneyLater(initialData.returnJourneyLater || false);
       setNeedAirportDrop(initialData.needAirportDrop || false);
       setNeedAirportPickup(initialData.needAirportPickup || false);
@@ -188,6 +191,7 @@ export function AdditionalRequirementsModal({
       travellers,
       luggageType: legacyType,
       luggageCounts,
+      roofCarrier,
       seniorCitizens,
       returnJourneyLater,
       needAirportDrop,
@@ -597,6 +601,27 @@ export function AdditionalRequirementsModal({
               description="Enable this for wheelchair support, easy boarding & driver assistance."
               checked={accessibilityAssistance}
               onChange={setAccessibilityAssistance}
+            />
+
+            <div className="h-px bg-slate-100" />
+
+            {/* 9. Roof Carrier? (Matching Customer App) */}
+            <ToggleRow
+              icon={
+                <div className="relative w-5 h-5 flex items-center justify-center">
+                  <Image
+                    src="/images/roof-carrier-orange.png"
+                    alt="Roof Carrier"
+                    width={22}
+                    height={22}
+                    className="object-contain"
+                  />
+                </div>
+              }
+              title="Roof Carrier?"
+              description="Enable this for rooftop luggage carrier for excess bags."
+              checked={roofCarrier}
+              onChange={setRoofCarrier}
             />
           </div>
 
