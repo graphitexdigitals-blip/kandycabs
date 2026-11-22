@@ -740,27 +740,6 @@ export default function CustomerHomePage() {
             </div>
           )}
 
-          {/* Tour & Pilgrimage Header (Matching Customer App Image 2) */}
-          {activeTab === 'TOUR' && (
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="text-[#f0750f] text-lg">🏢</span>
-                <div>
-                  <h3 className="text-sm font-black text-[#f0750f] leading-tight">Tour &amp; Pilgrimage</h3>
-                  <p className="text-[11px] text-slate-500 font-medium leading-tight">Family tours and pilgrimages</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleSwapLocations}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-2xs hover:shadow-xs transition-all cursor-pointer"
-              >
-                <span className="text-slate-500 font-bold">⇅</span>
-                <span>Swap</span>
-              </button>
-            </div>
-          )}
-
           {/* Locations Container with Integrated Swap Button */}
           <div className="relative space-y-1.5 mb-2">
             {/* Pickup Location Box */}
@@ -1570,24 +1549,6 @@ export default function CustomerHomePage() {
                     <p className="text-[11.5px] font-bold text-slate-900 leading-tight">Daily Rides</p>
                     <p className="text-[9px] text-slate-500 font-medium mt-0.5 leading-tight">Daily commute</p>
                   </div>
-                </button>
-              </div>
-            )}
-
-            {/* Tour & Pilgrimage Card Header (Matching Customer App Image 2) */}
-            {activeTab === 'TOUR' && (
-              <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[#f0750f] text-sm">🏢</span>
-                  <span className="text-xs font-black text-[#f0750f]">Tour &amp; Pilgrimage</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSwapLocations}
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[10.5px] font-bold shadow-2xs transition-all"
-                >
-                  <span className="text-slate-500 text-xs">⇅</span>
-                  <span>Swap</span>
                 </button>
               </div>
             )}
