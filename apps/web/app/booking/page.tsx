@@ -1397,27 +1397,31 @@ export default function BookingFunnelPage() {
                   ...(additionalReqs.babyOnBoard ? [{
                     key: 'baby',
                     icon: (
-                      <div className="relative w-5 h-5 mb-1">
-                        <Image src="/images/baby-on-board-icon.png" alt="Baby" fill className="object-contain" />
-                      </div>
+                      <svg className="w-5 h-5 mb-1 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M14 4a6.5 6.5 0 0 1 6.5 6.5H14V4z" />
+                        <path d="M5.5 8h2.2l1.5 3.5h11.3c.8 0 1.5.7 1.5 1.5 0 2.8-2.2 4.5-4.8 4.5h-4.4c-2.6 0-4.8-1.7-4.8-4.5v-.5L6.6 9H5.5V8z" />
+                        <circle cx="9.5" cy="19.2" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                        <circle cx="16.5" cy="19.2" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                      </svg>
                     ),
                     text: 'Baby on Board',
                   }] : []),
                   ...(additionalReqs.pregnancyFriendly ? [{
                     key: 'pregnancy',
                     icon: (
-                      <div className="relative w-5 h-5 mb-1">
-                        <Image src="/images/pregnancy-orange.png" alt="Pregnancy" fill className="object-contain" />
-                      </div>
+                      <svg className="w-5 h-5 mb-1 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M9 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm7 9c-.01-1.34-.83-2.51-2-3 0-1.66-1.34-3-3-3s-3 1.34-3 3v7h2v5h2v-5h1c1.66 0 3-1.34 3-3v-1z" />
+                      </svg>
                     ),
                     text: 'Pregnancy',
                   }] : []),
                   ...(additionalReqs.accessibilityAssistance ? [{
                     key: 'accessibility',
                     icon: (
-                      <div className="relative w-5 h-5 mb-1">
-                        <Image src="/images/wheelchair-orange.png" alt="Accessibility" fill className="object-contain" />
-                      </div>
+                      <svg className="w-5 h-5 mb-1 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="4" r="2" />
+                        <path d="M19 13v-2c-1.54.02-3.09-.75-4.07-1.83l-1.29-1.43c-.17-.19-.38-.34-.61-.45H13c-.35-.2-.75-.3-1.19-.26C10.76 7.11 10 8.04 10 9.09V15c0 1.1.9 2 2 2h5v5h2v-5.5c0-.83-.67-1.5-1.5-1.5H14v-3.5c1.07.72 2.38 1.1 3.75 1.1 1.25 0 2.25-1 2.25-2.25-.01-.13-.03-.26-.06-.38l-.94.03zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c.55 0 1 .45 1 1s-.45 1-1 1c-2.21 0-4 1.79-4 4s1.79 4 4 4c1.1 0 2.09-.45 2.81-1.17l1.42 1.42C15.02 17.47 13.6 18 12 18z" />
+                      </svg>
                     ),
                     text: 'Accessibility',
                   }] : []),
@@ -1851,27 +1855,31 @@ export default function BookingFunnelPage() {
                   ...(additionalReqs.babyOnBoard ? [{
                     key: 'baby',
                     icon: (
-                      <div className="relative w-5 h-5 mb-1">
-                        <Image src="/images/baby-on-board-icon.png" alt="Baby" fill className="object-contain" />
-                      </div>
+                      <svg className="w-5 h-5 mb-1 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M14 4a6.5 6.5 0 0 1 6.5 6.5H14V4z" />
+                        <path d="M5.5 8h2.2l1.5 3.5h11.3c.8 0 1.5.7 1.5 1.5 0 2.8-2.2 4.5-4.8 4.5h-4.4c-2.6 0-4.8-1.7-4.8-4.5v-.5L6.6 9H5.5V8z" />
+                        <circle cx="9.5" cy="19.2" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                        <circle cx="16.5" cy="19.2" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                      </svg>
                     ),
                     text: 'Baby on Board',
                   }] : []),
                   ...(additionalReqs.pregnancyFriendly ? [{
                     key: 'pregnancy',
                     icon: (
-                      <div className="relative w-5 h-5 mb-1">
-                        <Image src="/images/pregnancy-orange.png" alt="Pregnancy" fill className="object-contain" />
-                      </div>
+                      <svg className="w-5 h-5 mb-1 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M9 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm7 9c-.01-1.34-.83-2.51-2-3 0-1.66-1.34-3-3-3s-3 1.34-3 3v7h2v5h2v-5h1c1.66 0 3-1.34 3-3v-1z" />
+                      </svg>
                     ),
                     text: 'Pregnancy',
                   }] : []),
                   ...(additionalReqs.accessibilityAssistance ? [{
                     key: 'accessibility',
                     icon: (
-                      <div className="relative w-5 h-5 mb-1">
-                        <Image src="/images/wheelchair-orange.png" alt="Accessibility" fill className="object-contain" />
-                      </div>
+                      <svg className="w-5 h-5 mb-1 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="4" r="2" />
+                        <path d="M19 13v-2c-1.54.02-3.09-.75-4.07-1.83l-1.29-1.43c-.17-.19-.38-.34-.61-.45H13c-.35-.2-.75-.3-1.19-.26C10.76 7.11 10 8.04 10 9.09V15c0 1.1.9 2 2 2h5v5h2v-5.5c0-.83-.67-1.5-1.5-1.5H14v-3.5c1.07.72 2.38 1.1 3.75 1.1 1.25 0 2.25-1 2.25-2.25-.01-.13-.03-.26-.06-.38l-.94.03zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c.55 0 1 .45 1 1s-.45 1-1 1c-2.21 0-4 1.79-4 4s1.79 4 4 4c1.1 0 2.09-.45 2.81-1.17l1.42 1.42C15.02 17.47 13.6 18 12 18z" />
+                      </svg>
                     ),
                     text: 'Accessibility',
                   }] : []),
