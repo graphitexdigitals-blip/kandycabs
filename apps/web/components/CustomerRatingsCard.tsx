@@ -66,7 +66,7 @@ export function CustomerRatingsCard() {
         </div>
 
         {/* Rating Actions Bar */}
-        <div className="mt-2 pt-1.5 md:mt-2.5 md:pt-2 border-t border-dashed border-slate-200/70 flex items-center justify-between gap-1.5 sm:gap-2">
+        <div className="mt-2 pt-1.5 md:mt-2.5 md:pt-2 border-t border-dashed border-slate-200/70 flex items-center justify-start">
           <a
             href={GOOGLE_MAPS_REVIEW_URL}
             target="_blank"
@@ -82,16 +82,6 @@ export function CustomerRatingsCard() {
             </svg>
             <span>Rate Us on Google</span>
             <span className="text-[#F4B400] text-[11px] sm:text-xs tracking-tight">★★★★★</span>
-          </a>
-
-          <a
-            href={GOOGLE_MAPS_REVIEW_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10.5px] sm:text-xs font-bold text-slate-500 hover:text-[#f0750f] transition-colors inline-flex items-center gap-1 group truncate"
-          >
-            <span>All Reviews</span>
-            <span className="group-hover:translate-x-0.5 transition-transform">→</span>
           </a>
         </div>
       </div>
