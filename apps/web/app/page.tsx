@@ -436,8 +436,8 @@ interface CorporateDateItem {
       return;
     }
 
-    if ((tripType === TripType.ROUND || activeTab === 'ROUND') && !returnDate) {
-      alert('Please select your return journey date');
+    if ((tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') && !returnDate) {
+      alert('Please select your return date');
       return;
     }
 
@@ -520,11 +520,9 @@ interface CorporateDateItem {
       setDropLat(null);
       setDropLng(null);
     } else if (catId === 'TOUR') {
-      if (!dropAddress || dropAddress.includes('Airport') || dropAddress.includes('Local')) {
-        setDropAddress('Kollur Mookambika Temple');
-        setDropLat(13.8655);
-        setDropLng(74.8142);
-      }
+      setDropAddress('');
+      setDropLat(null);
+      setDropLng(null);
       setTripType(TripType.PACKAGE);
     }
   };
@@ -643,6 +641,27 @@ interface CorporateDateItem {
             </div>
           )}
 
+          {/* Tour & Pilgrimage Header (Matching Customer App Image 2) */}
+          {activeTab === 'TOUR' && (
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <span className="text-[#f0750f] text-lg">🏢</span>
+                <div>
+                  <h3 className="text-sm font-black text-[#f0750f] leading-tight">Tour &amp; Pilgrimage</h3>
+                  <p className="text-[11px] text-slate-500 font-medium leading-tight">Family tours and pilgrimages</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleSwapLocations}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-2xs hover:shadow-xs transition-all cursor-pointer"
+              >
+                <span className="text-slate-500 font-bold">⇅</span>
+                <span>Swap</span>
+              </button>
+            </div>
+          )}
+
           {/* Locations Container with Integrated Swap Button */}
           <div className="relative space-y-1.5 mb-2">
             {/* Pickup Location Box */}
@@ -738,7 +757,7 @@ interface CorporateDateItem {
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
                       <span className="block text-[11px] font-extrabold text-black uppercase tracking-wider">
-                        {activeTab === 'CORPORATE' ? 'DESTINATION DROP' : 'DROP LOCATION'}
+                        {activeTab === 'CORPORATE' || activeTab === 'TOUR' ? 'DESTINATION DROP' : 'DROP LOCATION'}
                       </span>
                       <input
                         type="text"
@@ -752,7 +771,7 @@ interface CorporateDateItem {
                           setLocationModalTarget('DROP');
                           setShowDropSuggestions(true);
                         }}
-                        placeholder={activeTab === 'CORPORATE' ? 'Enter destination drop' : 'Enter drop location'}
+                        placeholder={activeTab === 'CORPORATE' || activeTab === 'TOUR' ? 'Enter destination drop' : 'Enter drop location'}
                         className="w-full bg-transparent text-[15px] font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400"
                       />
                     </div>
@@ -871,12 +890,12 @@ interface CorporateDateItem {
                 type="button"
                 onClick={handleAddStop}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold shadow-xs transition-all active:scale-95 ${
-                  activeTab === 'CORPORATE'
+                  activeTab === 'CORPORATE' || activeTab === 'TOUR'
                     ? 'bg-[#162232] hover:bg-slate-800 text-white text-xs'
                     : 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs'
                 }`}
               >
-                <span className={activeTab === 'CORPORATE' ? 'text-white font-black' : 'text-[#f0750f] font-bold text-sm'}>+</span>
+                <span className={activeTab === 'CORPORATE' || activeTab === 'TOUR' ? 'text-white font-black' : 'text-[#f0750f] font-bold text-sm'}>+</span>
                 <span>Add a Stop</span>
               </button>
             </div>
@@ -1114,72 +1133,109 @@ interface CorporateDateItem {
               </div>
             )
           ) : (
-            <div className="grid grid-cols-2 gap-2 mb-2.5">
-              <div className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
-                <div className="flex items-center gap-1 text-black mb-0.5">
-                  <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="space-y-1.5 mb-2.5">
+              {(activeTab === 'TOUR' || activeTab === 'ROUND' || activeTab === 'LOCAL' || tripType === TripType.ROUND || tripType === TripType.PACKAGE) && (
+                <div className="flex items-center gap-1.5 text-[#f0750f]">
+                  <svg className="w-4 h-4 text-[#f0750f]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
-                    {activeTab === 'LOCAL' ? 'PICKUP DATE' : 'TRIP START DATE'}
-                  </span>
+                  <span className="text-xs font-extrabold text-[#f0750f]">Trip Schedule</span>
                 </div>
-                <input
-                  type="date"
-                  value={scheduledDate}
-                  min={new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setScheduledDate(e.target.value)}
-                  className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
-                    scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
-                  }`}
-                />
-              </div>
+              )}
 
-              <div
-                onClick={() => setTimeModalOpen(true)}
-                className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-white cursor-pointer focus-within:bg-white transition-all select-none"
-              >
-                <div className="flex items-center gap-1 text-black mb-0.5">
-                  <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
-                    PICKUP TIME
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className={`text-[15px] font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
-                    {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
-                  </span>
-                  {scheduledTime && (
-                    <span className="text-[11px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
-                      Change
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {(tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') && (
-                <div className="col-span-2 p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
                   <div className="flex items-center gap-1 text-black mb-0.5">
                     <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
-                      RETURN JOURNEY DATE
+                      {activeTab === 'TOUR' || activeTab === 'ROUND' ? 'DEPARTURE DATE' : activeTab === 'LOCAL' ? 'PICKUP DATE' : 'TRIP START DATE'}
                     </span>
                   </div>
                   <input
                     type="date"
-                    value={returnDate}
-                    min={scheduledDate}
-                    onChange={(e) => setReturnDate(e.target.value)}
+                    value={scheduledDate}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setScheduledDate(e.target.value)}
                     className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
-                      returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                      scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
                     }`}
                   />
                 </div>
-              )}
+
+                <div
+                  onClick={() => setTimeModalOpen(true)}
+                  className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-white cursor-pointer focus-within:bg-white transition-all select-none"
+                >
+                  <div className="flex items-center gap-1 text-black mb-0.5">
+                    <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
+                      {activeTab === 'TOUR' || activeTab === 'ROUND' ? 'DEPARTURE TIME' : 'PICKUP TIME'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[15px] font-semibold truncate ${scheduledTime ? 'text-slate-900' : 'text-slate-400'}`}>
+                      {scheduledTime ? format12HourTime(scheduledTime) : 'Select Time'}
+                    </span>
+                    {scheduledTime && (
+                      <span className="text-[11px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
+                        Change
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {(tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') && (
+                  <>
+                    <div className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 focus-within:bg-white">
+                      <div className="flex items-center gap-1 text-black mb-0.5">
+                        <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
+                          RETURN DATE
+                        </span>
+                      </div>
+                      <input
+                        type="date"
+                        value={returnDate}
+                        min={scheduledDate}
+                        onChange={(e) => setReturnDate(e.target.value)}
+                        className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
+                          returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                        }`}
+                      />
+                    </div>
+
+                    <div
+                      onClick={() => setReturnTimeModalOpen(true)}
+                      className="p-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-white cursor-pointer focus-within:bg-white transition-all select-none"
+                    >
+                      <div className="flex items-center gap-1 text-black mb-0.5">
+                        <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-black">
+                          RETURN TIME
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-[15px] font-semibold truncate ${returnTime ? format12HourTime(returnTime) : 'Select Time'}`}>
+                          {returnTime ? format12HourTime(returnTime) : 'Select Time'}
+                        </span>
+                        {returnTime && (
+                          <span className="text-[11px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
+                            Change
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
 
@@ -1190,7 +1246,7 @@ interface CorporateDateItem {
               onClick={() => handleBookYourRide()}
               className="py-3 px-10 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-[15px] tracking-wider uppercase whitespace-nowrap shadow-md"
             >
-              <span>BOOK YOUR RIDE</span>
+              <span>{activeTab === 'TOUR' ? 'SELECT CAB & VIEW FARES' : 'BOOK YOUR RIDE'}</span>
               <span className="text-xl leading-none">→</span>
             </button>
           </div>
@@ -1230,7 +1286,26 @@ interface CorporateDateItem {
                   </span>
                   <div>
                     <p className="text-xs font-black text-slate-900 leading-tight">Corporate Travel</p>
-                    <p className="text-[10px] text-slate-500 font-medium leading-tight">Business & official travel</p>
+                    <p className="text-[10px] text-slate-500 font-medium leading-tight">Business &amp; official travel</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleTabClick('ONEWAY')}
+                  className="text-[11px] font-bold text-[#f0750f] hover:underline"
+                >
+                  Switch
+                </button>
+              </div>
+            ) : activeTab === 'TOUR' ? (
+              <div className="flex items-center justify-between py-1.5 px-2 bg-orange-50/70 border border-orange-100 rounded-xl mb-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-[#f0750f] text-white flex items-center justify-center text-xs">
+                    🏢
+                  </span>
+                  <div>
+                    <p className="text-xs font-black text-slate-900 leading-tight">Tour &amp; Pilgrimage</p>
+                    <p className="text-[10px] text-slate-500 font-medium leading-tight">Family tours and pilgrimages</p>
                   </div>
                 </div>
                 <button
@@ -1347,6 +1422,24 @@ interface CorporateDateItem {
               </div>
             )}
 
+            {/* Tour & Pilgrimage Card Header (Matching Customer App Image 2) */}
+            {activeTab === 'TOUR' && (
+              <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[#f0750f] text-sm">🏢</span>
+                  <span className="text-xs font-black text-[#f0750f]">Tour &amp; Pilgrimage</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSwapLocations}
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[10.5px] font-bold shadow-2xs transition-all"
+                >
+                  <span className="text-slate-500 text-xs">⇅</span>
+                  <span>Swap</span>
+                </button>
+              </div>
+            )}
+
             {/* Pickup & Drop with Swap */}
             <div className="relative space-y-1.5">
               {/* Pickup */}
@@ -1440,7 +1533,7 @@ interface CorporateDateItem {
                       </div>
                       <div className="flex-1 min-w-0 pr-1">
                         <span className="block text-[10.5px] font-extrabold text-black uppercase tracking-wider leading-none mb-0.5">
-                          {activeTab === 'CORPORATE' ? 'DESTINATION DROP' : 'DROP LOCATION'}
+                          {activeTab === 'CORPORATE' || activeTab === 'TOUR' ? 'DESTINATION DROP' : 'DROP LOCATION'}
                         </span>
                         <input
                           type="text"
@@ -1455,7 +1548,7 @@ interface CorporateDateItem {
                               setShowDropSuggestions(true);
                             }
                           }}
-                          placeholder={activeTab === 'CORPORATE' ? 'Enter destination drop' : 'Enter drop location'}
+                          placeholder={activeTab === 'CORPORATE' || activeTab === 'TOUR' ? 'Enter destination drop' : 'Enter drop location'}
                           className="w-full bg-transparent text-sm font-semibold text-slate-900 focus:outline-none truncate placeholder:text-slate-400 leading-tight"
                         />
                       </div>
@@ -1542,12 +1635,12 @@ interface CorporateDateItem {
                   type="button"
                   onClick={handleAddStop}
                   className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold shadow-xs transition-all ${
-                    activeTab === 'CORPORATE'
+                    activeTab === 'CORPORATE' || activeTab === 'TOUR'
                       ? 'bg-[#162232] text-white hover:bg-slate-800 border border-slate-900'
                       : 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
                   }`}
                 >
-                  <span className={activeTab === 'CORPORATE' ? 'text-white font-bold text-xs' : 'text-[#f0750f] font-bold text-xs'}>+</span> Add a Stop
+                  <span className={activeTab === 'CORPORATE' || activeTab === 'TOUR' ? 'text-white font-bold text-xs' : 'text-[#f0750f] font-bold text-xs'}>+</span> Add a Stop
                 </button>
               </div>
             )}
@@ -1774,8 +1867,8 @@ interface CorporateDateItem {
               </div>
             )}
 
-            {/* Trip Schedule Header (for Local Rental) */}
-            {activeTab === 'LOCAL' && (
+            {/* Trip Schedule Header (for Local Rental, Round Trip, or Tour) */}
+            {(activeTab === 'LOCAL' || activeTab === 'ROUND' || activeTab === 'TOUR') && (
               <div className="flex items-center gap-1.5 text-[#f0750f] pt-0.5">
                 <svg className="w-3.5 h-3.5 text-[#f0750f]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -1793,7 +1886,7 @@ interface CorporateDateItem {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
-                      {activeTab === 'LOCAL' ? 'PICKUP DATE' : 'TRIP START DATE'}
+                      {activeTab === 'TOUR' || activeTab === 'ROUND' ? 'DEPARTURE DATE' : activeTab === 'LOCAL' ? 'PICKUP DATE' : 'TRIP START DATE'}
                     </span>
                   </div>
                   <input
@@ -1816,7 +1909,7 @@ interface CorporateDateItem {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
-                      PICKUP TIME
+                      {activeTab === 'TOUR' || activeTab === 'ROUND' ? 'DEPARTURE TIME' : 'PICKUP TIME'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -1831,26 +1924,52 @@ interface CorporateDateItem {
                   </div>
                 </div>
 
-                {activeTab === 'ROUND' && (
-                  <div className="col-span-2 py-2 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70">
-                    <div className="flex items-center gap-1 text-black mb-0.5">
-                      <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
-                        RETURN JOURNEY DATE
-                      </span>
+                {(activeTab === 'ROUND' || activeTab === 'TOUR' || tripType === TripType.ROUND || tripType === TripType.PACKAGE) && (
+                  <>
+                    <div className="py-2 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70">
+                      <div className="flex items-center gap-1 text-black mb-0.5">
+                        <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
+                          RETURN DATE
+                        </span>
+                      </div>
+                      <input
+                        type="date"
+                        value={returnDate}
+                        min={scheduledDate}
+                        onChange={(e) => setReturnDate(e.target.value)}
+                        className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer leading-tight ${
+                          returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                        }`}
+                      />
                     </div>
-                    <input
-                      type="date"
-                      value={returnDate}
-                      min={scheduledDate}
-                      onChange={(e) => setReturnDate(e.target.value)}
-                      className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer leading-tight ${
-                        returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400'
-                      }`}
-                    />
-                  </div>
+
+                    <div
+                      onClick={() => setReturnTimeModalOpen(true)}
+                      className="py-2 px-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white cursor-pointer select-none"
+                    >
+                      <div className="flex items-center gap-1 text-black mb-0.5">
+                        <svg className="w-3.5 h-3.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-black">
+                          RETURN TIME
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-sm font-semibold truncate ${returnTime ? format12HourTime(returnTime) : 'Select Time'}`}>
+                          {returnTime ? format12HourTime(returnTime) : 'Select Time'}
+                        </span>
+                        {returnTime && (
+                          <span className="text-[10px] text-[#f0750f] font-bold uppercase ml-1 flex-shrink-0">
+                            Change
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             )}
@@ -1862,7 +1981,7 @@ interface CorporateDateItem {
                 onClick={() => handleBookYourRide()}
                 className="py-2.5 px-8 rounded-xl font-black text-white bg-[#f0750f] hover:bg-[#ea580c] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 text-sm tracking-wider uppercase whitespace-nowrap shadow-md"
               >
-                <span>BOOK YOUR RIDE</span>
+                <span>{activeTab === 'TOUR' ? 'SELECT CAB & VIEW FARES' : 'BOOK YOUR RIDE'}</span>
                 <span className="text-base leading-none">→</span>
               </button>
             </div>

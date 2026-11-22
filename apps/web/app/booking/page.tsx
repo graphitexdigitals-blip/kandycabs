@@ -661,6 +661,8 @@ export default function BookingFunnelPage() {
                       : `Corporate Travel • Book Once • ${distanceKm} km`
                     : tripType === TripType.LOCAL
                     ? `Local Rental • ${localPackage === '4_40' ? '4 Hrs / 40 km' : localPackage === '12_120' ? '12 Hrs / 120 km' : '8 Hrs / 80 km'}`
+                    : tripType === TripType.PACKAGE || (tripType as any) === 'TOUR'
+                    ? `Tour & Pilgrimage • ${distanceKm} km`
                     : `${tripType === TripType.ROUND ? 'Round Trip' : 'One Way Drop'} • ${distanceKm} km`}
                 </span>
 
