@@ -1219,14 +1219,14 @@ export default function BookingFunnelPage() {
                       <button
                         type="button"
                         onClick={() => setReqModalOpen(true)}
-                        className={`p-3.5 rounded-2xl border flex flex-col items-center justify-center transition-all cursor-pointer ${
+                        className={`p-3.5 rounded-2xl border flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-md hover:shadow-lg ${
                           isTravellersZero
-                            ? 'border-orange-200 bg-orange-50/50 hover:bg-orange-100/60 shadow-2xs'
-                            : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100'
+                            ? 'border-orange-200 hover:border-orange-300'
+                            : 'border-slate-200 hover:border-slate-300'
                         }`}
                       >
                         <svg
-                          className={`w-6 h-6 mb-1 ${isTravellersZero ? 'text-[#c2410c]' : 'text-slate-600'}`}
+                          className="w-6 h-6 mb-1 text-slate-900"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -1240,14 +1240,14 @@ export default function BookingFunnelPage() {
                       <button
                         type="button"
                         onClick={() => setReqModalOpen(true)}
-                        className={`p-3.5 rounded-2xl border flex flex-col items-center justify-center transition-all cursor-pointer ${
+                        className={`p-3.5 rounded-2xl border flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-md hover:shadow-lg ${
                           isLuggageZero
-                            ? 'border-orange-200 bg-orange-50/50 hover:bg-orange-100/60 shadow-2xs'
-                            : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100'
+                            ? 'border-orange-200 hover:border-orange-300'
+                            : 'border-slate-200 hover:border-slate-300'
                         }`}
                       >
                         <svg
-                          className={`w-6 h-6 mb-1 ${isLuggageZero ? 'text-[#c2410c]' : 'text-slate-600'}`}
+                          className="w-6 h-6 mb-1 text-slate-900"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
