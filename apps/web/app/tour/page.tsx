@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { TripType, VehicleCategory } from '@kandy-cabs/shared';
-import { PlaceLocation } from '@/lib/locations';
+import { ALL_LOCATIONS, PlaceLocation } from '@/lib/locations';
 import { CustomerHeader } from '@/components/CustomerHeader';
 import { BookingFlowHeader } from '@/components/BookingFlowHeader';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
@@ -31,10 +31,14 @@ export default function TourPilgrimagePage() {
   const [pickupAddress, setPickupAddress] = useState('');
   const [pickupLat, setPickupLat] = useState<number | null>(null);
   const [pickupLng, setPickupLng] = useState<number | null>(null);
+  const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
+  const pickupWrapperRef = useRef<HTMLDivElement>(null);
 
   const [dropAddress, setDropAddress] = useState('');
   const [dropLat, setDropLat] = useState<number | null>(null);
   const [dropLng, setDropLng] = useState<number | null>(null);
+  const [showDropSuggestions, setShowDropSuggestions] = useState(false);
+  const dropWrapperRef = useRef<HTMLDivElement>(null);
 
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
@@ -47,15 +51,47 @@ export default function TourPilgrimagePage() {
   const [timeModalOpen, setTimeModalOpen] = useState(false);
   const [returnTimeModalOpen, setReturnTimeModalOpen] = useState(false);
 
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (pickupWrapperRef.current && !pickupWrapperRef.current.contains(target)) {
+        setShowPickupSuggestions(false);
+      }
+      if (dropWrapperRef.current && !dropWrapperRef.current.contains(target)) {
+        setShowDropSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredPickupLocations = useMemo(() => {
+    const q = (pickupAddress || '').toLowerCase().trim();
+    if (!q) return ALL_LOCATIONS.slice(0, 8);
+    return ALL_LOCATIONS.filter(
+      (l) => l.label.toLowerCase().includes(q) || (l.sublabel && l.sublabel.toLowerCase().includes(q))
+    ).slice(0, 8);
+  }, [pickupAddress]);
+
+  const filteredDropLocations = useMemo(() => {
+    const q = (dropAddress || '').toLowerCase().trim();
+    if (!q) return ALL_LOCATIONS.slice(0, 8);
+    return ALL_LOCATIONS.filter(
+      (l) => l.label.toLowerCase().includes(q) || (l.sublabel && l.sublabel.toLowerCase().includes(q))
+    ).slice(0, 8);
+  }, [dropAddress]);
+
   const handleSelectLocation = (place: PlaceLocation) => {
     if (locationModalTarget === 'PICKUP') {
       setPickupAddress(place.label);
       setPickupLat(place.lat);
       setPickupLng(place.lng);
+      setShowPickupSuggestions(false);
     } else if (locationModalTarget === 'DROP') {
       setDropAddress(place.label);
       setDropLat(place.lat);
       setDropLng(place.lng);
+      setShowDropSuggestions(false);
     } else {
       setStops((prev) =>
         prev.map((s) => (s.id === locationModalTarget ? { ...s, address: place.label, lat: place.lat, lng: place.lng } : s))
@@ -75,6 +111,9 @@ export default function TourPilgrimagePage() {
     setDropAddress(tempAddr);
     setDropLat(tempLat);
     setDropLng(tempLng);
+
+    setShowPickupSuggestions(false);
+    setShowDropSuggestions(false);
   };
 
   const handleAddStop = () => {
@@ -174,7 +213,7 @@ export default function TourPilgrimagePage() {
           </div>
 
           {/* Pickup Location */}
-          <div>
+          <div ref={pickupWrapperRef} className="relative">
             <span className="block text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
               PICKUP LOCATION
             </span>
@@ -187,7 +226,13 @@ export default function TourPilgrimagePage() {
               <input
                 type="text"
                 value={pickupAddress}
-                onChange={(e) => setPickupAddress(e.target.value)}
+                onChange={(e) => {
+                  setPickupAddress(e.target.value);
+                  setShowPickupSuggestions(true);
+                }}
+                onFocus={() => {
+                  if (filteredPickupLocations.length > 0) setShowPickupSuggestions(true);
+                }}
                 placeholder="Enter pickup location"
                 className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400 truncate"
               />
@@ -205,10 +250,36 @@ export default function TourPilgrimagePage() {
                 </svg>
               </button>
             </div>
+
+            {showPickupSuggestions && filteredPickupLocations.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl border border-slate-100 z-50 overflow-hidden divide-y divide-slate-50 max-h-56 overflow-y-auto">
+                {filteredPickupLocations.map((loc) => (
+                  <button
+                    key={loc.label}
+                    type="button"
+                    onClick={() => {
+                      setPickupAddress(loc.label);
+                      setPickupLat(loc.lat);
+                      setPickupLng(loc.lng);
+                      setShowPickupSuggestions(false);
+                    }}
+                    className="w-full text-left px-3 py-2.5 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                    </svg>
+                    <div className="truncate">
+                      <p className="text-xs font-semibold text-slate-900 truncate">{loc.label}</p>
+                      {loc.sublabel && <p className="text-[10px] text-slate-400 truncate">{loc.sublabel}</p>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Destination Drop */}
-          <div>
+          <div ref={dropWrapperRef} className="relative">
             <span className="block text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
               DESTINATION DROP
             </span>
@@ -221,7 +292,13 @@ export default function TourPilgrimagePage() {
               <input
                 type="text"
                 value={dropAddress}
-                onChange={(e) => setDropAddress(e.target.value)}
+                onChange={(e) => {
+                  setDropAddress(e.target.value);
+                  setShowDropSuggestions(true);
+                }}
+                onFocus={() => {
+                  if (filteredDropLocations.length > 0) setShowDropSuggestions(true);
+                }}
                 placeholder="Enter destination / temple"
                 className="w-full bg-transparent text-xs font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400 truncate"
               />
@@ -239,6 +316,32 @@ export default function TourPilgrimagePage() {
                 </svg>
               </button>
             </div>
+
+            {showDropSuggestions && filteredDropLocations.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl border border-slate-100 z-50 overflow-hidden divide-y divide-slate-50 max-h-56 overflow-y-auto">
+                {filteredDropLocations.map((loc) => (
+                  <button
+                    key={loc.label}
+                    type="button"
+                    onClick={() => {
+                      setDropAddress(loc.label);
+                      setDropLat(loc.lat);
+                      setDropLng(loc.lng);
+                      setShowDropSuggestions(false);
+                    }}
+                    className="w-full text-left px-3 py-2.5 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                    </svg>
+                    <div className="truncate">
+                      <p className="text-xs font-semibold text-slate-900 truncate">{loc.label}</p>
+                      {loc.sublabel && <p className="text-[10px] text-slate-400 truncate">{loc.sublabel}</p>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Add a Stop */}

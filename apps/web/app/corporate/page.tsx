@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { TripType, VehicleCategory } from '@kandy-cabs/shared';
 import { ALL_LOCATIONS, PlaceLocation } from '@/lib/locations';
@@ -35,12 +35,28 @@ export default function CorporateTravelPage() {
   const [pickupLng, setPickupLng] = useState<number | null>(null);
   const [pickupQuery, setPickupQuery] = useState('');
   const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
+  const pickupWrapperRef = useRef<HTMLDivElement>(null);
 
   const [dropAddress, setDropAddress] = useState('');
   const [dropLat, setDropLat] = useState<number | null>(null);
   const [dropLng, setDropLng] = useState<number | null>(null);
   const [dropQuery, setDropQuery] = useState('');
   const [showDropSuggestions, setShowDropSuggestions] = useState(false);
+  const dropWrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (pickupWrapperRef.current && !pickupWrapperRef.current.contains(target)) {
+        setShowPickupSuggestions(false);
+      }
+      if (dropWrapperRef.current && !dropWrapperRef.current.contains(target)) {
+        setShowDropSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const [stops, setStops] = useState<{ id: string; address: string; lat: number; lng: number }[]>([]);
 
@@ -379,7 +395,7 @@ export default function CorporateTravelPage() {
           </div>
 
           {/* Pickup Location */}
-          <div className="relative">
+          <div ref={pickupWrapperRef} className="relative">
             <span className="block text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
               PICKUP LOCATION
             </span>
@@ -445,7 +461,7 @@ export default function CorporateTravelPage() {
           </div>
 
           {/* Destination Drop */}
-          <div className="relative">
+          <div ref={dropWrapperRef} className="relative">
             <span className="block text-[10.5px] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5 leading-none">
               DESTINATION DROP
             </span>
