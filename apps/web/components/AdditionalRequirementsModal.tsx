@@ -520,16 +520,7 @@ export function AdditionalRequirementsModal({
                     <path d="M12 11c-3.3 0-6 2.2-6 5 0 2.2 1.8 3 3.5 3 1.2 0 2-.8 2.5-1.2.5.4 1.3 1.2 2.5 1.2 1.7 0 3.5-.8 3.5-3 0-2.8-2.7-5-6-5z" />
                   </svg>
                 }
-                title={
-                  <span className="flex items-center gap-1.5 flex-wrap">
-                    <span>Pet Friendly</span>
-                    {petFriendly && (
-                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-orange-100 text-[#f0750f]">
-                        +₹{petRates[petType] ?? (petType === 'cat' ? 200 : petType === 'bird' ? 100 : 500)}
-                      </span>
-                    )}
-                  </span>
-                }
+                title="Pet Friendly"
                 description="Enable this if you are traveling with pets."
                 checked={petFriendly}
                 onChange={setPetFriendly}
@@ -538,14 +529,9 @@ export function AdditionalRequirementsModal({
               {/* Sub-selector when Pet Friendly is switched ON */}
               {petFriendly && (
                 <div className="mt-2 ml-0 sm:ml-11 p-2 sm:p-3 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 animate-in fade-in duration-150 w-full">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                      Select Pet Type:
-                    </p>
-                    <span className="text-[11px] font-bold text-[#f0750f]">
-                      Surcharge: ₹{petRates[petType] ?? (petType === 'cat' ? 200 : petType === 'bird' ? 100 : 500)}
-                    </span>
-                  </div>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Select Pet Type:
+                  </p>
                   <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                     {[
                       { type: 'cat' as const, label: 'Cat', image: '/images/pet-cat-icon.png' },
@@ -553,7 +539,6 @@ export function AdditionalRequirementsModal({
                       { type: 'bird' as const, label: 'Bird', image: '/images/pet-bird-icon.png' },
                     ].map((item) => {
                       const isSelected = petType === item.type;
-                      const rate = petRates[item.type] ?? (item.type === 'cat' ? 200 : item.type === 'bird' ? 100 : 500);
                       return (
                         <button
                           key={item.type}
@@ -569,9 +554,6 @@ export function AdditionalRequirementsModal({
                             <Image src={item.image} alt={item.label} fill className="object-contain" />
                           </div>
                           <span className="text-xs font-bold leading-tight">{item.label}</span>
-                          <span className={`text-[10px] font-black mt-0.5 leading-tight ${isSelected ? 'text-[#f0750f]' : 'text-slate-500'}`}>
-                            +₹{rate}
-                          </span>
                         </button>
                       );
                     })}
