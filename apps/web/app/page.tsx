@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { TripType, VehicleCategory } from '@kandy-cabs/shared';
 import { useAuth } from '@/lib/AuthContext';
-import { ALL_LOCATIONS, PlaceLocation } from '@/lib/locations';
+import { ALL_LOCATIONS, PlaceLocation, isLocalDistanceRoute, isSameLocation } from '@/lib/locations';
 import { CustomerHeader } from '@/components/CustomerHeader';
 import { WebAuthModal } from '@/components/WebAuthModal';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
@@ -14,6 +14,7 @@ import { DriverAppModal } from '@/components/DriverAppModal';
 import { PromoBannerSlider } from '@/components/PromoBannerSlider';
 import { CustomerRatingsCard } from '@/components/CustomerRatingsCard';
 import { TimePickerModal } from '@/components/TimePickerModal';
+import { LocalSwitchModal } from '@/components/LocalSwitchModal';
 
 function format12HourTime(timeStr: string): string {
   if (!timeStr) return '';
@@ -138,6 +139,8 @@ export default function CustomerHomePage() {
   const [locationModalTarget, setLocationModalTarget] = useState<'PICKUP' | 'DROP' | string>('PICKUP');
   const [timeModalOpen, setTimeModalOpen] = useState(false);
   const [returnTimeModalOpen, setReturnTimeModalOpen] = useState(false);
+  const [localSwitchModalOpen, setLocalSwitchModalOpen] = useState(false);
+  const [pendingLocalNavigation, setPendingLocalNavigation] = useState(false);
 
   // Autocomplete suggestions
   const [pickupQuery, setPickupQuery] = useState('');
@@ -180,11 +183,77 @@ export default function CustomerHomePage() {
   };
 
   const handleSelectDrop = (place: PlaceLocation) => {
+    // 1. Same location check
+    if (pickupAddress && isSameLocation(pickupAddress, place.label)) {
+      alert('Pickup and drop location cannot be the same. Please choose a different destination.');
+      return;
+    }
+
+    // 2. Same city / local distance route check (< 22 km)
+    if (
+      pickupAddress &&
+      (tripType === TripType.ONEWAY || tripType === TripType.ROUND || activeTab === 'AIRPORT' || activeTab === 'ONEWAY')
+    ) {
+      const pLoc = ALL_LOCATIONS.find((l) => l.label.toLowerCase() === pickupAddress.toLowerCase().trim()) || {
+        label: pickupAddress,
+        lat: pickupLat || 12.9613,
+        lng: pickupLng || 74.8901,
+        category: 'MANGALURU' as const,
+      };
+      const viaLocs: PlaceLocation[] = stops.map((s) => ({
+        label: s.address,
+        lat: s.lat,
+        lng: s.lng,
+        category: 'MANGALURU' as const,
+      }));
+      if (isLocalDistanceRoute(pLoc, place, viaLocs)) {
+        setLocationModalOpen(false);
+        setDropAddress('');
+        setDropLat(null);
+        setDropLng(null);
+        setDropQuery('');
+        setShowDropSuggestions(false);
+        setPendingLocalNavigation(false);
+        setLocalSwitchModalOpen(true);
+        return;
+      }
+    }
+
     setDropAddress(place.label);
     setDropLat(place.lat);
     setDropLng(place.lng);
     setDropQuery('');
     setShowDropSuggestions(false);
+  };
+
+  const handleConfirmLocalSwitch = () => {
+    setLocalSwitchModalOpen(false);
+    setActiveTab('LOCAL');
+    setTripType(TripType.LOCAL);
+    setLocalPackage('8_80');
+    setDropAddress('Local Rental (8 Hrs / 80 km)');
+    setDropLat(0);
+    setDropLng(0);
+    setStops([]);
+
+    if (pendingLocalNavigation && scheduledDate && scheduledTime) {
+      const params = new URLSearchParams({
+        step: '2',
+        tripType: TripType.LOCAL,
+        pickup: pickupAddress,
+        pickupLat: (pickupLat ?? 0).toString(),
+        pickupLng: (pickupLng ?? 0).toString(),
+        drop: 'Local Rental (8 Hrs / 80 km)',
+        dropLat: '0',
+        dropLng: '0',
+        date: scheduledDate,
+        time: scheduledTime,
+        category: VehicleCategory.SEDAN,
+        localPackage: '8_80',
+      });
+      router.push(`/booking?${params.toString()}`);
+    }
+    setPendingLocalNavigation(false);
   };
 
   const handleSelectLocation = (place: PlaceLocation) => {
@@ -239,6 +308,45 @@ export default function CustomerHomePage() {
     if (!effectiveDrop.trim()) {
       alert('Please enter a destination or drop location');
       return;
+    }
+
+    // 1. Same location check
+    if (isSameLocation(pickupAddress, effectiveDrop)) {
+      alert('Pickup and drop location cannot be the same. Please choose a different destination.');
+      return;
+    }
+
+    // 2. Same city / local distance check for outstation or airport bookings!
+    if (
+      tripType === TripType.ONEWAY ||
+      tripType === TripType.ROUND ||
+      activeTab === 'AIRPORT' ||
+      activeTab === 'ONEWAY'
+    ) {
+      const pLoc = ALL_LOCATIONS.find((l) => l.label.toLowerCase() === pickupAddress.toLowerCase().trim()) || {
+        label: pickupAddress,
+        lat: pickupLat || 12.9613,
+        lng: pickupLng || 74.8901,
+        category: 'MANGALURU' as const,
+      };
+      const dLoc = ALL_LOCATIONS.find((l) => l.label.toLowerCase() === effectiveDrop.toLowerCase().trim()) || {
+        label: effectiveDrop,
+        lat: dropLat || 12.8634,
+        lng: dropLng || 74.8436,
+        category: 'MANGALURU' as const,
+      };
+
+      const viaLocs: PlaceLocation[] = stops.map((s) => ({
+        label: s.address,
+        lat: s.lat,
+        lng: s.lng,
+        category: 'MANGALURU' as const,
+      }));
+      if (isLocalDistanceRoute(pLoc, dLoc, viaLocs)) {
+        setPendingLocalNavigation(true);
+        setLocalSwitchModalOpen(true);
+        return;
+      }
     }
 
     if (!scheduledDate) {
@@ -1048,6 +1156,12 @@ export default function CustomerHomePage() {
         onSelectTime={(t) => setReturnTime(t)}
         currentTime={returnTime}
         title="Select Return Time"
+      />
+
+      {/* Local Rental Switched Modal */}
+      <LocalSwitchModal
+        isOpen={localSwitchModalOpen}
+        onConfirm={handleConfirmLocalSwitch}
       />
     </div>
   );

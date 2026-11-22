@@ -12,7 +12,7 @@ import {
   PricingBreakdown,
 } from '@kandy-cabs/shared';
 import { useAuth } from '@/lib/AuthContext';
-import { ALL_LOCATIONS, PlaceLocation } from '@/lib/locations';
+import { ALL_LOCATIONS, PlaceLocation, isLocalDistanceRoute, isSameLocation } from '@/lib/locations';
 import { BookingFlowHeader } from '@/components/BookingFlowHeader';
 import {
   AdditionalRequirementsModal,
@@ -196,6 +196,7 @@ export default function BookingFunnelPage() {
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
   const [returnDate, setReturnDate] = useState('');
+  const [localPackage, setLocalPackage] = useState('8_80');
 
   const [distanceKm, setDistanceKm] = useState(0);
 
@@ -265,7 +266,8 @@ export default function BookingFunnelPage() {
     if (typeof window !== 'undefined') {
       const sp = new URLSearchParams(window.location.search);
       const trip = sp.get('tripType') as TripType;
-      if (trip && Object.values(TripType).includes(trip)) setTripType(trip);
+      const pkgParam = sp.get('localPackage') || '8_80';
+      setLocalPackage(pkgParam);
 
       const p = sp.get('pickup');
       if (p) setPickupAddress(p);
@@ -298,8 +300,35 @@ export default function BookingFunnelPage() {
         if (found) setSelectedFleet(found);
       }
 
-      // Calculate approximate road distance between lat/lng if available
-      if (pLat && dLat && pLng && dLng) {
+      // Check if this route is within same city / local distance (< 22 km)
+      let effectiveTrip = trip;
+      if (p && d && trip !== TripType.LOCAL) {
+        const pLoc = ALL_LOCATIONS.find((l) => l.label.toLowerCase() === p.toLowerCase().trim()) || {
+          label: p,
+          lat: pLat || 12.9613,
+          lng: pLng || 74.8901,
+          category: 'MANGALURU' as const,
+        };
+        const dLoc = ALL_LOCATIONS.find((l) => l.label.toLowerCase() === d.toLowerCase().trim()) || {
+          label: d,
+          lat: dLat || 12.8634,
+          lng: dLng || 74.8436,
+          category: 'MANGALURU' as const,
+        };
+        if (isLocalDistanceRoute(pLoc, dLoc)) {
+          effectiveTrip = TripType.LOCAL;
+          setDropAddress('Local Rental (8 Hrs / 80 km)');
+        }
+      }
+
+      if (effectiveTrip && Object.values(TripType).includes(effectiveTrip)) {
+        setTripType(effectiveTrip);
+      }
+
+      if (effectiveTrip === TripType.LOCAL) {
+        const pkgKm = pkgParam === '4_40' ? 40 : pkgParam === '12_120' ? 120 : 80;
+        setDistanceKm(pkgKm);
+      } else if (pLat && dLat && pLng && dLng) {
         const rad = (x: number) => (x * Math.PI) / 180;
         const R = 6371; // km
         const dLatRad = rad(dLat - pLat);
@@ -318,6 +347,31 @@ export default function BookingFunnelPage() {
 
   // Pricing Calculation Helper for any Fleet
   const calculateFare = (fleet: FleetOption) => {
+    if (tripType === TripType.LOCAL) {
+      const packageKm = localPackage === '4_40' ? 40 : localPackage === '12_120' ? 120 : 80;
+      const effectiveKm = Math.max(fleet.minKm || 0, packageKm);
+      const baseDistanceFare = Math.round(effectiveKm * fleet.baseRatePerKm);
+      const chauffeurAllowance = 0; // Local rental package includes driver
+      const tollStateTax = 'Included';
+      const subtotal = baseDistanceFare;
+      const gst = Math.round(subtotal * 0.05);
+      const totalFare = subtotal + gst;
+      const advancePayable = Math.round(totalFare * 0.3); // 30% advance deposit
+      const balanceToDriver = totalFare - advancePayable;
+
+      return {
+        billedKm: effectiveKm,
+        baseDistanceFare,
+        chauffeurAllowance,
+        tollStateTax,
+        subtotal,
+        gst,
+        totalFare,
+        advancePayable,
+        balanceToDriver,
+      };
+    }
+
     const isRound = tripType === TripType.ROUND;
     const billedKm = isRound ? distanceKm * 2 : distanceKm;
     const effectiveKm = Math.max(fleet.minKm || 0, billedKm);
@@ -552,7 +606,9 @@ export default function BookingFunnelPage() {
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0 ring-2 ring-red-100" />
                     <span className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                      {dropAddress}
+                      {tripType === TripType.LOCAL && (!dropAddress || dropAddress.includes('Local') || dropAddress.includes('Railway') || dropAddress.includes('Airport'))
+                        ? `${localPackage === '4_40' ? '4 Hours' : localPackage === '12_120' ? '12 Hours' : '8 Hours'} Package Area`
+                        : dropAddress}
                     </span>
                   </div>
                 </div>
@@ -581,7 +637,9 @@ export default function BookingFunnelPage() {
               {/* Bottom Row: Trip Type & Distance on Left, Edit Button on Right */}
               <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 text-xs">
                 <span className="font-semibold text-slate-500 text-[10.5px] sm:text-xs">
-                  {tripType === TripType.ROUND ? 'Round Trip' : 'One Way Drop'} • {distanceKm} km
+                  {tripType === TripType.LOCAL
+                    ? `Local Rental • ${localPackage === '4_40' ? '4 Hrs / 40 km' : localPackage === '12_120' ? '12 Hrs / 120 km' : '8 Hrs / 80 km'}`
+                    : `${tripType === TripType.ROUND ? 'Round Trip' : 'One Way Drop'} • ${distanceKm} km`}
                 </span>
 
                 <button
@@ -1405,7 +1463,11 @@ export default function BookingFunnelPage() {
 
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between text-slate-600">
-                    <span>Distance Fare ({selectedPricing.billedKm} km)</span>
+                    <span>
+                      {tripType === TripType.LOCAL
+                        ? `Local Package Fare (${selectedPricing.billedKm} km included)`
+                        : `Distance Fare (${selectedPricing.billedKm} km)`}
+                    </span>
                     <span className="font-semibold text-slate-900">
                       ₹ {selectedPricing.baseDistanceFare.toLocaleString('en-IN')}
                     </span>
@@ -1414,7 +1476,7 @@ export default function BookingFunnelPage() {
                   <div className="flex justify-between text-slate-600">
                     <span>Chauffeur Allowance</span>
                     <span className="font-semibold text-slate-900">
-                      ₹ {selectedPricing.chauffeurAllowance}
+                      {tripType === TripType.LOCAL ? 'Included in package' : `₹ ${selectedPricing.chauffeurAllowance}`}
                     </span>
                   </div>
 

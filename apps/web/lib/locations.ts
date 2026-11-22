@@ -9,9 +9,97 @@ export interface PlaceLocation {
 }
 
 export const ALL_LOCATIONS: PlaceLocation[] = [
-  // Airports & Major Terminals
-  { label: 'Mangaluru Airport (IXE)', sublabel: 'Bajpe Terminal, Mangaluru', lat: 12.9613, lng: 74.8901, category: 'AIRPORTS', keywords: ['bajpe', 'airport', 'ixe', 'flight', 'mangalore'] },
-  { label: 'Kempegowda Intl Airport (BLR)', sublabel: 'Devanahalli Airport, Bengaluru', lat: 13.1986, lng: 77.7066, category: 'AIRPORTS', keywords: ['bangalore', 'airport', 'blr', 'kempegowda', 'devanahalli'] },
+  // Airports (Mangaluru & South India Major Gateways)
+  {
+    label: 'Mangaluru Airport (IXE)',
+    sublabel: 'Bajpe Terminal, Mangaluru',
+    lat: 12.9613,
+    lng: 74.8901,
+    category: 'AIRPORTS',
+    keywords: ['bajpe', 'airport', 'ixe', 'flight', 'mangalore', 'mangaluru airport', 'aerodrome']
+  },
+  {
+    label: 'Kempegowda Intl Airport (BLR)',
+    sublabel: 'Devanahalli Airport, Bengaluru',
+    lat: 13.1986,
+    lng: 77.7066,
+    category: 'AIRPORTS',
+    keywords: ['bangalore', 'airport', 'blr', 'kempegowda', 'devanahalli', 'bengaluru airport']
+  },
+  {
+    label: 'Kannur Intl Airport (CNN)',
+    sublabel: 'Mattannur, Kannur, Kerala',
+    lat: 11.9192,
+    lng: 75.5482,
+    category: 'AIRPORTS',
+    keywords: ['kannur', 'airport', 'cnn', 'kerala', 'mattannur', 'kannur airport']
+  },
+  {
+    label: 'Manohar Intl Airport, Mopa (GOX)',
+    sublabel: 'Mopa, North Goa',
+    lat: 15.7667,
+    lng: 73.8667,
+    category: 'AIRPORTS',
+    keywords: ['goa', 'mopa', 'airport', 'gox', 'north goa', 'manohar']
+  },
+  {
+    label: 'Goa Dabolim Airport (GOI)',
+    sublabel: 'Dabolim, South Goa',
+    lat: 15.3808,
+    lng: 73.8314,
+    category: 'AIRPORTS',
+    keywords: ['goa', 'dabolim', 'airport', 'goi', 'south goa']
+  },
+  {
+    label: 'Mysuru Airport (MYQ)',
+    sublabel: 'Mandakalli, Mysuru',
+    lat: 12.2289,
+    lng: 76.6543,
+    category: 'AIRPORTS',
+    keywords: ['mysore', 'mysuru', 'airport', 'myq', 'mandakalli']
+  },
+  {
+    label: 'Calicut Intl Airport (CCJ)',
+    sublabel: 'Karipur, Kozhikode, Kerala',
+    lat: 11.1367,
+    lng: 75.9553,
+    category: 'AIRPORTS',
+    keywords: ['calicut', 'kozhikode', 'karipur', 'airport', 'ccj', 'kerala']
+  },
+  {
+    label: 'Cochin Intl Airport (COK)',
+    sublabel: 'Nedumbassery, Kochi, Kerala',
+    lat: 10.1557,
+    lng: 76.3916,
+    category: 'AIRPORTS',
+    keywords: ['cochin', 'kochi', 'nedumbassery', 'airport', 'cok', 'kerala']
+  },
+  {
+    label: 'Hubballi Airport (HBX)',
+    sublabel: 'Gokul Road, Hubballi',
+    lat: 15.3617,
+    lng: 75.0849,
+    category: 'AIRPORTS',
+    keywords: ['hubli', 'hubballi', 'airport', 'hbx']
+  },
+  {
+    label: 'Belagavi Airport (IXG)',
+    sublabel: 'Sambra, Belagavi',
+    lat: 15.8593,
+    lng: 74.6183,
+    category: 'AIRPORTS',
+    keywords: ['belgaum', 'belagavi', 'sambra', 'airport', 'ixg']
+  },
+  {
+    label: 'Shivamogga Airport (RQY)',
+    sublabel: 'Sogane, Shivamogga',
+    lat: 13.8617,
+    lng: 75.6328,
+    category: 'AIRPORTS',
+    keywords: ['shivamogga', 'shimoga', 'sogane', 'airport', 'rqy']
+  },
+
+  // Major Railway & Bus Terminals
   { label: 'Mangaluru Central Railway Station', sublabel: 'MAQ, Hampankatta', lat: 12.8634, lng: 74.8436, category: 'MANGALURU', keywords: ['train', 'station', 'railway', 'central', 'maq', 'hampankatta'] },
   { label: 'Mangaluru Junction Railway Station', sublabel: 'MAJN, Kankanady Bypass', lat: 12.8687, lng: 74.8624, category: 'MANGALURU', keywords: ['train', 'station', 'railway', 'junction', 'majn', 'kankanady', 'padil'] },
   { label: 'Surathkal Railway Station', sublabel: 'SL, NH66 Surathkal', lat: 13.0035, lng: 74.7960, category: 'MANGALURU', keywords: ['train', 'station', 'railway', 'surathkal', 'sl'] },
@@ -132,3 +220,170 @@ export const ALL_LOCATIONS: PlaceLocation[] = [
   { label: 'Ooty Central, Nilgiris', sublabel: 'Botanical Gardens / Lake, Nilgiris', lat: 11.4102, lng: 76.6950, category: 'OUTSTATION', keywords: ['ooty', 'nilgiris', 'tamil nadu'] },
   { label: 'Tirupati Balaji Temple', sublabel: 'Tirumala Venkateswara Swamy Temple', lat: 13.6833, lng: 79.3472, category: 'OUTSTATION', keywords: ['tirupati', 'tirumala', 'balaji'] },
 ];
+
+/**
+ * Calculates estimated driving distance in kilometres between two coordinates using Haversine formula + road factor.
+ */
+export function calculateGeoDistanceKm(
+  lat1?: number,
+  lon1?: number,
+  lat2?: number,
+  lon2?: number
+): number {
+  if (
+    typeof lat1 !== 'number' ||
+    typeof lon1 !== 'number' ||
+    typeof lat2 !== 'number' ||
+    typeof lon2 !== 'number' ||
+    (lat1 === 0 && lon1 === 0) ||
+    (lat2 === 0 && lon2 === 0)
+  ) {
+    return 100;
+  }
+
+  const R = 6371; // Earth radius in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+    Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const straight = R * c;
+
+  return Math.round(straight * 1.25 * 10) / 10;
+}
+
+/**
+ * Checks whether the route between pickup, via stops, and drop is strictly within the same city / local distance (< 22 km).
+ * If any location is OUTSTATION or any stop/leg distance is >= 22 km, or total journey >= 22 km,
+ * it is NOT a local route and will never switch to local rental.
+ */
+export function isLocalDistanceRoute(
+  pickup?: PlaceLocation | null,
+  drop?: PlaceLocation | null,
+  viaStops?: (PlaceLocation | null | undefined)[] | null
+): boolean {
+  if (!pickup || !drop) return false;
+
+  // 1. If pickup or drop is marked as OUTSTATION, definitely not local
+  if (pickup.category === 'OUTSTATION' || drop.category === 'OUTSTATION') {
+    return false;
+  }
+
+  // 2. Direct distance between pickup and drop must be under 22 km
+  const directDist = calculateGeoDistanceKm(pickup.lat, pickup.lng, drop.lat, drop.lng);
+  if (directDist >= 22) {
+    return false;
+  }
+
+  // 3. If there are via stops, verify EVERY via stop is local (< 22 km from pickup) and not OUTSTATION
+  if (viaStops && viaStops.length > 0) {
+    let totalKm = 0;
+    let prev = pickup;
+
+    for (const stop of viaStops) {
+      if (!stop) continue;
+
+      // If stop is marked as OUTSTATION (e.g. Kukke Subrahmanya, Dharmasthala, Udupi, etc.)
+      if (stop.category === 'OUTSTATION') {
+        return false;
+      }
+
+      // Check distance from pickup to this stop
+      const distFromPickup = calculateGeoDistanceKm(pickup.lat, pickup.lng, stop.lat, stop.lng);
+      if (distFromPickup >= 22) {
+        return false;
+      }
+
+      // Check distance from previous point to this stop
+      const legDist = calculateGeoDistanceKm(prev.lat, prev.lng, stop.lat, stop.lng);
+      totalKm += legDist;
+      prev = stop;
+    }
+
+    // Add final leg from last stop to drop
+    totalKm += calculateGeoDistanceKm(prev.lat, prev.lng, drop.lat, drop.lng);
+
+    // If total route distance with all stops is 22 km or more, not local
+    if (totalKm >= 22) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Checks whether a given location is an airport.
+ */
+export function isAirportLocation(loc?: PlaceLocation | null): boolean {
+  if (!loc) return false;
+  if (loc.category === 'AIRPORTS') return true;
+  const text = `${loc.label} ${loc.sublabel || ''} ${(loc.keywords || []).join(' ')}`.toLowerCase();
+  return (
+    text.includes('airport') ||
+    text.includes('aerodrome') ||
+    text.includes('(ixe)') ||
+    text.includes('(blr)') ||
+    text.includes('(cnn)') ||
+    text.includes('(goi)') ||
+    text.includes('(gox)') ||
+    text.includes('(ccj)') ||
+    text.includes('(cok)') ||
+    text.includes('(myq)') ||
+    text.includes('(hbx)') ||
+    text.includes('(ixg)') ||
+    text.includes('(rqy)')
+  );
+}
+
+/**
+ * Checks whether two locations are identical (matching name/label or identical coordinates).
+ */
+export function isSameLocation(
+  loc1?: PlaceLocation | string | null,
+  loc2?: PlaceLocation | string | null
+): boolean {
+  if (!loc1 || !loc2) return false;
+
+  const getCleanLabel = (l: PlaceLocation | string): string => {
+    const raw = typeof l === 'string' ? l : l.label || '';
+    return raw
+      .toLowerCase()
+      .replace(/[(),.\-_/]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const label1 = getCleanLabel(loc1);
+  const label2 = getCleanLabel(loc2);
+
+  if (label1 && label2 && label1 === label2) {
+    return true;
+  }
+
+  // Also check if both have valid coordinates
+  if (
+    typeof loc1 === 'object' &&
+    typeof loc2 === 'object' &&
+    typeof loc1.lat === 'number' &&
+    typeof loc1.lng === 'number' &&
+    typeof loc2.lat === 'number' &&
+    typeof loc2.lng === 'number' &&
+    loc1.lat !== 0 &&
+    loc2.lat !== 0
+  ) {
+    const distKm = calculateGeoDistanceKm(loc1.lat, loc1.lng, loc2.lat, loc2.lng);
+    if (distKm <= 0.1) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+
