@@ -132,11 +132,28 @@ export default function CustomerHomePage() {
     return `${year}-${month}-${day}`;
   };
 
+  const isValidFullDate = (d: string) => {
+    if (!d || typeof d !== 'string' || d.length !== 10) return false;
+    const parts = d.split('-');
+    if (parts.length !== 3) return false;
+    const yearStr = parts[0];
+    const monthStr = parts[1];
+    const dayStr = parts[2];
+    if (yearStr.length !== 4) return false;
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    const day = Number(dayStr);
+    if (isNaN(year) || year < 1900 || isNaN(month) || month < 1 || month > 12 || isNaN(day) || day < 1 || day > 31) {
+      return false;
+    }
+    return true;
+  };
+
   const todayStr = getTodayDateStr();
-  const isTripDatePassed = Boolean(scheduledDate && scheduledDate < todayStr);
+  const isTripDatePassed = Boolean(isValidFullDate(scheduledDate) && scheduledDate < todayStr);
   const isReturnDatePassed = Boolean(
     (tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') &&
-    returnDate &&
+    isValidFullDate(returnDate) &&
     (returnDate < (scheduledDate || todayStr))
   );
 
@@ -477,6 +494,10 @@ export default function CustomerHomePage() {
         alert('Please select your trip start date');
         return;
       }
+      if (!isValidFullDate(scheduledDate)) {
+        alert('Please enter a complete trip start date including a 4-digit year.');
+        return;
+      }
       if (scheduledDate < todayStr) {
         alert('The selected trip date has already crossed! Please change the date to today or a future date to proceed.');
         return;
@@ -486,6 +507,10 @@ export default function CustomerHomePage() {
     if (activeTab === 'CORPORATE' && corporateMode === 'ONCE') {
       if (!scheduledDate) {
         alert('Please select your pickup date');
+        return;
+      }
+      if (!isValidFullDate(scheduledDate)) {
+        alert('Please enter a complete pickup date including a 4-digit year.');
         return;
       }
       if (scheduledDate < todayStr) {
@@ -502,6 +527,10 @@ export default function CustomerHomePage() {
     if (tripType === TripType.ROUND || tripType === TripType.PACKAGE || activeTab === 'ROUND' || activeTab === 'TOUR') {
       if (!returnDate) {
         alert('Please select your return date');
+        return;
+      }
+      if (!isValidFullDate(returnDate)) {
+        alert('Please enter a complete return date including a 4-digit year.');
         return;
       }
       if (returnDate < scheduledDate) {
@@ -1151,13 +1180,7 @@ export default function CustomerHomePage() {
                       type="date"
                       value={scheduledDate}
                       min={todayStr}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setScheduledDate(val);
-                        if (val && val < todayStr) {
-                          alert('This date has already crossed! Please change the date.');
-                        }
-                      }}
+                      onChange={(e) => setScheduledDate(e.target.value)}
                       className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
                         isTripDatePassed ? 'text-red-700 font-bold' : (scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400')
                       }`}
@@ -1260,13 +1283,7 @@ export default function CustomerHomePage() {
                     type="date"
                     value={scheduledDate}
                     min={todayStr}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setScheduledDate(val);
-                      if (val && val < todayStr) {
-                        alert('This date has already crossed! Please change the date.');
-                      }
-                    }}
+                    onChange={(e) => setScheduledDate(e.target.value)}
                     className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
                       isTripDatePassed ? 'text-red-700 font-bold' : (scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400')
                     }`}
@@ -1329,13 +1346,7 @@ export default function CustomerHomePage() {
                         type="date"
                         value={returnDate}
                         min={scheduledDate || todayStr}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setReturnDate(val);
-                          if (val && val < (scheduledDate || todayStr)) {
-                            alert('Return date cannot be earlier than departure date.');
-                          }
-                        }}
+                        onChange={(e) => setReturnDate(e.target.value)}
                         className={`w-full bg-transparent text-[15px] font-semibold focus:outline-none cursor-pointer ${
                           isReturnDatePassed ? 'text-red-700 font-bold' : (returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400')
                         }`}
@@ -1957,13 +1968,7 @@ export default function CustomerHomePage() {
                     type="date"
                     value={scheduledDate}
                     min={todayStr}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setScheduledDate(val);
-                      if (val && val < todayStr) {
-                        alert('This date has already crossed! Please change the date.');
-                      }
-                    }}
+                    onChange={(e) => setScheduledDate(e.target.value)}
                     className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer leading-tight ${
                       isTripDatePassed ? 'text-red-700 font-bold' : (scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400')
                     }`}
@@ -2067,13 +2072,7 @@ export default function CustomerHomePage() {
                     type="date"
                     value={scheduledDate}
                     min={todayStr}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setScheduledDate(val);
-                      if (val && val < todayStr) {
-                        alert('This date has already crossed! Please change the date.');
-                      }
-                    }}
+                    onChange={(e) => setScheduledDate(e.target.value)}
                     className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer leading-tight ${
                       isTripDatePassed ? 'text-red-700 font-bold' : (scheduledDate ? 'text-slate-900 font-semibold' : 'text-slate-400')
                     }`}
@@ -2136,13 +2135,7 @@ export default function CustomerHomePage() {
                         type="date"
                         value={returnDate}
                         min={scheduledDate || todayStr}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setReturnDate(val);
-                          if (val && val < (scheduledDate || todayStr)) {
-                            alert('Return date cannot be earlier than departure date.');
-                          }
-                        }}
+                        onChange={(e) => setReturnDate(e.target.value)}
                         className={`w-full bg-transparent text-sm font-semibold focus:outline-none cursor-pointer leading-tight ${
                           isReturnDatePassed ? 'text-red-700 font-bold' : (returnDate ? 'text-slate-900 font-semibold' : 'text-slate-400')
                         }`}
