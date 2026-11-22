@@ -1219,11 +1219,7 @@ export default function BookingFunnelPage() {
                       <button
                         type="button"
                         onClick={() => setReqModalOpen(true)}
-                        className={`p-3.5 rounded-2xl border flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-md hover:shadow-lg ${
-                          isTravellersZero
-                            ? 'border-orange-200 hover:border-orange-300'
-                            : 'border-slate-200 hover:border-slate-300'
-                        }`}
+                        className="p-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-md hover:shadow-lg"
                       >
                         <svg
                           className="w-6 h-6 mb-1 text-slate-900"
@@ -1240,11 +1236,7 @@ export default function BookingFunnelPage() {
                       <button
                         type="button"
                         onClick={() => setReqModalOpen(true)}
-                        className={`p-3.5 rounded-2xl border flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-md hover:shadow-lg ${
-                          isLuggageZero
-                            ? 'border-orange-200 hover:border-orange-300'
-                            : 'border-slate-200 hover:border-slate-300'
-                        }`}
+                        className="p-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-md hover:shadow-lg"
                       >
                         <svg
                           className="w-6 h-6 mb-1 text-slate-900"
