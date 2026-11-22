@@ -721,7 +721,7 @@ function ToggleRow({ icon, title, description, checked, onChange }: ToggleRowPro
     >
       <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
         {/* Circular Floating Badge */}
-        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-xs border border-slate-100 flex items-center justify-center flex-shrink-0">
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white shadow-md border border-slate-100 flex items-center justify-center flex-shrink-0">
           {icon}
         </div>
 
