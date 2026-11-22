@@ -234,6 +234,33 @@ export default function BookingFunnelPage() {
     specialNotes: '',
   });
 
+  // Pet-friendly surcharge rates loaded dynamically from admin panel settings (with safe defaults)
+  const [petRates, setPetRates] = useState<{ cat: number; dog: number; bird: number }>({
+    cat: 200,
+    dog: 500,
+    bird: 100,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/settings/pet-rates')
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && data?.success && data?.rates) {
+          setPetRates({
+            cat: typeof data.rates.cat === 'number' ? data.rates.cat : 200,
+            dog: typeof data.rates.dog === 'number' ? data.rates.dog : 500,
+            bird: typeof data.rates.bird === 'number' ? data.rates.bird : 100,
+          });
+        }
+      })
+      .catch((err) => console.warn('Could not fetch pet rates from API, using defaults:', err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Payment Selection State in Review (Advance vs Full)
   const [paymentMode, setPaymentMode] = useState<'ADVANCE' | 'FULL'>('ADVANCE');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -367,13 +394,17 @@ export default function BookingFunnelPage() {
 
   // Pricing Calculation Helper for any Fleet
   const calculateFare = (fleet: FleetOption) => {
+    const currentPetFee = additionalReqs.petFriendly
+      ? (petRates[additionalReqs.petType || 'dog'] ?? 500)
+      : 0;
+
     if (tripType === TripType.LOCAL) {
       const packageKm = localPackage === '4_40' ? 40 : localPackage === '12_120' ? 120 : 80;
       const effectiveKm = Math.max(fleet.minKm || 0, packageKm);
       const baseDistanceFare = Math.round(effectiveKm * fleet.baseRatePerKm);
       const chauffeurAllowance = 0; // Local rental package includes driver
       const tollStateTax = 'Included';
-      const subtotal = baseDistanceFare;
+      const subtotal = baseDistanceFare + currentPetFee;
       const gst = Math.round(subtotal * 0.05);
       const totalFare = subtotal + gst;
       const advancePayable = Math.round(totalFare * 0.3); // 30% advance deposit
@@ -384,6 +415,7 @@ export default function BookingFunnelPage() {
         baseDistanceFare,
         chauffeurAllowance,
         tollStateTax,
+        petFee: currentPetFee,
         subtotal,
         gst,
         totalFare,
@@ -398,7 +430,7 @@ export default function BookingFunnelPage() {
     const baseDistanceFare = Math.round(effectiveKm * fleet.baseRatePerKm);
     const chauffeurAllowance = isRound ? 600 : 300;
     const tollStateTax = 'Included';
-    const subtotal = baseDistanceFare + chauffeurAllowance;
+    const subtotal = baseDistanceFare + chauffeurAllowance + currentPetFee;
     const gst = Math.round(subtotal * 0.05);
     const totalFare = subtotal + gst;
     const advancePayable = Math.round(totalFare * 0.3); // 30% advance deposit
@@ -409,6 +441,7 @@ export default function BookingFunnelPage() {
       baseDistanceFare,
       chauffeurAllowance,
       tollStateTax,
+      petFee: currentPetFee,
       subtotal,
       gst,
       totalFare,
@@ -561,6 +594,10 @@ export default function BookingFunnelPage() {
             bookingRef,
             pickupOtp,
             additionalRequirements: additionalReqs,
+            hasPet: additionalReqs.petFriendly,
+            isPetFriendly: additionalReqs.petFriendly,
+            petType: additionalReqs.petFriendly ? additionalReqs.petType : undefined,
+            petFee: selectedPricing.petFee,
             totalFare: selectedPricing.totalFare,
             advancePayable: selectedPricing.advancePayable,
             paymentMode,
@@ -908,6 +945,12 @@ export default function BookingFunnelPage() {
                           <span>Toll & State Permits:</span>
                           <span className="font-semibold text-emerald-600">Included</span>
                         </div>
+                        {additionalReqs.petFriendly && fare.petFee > 0 && (
+                          <div className="flex justify-between text-slate-600">
+                            <span>Pet Surcharge ({additionalReqs.petType === 'cat' ? 'Cat' : additionalReqs.petType === 'bird' ? 'Bird' : 'Dog'}):</span>
+                            <span className="font-semibold text-[#f0750f]">+₹{fare.petFee} Included</span>
+                          </div>
+                        )}
                         <div className="flex justify-between text-slate-600">
                           <span>GST (5%):</span>
                           <span className="font-semibold text-slate-800">₹{fare.gst} Included</span>
@@ -1903,6 +1946,20 @@ export default function BookingFunnelPage() {
                     <span className="font-semibold text-emerald-600">Included</span>
                   </div>
 
+                  {additionalReqs.petFriendly && selectedPricing.petFee > 0 && (
+                    <div className="flex justify-between text-slate-600">
+                      <span className="flex items-center gap-1.5">
+                        <span className="text-sm leading-none">🐾</span>
+                        <span>
+                          Pet Surcharge ({additionalReqs.petType === 'cat' ? 'Cat' : additionalReqs.petType === 'bird' ? 'Bird' : 'Dog'})
+                        </span>
+                      </span>
+                      <span className="font-bold text-[#f0750f]">
+                        +₹ {selectedPricing.petFee.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="pt-2 border-t border-slate-100 flex justify-between font-bold text-slate-800">
                     <span>Subtotal</span>
                     <span>₹ {selectedPricing.subtotal.toLocaleString('en-IN')}</span>
@@ -2335,6 +2392,7 @@ export default function BookingFunnelPage() {
       <AdditionalRequirementsModal
         isOpen={reqModalOpen}
         maxSeats={4}
+        petRates={petRates}
         initialData={{
           ...additionalReqs,
           roofCarrier: additionalReqs.roofCarrier ?? Boolean(roofCarrierEnabled[selectedFleet.id]),

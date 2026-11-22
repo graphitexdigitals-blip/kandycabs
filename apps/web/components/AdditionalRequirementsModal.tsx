@@ -33,6 +33,7 @@ interface AdditionalRequirementsModalProps {
   initialData: AdditionalRequirementsData;
   onClose: () => void;
   onApply: (data: AdditionalRequirementsData) => void;
+  petRates?: { cat: number; dog: number; bird: number };
 }
 
 interface LuggageItemDef {
@@ -75,6 +76,7 @@ export function AdditionalRequirementsModal({
   initialData,
   onClose,
   onApply,
+  petRates = { cat: 200, dog: 500, bird: 100 },
 }: AdditionalRequirementsModalProps) {
   const [travellers, setTravellers] = useState(initialData.travellers || 0);
 
@@ -515,7 +517,16 @@ export function AdditionalRequirementsModal({
                     <path d="M12 11c-3.3 0-6 2.2-6 5 0 2.2 1.8 3 3.5 3 1.2 0 2-.8 2.5-1.2.5.4 1.3 1.2 2.5 1.2 1.7 0 3.5-.8 3.5-3 0-2.8-2.7-5-6-5z" />
                   </svg>
                 }
-                title="Pet Friendly"
+                title={
+                  <span className="flex items-center gap-1.5 flex-wrap">
+                    <span>Pet Friendly</span>
+                    {petFriendly && (
+                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-orange-100 text-[#f0750f]">
+                        +₹{petRates[petType] ?? (petType === 'cat' ? 200 : petType === 'bird' ? 100 : 500)}
+                      </span>
+                    )}
+                  </span>
+                }
                 description="Enable this if you are traveling with pets."
                 checked={petFriendly}
                 onChange={setPetFriendly}
@@ -523,10 +534,15 @@ export function AdditionalRequirementsModal({
 
               {/* Sub-selector when Pet Friendly is switched ON */}
               {petFriendly && (
-                <div className="mt-2.5 ml-14 p-3 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 animate-in fade-in duration-150">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    Select Pet Type:
-                  </p>
+                <div className="mt-2.5 ml-10 sm:ml-14 p-2.5 sm:p-3 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                      Select Pet Type:
+                    </p>
+                    <span className="text-[11px] font-bold text-[#f0750f]">
+                      Surcharge: ₹{petRates[petType] ?? (petType === 'cat' ? 200 : petType === 'bird' ? 100 : 500)}
+                    </span>
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     {[
                       { type: 'cat' as const, label: 'Cat', image: '/images/pet-cat-icon.png' },
@@ -534,6 +550,7 @@ export function AdditionalRequirementsModal({
                       { type: 'bird' as const, label: 'Bird', image: '/images/pet-bird-icon.png' },
                     ].map((item) => {
                       const isSelected = petType === item.type;
+                      const rate = petRates[item.type] ?? (item.type === 'cat' ? 200 : item.type === 'bird' ? 100 : 500);
                       return (
                         <button
                           key={item.type}
@@ -548,7 +565,10 @@ export function AdditionalRequirementsModal({
                           <div className="relative w-7 h-7 mb-1">
                             <Image src={item.image} alt={item.label} fill className="object-contain" />
                           </div>
-                          <span className="text-xs font-bold">{item.label}</span>
+                          <span className="text-xs font-bold leading-tight">{item.label}</span>
+                          <span className={`text-[10px] font-black mt-0.5 leading-tight ${isSelected ? 'text-[#f0750f]' : 'text-slate-500'}`}>
+                            +₹{rate}
+                          </span>
                         </button>
                       );
                     })}
@@ -693,7 +713,7 @@ export function AdditionalRequirementsModal({
 // Reusable iOS-style Toggle Row matching Image 2 & Image 3
 interface ToggleRowProps {
   icon: React.ReactNode;
-  title: string;
+  title: React.ReactNode;
   description: string;
   checked: boolean;
   onChange: (val: boolean) => void;
@@ -713,7 +733,7 @@ function ToggleRow({ icon, title, description, checked, onChange }: ToggleRowPro
 
         {/* Text */}
         <div className="min-w-0 pr-1">
-          <p className="text-[11.5px] sm:text-sm font-bold text-slate-900 leading-tight sm:leading-snug">{title}</p>
+          <div className="text-[11.5px] sm:text-sm font-bold text-slate-900 leading-tight sm:leading-snug">{title}</div>
           <p className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 leading-tight sm:leading-snug">{description}</p>
         </div>
       </div>
