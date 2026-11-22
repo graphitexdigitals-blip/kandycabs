@@ -1400,7 +1400,7 @@ export default function BookingFunnelPage() {
                         className="p-2.5 sm:p-3 rounded-xl border border-slate-200 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-2xs hover:shadow-xs min-h-[66px]"
                       >
                         {item.icon}
-                        <span className={`block text-[11px] sm:text-xs font-bold truncate max-w-full px-1 ${item.isAlert ? 'text-[#c2410c]' : 'text-slate-800'}`}>
+                        <span className="block text-[11px] sm:text-xs font-bold truncate max-w-full px-1 text-[#f0750f]">
                           {item.text}
                         </span>
                       </button>
@@ -1854,7 +1854,7 @@ export default function BookingFunnelPage() {
                         className="p-2.5 sm:p-3 rounded-xl border border-slate-200 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-2xs hover:shadow-xs min-h-[66px]"
                       >
                         {item.icon}
-                        <span className={`block text-[11px] sm:text-xs font-bold truncate max-w-full px-1 ${item.isAlert ? 'text-[#c2410c]' : 'text-slate-800'}`}>
+                        <span className="block text-[11px] sm:text-xs font-bold truncate max-w-full px-1 text-[#f0750f]">
                           {item.text}
                         </span>
                       </button>
