@@ -627,7 +627,7 @@ export default function BookingFunnelPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 pb-36 sm:pb-40">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 pb-3 sm:pb-5">
       {/* 3-Step Booking Flow Header Matching Mobile Screenshots */}
       <BookingFlowHeader
         currentStep={step === 2 ? 2 : step === 3 || step === 4 ? 3 : 3}
