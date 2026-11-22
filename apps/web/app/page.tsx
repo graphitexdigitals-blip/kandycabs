@@ -131,35 +131,61 @@ export default function CustomerHomePage() {
 
   // Corporate Travel State (Matching Customer App Image 2)
   const [corporateMode, setCorporateMode] = useState<'ONCE' | 'DAILY'>('ONCE');
-  const [corporateStartDate, setCorporateStartDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [corporateStartDate, setCorporateStartDate] = useState(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = day === 1 ? 0 : (day === 0 ? 1 : 8 - day);
+    const d = new Date(now);
+    d.setDate(now.getDate() + diff);
+    return d.toISOString().split('T')[0];
+  });
   const [corporateEndDate, setCorporateEndDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 6);
+    const now = new Date();
+    const day = now.getDay();
+    const diff = day === 1 ? 0 : (day === 0 ? 1 : 8 - day);
+    const d = new Date(now);
+    d.setDate(now.getDate() + diff + 6);
     return d.toISOString().split('T')[0];
   });
   const [corporateExcludedDates, setCorporateExcludedDates] = useState<string[]>([]);
   const [corporatePickupTimes, setCorporatePickupTimes] = useState<string[]>(['09:00']);
   const [activeEditingTimeIndex, setActiveEditingTimeIndex] = useState<number | null>(null);
 
-interface CorporateDateItem {
-  formatted: string;
-  dayName: string;
-  dayNum: string;
-  monthName: string;
-  isWeekend: boolean;
-}
+  interface CorporateDateItem {
+    formatted: string;
+    dayName: string;
+    dayNum: string;
+    monthName: string;
+    isWeekend: boolean;
+    monColIndex: number;
+  }
+
+  const getColStartClass = (colIndex: number) => {
+    switch (colIndex) {
+      case 1: return 'col-start-1';
+      case 2: return 'col-start-2';
+      case 3: return 'col-start-3';
+      case 4: return 'col-start-4';
+      case 5: return 'col-start-5';
+      case 6: return 'col-start-6';
+      case 7: return 'col-start-7';
+      default: return '';
+    }
+  };
 
   // Corporate Travel Calculations & Helpers
   const corporateDatesList: CorporateDateItem[] = useMemo(() => {
     const start = new Date(corporateStartDate);
     const end = new Date(corporateEndDate);
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) {
+      const day = isNaN(start.getTime()) ? 1 : start.getDay();
       return [{
         formatted: corporateStartDate,
         dayName: 'Day',
         dayNum: corporateStartDate.slice(8, 10),
         monthName: 'Date',
         isWeekend: false,
+        monColIndex: day === 0 ? 7 : day,
       }];
     }
     const list: CorporateDateItem[] = [];
@@ -168,12 +194,15 @@ interface CorporateDateItem {
     while (cur <= end && count < 60) {
       const formatted = cur.toISOString().split('T')[0];
       const isWeekend = cur.getDay() === 0 || cur.getDay() === 6;
+      const day = cur.getDay();
+      const monColIndex = day === 0 ? 7 : day;
       list.push({
         formatted,
         dayName: cur.toLocaleDateString('en-US', { weekday: 'short' }),
         dayNum: String(cur.getDate()).padStart(2, '0'),
         monthName: cur.toLocaleDateString('en-US', { month: 'short' }),
         isWeekend,
+        monColIndex,
       });
       cur.setDate(cur.getDate() + 1);
       count++;
@@ -971,24 +1000,26 @@ interface CorporateDateItem {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 pt-1 max-h-40 overflow-y-auto">
-                    {corporateDatesList.map((item) => {
+                  <div className="grid grid-cols-7 gap-1 sm:gap-1.5 pt-1 max-h-44 overflow-y-auto">
+                    {corporateDatesList.map((item, idx) => {
                       const isExcluded = corporateExcludedDates.includes(item.formatted);
                       return (
                         <button
                           key={item.formatted}
                           type="button"
                           onClick={() => handleToggleExcludeCorporateDate(item.formatted)}
-                          className={`p-1.5 rounded-xl border text-center transition-all cursor-pointer ${
+                          className={`py-1 sm:py-1.5 px-0.5 sm:px-1 rounded-lg sm:rounded-xl border text-center transition-all cursor-pointer ${
+                            idx === 0 ? getColStartClass(item.monColIndex) : ''
+                          } ${
                             isExcluded
                               ? 'bg-slate-100/70 border-slate-200 text-slate-400 opacity-60'
                               : 'bg-white border-slate-900/40 text-slate-900 shadow-2xs'
                           }`}
                         >
-                          <p className="text-[10px] font-bold uppercase leading-none">{item.dayName}</p>
-                          <p className="text-sm font-black my-0.5 leading-none">{item.dayNum}</p>
-                          <p className="text-[9px] font-medium leading-none">{item.monthName}</p>
-                          <span className={`inline-block mt-1 text-[9px] font-bold px-1 rounded ${isExcluded ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-800'}`}>
+                          <p className="text-[8px] sm:text-[10px] font-bold uppercase leading-none">{item.dayName}</p>
+                          <p className="text-[11px] sm:text-sm font-black my-0.5 leading-none">{item.dayNum}</p>
+                          <p className="hidden sm:block text-[9px] font-medium leading-none">{item.monthName}</p>
+                          <span className={`inline-block sm:mt-1 text-[7px] sm:text-[9px] font-bold px-0.5 sm:px-1 py-0.2 rounded leading-tight ${isExcluded ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-800'}`}>
                             {isExcluded ? 'Skip' : 'Ride'}
                           </span>
                         </button>
@@ -1706,23 +1737,25 @@ interface CorporateDateItem {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 max-h-36 overflow-y-auto pr-0.5">
-                    {corporateDatesList.map((item) => {
+                  <div className="grid grid-cols-7 gap-1 max-h-36 overflow-y-auto pr-0.5">
+                    {corporateDatesList.map((item, idx) => {
                       const isExcluded = corporateExcludedDates.includes(item.formatted);
                       return (
                         <button
                           key={item.formatted}
                           type="button"
                           onClick={() => handleToggleExcludeCorporateDate(item.formatted)}
-                          className={`p-1 rounded-lg border text-center transition-all cursor-pointer ${
+                          className={`py-1 px-0.5 rounded-lg border text-center transition-all cursor-pointer ${
+                            idx === 0 ? getColStartClass(item.monColIndex) : ''
+                          } ${
                             isExcluded
                               ? 'bg-slate-100/70 border-slate-200 text-slate-400 opacity-60'
                               : 'bg-white border-slate-900/40 text-slate-900 shadow-2xs'
                           }`}
                         >
-                          <p className="text-[9px] font-bold uppercase leading-none">{item.dayName}</p>
-                          <p className="text-xs font-black my-0.5 leading-none">{item.dayNum}</p>
-                          <span className={`inline-block text-[8px] font-bold px-1 rounded ${isExcluded ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-800'}`}>
+                          <p className="text-[8px] font-bold uppercase leading-none">{item.dayName}</p>
+                          <p className="text-[11px] font-black my-0.5 leading-none">{item.dayNum}</p>
+                          <span className={`inline-block text-[7px] font-extrabold px-0.5 py-0.2 rounded leading-tight ${isExcluded ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-800'}`}>
                             {isExcluded ? 'Skip' : 'Ride'}
                           </span>
                         </button>
