@@ -1490,43 +1490,6 @@ export default function BookingFunnelPage() {
         {/* ========================================================================= */}
         {step === 4 && (
           <div className="space-y-4 animate-in fade-in duration-200">
-            {/* Header with Stepper Progress (Matching Image 1) */}
-            <div className="space-y-3 pb-1">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep(3)}
-                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 transition font-bold"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M15 18l-6-6 6-6" />
-                  </svg>
-                </button>
-                <div>
-                  <h2 className="text-base sm:text-lg font-black text-slate-900">Review &amp; Confirm Booking</h2>
-                  <p className="text-xs text-slate-500">Step 3 of 3 • Review &amp; Pay</p>
-                </div>
-              </div>
-
-              {/* Horizontal Stepper Progress Bar */}
-              <div className="flex items-center justify-between max-w-md mx-auto pt-1 px-2 text-xs font-bold select-none">
-                <div className="flex items-center gap-1.5 text-[#f0750f]">
-                  <span className="w-5 h-5 rounded-full bg-[#f0750f] text-white text-[10px] flex items-center justify-center font-bold">✓</span>
-                  <span>Trip Details</span>
-                </div>
-                <div className="flex-1 h-0.5 bg-[#f0750f] mx-2" />
-                <div className="flex items-center gap-1.5 text-[#f0750f]">
-                  <span className="w-5 h-5 rounded-full bg-[#f0750f] text-white text-[10px] flex items-center justify-center font-bold">✓</span>
-                  <span>Select Cab</span>
-                </div>
-                <div className="flex-1 h-0.5 bg-[#f0750f] mx-2" />
-                <div className="flex items-center gap-1.5 text-[#f0750f]">
-                  <span className="w-5 h-5 rounded-full bg-[#f0750f] text-white text-[10px] flex items-center justify-center font-bold">3</span>
-                  <span>Review &amp; Pay</span>
-                </div>
-              </div>
-            </div>
-
             {/* Selected Vehicle Card (Matching Image 1) */}
             <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-xs">
               <div className="flex items-start justify-between gap-2.5 pb-2.5 border-b border-slate-100">
