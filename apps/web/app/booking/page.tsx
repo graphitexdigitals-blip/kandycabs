@@ -2155,29 +2155,10 @@ export default function BookingFunnelPage() {
               </div>
             </div>
 
-            {/* Sticky Bottom Payment Bar (Matching Image 2) */}
+            {/* Sticky Bottom Payment Bar */}
             <div className="sticky bottom-2 z-30 pt-2">
-              {/* Top Mint Strip */}
-              <div className="bg-[#ecfdf5] border border-[#a7f3d0] rounded-t-2xl px-4 py-2 flex items-center justify-between text-xs font-semibold text-emerald-900 shadow-sm">
-                <span className="truncate pr-2">
-                  {paymentMode === 'ADVANCE'
-                    ? `Pay ₹${selectedPricing.advancePayable.toLocaleString('en-IN')} now, to reserve, rest ₹${selectedPricing.balanceToDriver.toLocaleString('en-IN')} to the driver`
-                    : `Pay ₹${selectedPricing.totalFare.toLocaleString('en-IN')} now, zero balance to the driver`}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.scrollTo({ top: 380, behavior: 'smooth' });
-                  }}
-                  className="text-emerald-700 font-bold hover:underline flex items-center gap-0.5 flex-shrink-0"
-                >
-                  <span>Fare breakup</span>
-                  <span>⌃</span>
-                </button>
-              </div>
-
               {/* Bottom Buttons Row */}
-              <div className="bg-white rounded-b-2xl p-3 border-x border-b border-slate-200 shadow-xl flex items-center gap-2.5">
+              <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-xl flex items-center gap-2.5">
                 {/* Pay Advance Pill */}
                 <button
                   type="button"
