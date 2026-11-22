@@ -187,17 +187,26 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
         </div>
       </div>
 
-      {/* Full-Height Slide-Over Drawer (Right-to-Left on Mobile & Tablet) */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          {/* Backdrop Overlay */}
-          <div
-            onClick={() => setMobileMenuOpen(false)}
-            className="fixed inset-0 bg-black/65 backdrop-blur-sm transition-opacity animate-in fade-in duration-300"
-          />
+      {/* Full-Height Slide-Over Drawer (Smooth Right-to-Left Slide Transition on Mobile & Tablet) */}
+      <div
+        className={`fixed inset-0 z-50 lg:hidden transition-[visibility] duration-300 ${
+          mobileMenuOpen ? 'visible pointer-events-auto' : 'invisible pointer-events-none delay-300'
+        }`}
+      >
+        {/* Backdrop Overlay with smooth fade */}
+        <div
+          onClick={() => setMobileMenuOpen(false)}
+          className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-in-out ${
+            mobileMenuOpen ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
 
-          {/* Side Drawer Panel (White Background) */}
-          <div className="fixed top-0 right-0 bottom-0 h-full w-full sm:w-80 md:w-96 max-w-full bg-white text-slate-800 z-50 shadow-2xl flex flex-col justify-between p-4 sm:p-5 animate-in slide-in-from-right duration-300 ease-out border-l border-slate-100">
+        {/* Side Drawer Panel (White Background with smooth right-to-left slide transition) */}
+        <div
+          className={`fixed top-0 right-0 bottom-0 h-full w-full sm:w-80 md:w-96 max-w-full bg-white text-slate-800 z-50 shadow-2xl flex flex-col justify-between p-4 sm:p-5 border-l border-slate-100 transform transition-transform duration-300 ease-out will-change-transform ${
+            mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
             {/* Top Area: Header, User Profile Card, Nav Links */}
             <div className="flex flex-col space-y-3.5 overflow-y-auto">
               {/* Drawer Top Bar: Brand Logo & Close Button */}
@@ -356,7 +365,6 @@ export function CustomerHeader({ onOpenAuth, activeNav = 'home' }: CustomerHeade
             </div>
           </div>
         </div>
-      )}
     </header>
   );
 }
