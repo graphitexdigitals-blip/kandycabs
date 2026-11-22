@@ -575,9 +575,15 @@ export function AdditionalRequirementsModal({
             {/* 7. Pregnancy Friendly (New Option from Image 3) */}
             <ToggleRow
               icon={
-                <svg className="w-5 h-5 text-[#f0750f]" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm7 9c-.01-1.34-.83-2.51-2-3 0-1.66-1.34-3-3-3s-3 1.34-3 3v7h2v5h3v-5h1v-4z" />
-                </svg>
+                <div className="relative w-5 h-5 flex items-center justify-center">
+                  <Image
+                    src="/images/pregnancy-orange.png"
+                    alt="Pregnancy Friendly"
+                    width={18}
+                    height={22}
+                    className="object-contain"
+                  />
+                </div>
               }
               title="Pregnancy Friendly"
               description="Enable this if traveling with a pregnant passenger for extra gentle driving."
@@ -590,12 +596,15 @@ export function AdditionalRequirementsModal({
             {/* 8. Accessibility Assistance (New Option from Image 3) */}
             <ToggleRow
               icon={
-                <svg className="w-5 h-5 text-[#f0750f]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="13" cy="4" r="1.75" fill="currentColor" stroke="none" />
-                  <path d="M12 9.5h4" />
-                  <path d="M12 7v6h4.5l2 5" />
-                  <path d="M10 11a4.5 4.5 0 1 0 4.5 4.5" />
-                </svg>
+                <div className="relative w-5 h-5 flex items-center justify-center">
+                  <Image
+                    src="/images/wheelchair-orange.png"
+                    alt="Accessibility Assistance"
+                    width={20}
+                    height={22}
+                    className="object-contain"
+                  />
+                </div>
               }
               title="Accessibility Assistance"
               description="Enable this for wheelchair support, easy boarding & driver assistance."
