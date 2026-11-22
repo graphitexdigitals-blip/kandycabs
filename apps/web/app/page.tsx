@@ -347,10 +347,10 @@ export default function CustomerHomePage() {
         {/* ======================================================== */}
         {/* DESKTOP VIEW (Excluding Mobile): Unified 6-Tab Single Card */}
         {/* ======================================================== */}
-        <section id="booking-card" className="hidden md:block relative bg-white rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 p-5 pb-8 mb-8 transition-all">
+        <section id="booking-card" className="hidden md:block relative bg-white rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 p-4 md:p-5 pb-6 md:pb-8 mb-6 md:mb-8 transition-all">
           {/* Merged Single-Bar Segmented Tabs (Centered in Middle with Balanced Padding) */}
-          <div className="flex justify-center w-full mb-3.5">
-            <div className="inline-flex rounded-xl border border-slate-200 overflow-hidden bg-white shadow-xs">
+          <div className="flex justify-center w-full mb-3.5 overflow-x-auto scrollbar-none">
+            <div className="inline-flex rounded-xl border border-slate-200 overflow-hidden bg-white shadow-xs max-w-full">
               {DESKTOP_TABS.map((tab) => {
                 const isActive = activeTab === tab.id;
                 return (
@@ -358,7 +358,7 @@ export default function CustomerHomePage() {
                     key={tab.id}
                     type="button"
                     onClick={() => handleTabClick(tab.id)}
-                    className={`py-2.5 lg:py-3 px-6 lg:px-7 text-center font-extrabold uppercase tracking-wide text-xs lg:text-sm whitespace-nowrap transition-all border-r last:border-r-0 ${
+                    className={`py-2 md:py-2.5 lg:py-3 px-2 md:px-3 lg:px-6 text-center font-extrabold uppercase tracking-wide text-[10px] md:text-[11px] lg:text-xs whitespace-nowrap transition-all border-r last:border-r-0 ${
                       isActive
                         ? 'bg-[#f0750f] text-white border-[#f0750f]'
                         : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
