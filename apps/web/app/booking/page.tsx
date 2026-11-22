@@ -1206,7 +1206,27 @@ export default function BookingFunnelPage() {
                     <circle cx="336" cy="384" r="32" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" />
                   </svg>
                   <div>
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-900">Additional Details</h3>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900">Additional Details</h3>
+                      {(() => {
+                        const extraCount =
+                          (additionalReqs.seniorCitizens ? 1 : 0) +
+                          (additionalReqs.returnJourneyLater ? 1 : 0) +
+                          (additionalReqs.needAirportDrop ? 1 : 0) +
+                          (additionalReqs.needAirportPickup ? 1 : 0) +
+                          ((additionalReqs.roofCarrier || roofCarrierEnabled[selectedFleet.id]) ? 1 : 0) +
+                          (additionalReqs.petFriendly ? 1 : 0) +
+                          (additionalReqs.babyOnBoard ? 1 : 0) +
+                          (additionalReqs.pregnancyFriendly ? 1 : 0) +
+                          (additionalReqs.accessibilityAssistance ? 1 : 0) +
+                          (additionalReqs.specialNotes && additionalReqs.specialNotes.trim().length > 0 ? 1 : 0);
+                        return extraCount > 0 ? (
+                          <span className="px-1.5 py-0.5 rounded-full bg-orange-100 text-[#c2410c] text-[10px] font-black leading-none">
+                            +{extraCount}
+                          </span>
+                        ) : null;
+                      })()}
+                    </div>
                     <p className="text-[11px] text-slate-400">Add your requirements for a better travel experience.</p>
                   </div>
                 </div>
@@ -1221,65 +1241,177 @@ export default function BookingFunnelPage() {
                 </button>
               </div>
 
-              {/* Two Big Pill Boxes for Travellers & Luggage (Matching Customer App Image 1) */}
-              <div className="grid grid-cols-2 gap-2 sm:gap-2.5 pt-0.5">
-                {(() => {
-                  const totalLuggage = additionalReqs.luggageCounts
-                    ? (additionalReqs.luggageCounts.small || 0) +
-                      (additionalReqs.luggageCounts.medium || 0) +
-                      (additionalReqs.luggageCounts.large || 0) +
-                      (additionalReqs.luggageCounts.xlarge || 0)
-                    : additionalReqs.luggageType === 'NONE'
-                    ? 0
-                    : 1;
+              {/* Requirements Summary Grid (Showing Travellers, Luggage & All Selected Options in Front) */}
+              {(() => {
+                const totalLuggage = additionalReqs.luggageCounts
+                  ? (additionalReqs.luggageCounts.small || 0) +
+                    (additionalReqs.luggageCounts.medium || 0) +
+                    (additionalReqs.luggageCounts.large || 0) +
+                    (additionalReqs.luggageCounts.xlarge || 0)
+                  : additionalReqs.luggageType === 'NONE'
+                  ? 0
+                  : 1;
 
-                  const isTravellersZero = (additionalReqs.travellers || 0) <= 0;
-                  const isLuggageZero = totalLuggage <= 0;
+                const isTravellersZero = (additionalReqs.travellers || 0) <= 0;
+                const isLuggageZero = totalLuggage <= 0;
 
-                  return (
-                    <>
+                const summaryItems: {
+                  key: string;
+                  icon: React.ReactNode;
+                  text: string;
+                  isAlert?: boolean;
+                }[] = [
+                  {
+                    key: 'passengers',
+                    icon: (
+                      <svg
+                        className="w-5 h-5 mb-1 text-slate-900"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                      </svg>
+                    ),
+                    text: `${additionalReqs.travellers || 0} Travellers`,
+                    isAlert: isTravellersZero,
+                  },
+                  {
+                    key: 'luggage',
+                    icon: (
+                      <svg
+                        className="w-5 h-5 mb-1 text-slate-900"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect x="3" y="6" width="18" height="15" rx="2" />
+                        <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                      </svg>
+                    ),
+                    text: isLuggageZero ? '0 Luggage' : `${totalLuggage} Luggage Bag${totalLuggage > 1 ? 's' : ''}`,
+                    isAlert: isLuggageZero,
+                  },
+                  ...(additionalReqs.seniorCitizens ? [{
+                    key: 'senior',
+                    icon: (
+                      <div className="relative w-5 h-5 mb-1">
+                        <Image src="/images/senior-citizen-icon.png" alt="Senior" fill className="object-contain" />
+                      </div>
+                    ),
+                    text: 'Senior (60+)',
+                  }] : []),
+                  ...(additionalReqs.returnJourneyLater ? [{
+                    key: 'return',
+                    icon: (
+                      <svg className="w-5 h-5 mb-1 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M8 3L4 7l4 4" />
+                        <path d="M4 7h16" />
+                        <path d="M16 21l4-4-4-4" />
+                        <path d="M20 17H4" />
+                      </svg>
+                    ),
+                    text: 'Return Later',
+                  }] : []),
+                  ...(additionalReqs.needAirportDrop ? [{
+                    key: 'airportDrop',
+                    icon: (
+                      <svg className="w-5 h-5 mb-1 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+                      </svg>
+                    ),
+                    text: 'Airport Drop',
+                  }] : []),
+                  ...(additionalReqs.needAirportPickup ? [{
+                    key: 'airportPickup',
+                    icon: (
+                      <svg className="w-5 h-5 mb-1 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+                      </svg>
+                    ),
+                    text: 'Airport Pickup',
+                  }] : []),
+                  ...((additionalReqs.roofCarrier || roofCarrierEnabled[selectedFleet.id]) ? [{
+                    key: 'roofCarrier',
+                    icon: (
+                      <div className="relative w-6 h-5 mb-1">
+                        <Image src="/images/roof-carrier-icon.png" alt="Roof Carrier" fill className="object-contain" />
+                      </div>
+                    ),
+                    text: 'Roof Carrier ✓',
+                  }] : []),
+                  ...(additionalReqs.petFriendly ? [{
+                    key: 'pet',
+                    icon: (
+                      <svg className="w-5 h-5 mb-1 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="4.5" cy="9.5" r="2.5" />
+                        <circle cx="9" cy="5.5" r="2.5" />
+                        <circle cx="15" cy="5.5" r="2.5" />
+                        <circle cx="19.5" cy="9.5" r="2.5" />
+                        <path d="M17.34 14.86c-.87-1.02-1.6-1.89-2.48-2.49-.64-.44-1.51-.77-2.86-.77s-2.22.33-2.86.77c-.88.6-1.61 1.47-2.48 2.49-1.28 1.5-2.07 2.87-1.56 4.34.42 1.21 1.63 1.8 3.32 1.8.84 0 1.87-.27 2.94-.57.38-.11.75-.22 1.12-.31.17-.04.35-.08.52-.08s.35.04.52.08c.37.09.74.2 1.12.31 1.07.3 2.1.57 2.94.57 1.69 0 2.9-.59 3.32-1.8.51-1.47-.28-2.84-1.56-4.34z" />
+                      </svg>
+                    ),
+                    text: `Pet (${additionalReqs.petType === 'cat' ? 'Cat' : additionalReqs.petType === 'bird' ? 'Bird' : 'Dog'})`,
+                  }] : []),
+                  ...(additionalReqs.babyOnBoard ? [{
+                    key: 'baby',
+                    icon: (
+                      <div className="relative w-5 h-5 mb-1">
+                        <Image src="/images/baby-on-board-icon.png" alt="Baby" fill className="object-contain" />
+                      </div>
+                    ),
+                    text: 'Baby on Board',
+                  }] : []),
+                  ...(additionalReqs.pregnancyFriendly ? [{
+                    key: 'pregnancy',
+                    icon: (
+                      <div className="relative w-5 h-5 mb-1">
+                        <Image src="/images/pregnancy-orange.png" alt="Pregnancy" fill className="object-contain" />
+                      </div>
+                    ),
+                    text: 'Pregnancy',
+                  }] : []),
+                  ...(additionalReqs.accessibilityAssistance ? [{
+                    key: 'accessibility',
+                    icon: (
+                      <div className="relative w-5 h-5 mb-1">
+                        <Image src="/images/wheelchair-orange.png" alt="Accessibility" fill className="object-contain" />
+                      </div>
+                    ),
+                    text: 'Accessibility',
+                  }] : []),
+                  ...(additionalReqs.specialNotes && additionalReqs.specialNotes.trim().length > 0 ? [{
+                    key: 'notes',
+                    icon: (
+                      <svg className="w-5 h-5 mb-1 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                      </svg>
+                    ),
+                    text: 'Preferences Added',
+                  }] : []),
+                ];
+
+                return (
+                  <div className={`grid ${summaryItems.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'} gap-2 sm:gap-2.5 pt-0.5`}>
+                    {summaryItems.map((item) => (
                       <button
+                        key={item.key}
                         type="button"
                         onClick={() => setReqModalOpen(true)}
-                        className="p-2.5 sm:p-3 rounded-xl border border-slate-200 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-2xs hover:shadow-xs"
+                        className="p-2.5 sm:p-3 rounded-xl border border-slate-200 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-2xs hover:shadow-xs min-h-[66px]"
                       >
-                        <svg
-                          className="w-5 h-5 mb-1 text-slate-900"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-                        </svg>
-                        <span className={`block text-[11px] sm:text-xs font-bold ${isTravellersZero ? 'text-[#c2410c]' : 'text-slate-800'}`}>
-                          {additionalReqs.travellers || 0} Travellers
+                        {item.icon}
+                        <span className={`block text-[11px] sm:text-xs font-bold truncate max-w-full px-1 ${item.isAlert ? 'text-[#c2410c]' : 'text-slate-800'}`}>
+                          {item.text}
                         </span>
                       </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setReqModalOpen(true)}
-                        className="p-2.5 sm:p-3 rounded-xl border border-slate-200 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-2xs hover:shadow-xs"
-                      >
-                        <svg
-                          className="w-5 h-5 mb-1 text-slate-900"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <rect x="3" y="6" width="18" height="15" rx="2" />
-                          <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                        </svg>
-                        <span className={`block text-[11px] sm:text-xs font-bold ${isLuggageZero ? 'text-[#c2410c]' : 'text-slate-800'}`}>
-                          {isLuggageZero ? '0 Luggage' : `${totalLuggage} Luggage Bag${totalLuggage > 1 ? 's' : ''}`}
-                        </span>
-                      </button>
-                    </>
-                  );
-                })()}
-              </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Info Helper Note */}
@@ -1539,6 +1671,205 @@ export default function BookingFunnelPage() {
                   </span>
                 </div>
               </div>
+            </div>
+
+            {/* Additional Details Summary Card in Step 4 (Review) */}
+            <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-xs space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-[#f0750f] flex-shrink-0" viewBox="0 0 512 512" fill="none">
+                    <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" d="M368 128h80M64 128h240M368 384h80M64 384h240M208 256h240M64 256h80" />
+                    <circle cx="336" cy="128" r="32" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" />
+                    <circle cx="176" cy="256" r="32" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" />
+                    <circle cx="336" cy="384" r="32" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" />
+                  </svg>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900">Additional Details</h3>
+                    <p className="text-[11px] text-slate-400">Selected travel requirements &amp; preferences.</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setReqModalOpen(true)}
+                  className="px-3 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-[11px] sm:text-xs font-bold text-slate-700 shadow-2xs flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Edit</span>
+                  <span>&gt;</span>
+                </button>
+              </div>
+
+              {/* Requirements Summary Grid */}
+              {(() => {
+                const totalLuggage = additionalReqs.luggageCounts
+                  ? (additionalReqs.luggageCounts.small || 0) +
+                    (additionalReqs.luggageCounts.medium || 0) +
+                    (additionalReqs.luggageCounts.large || 0) +
+                    (additionalReqs.luggageCounts.xlarge || 0)
+                  : additionalReqs.luggageType === 'NONE'
+                  ? 0
+                  : 1;
+
+                const isTravellersZero = (additionalReqs.travellers || 0) <= 0;
+                const isLuggageZero = totalLuggage <= 0;
+
+                const summaryItems: {
+                  key: string;
+                  icon: React.ReactNode;
+                  text: string;
+                  isAlert?: boolean;
+                }[] = [
+                  {
+                    key: 'passengers',
+                    icon: (
+                      <svg
+                        className="w-5 h-5 mb-1 text-slate-900"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                      </svg>
+                    ),
+                    text: `${additionalReqs.travellers || 0} Travellers`,
+                    isAlert: isTravellersZero,
+                  },
+                  {
+                    key: 'luggage',
+                    icon: (
+                      <svg
+                        className="w-5 h-5 mb-1 text-slate-900"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect x="3" y="6" width="18" height="15" rx="2" />
+                        <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                      </svg>
+                    ),
+                    text: isLuggageZero ? '0 Luggage' : `${totalLuggage} Luggage Bag${totalLuggage > 1 ? 's' : ''}`,
+                    isAlert: isLuggageZero,
+                  },
+                  ...(additionalReqs.seniorCitizens ? [{
+                    key: 'senior',
+                    icon: (
+                      <div className="relative w-5 h-5 mb-1">
+                        <Image src="/images/senior-citizen-icon.png" alt="Senior" fill className="object-contain" />
+                      </div>
+                    ),
+                    text: 'Senior (60+)',
+                  }] : []),
+                  ...(additionalReqs.returnJourneyLater ? [{
+                    key: 'return',
+                    icon: (
+                      <svg className="w-5 h-5 mb-1 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M8 3L4 7l4 4" />
+                        <path d="M4 7h16" />
+                        <path d="M16 21l4-4-4-4" />
+                        <path d="M20 17H4" />
+                      </svg>
+                    ),
+                    text: 'Return Later',
+                  }] : []),
+                  ...(additionalReqs.needAirportDrop ? [{
+                    key: 'airportDrop',
+                    icon: (
+                      <svg className="w-5 h-5 mb-1 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+                      </svg>
+                    ),
+                    text: 'Airport Drop',
+                  }] : []),
+                  ...(additionalReqs.needAirportPickup ? [{
+                    key: 'airportPickup',
+                    icon: (
+                      <svg className="w-5 h-5 mb-1 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+                      </svg>
+                    ),
+                    text: 'Airport Pickup',
+                  }] : []),
+                  ...((additionalReqs.roofCarrier || roofCarrierEnabled[selectedFleet.id]) ? [{
+                    key: 'roofCarrier',
+                    icon: (
+                      <div className="relative w-6 h-5 mb-1">
+                        <Image src="/images/roof-carrier-icon.png" alt="Roof Carrier" fill className="object-contain" />
+                      </div>
+                    ),
+                    text: 'Roof Carrier ✓',
+                  }] : []),
+                  ...(additionalReqs.petFriendly ? [{
+                    key: 'pet',
+                    icon: (
+                      <svg className="w-5 h-5 mb-1 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="4.5" cy="9.5" r="2.5" />
+                        <circle cx="9" cy="5.5" r="2.5" />
+                        <circle cx="15" cy="5.5" r="2.5" />
+                        <circle cx="19.5" cy="9.5" r="2.5" />
+                        <path d="M17.34 14.86c-.87-1.02-1.6-1.89-2.48-2.49-.64-.44-1.51-.77-2.86-.77s-2.22.33-2.86.77c-.88.6-1.61 1.47-2.48 2.49-1.28 1.5-2.07 2.87-1.56 4.34.42 1.21 1.63 1.8 3.32 1.8.84 0 1.87-.27 2.94-.57.38-.11.75-.22 1.12-.31.17-.04.35-.08.52-.08s.35.04.52.08c.37.09.74.2 1.12.31 1.07.3 2.1.57 2.94.57 1.69 0 2.9-.59 3.32-1.8.51-1.47-.28-2.84-1.56-4.34z" />
+                      </svg>
+                    ),
+                    text: `Pet (${additionalReqs.petType === 'cat' ? 'Cat' : additionalReqs.petType === 'bird' ? 'Bird' : 'Dog'})`,
+                  }] : []),
+                  ...(additionalReqs.babyOnBoard ? [{
+                    key: 'baby',
+                    icon: (
+                      <div className="relative w-5 h-5 mb-1">
+                        <Image src="/images/baby-on-board-icon.png" alt="Baby" fill className="object-contain" />
+                      </div>
+                    ),
+                    text: 'Baby on Board',
+                  }] : []),
+                  ...(additionalReqs.pregnancyFriendly ? [{
+                    key: 'pregnancy',
+                    icon: (
+                      <div className="relative w-5 h-5 mb-1">
+                        <Image src="/images/pregnancy-orange.png" alt="Pregnancy" fill className="object-contain" />
+                      </div>
+                    ),
+                    text: 'Pregnancy',
+                  }] : []),
+                  ...(additionalReqs.accessibilityAssistance ? [{
+                    key: 'accessibility',
+                    icon: (
+                      <div className="relative w-5 h-5 mb-1">
+                        <Image src="/images/wheelchair-orange.png" alt="Accessibility" fill className="object-contain" />
+                      </div>
+                    ),
+                    text: 'Accessibility',
+                  }] : []),
+                  ...(additionalReqs.specialNotes && additionalReqs.specialNotes.trim().length > 0 ? [{
+                    key: 'notes',
+                    icon: (
+                      <svg className="w-5 h-5 mb-1 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                      </svg>
+                    ),
+                    text: 'Preferences Added',
+                  }] : []),
+                ];
+
+                return (
+                  <div className={`grid ${summaryItems.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'} gap-2 sm:gap-2.5 pt-0.5`}>
+                    {summaryItems.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setReqModalOpen(true)}
+                        className="p-2.5 sm:p-3 rounded-xl border border-slate-200 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-2xs hover:shadow-xs min-h-[66px]"
+                      >
+                        {item.icon}
+                        <span className={`block text-[11px] sm:text-xs font-bold truncate max-w-full px-1 ${item.isAlert ? 'text-[#c2410c]' : 'text-slate-800'}`}>
+                          {item.text}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* 2-Column Pricing Card: Left Fare Breakdown vs Right Includes / Excludes (Matching Images 1 & 2) */}
