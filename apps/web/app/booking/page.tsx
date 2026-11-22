@@ -1391,16 +1391,16 @@ export default function BookingFunnelPage() {
                 ];
 
                 return (
-                  <div className={`grid ${summaryItems.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'} gap-2 sm:gap-2.5 pt-0.5`}>
+                  <div className={`grid ${summaryItems.length <= 2 ? 'grid-cols-2' : 'grid-cols-4'} gap-1.5 sm:gap-2.5 pt-0.5`}>
                     {summaryItems.map((item) => (
                       <button
                         key={item.key}
                         type="button"
                         onClick={() => setReqModalOpen(true)}
-                        className="p-2.5 sm:p-3 rounded-xl border border-slate-200 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-2xs hover:shadow-xs min-h-[66px]"
+                        className="p-1.5 sm:p-2.5 rounded-xl border border-slate-200/90 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-md hover:shadow-lg min-h-[58px] sm:min-h-[66px]"
                       >
                         {item.icon}
-                        <span className="block text-[11px] sm:text-xs font-bold truncate max-w-full px-1 text-[#f0750f]">
+                        <span className="block text-[9.5px] sm:text-xs font-bold truncate max-w-full px-0.5 text-[#f0750f] text-center leading-tight">
                           {item.text}
                         </span>
                       </button>
@@ -1845,16 +1845,16 @@ export default function BookingFunnelPage() {
                 ];
 
                 return (
-                  <div className={`grid ${summaryItems.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'} gap-2 sm:gap-2.5 pt-0.5`}>
+                  <div className={`grid ${summaryItems.length <= 2 ? 'grid-cols-2' : 'grid-cols-4'} gap-1.5 sm:gap-2.5 pt-0.5`}>
                     {summaryItems.map((item) => (
                       <button
                         key={item.key}
                         type="button"
                         onClick={() => setReqModalOpen(true)}
-                        className="p-2.5 sm:p-3 rounded-xl border border-slate-200 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-2xs hover:shadow-xs min-h-[66px]"
+                        className="p-1.5 sm:p-2.5 rounded-xl border border-slate-200/90 hover:border-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer bg-white shadow-md hover:shadow-lg min-h-[58px] sm:min-h-[66px]"
                       >
                         {item.icon}
-                        <span className="block text-[11px] sm:text-xs font-bold truncate max-w-full px-1 text-[#f0750f]">
+                        <span className="block text-[9.5px] sm:text-xs font-bold truncate max-w-full px-0.5 text-[#f0750f] text-center leading-tight">
                           {item.text}
                         </span>
                       </button>
