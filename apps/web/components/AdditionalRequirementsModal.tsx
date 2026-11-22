@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 
 export interface LuggageCounts {
@@ -77,13 +77,13 @@ export function AdditionalRequirementsModal({
 }: AdditionalRequirementsModalProps) {
   const [travellers, setTravellers] = useState(initialData.travellers || 0);
 
-  // Luggage state
+  // Luggage state (default all to 0 until changed and saved)
   const [isLuggageDropdownOpen, setIsLuggageDropdownOpen] = useState(false);
   const [luggageCounts, setLuggageCounts] = useState<LuggageCounts>(
     initialData.luggageCounts || {
-      small: initialData.luggageType === 'NORMAL' ? 1 : 0,
-      medium: initialData.luggageType === 'MEDIUM' ? 2 : 0,
-      large: initialData.luggageType === 'HEAVY' ? 3 : 0,
+      small: 0,
+      medium: 0,
+      large: 0,
       xlarge: 0,
     }
   );
@@ -101,6 +101,31 @@ export function AdditionalRequirementsModal({
 
   // Notes state
   const [specialNotes, setSpecialNotes] = useState(initialData.specialNotes || '');
+
+  // Reset/sync state whenever modal opens with initialData
+  useEffect(() => {
+    if (isOpen) {
+      setTravellers(initialData.travellers || 0);
+      setLuggageCounts(
+        initialData.luggageCounts || {
+          small: 0,
+          medium: 0,
+          large: 0,
+          xlarge: 0,
+        }
+      );
+      setSeniorCitizens(initialData.seniorCitizens || false);
+      setReturnJourneyLater(initialData.returnJourneyLater || false);
+      setNeedAirportDrop(initialData.needAirportDrop || false);
+      setNeedAirportPickup(initialData.needAirportPickup || false);
+      setPetFriendly(initialData.petFriendly || false);
+      setPetType(initialData.petType || 'dog');
+      setBabyOnBoard(initialData.babyOnBoard || false);
+      setPregnancyFriendly(initialData.pregnancyFriendly || false);
+      setAccessibilityAssistance(initialData.accessibilityAssistance || false);
+      setSpecialNotes(initialData.specialNotes || '');
+    }
+  }, [isOpen, initialData]);
 
   if (!isOpen) return null;
 
