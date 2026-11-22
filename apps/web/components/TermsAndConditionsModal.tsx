@@ -225,21 +225,21 @@ export function TermsAndConditionsModal({
                 key={section.id}
                 className="p-4 rounded-2xl border border-slate-100 bg-white shadow-2xs space-y-2"
               >
-                <div className="flex items-center gap-3">
-                  <span className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-xl bg-[#e0e7ff] text-[#162232] font-black flex items-center justify-center text-xs sm:text-[13px] flex-shrink-0 shadow-2xs">
+                <div className="flex items-center gap-2.5 sm:gap-2">
+                  <span className="w-8 h-8 rounded-xl sm:w-6.5 sm:h-6.5 sm:rounded-lg bg-[#e0e7ff] text-[#162232] font-black flex items-center justify-center text-xs sm:text-[11px] flex-shrink-0 shadow-2xs">
                     {String(section.id).padStart(2, '0')}
                   </span>
                   <h5 className="font-bold text-sm text-slate-900">{section.title}</h5>
                 </div>
 
                 {section.body && (
-                  <p className="text-slate-600 leading-relaxed text-xs pl-11 sm:pl-12">
+                  <p className="text-slate-600 leading-relaxed text-xs pl-10.5 sm:pl-8.5">
                     {section.body}
                   </p>
                 )}
 
                 {section.bullets && (
-                  <ul className="space-y-1.5 pl-11 sm:pl-12 text-slate-600 text-xs">
+                  <ul className="space-y-1.5 pl-10.5 sm:pl-8.5 text-slate-600 text-xs">
                     {section.bullets.map((bullet, idx) => (
                       <li key={idx} className="flex items-start gap-2">
                         <span className="text-[#f0750f] font-bold mt-0.5">•</span>
