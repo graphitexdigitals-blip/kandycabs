@@ -406,20 +406,20 @@ export function LocationPickerModal({
         return;
       }
 
-      // 3. Obtain current GPS position (fast fix with fallback)
-      let loc = await Location.getLastKnownPositionAsync({ maxAge: 60000 });
-      if (!loc) {
+      // 3. Obtain current FRESH GPS position from device / emulator (accurate fix first)
+      let loc = null;
+      try {
         loc = await Promise.race([
           Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.High,
             mayShowUserSettingsDialog: true,
           }),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('GPS timeout')), 4000)
+            setTimeout(() => reject(new Error('GPS timeout')), 4500)
           ),
-        ]).catch(async () => {
-          return await Location.getLastKnownPositionAsync();
-        });
+        ]);
+      } catch {
+        loc = await Location.getLastKnownPositionAsync();
       }
 
       if (!loc) {

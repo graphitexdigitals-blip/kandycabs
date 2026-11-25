@@ -87,6 +87,53 @@ export async function searchOlaPlaces(
 }
 
 /**
+ * Forward geocodes an address string to coordinates (lat, lng) via Ola Maps
+ */
+export async function geocodeOlaAddress(
+  address: string
+): Promise<{ lat: number; lng: number; formattedAddress: string } | null> {
+  const query = address.trim();
+  if (!query) return null;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+
+    const url = `https://api.olamaps.io/places/v1/geocode?address=${encodeURIComponent(
+      query
+    )}&api_key=${OLA_MAPS_API_KEY}`;
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'X-Request-Id': `kandy-geo-${Date.now()}`,
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    if (!data.geocodingResults || !data.geocodingResults.length) return null;
+
+    const top = data.geocodingResults[0];
+    const loc = top.geometry?.location;
+    if (!loc || typeof loc.lat !== 'number' || typeof loc.lng !== 'number') return null;
+
+    return {
+      lat: loc.lat,
+      lng: loc.lng,
+      formattedAddress: top.formatted_address || query,
+    };
+  } catch (err) {
+    console.warn('[OlaMaps] Geocode error:', err);
+    return null;
+  }
+}
+
+/**
  * Reverse geocodes coordinates (lat, lng) to an exact Indian address via Ola Maps
  */
 export async function reverseGeocodeOla(
@@ -115,11 +162,27 @@ export async function reverseGeocodeOla(
     if (!data.results || !data.results.length) return null;
 
     const top = data.results[0];
-    const name = top.name || top.formatted_address?.split(',')[0]?.trim() || 'Current Location';
-    const fullAddress = top.formatted_address || name;
+    const comps = top.address_components || [];
+    const getComp = (type: string) =>
+      comps.find((c: any) => c.types?.includes(type))?.long_name || '';
+    const sublocality = getComp('sublocality') || getComp('neighborhood');
+    const locality = getComp('locality') || getComp('administrative_area_level_3') || '';
+
+    const rawName = top.name || top.formatted_address?.split(',')[0]?.trim() || '';
+    const parts: string[] = [];
+    if (rawName && !rawName.toLowerCase().includes('unnamed')) parts.push(rawName);
+    if (sublocality && !parts.some((p) => p.toLowerCase().includes(sublocality.toLowerCase()))) {
+      parts.push(sublocality);
+    }
+    if (locality && !parts.some((p) => p.toLowerCase().includes(locality.toLowerCase()))) {
+      parts.push(locality);
+    }
+
+    const label = parts.length > 0 ? parts.join(', ') : (top.formatted_address || 'Current Location');
+    const fullAddress = top.formatted_address || label;
 
     return {
-      label: name,
+      label,
       sublabel: fullAddress,
       lat: top.geometry?.location?.lat || lat,
       lng: top.geometry?.location?.lng || lng,
