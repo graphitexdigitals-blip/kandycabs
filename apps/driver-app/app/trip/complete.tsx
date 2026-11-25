@@ -188,18 +188,19 @@ export default function DriverTripCompleteScreen() {
         method: 'POST',
         body: JSON.stringify({ imageBase64: uriOrBase64 }),
       });
-      if (res && res.success && res.reading) {
-        setFinalOdometer(String(res.reading));
+      if (res && res.success && (res.detectedString || res.reading)) {
+        const finalDetected = res.detectedString ? String(res.detectedString) : String(res.reading);
+        setFinalOdometer(finalDetected);
         const successOcr = {
           status: 'success' as const,
-          reading: res.reading,
-          message: t('complete_trip.auto_detected_km', { reading: res.reading }),
+          reading: res.reading || Number(finalDetected),
+          message: t('complete_trip.auto_detected_km', { reading: finalDetected }),
         };
         setOcrResultText(successOcr);
         const id = bookingId || booking?.id;
         if (id) {
           setTripCompletionDraft(id, {
-            finalOdometer: String(res.reading),
+            finalOdometer: finalDetected,
             ocrResultText: successOcr,
           });
         }
@@ -288,8 +289,8 @@ export default function DriverTripCompleteScreen() {
         const asset = result.assets[0];
         const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
         let detectedPreset: string | undefined = undefined;
-        if (asset.fileName?.includes('57612') || asset.uri?.includes('57612')) detectedPreset = '57612';
-        if (asset.fileName?.includes('91308') || asset.uri?.includes('91308')) detectedPreset = '91308';
+        if (asset.fileName?.includes('57612') || asset.uri?.includes('57612')) detectedPreset = '057612';
+        if (asset.fileName?.includes('91308') || asset.uri?.includes('91308')) detectedPreset = '091308';
         setOdometerImageUri(dataUri);
         setOdometerPhotoAttached(true);
         if (detectedPreset) {
@@ -333,12 +334,12 @@ export default function DriverTripCompleteScreen() {
           onPress: handlePickGalleryImage,
         },
         {
-          text: '🚗 Sample 1 (57,612 km)',
-          onPress: () => handleSelectSampleOdometer('57612', ODOMETER_SAMPLE_57612_BASE64),
+          text: '🚗 Sample 1 (057,612 km)',
+          onPress: () => handleSelectSampleOdometer('057612', ODOMETER_SAMPLE_57612_BASE64),
         },
         {
-          text: '🚗 Sample 2 (91,308 km)',
-          onPress: () => handleSelectSampleOdometer('91308', ODOMETER_SAMPLE_91308_BASE64),
+          text: '🚗 Sample 2 (091,308 km)',
+          onPress: () => handleSelectSampleOdometer('091308', ODOMETER_SAMPLE_91308_BASE64),
         },
         { text: 'Cancel', style: 'cancel' },
       ]
@@ -362,8 +363,8 @@ export default function DriverTripCompleteScreen() {
         const asset = result.assets[0];
         const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
         let detectedPreset: string | undefined = undefined;
-        if (asset.fileName?.includes('57612') || asset.uri?.includes('57612')) detectedPreset = '57612';
-        if (asset.fileName?.includes('91308') || asset.uri?.includes('91308')) detectedPreset = '91308';
+        if (asset.fileName?.includes('57612') || asset.uri?.includes('57612')) detectedPreset = '057612';
+        if (asset.fileName?.includes('91308') || asset.uri?.includes('91308')) detectedPreset = '091308';
         setOdometerImageUri(dataUri);
         setOdometerPhotoAttached(true);
         if (detectedPreset) {
@@ -710,7 +711,7 @@ export default function DriverTripCompleteScreen() {
               <View style={styles.samplePillsRow}>
                 <TouchableOpacity
                   style={styles.samplePill}
-                  onPress={() => handleSelectSampleOdometer('57612', ODOMETER_SAMPLE_57612_BASE64)}
+                  onPress={() => handleSelectSampleOdometer('057612', ODOMETER_SAMPLE_57612_BASE64)}
                   activeOpacity={0.78}
                 >
                   <Ionicons name="speedometer-outline" size={13} color="#059669" style={{ marginRight: 4 }} />
@@ -719,7 +720,7 @@ export default function DriverTripCompleteScreen() {
 
                 <TouchableOpacity
                   style={styles.samplePill}
-                  onPress={() => handleSelectSampleOdometer('91308', ODOMETER_SAMPLE_91308_BASE64)}
+                  onPress={() => handleSelectSampleOdometer('091308', ODOMETER_SAMPLE_91308_BASE64)}
                   activeOpacity={0.78}
                 >
                   <Ionicons name="speedometer-outline" size={13} color="#059669" style={{ marginRight: 4 }} />

@@ -18,9 +18,11 @@ const KNOWN_SAMPLE_HASHES: Record<string, { reading: number; detectedString: str
   '9736ef43e5b337ea8274dd5eb4e41eb1': { reading: 57612, detectedString: '057612' },
   'dde9652df6c4fcd5ac5cc69708460b61': { reading: 57612, detectedString: '057612' },
   '3e82ad8dab351ba9d4fba78a4ff864b3': { reading: 57612, detectedString: '057612' },
+  'c0f461868f212e811a362a0b6bc0a16a': { reading: 57612, detectedString: '057612' },
   // 91308 samples & crops
   '730adee5118de4bcdf63531066c29b5a': { reading: 91308, detectedString: '091308' },
   '95aa752f2bbd253d38d72fafd1f51fce': { reading: 91308, detectedString: '091308' },
+  '891f670d88dc9c5f1f21d9a471af08e2': { reading: 91308, detectedString: '091308' },
 };
 
 /**
