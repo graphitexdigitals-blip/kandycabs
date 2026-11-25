@@ -141,13 +141,44 @@ export async function geocodeOlaAddress(
   }
 }
 
+function getCoordDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3;
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+let lastReverseCache: {
+  lat: number;
+  lng: number;
+  result: PlaceLocation;
+  timestamp: number;
+} | null = null;
+
 /**
  * Reverse geocodes coordinates (lat, lng) to an exact Indian address via Ola Maps
+ * Includes 30-meter proximity cache to avoid duplicate API calls and zero usage wastage
  */
 export async function reverseGeocodeOla(
   lat: number,
   lng: number
 ): Promise<PlaceLocation | null> {
+  // Check if requested again at the same location (< 30 meters within 10 minutes)
+  if (
+    lastReverseCache &&
+    Date.now() - lastReverseCache.timestamp < 10 * 60 * 1000 &&
+    getCoordDistanceMeters(lat, lng, lastReverseCache.lat, lastReverseCache.lng) < 30
+  ) {
+    console.log('[OlaMaps] Returning cached reverse geocode for same GPS spot (0 API usage consumed)');
+    return lastReverseCache.result;
+  }
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 4000);
@@ -173,30 +204,66 @@ export async function reverseGeocodeOla(
     const comps = top.address_components || [];
     const getComp = (type: string) =>
       comps.find((c: any) => c.types?.includes(type))?.long_name || '';
+
+    const street = getComp('street_address') || getComp('route');
     const sublocality = getComp('sublocality') || getComp('neighborhood');
     const locality = getComp('locality') || getComp('administrative_area_level_3') || '';
+    const postalCode = getComp('postal_code') || '';
+    const rawName = top.name || '';
 
-    const rawName = top.name || top.formatted_address?.split(',')[0]?.trim() || '';
-    const parts: string[] = [];
-    if (rawName && !rawName.toLowerCase().includes('unnamed')) parts.push(rawName);
-    if (sublocality && !parts.some((p) => p.toLowerCase().includes(sublocality.toLowerCase()))) {
-      parts.push(sublocality);
+    // Build specific title (Building / Landmark / Road)
+    const titleParts: string[] = [];
+    if (rawName && !rawName.toLowerCase().includes('unnamed')) {
+      titleParts.push(rawName);
     }
-    if (locality && !parts.some((p) => p.toLowerCase().includes(locality.toLowerCase()))) {
-      parts.push(locality);
+    if (street && !titleParts.some((p) => p.toLowerCase().includes(street.toLowerCase()))) {
+      titleParts.push(street);
     }
+    if (titleParts.length === 0 && sublocality) {
+      titleParts.push(sublocality);
+    }
+    const label =
+      titleParts.length > 0
+        ? titleParts.join(', ')
+        : top.formatted_address?.split(',')[0]?.trim() || 'Current Location';
 
-    const label = parts.length > 0 ? parts.join(', ') : (top.formatted_address || 'Current Location');
-    const fullAddress = top.formatted_address || label;
+    // Build detailed sublabel (Area, Locality, Pincode)
+    const subParts: string[] = [];
+    if (sublocality && !label.toLowerCase().includes(sublocality.toLowerCase())) {
+      subParts.push(sublocality);
+    }
+    if (locality && !label.toLowerCase().includes(locality.toLowerCase())) {
+      subParts.push(locality);
+    }
+    if (postalCode) {
+      if (subParts.length > 0) {
+        subParts[subParts.length - 1] = `${subParts[subParts.length - 1]} - ${postalCode}`;
+      } else {
+        subParts.push(postalCode);
+      }
+    }
+    const sublabel =
+      subParts.length > 0
+        ? subParts.join(', ')
+        : top.formatted_address || 'Detected via Live GPS';
 
-    return {
+    const result: PlaceLocation = {
       label,
-      sublabel: fullAddress,
+      sublabel,
       lat: top.geometry?.location?.lat || lat,
       lng: top.geometry?.location?.lng || lng,
       source: 'OSM_LIVE' as const,
       category: 'MANGALURU',
     };
+
+    lastReverseCache = {
+      lat,
+      lng,
+      result,
+      timestamp: Date.now(),
+    };
+
+    return result;
   } catch (err) {
     console.warn('[OlaMaps] Reverse geocode error:', err);
     return null;

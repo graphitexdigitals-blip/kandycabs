@@ -19,6 +19,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import { reverseGeocodeOla } from '../lib/olaMaps';
 import { customerApiClient, customerTokenStorage } from '../lib/api';
 import { locationSharer } from '../lib/location-sharer';
 import { customerRealtimeTracker } from '../lib/realtime-client';
@@ -456,39 +457,43 @@ export default function CustomerDashboardScreen() {
       setPickupLat(lat);
       setPickupLng(lng);
 
-      // Reverse geocoding to human readable street address
+      // Reverse geocoding to exact, detailed human-readable Indian street address (with 30m duplicate caching)
       let resolvedAddress = '';
       try {
-        const reverse = await Location.reverseGeocodeAsync({
-          latitude: lat,
-          longitude: lng,
-        });
-
-        if (reverse && reverse.length > 0) {
-          const item = reverse[0];
-          const parts = [
-            item.name,
-            item.street,
-            item.district || item.subregion,
-            item.city,
-          ].filter(Boolean);
-
-          resolvedAddress = parts.length > 0 ? parts.join(', ') : `${item.city || 'Karnataka'}, India`;
+        const olaPlace = await reverseGeocodeOla(lat, lng);
+        if (olaPlace && olaPlace.label) {
+          resolvedAddress = olaPlace.sublabel
+            ? `${olaPlace.label}, ${olaPlace.sublabel}`
+            : olaPlace.label;
         }
-      } catch (_) {}
+      } catch (err) {
+        console.warn('[Dashboard] Ola reverse geocode failed:', err);
+      }
+
+      // Secondary fallback only if network failed
+      if (!resolvedAddress) {
+        try {
+          const reverse = await Location.reverseGeocodeAsync({
+            latitude: lat,
+            longitude: lng,
+          });
+
+          if (reverse && reverse.length > 0) {
+            const item = reverse[0];
+            const parts = [
+              item.name,
+              item.street,
+              item.district || item.subregion,
+              item.city,
+            ].filter(Boolean);
+
+            resolvedAddress = parts.length > 0 ? parts.join(', ') : `${item.city || 'Karnataka'}, India`;
+          }
+        } catch (_) {}
+      }
 
       if (!resolvedAddress || resolvedAddress.trim() === '') {
-        if (Math.abs(lat - 12.885) < 0.1 && Math.abs(lng - 74.838) < 0.1) {
-          resolvedAddress = 'Mangaluru / Bajpe, Karnataka';
-        } else if (Math.abs(lat - 12.9784) < 0.05 && Math.abs(lng - 77.6408) < 0.05) {
-          resolvedAddress = 'Indiranagar 100 Feet Rd, Bangalore';
-        } else if (Math.abs(lat - 13.1986) < 0.05) {
-          resolvedAddress = 'Kempegowda Intl Airport (BLR), Bangalore';
-        } else if (Math.abs(lat - 12.3051) < 0.05) {
-          resolvedAddress = 'Mysore Palace, Mysore';
-        } else {
-          resolvedAddress = `Current Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
-        }
+        resolvedAddress = `Current Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
       }
 
       setPickupAddress(resolvedAddress);
