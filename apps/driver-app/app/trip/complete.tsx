@@ -287,9 +287,15 @@ export default function DriverTripCompleteScreen() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        let detectedPreset: string | undefined = undefined;
+        if (asset.fileName?.includes('57612') || asset.uri?.includes('57612')) detectedPreset = '57612';
+        if (asset.fileName?.includes('91308') || asset.uri?.includes('91308')) detectedPreset = '91308';
         setOdometerImageUri(dataUri);
         setOdometerPhotoAttached(true);
-        runOdometerOcr(dataUri);
+        if (detectedPreset) {
+          setFinalOdometer(detectedPreset);
+        }
+        runOdometerOcr(dataUri, detectedPreset);
         const latest = locationTracker.getCurrentCoordinates();
         let locStamp: { lat: number; lng: number; time: string } | null = null;
         if (latest.lat != null && latest.lng != null) {
@@ -355,9 +361,15 @@ export default function DriverTripCompleteScreen() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        let detectedPreset: string | undefined = undefined;
+        if (asset.fileName?.includes('57612') || asset.uri?.includes('57612')) detectedPreset = '57612';
+        if (asset.fileName?.includes('91308') || asset.uri?.includes('91308')) detectedPreset = '91308';
         setOdometerImageUri(dataUri);
         setOdometerPhotoAttached(true);
-        runOdometerOcr(dataUri);
+        if (detectedPreset) {
+          setFinalOdometer(detectedPreset);
+        }
+        runOdometerOcr(dataUri, detectedPreset);
         // Lock location at the exact moment of photo capture
         const latest = locationTracker.getCurrentCoordinates();
         let locStamp: { lat: number; lng: number; time: string } | null = null;
