@@ -54,8 +54,6 @@ export default function DriverOdometerScreen() {
   const [odometerImageUri, setOdometerImageUri] = useState<string | null>(null);
   const [startingOdometer, setStartingOdometer] = useState<string>('');
   const [photoLocation, setPhotoLocation] = useState<{ lat: number; lng: number; time: string } | null>(null);
-  const [ocrScanning, setOcrScanning] = useState(false);
-  const [ocrResultText, setOcrResultText] = useState<{ status: 'success' | 'failed' | 'idle'; reading?: number; message?: string }>({ status: 'idle' });
   const [error, setError] = useState<string>('');
 
   // Handle hardware back button -> direct directly to driver home dashboard
@@ -131,9 +129,6 @@ export default function DriverOdometerScreen() {
       if (draft.photoLocation) {
         setPhotoLocation(draft.photoLocation);
       }
-      if (draft.ocrResultText) {
-        setOcrResultText(draft.ocrResultText);
-      }
     }
 
     getVerifiedSelfie(bookingId).then((savedSelfie) => {
@@ -154,76 +149,10 @@ export default function DriverOdometerScreen() {
     }).catch(() => {});
   }, [bookingId]);
 
-  const runOdometerOcr = async (uriOrBase64: string, fallbackReading?: string) => {
-    setOcrScanning(true);
-    setOcrResultText({ status: 'idle' });
-    try {
-      const res = await driverApiClient.fetch('/api/driver/odometer/ocr', {
-        method: 'POST',
-        body: JSON.stringify({ imageBase64: uriOrBase64 }),
-      });
-      if (res && res.success && (res.detectedString || res.reading)) {
-        const finalDetected = res.detectedString ? String(res.detectedString) : String(res.reading);
-        setStartingOdometer(finalDetected);
-        const successOcr = {
-          status: 'success' as const,
-          reading: res.reading || Number(finalDetected),
-          message: t('start_odometer.auto_detected_km', {
-            reading: finalDetected,
-            defaultValue: `Auto-detected ${finalDetected} KM from odometer photo`,
-          }),
-        };
-        setOcrResultText(successOcr);
-        if (bookingId) {
-          setTripStartDraft(bookingId, {
-            startingOdometer: finalDetected,
-            ocrResultText: successOcr,
-          });
-        }
-      } else if (fallbackReading) {
-        setStartingOdometer(fallbackReading);
-        const successOcr = {
-          status: 'success' as const,
-          reading: Number(fallbackReading),
-          message: `Sample gauge verified: ${fallbackReading} KM`,
-        };
-        setOcrResultText(successOcr);
-        if (bookingId) {
-          setTripStartDraft(bookingId, {
-            startingOdometer: fallbackReading,
-            ocrResultText: successOcr,
-          });
-        }
-      } else {
-        setOcrResultText({
-          status: 'failed',
-          message: t('start_odometer.could_not_read_gauge', 'Could not auto-read gauge numbers. Please check and type reading manually.'),
-        });
-      }
-    } catch (err: any) {
-      if (fallbackReading) {
-        setStartingOdometer(fallbackReading);
-        setOcrResultText({
-          status: 'success',
-          reading: Number(fallbackReading),
-          message: `Sample gauge verified: ${fallbackReading} KM`,
-        });
-      } else {
-        setOcrResultText({
-          status: 'failed',
-          message: t('start_odometer.could_not_read', 'Could not auto-read. Please enter reading manually.'),
-        });
-      }
-    } finally {
-      setOcrScanning(false);
-    }
-  };
-
   const handleSelectSampleOdometer = (reading: string, base64Uri: string) => {
     setOdometerImageUri(base64Uri);
     setStartingOdometer(reading);
     setError('');
-    runOdometerOcr(base64Uri, reading);
 
     const latest = locationTracker.getCurrentCoordinates();
     let locStamp: { lat: number; lng: number; time: string } | null = null;
@@ -263,15 +192,8 @@ export default function DriverOdometerScreen() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
-        let detectedPreset: string | undefined = undefined;
-        if (asset.fileName?.includes('57612') || asset.uri?.includes('57612')) detectedPreset = '057612';
-        if (asset.fileName?.includes('91308') || asset.uri?.includes('91308')) detectedPreset = '091308';
         setOdometerImageUri(dataUri);
         setError('');
-        if (detectedPreset) {
-          setStartingOdometer(detectedPreset);
-        }
-        runOdometerOcr(dataUri, detectedPreset);
 
         const latest = locationTracker.getCurrentCoordinates();
         let locStamp: { lat: number; lng: number; time: string } | null = null;
@@ -541,15 +463,8 @@ export default function DriverOdometerScreen() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
-        let detectedPreset: string | undefined = undefined;
-        if (asset.fileName?.includes('57612') || asset.uri?.includes('57612')) detectedPreset = '057612';
-        if (asset.fileName?.includes('91308') || asset.uri?.includes('91308')) detectedPreset = '091308';
         setOdometerImageUri(dataUri);
         setError('');
-        if (detectedPreset) {
-          setStartingOdometer(detectedPreset);
-        }
-        runOdometerOcr(dataUri, detectedPreset);
 
         const latest = locationTracker.getCurrentCoordinates();
         let locStamp: { lat: number; lng: number; time: string } | null = null;
@@ -621,8 +536,22 @@ export default function DriverOdometerScreen() {
       );
       return;
     }
-    if (!startingOdometer.trim()) {
+    if (!startingOdometer || !startingOdometer.trim()) {
       setError(t('start_odometer.enter_starting_km_error', 'Please enter the starting odometer reading in KM.'));
+      Alert.alert(
+        t('start_odometer.odometer_reading_required_title', 'Odometer Reading Required'),
+        t('start_odometer.enter_starting_km_msg', 'Please enter the starting odometer reading in KM. Without odometer reading you cannot proceed.')
+      );
+      return;
+    }
+
+    const odoNum = parseFloat(startingOdometer.trim());
+    if (isNaN(odoNum) || odoNum <= 0) {
+      setError(t('start_odometer.enter_valid_km_error', 'Please enter a valid positive odometer reading in KM.'));
+      Alert.alert(
+        t('start_odometer.odometer_reading_required_title', 'Odometer Reading Required'),
+        'Please enter a valid numeric odometer reading in KM. Without odometer reading you cannot proceed.'
+      );
       return;
     }
 
@@ -973,18 +902,13 @@ export default function DriverOdometerScreen() {
                       ) : null}
                     </View>
 
-                    {/* OCR Feedback */}
-                    {ocrScanning ? (
-                      <View style={styles.ocrLoadingRow}>
-                        <ActivityIndicator size="small" color="#6366f1" style={{ marginRight: 6 }} />
-                        <Text style={styles.ocrLoadingText}>{t('start_odometer.auto_detecting', 'Auto-detecting odometer reading...')}</Text>
-                      </View>
-                    ) : ocrResultText.status === 'success' ? (
-                      <View style={styles.ocrSuccessRow}>
-                        <Ionicons name="checkmark-circle" size={14} color="#16a34a" style={{ marginRight: 5 }} />
-                        <Text style={styles.ocrSuccessText}>{ocrResultText.message}</Text>
-                      </View>
-                    ) : null}
+                    {/* Manual Entry Required Note */}
+                    <View style={styles.manualEntryRow}>
+                      <Ionicons name="information-circle-outline" size={14} color="#64748b" style={{ marginRight: 5 }} />
+                      <Text style={styles.manualEntryText}>
+                        {t('start_odometer.manual_reading_hint', 'Enter starting reading manually in KM. Odometer reading is mandatory.')}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -1314,27 +1238,16 @@ const styles = StyleSheet.create({
   clearBtn: {
     padding: 4,
   },
-  ocrLoadingRow: {
+  manualEntryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
     paddingHorizontal: 4,
   },
-  ocrLoadingText: {
+  manualEntryText: {
     fontSize: 11.5,
-    color: '#6366f1',
-    fontWeight: '600',
-  },
-  ocrSuccessRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-    paddingHorizontal: 4,
-  },
-  ocrSuccessText: {
-    fontSize: 11.5,
-    color: '#16a34a',
-    fontWeight: '600',
+    color: '#64748b',
+    fontWeight: '500',
   },
   bottomBar: {
     backgroundColor: '#ffffff',

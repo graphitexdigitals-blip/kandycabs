@@ -91,9 +91,9 @@ function extractOdometerReading(rawText: string): { reading: number | null; conf
     const mergedLine = originalLine.replace(/(\b\d{1,4})\s+(\d{1,4}\b)/g, '$1$2');
 
     // Extract all candidate clusters (4 to 7 digits)
-    const matches = (mergedLine.match(/\b\d{4,7}(?:\.\d)?\b/g) || []).concat(
-      originalLine.match(/\b\d{4,7}(?:\.\d)?\b/g) || []
-    );
+    const m1 = mergedLine.match(/\b\d{4,7}(?:\.\d)?\b/g) || [];
+    const m2 = originalLine.match(/\b\d{4,7}(?:\.\d)?\b/g) || [];
+    const matches: string[] = [...m1, ...m2];
 
     const uniqueMatches = Array.from(new Set(matches));
 

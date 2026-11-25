@@ -77,9 +77,6 @@ export default function DriverTripCompleteScreen() {
       }).catch(() => {});
     }
   }, [photoLocation, currentCoords, resolvedLocationAddress]);
-  const [ocrScanning, setOcrScanning] = useState(false);
-  const [ocrResultText, setOcrResultText] = useState<{ status: 'success' | 'failed' | 'idle'; reading?: number; message?: string }>({ status: 'idle' });
-
   // Payment Collection Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'UPI_QR' | 'CASH' | 'PAY_LATER'>('UPI_QR');
@@ -174,83 +171,14 @@ export default function DriverTripCompleteScreen() {
       if (draft.photoLocation) {
         setPhotoLocation(draft.photoLocation);
       }
-      if (draft.ocrResultText) {
-        setOcrResultText(draft.ocrResultText);
-      }
     }
   }, [bookingId, booking?.id]);
-
-  const runOdometerOcr = async (uriOrBase64: string, fallbackReading?: string) => {
-    setOcrScanning(true);
-    setOcrResultText({ status: 'idle' });
-    try {
-      const res = await driverApiClient.fetch('/api/driver/odometer/ocr', {
-        method: 'POST',
-        body: JSON.stringify({ imageBase64: uriOrBase64 }),
-      });
-      if (res && res.success && (res.detectedString || res.reading)) {
-        const finalDetected = res.detectedString ? String(res.detectedString) : String(res.reading);
-        setFinalOdometer(finalDetected);
-        const successOcr = {
-          status: 'success' as const,
-          reading: res.reading || Number(finalDetected),
-          message: t('complete_trip.auto_detected_km', { reading: finalDetected }),
-        };
-        setOcrResultText(successOcr);
-        const id = bookingId || booking?.id;
-        if (id) {
-          setTripCompletionDraft(id, {
-            finalOdometer: finalDetected,
-            ocrResultText: successOcr,
-          });
-        }
-      } else if (fallbackReading) {
-        setFinalOdometer(fallbackReading);
-        const successOcr = {
-          status: 'success' as const,
-          reading: Number(fallbackReading),
-          message: `Sample gauge verified: ${fallbackReading} KM`,
-        };
-        setOcrResultText(successOcr);
-        const id = bookingId || booking?.id;
-        if (id) {
-          setTripCompletionDraft(id, {
-            finalOdometer: fallbackReading,
-            ocrResultText: successOcr,
-          });
-        }
-      } else {
-        setOcrResultText({
-          status: 'failed',
-          message: t('complete_trip.could_not_read_gauge'),
-        });
-      }
-    } catch (err: any) {
-      console.warn('Odometer OCR error:', err);
-      if (fallbackReading) {
-        setFinalOdometer(fallbackReading);
-        setOcrResultText({
-          status: 'success',
-          reading: Number(fallbackReading),
-          message: `Sample gauge verified: ${fallbackReading} KM`,
-        });
-      } else {
-        setOcrResultText({
-          status: 'failed',
-          message: t('complete_trip.could_not_read_gauge'),
-        });
-      }
-    } finally {
-      setOcrScanning(false);
-    }
-  };
 
   const handleSelectSampleOdometer = (reading: string, base64Uri: string) => {
     setOdometerImageUri(base64Uri);
     setOdometerPhotoAttached(true);
     setFinalOdometer(reading);
     setError('');
-    runOdometerOcr(base64Uri, reading);
 
     const latest = locationTracker.getCurrentCoordinates();
     let locStamp: { lat: number; lng: number; time: string } | null = null;
@@ -288,15 +216,9 @@ export default function DriverTripCompleteScreen() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
-        let detectedPreset: string | undefined = undefined;
-        if (asset.fileName?.includes('57612') || asset.uri?.includes('57612')) detectedPreset = '057612';
-        if (asset.fileName?.includes('91308') || asset.uri?.includes('91308')) detectedPreset = '091308';
         setOdometerImageUri(dataUri);
         setOdometerPhotoAttached(true);
-        if (detectedPreset) {
-          setFinalOdometer(detectedPreset);
-        }
-        runOdometerOcr(dataUri, detectedPreset);
+        setError('');
         const latest = locationTracker.getCurrentCoordinates();
         let locStamp: { lat: number; lng: number; time: string } | null = null;
         if (latest.lat != null && latest.lng != null) {
@@ -362,15 +284,9 @@ export default function DriverTripCompleteScreen() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
-        let detectedPreset: string | undefined = undefined;
-        if (asset.fileName?.includes('57612') || asset.uri?.includes('57612')) detectedPreset = '057612';
-        if (asset.fileName?.includes('91308') || asset.uri?.includes('91308')) detectedPreset = '091308';
         setOdometerImageUri(dataUri);
         setOdometerPhotoAttached(true);
-        if (detectedPreset) {
-          setFinalOdometer(detectedPreset);
-        }
-        runOdometerOcr(dataUri, detectedPreset);
+        setError('');
         // Lock location at the exact moment of photo capture
         const latest = locationTracker.getCurrentCoordinates();
         let locStamp: { lat: number; lng: number; time: string } | null = null;
@@ -466,15 +382,11 @@ export default function DriverTripCompleteScreen() {
 
   const handleOpenPaymentModal = () => {
     fetchBookingDetails();
-    if (!finalOdometer) {
-      setError(t('complete_trip.enter_final_error', 'Please enter final odometer reading'));
-      return;
-    }
     if (!odometerImageUri) {
       setError(t('complete_trip.photo_mandatory_error', 'Final odometer photo is mandatory'));
       Alert.alert(
         t('complete_trip.photo_required_title', 'Photo Required'),
-        t('complete_trip.photo_required_msg', 'Please capture a clear photo of the final odometer reading.'),
+        t('complete_trip.photo_required_msg', 'Please capture or attach a clear photo of the final odometer reading before completing the trip.'),
         [
           { text: t('complete_trip.capture_photo_btn', 'Capture Photo'), onPress: handleOpenCamera },
           { text: 'OK' },
@@ -482,12 +394,33 @@ export default function DriverTripCompleteScreen() {
       );
       return;
     }
+    if (!finalOdometer || !finalOdometer.trim()) {
+      setError(t('complete_trip.enter_final_error', 'Please enter final odometer reading in KM'));
+      Alert.alert(
+        t('complete_trip.reading_required_title', 'Odometer Reading Required'),
+        t('complete_trip.reading_required_msg', 'Please enter the final odometer reading in KM. Without odometer reading you cannot proceed.')
+      );
+      return;
+    }
 
     const startOdo = parseFloat(booking?.startingOdometer || 0);
-    const endOdo = parseFloat(finalOdometer);
+    const endOdo = parseFloat(finalOdometer.trim());
+
+    if (isNaN(endOdo) || endOdo <= 0) {
+      setError(t('complete_trip.enter_valid_error', 'Please enter a valid numeric odometer reading'));
+      Alert.alert(
+        t('complete_trip.reading_required_title', 'Odometer Reading Required'),
+        'Please enter a valid numeric odometer reading in KM. Without odometer reading you cannot proceed.'
+      );
+      return;
+    }
 
     if (startOdo > 0 && endOdo < startOdo) {
       setError(t('complete_trip.lower_odometer_error', `Final reading (${endOdo}) cannot be less than starting reading (${startOdo})`));
+      Alert.alert(
+        t('complete_trip.invalid_reading_title', 'Invalid Odometer Reading'),
+        `Final odometer reading (${endOdo} KM) cannot be less than starting reading (${startOdo} KM).`
+      );
       return;
     }
 
@@ -776,18 +709,13 @@ export default function DriverTripCompleteScreen() {
                 ) : null}
               </View>
 
-              {/* OCR Feedback */}
-              {ocrScanning ? (
-                <View style={styles.odoOcrLoadingRow}>
-                  <ActivityIndicator size="small" color="#6366f1" style={{ marginRight: 6 }} />
-                  <Text style={styles.odoOcrLoadingText}>{t('complete_trip.auto_detecting', 'Auto-detecting odometer reading...')}</Text>
-                </View>
-              ) : ocrResultText.status === 'success' ? (
-                <View style={styles.odoOcrSuccessRow}>
-                  <Ionicons name="checkmark-circle" size={14} color="#16a34a" style={{ marginRight: 5 }} />
-                  <Text style={styles.odoOcrSuccessText}>{ocrResultText.message}</Text>
-                </View>
-              ) : null}
+              {/* Manual Entry Required Note */}
+              <View style={styles.manualEntryRow}>
+                <Ionicons name="information-circle-outline" size={14} color="#64748b" style={{ marginRight: 5 }} />
+                <Text style={styles.manualEntryText}>
+                  {t('complete_trip.manual_reading_hint', 'Enter final reading manually in KM. Odometer reading is mandatory.')}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
@@ -1618,27 +1546,16 @@ const styles = StyleSheet.create({
   odoClearBtn: {
     padding: 4,
   },
-  odoOcrLoadingRow: {
+  manualEntryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
     paddingHorizontal: 4,
   },
-  odoOcrLoadingText: {
+  manualEntryText: {
     fontSize: 12,
-    color: '#6366f1',
-    fontWeight: '600',
-  },
-  odoOcrSuccessRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    paddingHorizontal: 4,
-  },
-  odoOcrSuccessText: {
-    fontSize: 12,
-    color: '#16a34a',
-    fontWeight: '700',
+    color: '#64748b',
+    fontWeight: '500',
   },
   cardHeaderRow: {
     flexDirection: 'row',
