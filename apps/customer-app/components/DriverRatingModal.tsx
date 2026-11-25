@@ -288,6 +288,26 @@ export function DriverRatingModal({
               )}
             </View>
 
+            <View style={styles.cardSeparator} />
+
+            {/* SECTION 3: WRITE A REVIEW */}
+            <View style={styles.reviewCard}>
+              <View style={styles.reviewInputWrapper}>
+                <TextInput
+                  style={styles.reviewTextInput}
+                  placeholder="Tell us about your driver, cleanliness, punctuality, and overall experience..."
+                  placeholderTextColor="#94a3b8"
+                  multiline
+                  numberOfLines={2}
+                  value={comment}
+                  onChangeText={setComment}
+                  maxLength={500}
+                  textAlignVertical="top"
+                />
+                <Text style={styles.charCountText}>{comment.length}/500</Text>
+              </View>
+            </View>
+
             {/* ACTION BUTTONS */}
             <TouchableOpacity
               style={styles.submitBtn}
