@@ -63,6 +63,7 @@ import {
   extractCustomerNotes,
   sortTripsByDateTimeAscending,
   isTripPhoneReleased,
+  getFleetDisplay,
 } from '../lib/tripRequirements';
 
 export function parseViaStops(booking: any): string[] {
@@ -2097,6 +2098,29 @@ export default function DriverDashboardScreen() {
                             ) : null}
                           </View>
                         )}
+
+                        {/* Customer Selected Fleet Banner */}
+                        {(() => {
+                          const fleet = getFleetDisplay(b);
+                          return (
+                            <View style={styles.dispatchFleetBanner}>
+                              <View style={styles.dispatchFleetLeft}>
+                                <Ionicons name="car-sport" size={14} color="#0f766e" />
+                                <Text style={styles.dispatchFleetLabel}>
+                                  {t('dashboard.requested_fleet', { defaultValue: 'FLEET:' })}
+                                </Text>
+                                <Text style={styles.dispatchFleetValue} numberOfLines={1}>
+                                  {fleet.display}
+                                </Text>
+                              </View>
+                              <View style={styles.dispatchFleetCategoryPill}>
+                                <Text style={styles.dispatchFleetCategoryPillText}>
+                                  {fleet.category}
+                                </Text>
+                              </View>
+                            </View>
+                          );
+                        })()}
 
                         {/* Passenger, Amount, Trip Type */}
                         <View style={styles.dispatchPassengerRowLight}>
@@ -5960,6 +5984,51 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: '#0f2744',
+  },
+  /* Selected Fleet Banner */
+  dispatchFleetBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f0fdfa',
+    borderWidth: 1,
+    borderColor: '#ccfbf1',
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  dispatchFleetLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 5,
+  },
+  dispatchFleetLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0f766e',
+    letterSpacing: 0.5,
+  },
+  dispatchFleetValue: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0f172a',
+    flexShrink: 1,
+  },
+  dispatchFleetCategoryPill: {
+    backgroundColor: '#0f766e',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  dispatchFleetCategoryPillText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#ffffff',
+    textTransform: 'uppercase',
   },
   dispatchPassengerRowLight: {
     flexDirection: 'row',

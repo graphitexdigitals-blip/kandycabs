@@ -1,4 +1,12 @@
-import { PlaceLocation } from './locations';
+export interface PlaceLocation {
+  label: string;
+  sublabel?: string;
+  lat: number;
+  lng: number;
+  category?: 'AIRPORTS' | 'MANGALURU' | 'OUTSTATION';
+  keywords?: string[];
+  source?: 'LOCAL' | 'OSM_LIVE' | 'OLA_MAPS';
+}
 
 export const OLA_MAPS_API_KEY =
   process.env.EXPO_PUBLIC_OLA_MAPS_API_KEY || 'VthnkL2YubtYXT4Q81L2m5dEmksdA9FIUy52rfi4';

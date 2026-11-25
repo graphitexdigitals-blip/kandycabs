@@ -367,4 +367,87 @@ export function isTripPhoneReleased(trip: any, activeBooking?: any): boolean {
   return diffHours <= 5 && diffHours >= -4;
 }
 
+export interface FleetInfo {
+  display: string;
+  category: string;
+}
+
+export function getFleetDisplay(b: any): FleetInfo {
+  if (!b) return { display: 'Sedan (Dzire, Etios)', category: 'SEDAN' };
+
+  const model = b?.vehicle?.model || b?.vehicleModel || b?.carModel || b?.vehicleName;
+
+  const rawCat = (
+    b?.category ||
+    b?.vehicleCategory ||
+    b?.vehicle?.category ||
+    b?.carType ||
+    b?.fleetCategory?.name ||
+    b?.fleetCategory ||
+    ''
+  ).toString().toUpperCase();
+
+  let formatted = '';
+  let shortCat = 'SEDAN';
+
+  switch (rawCat) {
+    case 'SEDAN':
+      formatted = model ? `Sedan • ${model}` : 'Sedan (Dzire, Etios)';
+      shortCat = 'SEDAN';
+      break;
+    case 'SWIFT_DZIRE':
+      formatted = 'Swift Dzire (Sedan)';
+      shortCat = 'SEDAN';
+      break;
+    case 'TOYOTA_ETIOS':
+      formatted = 'Toyota Etios (Sedan)';
+      shortCat = 'SEDAN';
+      break;
+    case 'HATCHBACK':
+      formatted = model ? `Hatchback • ${model}` : 'Hatchback (WagonR, Tiago)';
+      shortCat = 'HATCHBACK';
+      break;
+    case 'SUV':
+      formatted = model ? `SUV • ${model}` : 'SUV (Ertiga, Carens)';
+      shortCat = 'SUV';
+      break;
+    case 'SUV_ERTIGA':
+      formatted = 'Maruti Ertiga (SUV)';
+      shortCat = 'ERTIGA';
+      break;
+    case 'SUV_CARENS':
+      formatted = 'Kia Carens (SUV)';
+      shortCat = 'CARENS';
+      break;
+    case 'SUV_PREMIUM':
+    case 'SUV_INNOVA':
+    case 'INNOVA':
+    case 'INNOVA_CRYSTA':
+    case 'SUV_CRYSTA':
+      formatted = 'Innova Crysta (Premium SUV)';
+      shortCat = 'CRYSTA';
+      break;
+    case 'TEMPO_TRAVELER':
+    case 'TEMPO_TRAVELLER':
+    case 'URBANIA':
+      formatted = 'Tempo Traveller';
+      shortCat = 'TEMPO';
+      break;
+    default:
+      if (model) {
+        formatted = model;
+        shortCat = rawCat ? rawCat.replace(/^SUV_/, '').replace(/_/g, ' ') : 'VEHICLE';
+      } else if (rawCat) {
+        formatted = rawCat.replace(/_/g, ' ');
+        shortCat = rawCat.replace(/^SUV_/, '').replace(/_/g, ' ');
+      } else {
+        formatted = 'Sedan (Dzire, Etios)';
+        shortCat = 'SEDAN';
+      }
+      break;
+  }
+
+  return { display: formatted, category: shortCat };
+}
+
 
