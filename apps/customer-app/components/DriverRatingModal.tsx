@@ -156,16 +156,13 @@ export function DriverRatingModal({
         style={styles.backdrop}
       >
         <View style={styles.modalCard}>
-          {/* Top Drag Handle */}
-          <View style={styles.dragHandle} />
-
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={styles.headerTextCol}>
               <Text style={styles.modalTitle}>Rate your trip</Text>
               <View style={styles.bookingMetaRow}>
                 <Text style={styles.metaLabel}>Booking No.  </Text>
-                <Text style={styles.metaRef}>{booking.humanReadableRef || booking.ref || 'KC-2026-428597'}</Text>
+                <Text style={styles.metaRef}>{booking.humanReadableRef || booking.ref || 'KC-2026-693393'}</Text>
               </View>
             </View>
 
@@ -175,12 +172,9 @@ export function DriverRatingModal({
               style={styles.closeBtn}
               activeOpacity={0.7}
             >
-              <Ionicons name="close" size={18} color="rgb(22, 34, 50)" />
+              <Ionicons name="close" size={16} color="#ffffff" />
             </TouchableOpacity>
           </View>
-
-          {/* Header Divider */}
-          <View style={styles.headerDivider} />
 
           <ScrollView
             scrollEnabled={false}
@@ -294,7 +288,7 @@ export function DriverRatingModal({
                 <TextInput
                   style={styles.reviewTextInput}
                   placeholder="Tell us about your driver, cleanliness, punctuality, and overall experience..."
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor="#64748b"
                   multiline
                   numberOfLines={2}
                   value={comment}
@@ -314,12 +308,11 @@ export function DriverRatingModal({
               activeOpacity={0.88}
             >
               {submitting ? (
-                <ActivityIndicator size="small" color="#ffffff" />
+                <ActivityIndicator size="small" color="#000000" />
               ) : (
                 <View style={styles.submitBtnContent}>
-                  <Ionicons name="star" size={16} color="#ffffff" />
                   <Text style={styles.submitBtnText}>{t('modals.rating.submitRating', { defaultValue: 'Submit Rating' })}</Text>
-                  <Ionicons name="arrow-forward" size={16} color="#ffffff" />
+                  <Ionicons name="arrow-forward" size={18} color="#000000" style={styles.submitBtnArrow} />
                 </View>
               )}
             </TouchableOpacity>
@@ -345,170 +338,78 @@ export const TripReviewModal = DriverRatingModal;
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   modalCard: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 20,
+    backgroundColor: '#182232',
+    borderRadius: 24,
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 400,
     maxHeight: '100%',
-    paddingTop: 8,
-    paddingBottom: 6,
+    paddingTop: 18,
+    paddingBottom: 14,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 12,
     overflow: 'hidden',
-  },
-  dragHandle: {
-    width: 36,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: '#cbd5e1',
-    alignSelf: 'center',
-    marginBottom: 6,
   },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingBottom: 6,
-  },
-  headerDivider: {
-    height: 1,
-    backgroundColor: '#e2e8f0',
-    marginHorizontal: 14,
-    marginBottom: 8,
+    paddingHorizontal: 8,
+    marginBottom: 12,
   },
   headerTextCol: {
     flex: 1,
     paddingRight: 8,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
-    color: 'rgb(22, 34, 50)',
+    color: '#ffffff',
     letterSpacing: -0.3,
   },
   bookingMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 3,
   },
   metaLabel: {
-    fontSize: 11.5,
+    fontSize: 12,
     color: '#94a3b8',
     fontWeight: '500',
   },
   metaRef: {
-    fontSize: 11.5,
-    color: 'rgb(22, 34, 50)',
+    fontSize: 12,
+    color: '#cbd5e1',
     fontWeight: '700',
   },
   closeBtn: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#263345',
     alignItems: 'center',
     justifyContent: 'center',
   },
   scrollContent: {
-    paddingHorizontal: 12,
-    paddingBottom: 4,
+    paddingHorizontal: 4,
+    paddingBottom: 2,
   },
   cardSeparator: {
-    height: 1,
-    backgroundColor: '#f1f5f9',
-    marginVertical: 5,
+    height: 0,
+    marginVertical: 4,
   },
-
-  /* TOP CARD: DRIVER INFO & RIDE COMPLETED (Visible light background per reference) */
-  driverCompletedCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#edf3fa',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    marginBottom: 4,
-  },
-  driverAvatarContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#dbe4f0',
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  driverAvatarImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  driverAvatarFallback: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#dbe4f0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  driverDetailsCol: {
-    flex: 1,
-    marginLeft: 10,
-    justifyContent: 'center',
-  },
-  driverNameText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0f172a',
-    letterSpacing: -0.2,
-  },
-  vehicleDescText: {
-    fontSize: 12.5,
-    color: '#64748b',
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  driverBadgeDivider: {
-    width: 1,
-    height: 26,
-    backgroundColor: '#e2e8f0',
-    marginHorizontal: 10,
-  },
-  rideCompletedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  rideCompletedTextCol: {
-    justifyContent: 'center',
-  },
-  rideCompletedLine1: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#059669',
-    lineHeight: 14,
-  },
-  rideCompletedLine2: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#059669',
-    lineHeight: 14,
-  },
-
-  /* RATING CARDS (No box border, no drop shadow) */
   ratingCard: {
     backgroundColor: 'transparent',
     paddingHorizontal: 4,
@@ -543,15 +444,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ratingCardTitle: {
-    fontSize: 15,
+    fontSize: 15.5,
     fontWeight: '800',
-    color: 'rgb(22, 34, 50)',
+    color: '#ffffff',
     letterSpacing: -0.2,
   },
   ratingCardSubtitle: {
     fontSize: 12,
     fontWeight: '400',
-    color: '#64748b',
+    color: '#94a3b8',
     marginTop: 2,
   },
   starsRow: {
@@ -559,68 +460,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 6,
-    gap: 10,
+    gap: 12,
   },
   starTouchable: {
     padding: 2,
   },
   ratingFeedbackLabel: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '700',
     color: '#f59e0b',
     textAlign: 'center',
-    marginTop: 3,
+    marginTop: 4,
   },
 
-  /* REVIEW CARD (No box border, no drop shadow) */
+  /* REVIEW CARD */
   reviewCard: {
     backgroundColor: 'transparent',
     paddingHorizontal: 4,
-    paddingTop: 10,
-    paddingBottom: 6,
-    marginBottom: 6,
-  },
-  reviewCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  reviewBadge: {
-    width: 22,
-    height: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  reviewTitleInline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  reviewCardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: 'rgb(22, 34, 50)',
-  },
-  optionalText: {
-    fontSize: 11.5,
-    color: '#94a3b8',
-    fontWeight: '500',
+    paddingTop: 8,
+    paddingBottom: 4,
+    marginBottom: 4,
   },
   reviewInputWrapper: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 10,
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: 10,
-    paddingTop: 6,
-    paddingBottom: 4,
-    minHeight: 52,
+    borderColor: '#2d3d52',
+    borderRadius: 12,
+    backgroundColor: '#202b3b',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 6,
+    minHeight: 56,
     justifyContent: 'space-between',
   },
   reviewTextInput: {
-    fontSize: 11.5,
-    color: '#1e293b',
+    fontSize: 12,
+    color: '#ffffff',
     minHeight: 34,
     padding: 0,
     textAlignVertical: 'top',
@@ -628,44 +502,51 @@ const styles = StyleSheet.create({
   charCountText: {
     alignSelf: 'flex-end',
     fontSize: 9.5,
-    color: '#94a3b8',
+    color: '#64748b',
     fontWeight: '600',
   },
 
   /* BOTTOM BUTTONS */
   submitBtn: {
-    backgroundColor: 'rgb(22, 34, 50)',
+    backgroundColor: '#f5a623',
     borderRadius: 24,
-    height: 46,
+    height: 48,
     justifyContent: 'center',
-    paddingHorizontal: 18,
-    marginTop: 6,
-    shadowColor: 'rgb(22, 34, 50)',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.16,
-    shadowRadius: 6,
-    elevation: 2.5,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginTop: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   submitBtnContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    width: '100%',
+    position: 'relative',
   },
   submitBtnText: {
-    color: '#ffffff',
-    fontSize: 14.5,
-    fontWeight: '700',
-    letterSpacing: 0.2,
+    color: '#000000',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.1,
+  },
+  submitBtnArrow: {
+    position: 'absolute',
+    right: 4,
   },
   maybeLaterBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
-    marginTop: 2,
+    paddingVertical: 8,
+    marginTop: 6,
   },
   maybeLaterText: {
-    fontSize: 13,
-    color: 'rgb(22, 34, 50)',
+    fontSize: 13.5,
+    color: '#94a3b8',
     fontWeight: '600',
   },
 });
