@@ -24,6 +24,7 @@ import {
   isTripPhoneReleased,
 } from '../lib/tripRequirements';
 import {
+  setTripInProcess,
   getTripInProcessSync,
   isTripVerificationCompletedSync,
   isTripPickupReachedSync,
@@ -791,9 +792,12 @@ export function UpcomingTripCard({
       effectiveIsOnTrip
   );
 
-  const handleManageActiveTrip = () => {
+  const handleManageActiveTrip = async () => {
     onClose();
     if (onSelectBooking && targetBookingId) onSelectBooking(targetBookingId);
+    if (targetBookingId) {
+      await setTripInProcess(targetBookingId, true);
+    }
 
     const isDestReached =
       trip?.isDestinationReached ||
@@ -840,7 +844,7 @@ export function UpcomingTripCard({
       return;
     }
 
-    router.push({ pathname: '/trip/active', params: { bookingId: targetBookingId } });
+    router.push({ pathname: '/trip/inspection', params: { bookingId: targetBookingId } });
   };
 
   const viaStopsList = parseViaStops(trip);
@@ -932,6 +936,9 @@ export function UpcomingTripCard({
     }
     setIsStartingTrip(true);
     try {
+      if (trip?.id) {
+        await setTripInProcess(trip.id, true);
+      }
       onClose();
       if (onSelectBooking) onSelectBooking(trip.id);
 
@@ -1213,7 +1220,7 @@ export function UpcomingTripCard({
         </View>
       ) : (
         <>
-          {/* CTA based on trip state: If trip is ALREADY started, ONLY show MANAGE ACTIVE TRIP. Never show START TRIP */}
+          {/* CTA based on trip state: Show MANAGE TRIP in green */}
           {effectiveIsOnTrip ? (
             <View style={{ width: '100%', marginTop: 8 }}>
               <TouchableOpacity
@@ -1222,7 +1229,7 @@ export function UpcomingTripCard({
                 activeOpacity={0.85}
               >
                 <Ionicons name="navigate-circle" size={20} color="#ffffff" style={{ marginRight: 8 }} />
-                <Text style={styles.manageActiveTripBtnText}>MANAGE ACTIVE TRIP</Text>
+                <Text style={styles.manageActiveTripBtnText}>MANAGE TRIP</Text>
                 <Ionicons name="arrow-forward" size={18} color="#ffffff" style={{ marginLeft: 6 }} />
               </TouchableOpacity>
             </View>
@@ -1231,8 +1238,8 @@ export function UpcomingTripCard({
               <SlideToAccept
                 onAccept={handleSlideStartTrip}
                 isAccepting={isStartingTrip}
-                title={t('dashboard.slide_to_start_trip', { defaultValue: 'START TRIP' })}
-                acceptingTitle={t('dashboard.starting_trip', { defaultValue: 'STARTING TRIP...' })}
+                title={t('dashboard.slide_to_manage_trip', { defaultValue: 'MANAGE TRIP' })}
+                acceptingTitle={t('dashboard.managing_trip', { defaultValue: 'MANAGING TRIP...' })}
               />
             </View>
           ) : null}

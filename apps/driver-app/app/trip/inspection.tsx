@@ -18,6 +18,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
 import { locationTracker } from '../../lib/location-tracker';
 import { driverApiClient } from '../../lib/api';
 import {
@@ -29,6 +30,7 @@ import {
   getVerifiedSelfie,
   setTripStartDraft,
   getTripStartDraft,
+  setTripInProcess,
 } from '../../lib/tripState';
 import { TripFlowHeader } from '../../components/TripFlowHeader';
 import { Ionicons } from '@expo/vector-icons';
@@ -144,9 +146,19 @@ export default function DriverVehicleInspectionScreen() {
     try {
       const res = await driverApiClient.fetch('/api/driver/status');
       if (res.success) {
-        const b = res.activeBooking;
+        const allBookings = [
+          ...(res.assignedBookings || []),
+          ...(res.upcomingBookings || []),
+          ...(res.activeBooking ? [res.activeBooking] : []),
+        ];
+        const b = (bookingId && allBookings.find((x: any) => x.id === bookingId || x.humanReadableRef === bookingId)) || res.activeBooking || allBookings[0];
         if (b) {
           setBooking(b);
+          const targetId = b.id || bookingId;
+          if (targetId) {
+            await setTripInProcess(targetId, true);
+          }
+
           let initialPhotos: (string | null)[] = [null, null, null, null];
           if (Array.isArray(b.vehicleInspectionPhotos) && b.vehicleInspectionPhotos.length === 4) {
             initialPhotos = [
@@ -166,8 +178,23 @@ export default function DriverVehicleInspectionScreen() {
           }
 
           // Check if photos are already attached or drafted
-          const targetId = b.id || bookingId;
           if (targetId) {
+            // 1. Read persisted inspection photos from SecureStore
+            try {
+              const persisted = await SecureStore.getItemAsync(`kandy_inspection_photos_${targetId}`);
+              if (persisted) {
+                const parsed = JSON.parse(persisted);
+                if (Array.isArray(parsed)) {
+                  parsed.forEach((p: string | null, idx: number) => {
+                    if (p && idx < 4 && !initialPhotos[idx]) {
+                      initialPhotos[idx] = p;
+                    }
+                  });
+                }
+              }
+            } catch (_) {}
+
+            // 2. Read draft from memory
             const draft = getTripStartDraft(targetId);
             if (draft?.driverSelfieUri) {
               initialPhotos[0] = draft.driverSelfieUri;
@@ -243,6 +270,8 @@ export default function DriverVehicleInspectionScreen() {
           const firstUnattached = initialPhotos.findIndex((p) => !p);
           if (firstUnattached !== -1) {
             setCurrentAngleIndex(firstUnattached);
+          } else {
+            setCurrentAngleIndex(3);
           }
         }
       }
@@ -264,6 +293,11 @@ export default function DriverVehicleInspectionScreen() {
       next[index] = dataUri;
       if (bId) {
         setTripStartDraft(bId, { inspectionPhotos: next });
+        setTripInProcess(bId, true);
+        try {
+          SecureStore.setItemAsync(`kandy_inspection_photos_${bId}`, JSON.stringify(next)).catch(() => {});
+          SecureStore.setItemAsync(`kandy_inspection_angle_${bId}`, String(Math.min(index + 1, 3))).catch(() => {});
+        } catch (_) {}
       }
       return next;
     });
@@ -429,16 +463,22 @@ export default function DriverVehicleInspectionScreen() {
   };
 
   const handleFillDemoPhotos = () => {
-    setPhotos([
+    const demoPhotos = [
       'demo_selfie',
       'demo_front',
       'demo_inside_front',
       'demo_inside_back',
-    ]);
+    ];
+    setPhotos(demoPhotos);
     const bId = bookingId || booking?.id;
     if (bId) {
       setVerifiedSelfie(bId, 'demo_selfie');
-      setTripStartDraft(bId, { driverSelfieUri: 'demo_selfie' });
+      setTripStartDraft(bId, { driverSelfieUri: 'demo_selfie', inspectionPhotos: demoPhotos });
+      setTripInProcess(bId, true);
+      try {
+        SecureStore.setItemAsync(`kandy_inspection_photos_${bId}`, JSON.stringify(demoPhotos)).catch(() => {});
+        SecureStore.setItemAsync(`kandy_inspection_angle_${bId}`, '3').catch(() => {});
+      } catch (_) {}
     }
     setCurrentAngleIndex(3);
     Alert.alert('Demo Evidence Loaded', 'Driver Cabin Selfie and 3 vehicle inspection angles loaded!');
