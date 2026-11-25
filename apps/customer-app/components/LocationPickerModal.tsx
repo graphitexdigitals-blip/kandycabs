@@ -22,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import { ALL_LOCATIONS, PlaceLocation, isAirportLocation, isSameLocation } from '../lib/locations';
+import { searchOlaPlaces, reverseGeocodeOla } from '../lib/olaMaps';
 
 export interface StopItem {
   id: string;
@@ -168,6 +169,8 @@ export function LocationPickerModal({
   const [activeStopIndex, setActiveStopIndex] = useState<number>(initialStopIndex || 0);
   const [searchQuery, setSearchQuery] = useState('');
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [olaLiveResults, setOlaLiveResults] = useState<PlaceLocation[]>([]);
+  const [isSearchingOla, setIsSearchingOla] = useState(false);
   const [activeTarget, setActiveTarget] = useState<'PICKUP' | 'STOP' | 'DROP'>(
     hideDrop || singleLocationOnly
       ? (isPickup !== false ? 'PICKUP' : 'DROP')
@@ -291,18 +294,61 @@ export function LocationPickerModal({
     return ALL_LOCATIONS;
   }, [isTargetAirportOnly]);
 
+  // Real-time debounced Ola Maps Autocomplete search
+  React.useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2 || isTargetAirportOnly) {
+      setOlaLiveResults([]);
+      setIsSearchingOla(false);
+      return;
+    }
+
+    setIsSearchingOla(true);
+    const timer = setTimeout(async () => {
+      try {
+        const results = await searchOlaPlaces(q);
+        setOlaLiveResults(results);
+      } catch (err) {
+        console.warn('[LocationPicker] Ola search error:', err);
+      } finally {
+        setIsSearchingOla(false);
+      }
+    }, 280);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, isTargetAirportOnly]);
+
   const filteredLocations = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return baseLocations;
 
-    return baseLocations.filter((loc) => {
+    const localMatches = baseLocations.filter((loc) => {
       const labelMatch = loc.label.toLowerCase().includes(query);
       const sublabelMatch = loc.sublabel?.toLowerCase().includes(query) || false;
       const keywordMatch = loc.keywords?.some((k) => k.toLowerCase().includes(query)) || false;
 
       return labelMatch || sublabelMatch || keywordMatch;
     });
-  }, [searchQuery, baseLocations]);
+
+    if (isTargetAirportOnly) {
+      return localMatches;
+    }
+
+    // Merge Ola Maps live results, prioritizing matching results and deduplicating
+    const combined = [...localMatches];
+    olaLiveResults.forEach((olaLoc) => {
+      const exists = combined.some(
+        (c) =>
+          c.label.toLowerCase() === olaLoc.label.toLowerCase() ||
+          (olaLoc.lat && c.lat && Math.abs(c.lat - olaLoc.lat) < 0.0005 && Math.abs(c.lng - olaLoc.lng) < 0.0005)
+      );
+      if (!exists) {
+        combined.push(olaLoc);
+      }
+    });
+
+    return combined;
+  }, [searchQuery, baseLocations, olaLiveResults, isTargetAirportOnly]);
 
   const handleUseCurrentLocation = async () => {
     setGpsLoading(true);
@@ -382,13 +428,26 @@ export function LocationPickerModal({
 
       const { latitude, longitude } = loc.coords;
 
-      // 4. Reverse geocode coordinates using OpenStreetMap (OSM) Live Service
+      // 4. Reverse geocode coordinates using Ola Maps Live Service (fastest & most accurate in India)
       let label = '';
       let sublabel = '';
       let hasResolvedAddress = false;
 
-      // Try OpenStreetMap Nominatim for exact street & locality
+      // 4a. Primary: Ola Maps Reverse Geocode
       try {
+        const olaPlace = await reverseGeocodeOla(latitude, longitude);
+        if (olaPlace && olaPlace.label) {
+          label = olaPlace.label;
+          sublabel = olaPlace.sublabel || 'Detected via Live GPS';
+          hasResolvedAddress = true;
+        }
+      } catch (err) {
+        console.warn('[GPS] Ola reverse geocode failed, falling back:', err);
+      }
+
+      // 4b. Secondary Fallback: OpenStreetMap Nominatim
+      if (!hasResolvedAddress) {
+        try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 2000);
 
@@ -459,6 +518,7 @@ export function LocationPickerModal({
           // Native reverse geocode failed (no network / offline)
         }
       }
+    }
 
       // If offline / no network, show 'No Network Connection' error instead of setting coordinates
       if (!hasResolvedAddress || !label.trim()) {
