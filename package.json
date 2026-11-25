@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "build": "node packages/db/src/env-check.js && turbo run build",
+    "start": "npm run start --workspace=admin",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
