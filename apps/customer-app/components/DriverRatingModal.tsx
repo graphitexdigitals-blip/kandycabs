@@ -13,7 +13,7 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { customerApiClient } from '../lib/api';
 
@@ -224,9 +224,9 @@ export function DriverRatingModal({
                       onPress={() => setDriverRating(starVal)}
                       style={styles.starTouchable}
                     >
-                      <Ionicons
-                        name={isFilled ? 'star' : 'star-outline'}
-                        size={32}
+                      <FontAwesome
+                        name={isFilled ? 'star' : 'star-o'}
+                        size={30}
                         color="#f59e0b"
                       />
                     </TouchableOpacity>
@@ -271,9 +271,9 @@ export function DriverRatingModal({
                       onPress={() => setKandyRating(starVal)}
                       style={styles.starTouchable}
                     >
-                      <Ionicons
-                        name={isFilled ? 'star' : 'star-outline'}
-                        size={32}
+                      <FontAwesome
+                        name={isFilled ? 'star' : 'star-o'}
+                        size={30}
                         color="#f59e0b"
                       />
                     </TouchableOpacity>
