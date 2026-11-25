@@ -295,7 +295,8 @@ export default function DriverVehicleInspectionScreen() {
         setTripStartDraft(bId, { inspectionPhotos: next });
         setTripInProcess(bId, true);
         try {
-          SecureStore.setItemAsync(`kandy_inspection_photos_${bId}`, JSON.stringify(next)).catch(() => {});
+          const safePhotos = next.map((p) => (p && p.length > 1500 ? 'photo_attached' : p));
+          SecureStore.setItemAsync(`kandy_inspection_photos_${bId}`, JSON.stringify(safePhotos)).catch(() => {});
           SecureStore.setItemAsync(`kandy_inspection_angle_${bId}`, String(Math.min(index + 1, 3))).catch(() => {});
         } catch (_) {}
       }
@@ -337,7 +338,7 @@ export default function DriverVehicleInspectionScreen() {
       });
       if (result && !result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        const dataUri = asset.uri || (asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : '');
         applyCapturedPhoto(index, dataUri);
       }
     } catch (err: any) {
@@ -447,7 +448,7 @@ export default function DriverVehicleInspectionScreen() {
 
       if (result && !result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        const dataUri = asset.uri || (asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : '');
         applyCapturedPhoto(index, dataUri);
       }
     } catch (err: any) {
