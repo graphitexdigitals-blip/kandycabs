@@ -15,10 +15,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const BUTTON_WIDTH = 54;
 const BUTTON_HEIGHT = 54;
-const CARD_WIDTH = 200;
+const CARD_WIDTH = 220;
 
 const WHATSAPP_NUMBER = '919008890090';
 const HELPLINE_PHONE = '+919900887777';
+const TECH_SUPPORT_PHONE = '+919187336058';
 
 export function FloatingCallAssistant() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -136,6 +137,11 @@ export function FloatingCallAssistant() {
     Linking.openURL(`tel:${HELPLINE_PHONE}`).catch(() => {});
   };
 
+  const handleCallAppSupport = () => {
+    setModalVisible(false);
+    Linking.openURL(`tel:${TECH_SUPPORT_PHONE}`).catch(() => {});
+  };
+
   const isRightSide = currentPos.current.x > screenWidth / 2;
   const isBottomHalf = currentPos.current.y > screenHeight / 2;
 
@@ -211,27 +217,40 @@ export function FloatingCallAssistant() {
                 ]}
               />
 
-              {/* Row 1: Book on WhatsApp */}
+              {/* Row 1: WhatsApp KandyCabs */}
               <TouchableOpacity
                 style={styles.cardRow}
                 onPress={handleWhatsApp}
                 activeOpacity={0.75}
               >
                 <Ionicons name="logo-whatsapp" size={24} color="#25D366" style={styles.btnIcon} />
-                <Text style={styles.btnText}>Book on WhatsApp</Text>
+                <Text style={styles.btnText}>WhatsApp KandyCabs</Text>
               </TouchableOpacity>
 
               {/* Thin Divider Line */}
               <View style={styles.cardDivider} />
 
-              {/* Row 2: Call to Book */}
+              {/* Row 2: Call KandyCabs */}
               <TouchableOpacity
                 style={styles.cardRow}
                 onPress={handleCall}
                 activeOpacity={0.75}
               >
                 <Ionicons name="call" size={20} color="#0f172a" style={styles.btnIcon} />
-                <Text style={styles.btnText}>Call to Book</Text>
+                <Text style={styles.btnText}>Call KandyCabs</Text>
+              </TouchableOpacity>
+
+              {/* Thin Divider Line */}
+              <View style={styles.cardDivider} />
+
+              {/* Row 3: Call App Support */}
+              <TouchableOpacity
+                style={styles.cardRow}
+                onPress={handleCallAppSupport}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="headset" size={20} color="#2563eb" style={styles.btnIcon} />
+                <Text style={styles.btnText}>Call App Support</Text>
               </TouchableOpacity>
             </TouchableOpacity>
           </View>
