@@ -36,13 +36,13 @@ export function OlaRouteMapView({
   } | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
 
-  // Fallback default coordinates if not provided
+  // Fallback default coordinates if not provided (Mangaluru)
   const dLat = driverLocation?.lat ?? 12.9141;
   const dLng = driverLocation?.lng ?? 74.8560;
   const destLat = destinationLocation?.lat ?? 12.9614;
   const destLng = destinationLocation?.lng ?? 74.8900;
 
-  // Fetch real road routing from Ola Maps Directions
+  // Fetch real road routing from Ola Maps Directions API
   useEffect(() => {
     let isCancelled = false;
     async function loadDirections() {
@@ -52,14 +52,13 @@ export function OlaRouteMapView({
         const result = await getOlaDirections(origin, destination);
         if (!isCancelled && result) {
           setRouteInfo(result);
-          // Send polyline and route to WebView if already loaded
           if (mapLoaded && webViewRef.current) {
             webViewRef.current.postMessage(
               JSON.stringify({
                 type: 'SET_ROUTE',
                 polyline: result.polyline || '',
-                driver: [dLng, dLat],
-                dest: [destLng, destLat],
+                driver: [dLat, dLng],
+                dest: [destLat, destLng],
               })
             );
           }
@@ -81,8 +80,8 @@ export function OlaRouteMapView({
       webViewRef.current.postMessage(
         JSON.stringify({
           type: 'UPDATE_DRIVER_LOCATION',
-          lng: driverLocation.lng,
           lat: driverLocation.lat,
+          lng: driverLocation.lng,
         })
       );
     }
@@ -93,15 +92,13 @@ export function OlaRouteMapView({
       webViewRef.current.postMessage(
         JSON.stringify({
           type: 'RECENTER',
-          driver: [dLng, dLat],
-          dest: [destLng, destLat],
         })
       );
     }
   };
 
   const htmlContent = useMemo(() => {
-    const safeDestName = destinationAddress.replace(/['"\\]/g, ' ').slice(0, 35);
+    const safeDestName = destinationAddress.replace(/['"\\]/g, ' ').slice(0, 32);
     const initialPolyline = routeInfo?.polyline || '';
 
     return `<!DOCTYPE html>
@@ -109,14 +106,14 @@ export function OlaRouteMapView({
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
-  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
-  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html, body, #map { width: 100%; height: 100%; overflow: hidden; background: #e2e8f0; }
+    html, body, #map { width: 100%; height: 100%; overflow: hidden; background: #f8fafc; }
 
     /* Custom Navigation Vehicle Marker */
-    .driver-marker {
+    .driver-pin {
       width: 32px;
       height: 32px;
       border-radius: 50%;
@@ -126,9 +123,8 @@ export function OlaRouteMapView({
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.4s ease-out;
     }
-    .driver-marker svg {
+    .driver-pin svg {
       width: 16px;
       height: 16px;
       fill: #ffffff;
@@ -136,14 +132,15 @@ export function OlaRouteMapView({
     }
 
     /* Custom Destination Pin Marker */
-    .dest-marker {
+    .dest-pin-wrapper {
       display: flex;
       flex-direction: column;
       align-items: center;
+      transform: translate(-50%, -100%);
     }
-    .dest-pin {
-      width: 26px;
-      height: 26px;
+    .dest-svg {
+      width: 28px;
+      height: 28px;
       fill: #ef4444;
       filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
     }
@@ -156,16 +153,14 @@ export function OlaRouteMapView({
       padding: 3px 8px;
       border-radius: 12px;
       white-space: nowrap;
-      margin-top: -4px;
+      margin-top: -3px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
       border: 1px solid #e2e8f0;
     }
 
-    /* Hide MapLibre Watermark / Attribution clutter for mini card */
-    .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left {
-      transform: scale(0.75);
-      transform-origin: bottom left;
-      opacity: 0.7;
+    /* Hide Leaflet bottom attribution clutter */
+    .leaflet-control-attribution {
+      display: none !important;
     }
   </style>
 </head>
@@ -196,153 +191,123 @@ export function OlaRouteMapView({
         } while (b >= 0x20);
         var dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
         lng += dlng;
-        coordinates.push([lng * 1e-5, lat * 1e-5]);
+        // Leaflet takes [lat, lng]
+        coordinates.push([lat * 1e-5, lng * 1e-5]);
       }
       return coordinates;
     }
 
-    var apiKey = "${OLA_MAPS_API_KEY}";
-    var driverCoords = [${dLng}, ${dLat}];
-    var destCoords = [${destLng}, ${destLat}];
+    var driverLat = ${dLat};
+    var driverLng = ${dLng};
+    var destLat = ${destLat};
+    var destLng = ${destLng};
     var initialPoly = "${initialPolyline}";
 
-    var map = new maplibregl.Map({
-      container: 'map',
-      style: 'https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=' + apiKey,
-      center: driverCoords,
+    // Initialize 2D Canvas Leaflet Map (0 WebGL required - 100% stable in WebView)
+    var map = L.map('map', {
+      center: [driverLat, driverLng],
       zoom: 13,
-      touchZoomRotate: true,
-      dragPan: true,
-      attributionControl: false,
-      transformRequest: function(url) {
-        if (url && url.indexOf('api.olamaps.io') !== -1 && url.indexOf('api_key=') === -1) {
-          return {
-            url: url + (url.indexOf('?') !== -1 ? '&' : '?') + 'api_key=' + apiKey
-          };
-        }
-        return { url: url };
+      zoomControl: false,
+      attributionControl: false
+    });
+
+    // High quality, fast tile layer
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      subdomains: 'abcd'
+    }).addTo(map);
+
+    // Vehicle icon
+    var driverIcon = L.divIcon({
+      className: '',
+      html: '<div class="driver-pin"><svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg></div>',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+    var driverMarker = L.marker([driverLat, driverLng], { icon: driverIcon }).addTo(map);
+
+    // Destination icon
+    var destIcon = L.divIcon({
+      className: '',
+      html: '<div class="dest-pin-wrapper"><svg class="dest-svg" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg><div class="dest-pill">${safeDestName}</div></div>',
+      iconSize: [120, 48],
+      iconAnchor: [60, 48]
+    });
+    var destMarker = L.marker([destLat, destLng], { icon: destIcon }).addTo(map);
+
+    // Route polyline layers (casing + primary blue road)
+    var routeCasingLayer = null;
+    var routeMainLayer = null;
+
+    function renderRoute(polyStr) {
+      var pts = decodePolyline(polyStr);
+      if (!pts || pts.length < 2) {
+        pts = [[driverLat, driverLng], [destLat, destLng]];
       }
-    });
 
-    map.on('error', function(e) {
-      console.warn('MapLibre internal error:', e);
-    });
+      if (routeCasingLayer) map.removeLayer(routeCasingLayer);
+      if (routeMainLayer) map.removeLayer(routeMainLayer);
 
-    // Create Vehicle Marker
-    var driverEl = document.createElement('div');
-    driverEl.className = 'driver-marker';
-    driverEl.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>';
-    var driverMarker = new maplibregl.Marker({ element: driverEl })
-      .setLngLat(driverCoords)
-      .addTo(map);
+      // White outline casing for high visibility
+      routeCasingLayer = L.polyline(pts, {
+        color: '#ffffff',
+        weight: 7,
+        opacity: 0.9,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(map);
 
-    // Create Destination Marker
-    var destEl = document.createElement('div');
-    destEl.className = 'dest-marker';
-    destEl.innerHTML = '<svg class="dest-pin" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg><div class="dest-pill">${safeDestName}</div>';
-    var destMarker = new maplibregl.Marker({ element: destEl })
-      .setLngLat(destCoords)
-      .addTo(map);
+      // Royal blue navigation road polyline
+      routeMainLayer = L.polyline(pts, {
+        color: '#2563eb',
+        weight: 4.5,
+        opacity: 1.0,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(map);
 
-    function fitRouteBounds() {
-      var bounds = new maplibregl.LngLatBounds();
-      bounds.extend(driverCoords);
-      bounds.extend(destCoords);
-      map.fitBounds(bounds, { padding: 45, maxZoom: 15, duration: 800 });
+      // Smoothly fit bounds
+      var bounds = L.latLngBounds(pts);
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16, animate: true });
     }
 
-    function drawRoute(polyStr) {
-      var coords = decodePolyline(polyStr);
-      if (!coords || coords.length < 2) {
-        coords = [driverCoords, destCoords];
-      }
+    renderRoute(initialPoly);
 
-      var geojson = {
-        type: 'Feature',
-        geometry: {
-          type: 'LineString',
-          coordinates: coords
-        }
-      };
-
-      if (map.getSource('route')) {
-        map.getSource('route').setData(geojson);
-      } else {
-        map.addSource('route', {
-          type: 'geojson',
-          data: geojson
-        });
-
-        // Casing glow for route
-        map.addLayer({
-          id: 'route-casing',
-          type: 'line',
-          source: 'route',
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': '#ffffff',
-            'line-width': 7,
-            'line-opacity': 0.8
-          }
-        });
-
-        // Main Route line
-        map.addLayer({
-          id: 'route-line',
-          type: 'line',
-          source: 'route',
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': '#2563eb',
-            'line-width': 4.5
-          }
-        });
-      }
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'MAP_READY' }));
     }
 
-    map.on('load', function() {
-      if (initialPoly) {
-        drawRoute(initialPoly);
-      } else {
-        drawRoute('');
-      }
-      fitRouteBounds();
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'MAP_READY' }));
-      }
-    });
-
-    // Listen to messages from React Native
-    window.addEventListener('message', function(event) {
+    // Message handler from React Native
+    function handleRNMessage(msg) {
       try {
-        var data = JSON.parse(event.data);
+        var data = JSON.parse(msg);
         if (data.type === 'UPDATE_DRIVER_LOCATION') {
-          driverCoords = [data.lng, data.lat];
-          driverMarker.setLngLat(driverCoords);
+          driverLat = data.lat;
+          driverLng = data.lng;
+          driverMarker.setLatLng([driverLat, driverLng]);
         } else if (data.type === 'SET_ROUTE') {
-          if (data.driver) driverCoords = data.driver;
-          if (data.dest) destCoords = data.dest;
-          driverMarker.setLngLat(driverCoords);
-          destMarker.setLngLat(destCoords);
-          if (data.polyline) {
-            drawRoute(data.polyline);
+          if (data.driver) {
+            driverLat = data.driver[0];
+            driverLng = data.driver[1];
+            driverMarker.setLatLng([driverLat, driverLng]);
           }
-          fitRouteBounds();
+          if (data.dest) {
+            destLat = data.dest[0];
+            destLng = data.dest[1];
+            destMarker.setLatLng([destLat, destLng]);
+          }
+          if (data.polyline) {
+            renderRoute(data.polyline);
+          }
         } else if (data.type === 'RECENTER') {
-          fitRouteBounds();
+          var pts = [[driverLat, driverLng], [destLat, destLng]];
+          map.fitBounds(L.latLngBounds(pts), { padding: [45, 45], maxZoom: 16, animate: true });
         }
       } catch (err) {}
-    });
+    }
 
-    document.addEventListener('message', function(event) {
-      window.dispatchEvent(new MessageEvent('message', { data: event.data }));
-    });
+    window.addEventListener('message', function(e) { handleRNMessage(e.data); });
+    document.addEventListener('message', function(e) { handleRNMessage(e.data); });
   </script>
 </body>
 </html>`;
@@ -353,7 +318,7 @@ export function OlaRouteMapView({
       <WebView
         ref={webViewRef}
         originWhitelist={['*']}
-        source={{ html: htmlContent, baseUrl: 'https://api.olamaps.io' }}
+        source={{ html: htmlContent }}
         style={styles.webView}
         scrollEnabled={false}
         overScrollMode="never"
@@ -362,7 +327,6 @@ export function OlaRouteMapView({
         domStorageEnabled={true}
         mixedContentMode="always"
         allowFileAccess={true}
-        androidLayerType="hardware"
         onMessage={(event) => {
           try {
             const data = JSON.parse(event.nativeEvent.data);

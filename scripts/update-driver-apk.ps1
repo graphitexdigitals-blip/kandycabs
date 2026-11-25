@@ -14,6 +14,8 @@ $tempSigned = Join-Path $distDir "temp_signed.apk"
 $finalRootApk = Join-Path $root "kandy-cabs-driver.apk"
 $finalDriverApk = Join-Path $root "apps\driver-app\kandy-cabs-driver.apk"
 $finalWebApk = Join-Path $root "apps\web\public\kandy-cabs-driver.apk"
+$finalAdminApk = Join-Path $root "apps\admin\public\kandy-cabs-driver.apk"
+$finalDistApk = Join-Path $root "dist_apk\kandy-cabs-driver.apk"
 $hbcFile = Join-Path $distDir "index.android.bundle.hbc"
 
 $zipalign = "C:\Users\Rakshith\AppData\Local\Android\Sdk\build-tools\34.0.0\zipalign.exe"
@@ -153,6 +155,8 @@ Write-Output "6. Deploying updated APK..."
 Copy-Item $tempSigned $finalRootApk -Force
 Copy-Item $tempSigned $finalDriverApk -Force
 Copy-Item $tempSigned $finalWebApk -Force
+Copy-Item $tempSigned $finalAdminApk -Force
+Copy-Item $tempSigned $finalDistApk -Force
 
 Write-Output "7. Cleaning up temporary files..."
 Remove-Item $tempUnsigned -Force -ErrorAction SilentlyContinue
