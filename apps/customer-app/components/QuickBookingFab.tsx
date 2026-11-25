@@ -18,7 +18,7 @@ import { QUICK_BOOKING_BTN_BASE64 } from '../assets/images/quickBookingBtnBase64
 
 const BUTTON_WIDTH = 64;
 const BUTTON_HEIGHT = 64;
-const CARD_WIDTH = 224;
+const CARD_WIDTH = 230;
 
 const WHATSAPP_NUMBER = '919008890090';
 const HELPLINE_PHONE = '+919900887777';
@@ -247,10 +247,10 @@ export function QuickBookingFab() {
                 activeOpacity={0.82}
               >
                 <View style={styles.btnLeftGroup}>
-                  <Ionicons name="logo-whatsapp" size={19} color="#ffffff" style={styles.btnIcon} />
+                  <Ionicons name="logo-whatsapp" size={20} color="#25D366" style={styles.btnIcon} />
                   <Text style={styles.btnText}>Book on WhatsApp</Text>
                 </View>
-                <MaterialCommunityIcons name="chevron-double-right" size={20} color="#ffffff" />
+                <MaterialCommunityIcons name="chevron-double-right" size={20} color="#25D366" />
               </TouchableOpacity>
 
               {/* Button 2: Call to Book */}
@@ -260,10 +260,10 @@ export function QuickBookingFab() {
                 activeOpacity={0.82}
               >
                 <View style={styles.btnLeftGroup}>
-                  <Ionicons name="call" size={17} color="#ffffff" style={styles.btnIcon} />
+                  <Ionicons name="call" size={18} color="#16a34a" style={styles.btnIcon} />
                   <Text style={styles.btnText}>Call to Book</Text>
                 </View>
-                <MaterialCommunityIcons name="chevron-double-right" size={20} color="#ffffff" />
+                <MaterialCommunityIcons name="chevron-double-right" size={20} color="#16a34a" />
               </TouchableOpacity>
             </TouchableOpacity>
           </View>
@@ -314,26 +314,26 @@ const styles = StyleSheet.create({
     zIndex: 1000000,
   },
 
-  // Small Reference Card Matching Attached Image
+  // Small Reference Card
   smallCard: {
     width: CARD_WIDTH,
     backgroundColor: '#ffffff',
-    borderRadius: 14,
-    padding: 7,
+    borderRadius: 20,
+    padding: 8,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 14,
-    elevation: 25,
-    borderWidth: 1.5,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 12,
+    borderWidth: 1,
     borderColor: '#e2e8f0',
   },
 
   // Pointer Tip
   pointerTip: {
     position: 'absolute',
-    width: 13,
-    height: 13,
+    width: 14,
+    height: 14,
     backgroundColor: '#ffffff',
     borderColor: '#e2e8f0',
     transform: [{ rotate: '45deg' }],
@@ -358,34 +358,38 @@ const styles = StyleSheet.create({
 
   // Button 1: Book on WhatsApp
   whatsAppBtn: {
-    backgroundColor: '#1E8E3E',
+    backgroundColor: '#ffffff',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 9.5,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginBottom: 6,
-    shadowColor: '#1E8E3E',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    borderRadius: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
     elevation: 3,
   },
 
   // Button 2: Call to Book
   callBtn: {
-    backgroundColor: '#162636',
+    backgroundColor: '#ffffff',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 9.5,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    shadowColor: '#162636',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
     elevation: 3,
   },
 
@@ -394,12 +398,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnIcon: {
-    marginRight: 8,
+    marginRight: 9,
   },
   btnText: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 13.5,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
   },
 });
