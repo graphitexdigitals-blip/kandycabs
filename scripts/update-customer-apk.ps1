@@ -154,6 +154,8 @@ Copy-Item $tempSigned (Join-Path $root "kandycabs-customer.apk") -Force
 Copy-Item $tempSigned $finalCustomerApk -Force
 Copy-Item $tempSigned $finalWebApk -Force
 Copy-Item $tempSigned (Join-Path $root "apps\web\public\kandycabs-customer.apk") -Force
+Copy-Item $tempSigned (Join-Path $root "apps\admin\public\kandy-cabs-customer.apk") -Force
+Copy-Item $tempSigned (Join-Path $root "apps\admin\public\kandycabs-customer.apk") -Force
 Copy-Item $tempSigned (Join-Path $root "dist_apk\kandy-cabs-customer.apk") -Force
 
 Write-Output "7. Cleaning up temporary build files..."
