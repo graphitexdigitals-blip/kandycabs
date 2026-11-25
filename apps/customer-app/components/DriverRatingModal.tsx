@@ -288,36 +288,6 @@ export function DriverRatingModal({
               )}
             </View>
 
-            <View style={styles.cardSeparator} />
-
-            {/* SECTION 3: WRITE A REVIEW */}
-            <View style={styles.reviewCard}>
-              <View style={styles.reviewCardHeader}>
-                <View style={styles.reviewBadge}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={16} color="rgb(22, 34, 50)" />
-                </View>
-                <View style={styles.reviewTitleInline}>
-                  <Text style={styles.reviewCardTitle}>Write a review</Text>
-                  <Text style={styles.optionalText}> (optional)</Text>
-                </View>
-              </View>
-
-              <View style={styles.reviewInputWrapper}>
-                <TextInput
-                  style={styles.reviewTextInput}
-                  placeholder="Tell us about your driver, cleanliness, punctuality, and overall experience..."
-                  placeholderTextColor="#94a3b8"
-                  multiline
-                  numberOfLines={2}
-                  value={comment}
-                  onChangeText={setComment}
-                  maxLength={500}
-                  textAlignVertical="top"
-                />
-                <Text style={styles.charCountText}>{comment.length}/500</Text>
-              </View>
-            </View>
-
             {/* ACTION BUTTONS */}
             <TouchableOpacity
               style={styles.submitBtn}
