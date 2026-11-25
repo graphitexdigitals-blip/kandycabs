@@ -40,11 +40,17 @@ export function AuthProvider({
 
   const refreshUser = useCallback(async (): Promise<UserProfile | null> => {
     try {
-      const currentUser = await client.auth.getMe();
+      // 3.5s safety timeout to prevent infinite "Checking authorization..." if backend is slow/unreachable
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), 3500)
+      );
+      const fetchPromise = client.auth.getMe();
+      const currentUser = await Promise.race([fetchPromise, timeoutPromise]);
       setUser(currentUser);
       return currentUser;
     } catch (err) {
       console.error('Failed to refresh user session:', err);
+      setUser(null);
       return null;
     } finally {
       setIsLoading(false);
