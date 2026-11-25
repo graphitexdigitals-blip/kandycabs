@@ -207,11 +207,11 @@ export function resolveDefaultApiUrl(): string {
 
   if (Platform.OS === 'android') {
     if (isPhysicalPhone) {
-      return 'http://192.168.1.3:3001';
+      return 'https://kandycabs-production.up.railway.app';
     }
     return 'http://10.0.2.2:3001';
   }
-  return 'http://192.168.1.3:3001';
+  return 'https://kandycabs-production.up.railway.app';
 }
 
 let activeCustomerApiUrl: string = resolveDefaultApiUrl();

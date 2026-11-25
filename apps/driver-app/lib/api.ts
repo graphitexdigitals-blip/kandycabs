@@ -64,7 +64,7 @@ class MobileTokenStorage implements TokenStorage {
 export const driverTokenStorage = new MobileTokenStorage();
 
 const SECURE_API_URL_KEY = 'kandy_driver_api_url_v2';
-export const PROD_API_URL = 'http://192.168.1.3:3001';
+export const PROD_API_URL = 'https://kandycabs-production.up.railway.app';
 export const DEFAULT_DEV_PORT = '3001';
 export const DEFAULT_LAN_HOST = '192.168.1.3';
 export const DEFAULT_EMULATOR_HOST = '10.0.2.2';
@@ -107,11 +107,11 @@ export function resolveDefaultApiUrl(): string {
 
   if (Platform.OS === 'android') {
     if (isPhysicalPhone) {
-      return 'http://192.168.1.3:3001';
+      return PROD_API_URL;
     }
     return 'http://10.0.2.2:3001';
   }
-  return 'http://192.168.1.3:3001';
+  return PROD_API_URL;
 }
 
 export const DEFAULT_LAN_URL = resolveDefaultApiUrl();
