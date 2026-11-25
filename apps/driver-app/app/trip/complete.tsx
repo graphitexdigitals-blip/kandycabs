@@ -60,6 +60,19 @@ export default function DriverTripCompleteScreen() {
   const [error, setError] = useState('');
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [photoLocation, setPhotoLocation] = useState<{ lat: number; lng: number; time: string } | null>(null);
+  const [resolvedLocationAddress, setResolvedLocationAddress] = useState<string>('');
+
+  useEffect(() => {
+    const targetLat = photoLocation?.lat ?? currentCoords?.lat;
+    const targetLng = photoLocation?.lng ?? currentCoords?.lng;
+    if (targetLat != null && targetLng != null && !resolvedLocationAddress) {
+      reverseGeocodeAddress(targetLat, targetLng).then((addr) => {
+        if (addr && !addr.startsWith('GPS [')) {
+          setResolvedLocationAddress(addr);
+        }
+      }).catch(() => {});
+    }
+  }, [photoLocation, currentCoords, resolvedLocationAddress]);
   const [ocrScanning, setOcrScanning] = useState(false);
   const [ocrResultText, setOcrResultText] = useState<{ status: 'success' | 'failed' | 'idle'; reading?: number; message?: string }>({ status: 'idle' });
 
@@ -516,7 +529,8 @@ export default function DriverTripCompleteScreen() {
                   {(photoLocation || currentCoords) && (
                     <View style={styles.gpsStamp}>
                       <Text style={styles.gpsStampText}>
-                        📍 {photoLocation
+                        📍 {resolvedLocationAddress ? `${resolvedLocationAddress} • ` : ''}
+                        {photoLocation
                           ? `${photoLocation.lat.toFixed(4)}° N, ${photoLocation.lng.toFixed(4)}° E • ${photoLocation.time}`
                           : `${currentCoords?.lat ? currentCoords.lat.toFixed(4) : '0.0000'}° N, ${currentCoords?.lng ? currentCoords.lng.toFixed(4) : '0.0000'}° E`}
                       </Text>

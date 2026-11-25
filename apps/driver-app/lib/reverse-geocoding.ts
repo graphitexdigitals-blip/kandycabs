@@ -1,8 +1,9 @@
 import * as Location from 'expo-location';
+import { reverseGeocodeOla } from './olaMaps';
 
 /**
  * Reverse geocodes latitude and longitude into a clean, human-readable address.
- * Falls back gracefully to formatted coordinate string if geocoding fails.
+ * Primary: Ola Maps live service. Fallback: Native expo-location.
  */
 export async function reverseGeocodeAddress(
   lat: number | null | undefined,
@@ -13,6 +14,17 @@ export async function reverseGeocodeAddress(
     return fallbackAddress || 'Location unavailable';
   }
 
+  // 1. Primary: Ola Maps Reverse Geocode
+  try {
+    const olaPlace = await reverseGeocodeOla(lat, lng);
+    if (olaPlace && olaPlace.label) {
+      return olaPlace.label;
+    }
+  } catch (err) {
+    console.warn('[DriverApp] Ola reverse geocode error:', err);
+  }
+
+  // 2. Secondary: Native Expo reverse geocoder
   try {
     const results = await Location.reverseGeocodeAsync({
       latitude: lat,
