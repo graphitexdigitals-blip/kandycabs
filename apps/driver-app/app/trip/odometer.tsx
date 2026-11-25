@@ -676,30 +676,6 @@ export default function DriverOdometerScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Quick Test Samples for Expo */}
-                  <View style={styles.sampleTestBar}>
-                    <Text style={styles.sampleTestTitle}>Test Presets (Expo Testing):</Text>
-                    <View style={styles.samplePillsRow}>
-                      <TouchableOpacity
-                        style={styles.samplePill}
-                        onPress={() => handleSelectSampleOdometer('057612', ODOMETER_SAMPLE_57612_BASE64)}
-                        activeOpacity={0.78}
-                      >
-                        <Ionicons name="speedometer-outline" size={13} color="#059669" style={{ marginRight: 4 }} />
-                        <Text style={styles.samplePillText}>057612 km</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.samplePill}
-                        onPress={() => handleSelectSampleOdometer('091308', ODOMETER_SAMPLE_91308_BASE64)}
-                        activeOpacity={0.78}
-                      >
-                        <Ionicons name="speedometer-outline" size={13} color="#059669" style={{ marginRight: 4 }} />
-                        <Text style={styles.samplePillText}>091308 km</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
                   {/* Reference Guide Image */}
                   <View style={styles.referenceSection}>
                     <View style={styles.referenceImageBox}>
