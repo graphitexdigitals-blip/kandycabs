@@ -444,44 +444,87 @@ export function NewTripsModal({
                       </View>
                     )}
 
-                    {/* Customer Selected Fleet Banner */}
+                    {/* Trip Details Table: Rows & Columns matching Reference */}
                     {(() => {
                       const fleet = getFleetDisplay(b);
+                      const tripTypeText = b?.tripType ? (b.tripType === 'ONE_WAY' ? 'ONEWAY' : b.tripType.replace(/_/g, ' ')) : 'ONEWAY';
+                      const passengerName = b?.customer?.user?.fullName || 'Customer';
+
                       return (
-                        <View style={styles.dispatchFleetBanner}>
-                          <View style={styles.dispatchFleetLeft}>
-                            <Ionicons name="car-sport" size={14} color="#0f766e" />
-                            <Text style={styles.dispatchFleetLabel}>
-                              {t('dashboard.requested_fleet', { defaultValue: 'FLEET:' })}
-                            </Text>
-                            <Text style={styles.dispatchFleetValue} numberOfLines={1}>
-                              {fleet.display}
-                            </Text>
+                        <View style={styles.dispatchTableContainer}>
+                          {/* Row 1: Selected Fleet */}
+                          <View style={styles.dispatchTableRow}>
+                            <View style={styles.dispatchTableColLabel}>
+                              <Text style={styles.dispatchTableLabelText}>
+                                {t('dashboard.fleet_label', { defaultValue: 'Fleet' })}
+                              </Text>
+                            </View>
+                            <View style={styles.dispatchTableColValue}>
+                              <View style={styles.dispatchTableFleetRow}>
+                                <Ionicons name="car-sport" size={13} color="#0f766e" style={{ marginRight: 6 }} />
+                                <Text style={styles.dispatchTableFleetText} numberOfLines={1}>
+                                  {fleet.display}
+                                </Text>
+                                <View style={styles.dispatchTableCategoryPill}>
+                                  <Text style={styles.dispatchTableCategoryPillText}>
+                                    {fleet.category}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
                           </View>
-                          <View style={styles.dispatchFleetCategoryPill}>
-                            <Text style={styles.dispatchFleetCategoryPillText}>
-                              {fleet.category}
-                            </Text>
+
+                          {/* Row 2: Passenger */}
+                          <View style={styles.dispatchTableRow}>
+                            <View style={styles.dispatchTableColLabel}>
+                              <Text style={styles.dispatchTableLabelText}>
+                                {t('dashboard.passenger_label', { defaultValue: 'Passenger' })}
+                              </Text>
+                            </View>
+                            <View style={styles.dispatchTableColValue}>
+                              <View style={styles.dispatchTableValueRow}>
+                                <Ionicons name="person" size={12} color="#2563eb" style={{ marginRight: 6 }} />
+                                <Text style={styles.dispatchTableValueText} numberOfLines={1}>
+                                  {passengerName}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+
+                          {/* Row 3: Trip Type */}
+                          <View style={styles.dispatchTableRow}>
+                            <View style={styles.dispatchTableColLabel}>
+                              <Text style={styles.dispatchTableLabelText}>
+                                {t('dashboard.trip_type_label', { defaultValue: 'Trip type' })}
+                              </Text>
+                            </View>
+                            <View style={styles.dispatchTableColValue}>
+                              <View style={styles.dispatchTableValueRow}>
+                                <View style={styles.dispatchTripTypeBadge}>
+                                  <Text style={styles.dispatchTripTypeBadgeText}>
+                                    {tripTypeText}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+                          </View>
+
+                          {/* Row 4: Net Payout Amount (Reference style: "Net payout amount | Rs ...") */}
+                          <View style={[styles.dispatchTableRow, styles.dispatchTableRowLast]}>
+                            <View style={[styles.dispatchTableColLabel, styles.dispatchTableColLabelHighlight]}>
+                              <Text style={styles.dispatchTableLabelHighlightText}>
+                                {t('dashboard.net_payout_amount', { defaultValue: 'Net payout amount' })}
+                              </Text>
+                            </View>
+                            <View style={[styles.dispatchTableColValue, styles.dispatchTableColValueHighlight]}>
+                              <Text style={styles.dispatchTablePayoutValue}>
+                                ₹{payeeAmount.toLocaleString('en-IN')}
+                              </Text>
+                            </View>
                           </View>
                         </View>
                       );
                     })()}
-
-                    {/* Passenger, Driver Payee Amount In Between, & Trip Type Row */}
-                    <View style={styles.dispatchPassengerRowLight}>
-                      <View style={styles.passengerGroupLeft}>
-                        <Ionicons name="person" size={12} color="#2563eb" style={{ marginRight: 5 }} />
-                        <Text style={styles.dispatchPassengerNameDark} numberOfLines={1}>
-                          {b?.customer?.user?.fullName || 'Customer'}
-                        </Text>
-                      </View>
-                      <Text style={styles.dispatchVendorAmountCenter}>
-                        ₹{payeeAmount.toLocaleString('en-IN')}
-                      </Text>
-                      <Text style={styles.dispatchTripTypeOrange}>
-                        {b?.tripType ? (b.tripType === 'ONE_WAY' ? 'ONEWAY' : b.tripType.replace(/_/g, ' ')) : 'ONEWAY'}
-                      </Text>
-                    </View>
 
                     {/* Action Buttons Row: (Pending Admin) if cancel requested, or (Cancel Ride & Details) if accepted, or (Decline & Accept) if pending */}
                     {isCancelPending ? (
@@ -1249,85 +1292,110 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  /* Selected Fleet Banner */
-  dispatchFleetBanner: {
+  /* Table Grid: Rows and Columns matching Reference */
+  dispatchTableContainer: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  dispatchTableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    minHeight: 34,
+    alignItems: 'stretch',
+  },
+  dispatchTableRowLast: {
+    borderBottomWidth: 0,
+  },
+  dispatchTableColLabel: {
+    width: 128,
+    backgroundColor: '#f8fafc',
+    borderRightWidth: 1,
+    borderRightColor: '#e2e8f0',
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    justifyContent: 'center',
+  },
+  dispatchTableLabelText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  dispatchTableColValue: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    justifyContent: 'center',
+  },
+  dispatchTableFleetRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 4,
+  },
+  dispatchTableFleetText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
+    flex: 1,
+  },
+  dispatchTableCategoryPill: {
     backgroundColor: '#f0fdfa',
     borderWidth: 1,
-    borderColor: '#ccfbf1',
-    borderRadius: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    marginTop: 6,
-    marginBottom: 4,
+    borderColor: '#99f6e4',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
   },
-  dispatchFleetLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 5,
-  },
-  dispatchFleetLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#0f766e',
-    letterSpacing: 0.5,
-  },
-  dispatchFleetValue: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0f172a',
-    flexShrink: 1,
-  },
-  dispatchFleetCategoryPill: {
-    backgroundColor: '#0f766e',
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    marginLeft: 6,
-  },
-  dispatchFleetCategoryPillText: {
+  dispatchTableCategoryPillText: {
     fontSize: 9.5,
     fontWeight: '800',
-    color: '#ffffff',
-    textTransform: 'uppercase',
+    color: '#0f766e',
   },
-
-  /* Passenger, Amount, and Trip Type Row */
-  dispatchPassengerRowLight: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    paddingVertical: 8,
-    paddingHorizontal: 0,
-    marginTop: 4,
-    marginBottom: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-  },
-  passengerGroupLeft: {
+  dispatchTableValueRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  dispatchPassengerNameDark: {
+  dispatchTableValueText: {
     fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  dispatchTripTypeBadge: {
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    paddingHorizontal: 7,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  dispatchTripTypeBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#c2410c',
+    letterSpacing: 0.4,
+  },
+  dispatchTableColLabelHighlight: {
+    backgroundColor: '#f1f5f9',
+  },
+  dispatchTableLabelHighlightText: {
+    fontSize: 11.5,
     fontWeight: '800',
     color: '#0f172a',
   },
-  dispatchVendorAmountCenter: {
-    fontSize: 15,
+  dispatchTableColValueHighlight: {
+    backgroundColor: '#f8fafc',
+  },
+  dispatchTablePayoutValue: {
+    fontSize: 14.5,
     fontWeight: '900',
-    color: '#0f172a',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    textAlign: 'center',
-  },
-  dispatchTripTypeOrange: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#ea580c',
+    color: '#0f766e',
   },
 
   /* Decline & Accept Action Buttons Row - EXACTLY AS IMAGE 1 */
