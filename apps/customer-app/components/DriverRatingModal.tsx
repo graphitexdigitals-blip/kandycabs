@@ -288,8 +288,6 @@ export function DriverRatingModal({
               )}
             </View>
 
-            <View style={styles.cardSeparator} />
-
             {/* SECTION 3: WRITE A REVIEW */}
             <View style={styles.reviewCard}>
               <View style={styles.reviewInputWrapper}>
@@ -578,7 +576,8 @@ const styles = StyleSheet.create({
   reviewCard: {
     backgroundColor: 'transparent',
     paddingHorizontal: 4,
-    paddingVertical: 6,
+    paddingTop: 10,
+    paddingBottom: 6,
     marginBottom: 6,
   },
   reviewCardHeader: {
