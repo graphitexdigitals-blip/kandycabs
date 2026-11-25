@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -71,11 +71,26 @@ export default function DriverTripCompleteScreen() {
   const [paymentError, setPaymentError] = useState('');
   const [copiedUpi, setCopiedUpi] = useState(false);
 
-  // Subscribe to live GPS coordinates
+  const currentCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // Subscribe to live GPS coordinates — update ref immediately, but only update state on initial fix or significant movement (> 50m) to prevent 1-second screen thrashing
   useEffect(() => {
+    const initial = locationTracker.getCurrentCoordinates();
+    if (initial.lat != null && initial.lng != null) {
+      currentCoordsRef.current = { lat: initial.lat, lng: initial.lng };
+      setCurrentCoords({ lat: initial.lat, lng: initial.lng });
+    }
+
     const unsub = locationTracker.addListener((lat, lng) => {
       if (lat != null && lng != null) {
-        setCurrentCoords({ lat, lng });
+        currentCoordsRef.current = { lat, lng };
+        setCurrentCoords((prev) => {
+          if (!prev) return { lat, lng };
+          if (Math.abs(prev.lat - lat) < 0.0005 && Math.abs(prev.lng - lng) < 0.0005) {
+            return prev;
+          }
+          return { lat, lng };
+        });
       }
     });
     return () => unsub();
@@ -91,23 +106,20 @@ export default function DriverTripCompleteScreen() {
     return () => sub.remove();
   }, [router]);
 
-  // Fetch active booking details — also guard: if already COMPLETED, go home
+  // Fetch active booking details strictly once on mount — guard against infinite redirects
+  const hasFetchedBookingRef = useRef(false);
   const fetchBookingDetails = useCallback(async () => {
+    if (hasFetchedBookingRef.current) return;
     try {
       const res = await driverApiClient.fetch('/api/driver/status');
-      if (res.success) {
+      if (res.success && res.activeBooking) {
         const b = res.activeBooking;
-        if (b) {
-          // If trip is already completed in DB, don't show the form again — go to dashboard
-          if (b.status === 'COMPLETED' || b.status === 'TRIP_COMPLETED' || b.status === 'TRIP_ENDED') {
-            router.replace('/dashboard');
-            return;
-          }
-          setBooking(b);
-        } else {
-          // No active booking at all — also means trip is done, go home
+        if (b.status === 'COMPLETED' || b.status === 'TRIP_COMPLETED' || b.status === 'TRIP_ENDED') {
           router.replace('/dashboard');
+          return;
         }
+        hasFetchedBookingRef.current = true;
+        setBooking(b);
       }
     } catch (_) {
       // Ignore background fetch error
@@ -235,6 +247,15 @@ export default function DriverTripCompleteScreen() {
   };
 
   const handleFillDemo = () => {
+    const latest = locationTracker.getCurrentCoordinates();
+    const demoLat = latest.lat || 12.9512;
+    const demoLng = latest.lng || 74.8723;
+    const locStamp = {
+      lat: demoLat,
+      lng: demoLng,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    };
+    setPhotoLocation(locStamp);
     setOdometerImageUri('demo_odometer');
     setOdometerPhotoAttached(true);
     setFinalOdometer('42990');
@@ -244,6 +265,7 @@ export default function DriverTripCompleteScreen() {
       setTripCompletionDraft(id, {
         odometerImageUri: 'demo_odometer',
         finalOdometer: '42990',
+        photoLocation: locStamp,
       });
     }
     Alert.alert(
@@ -341,8 +363,8 @@ export default function DriverTripCompleteScreen() {
     try {
       // Capture exact driver GPS location at completion moment
       const latestCoords = locationTracker.getCurrentCoordinates();
-      const actualLat = latestCoords.lat ?? currentCoords?.lat ?? photoLocation?.lat ?? booking?.dropLat;
-      const actualLng = latestCoords.lng ?? currentCoords?.lng ?? photoLocation?.lng ?? booking?.dropLng;
+      const actualLat = latestCoords.lat ?? currentCoordsRef.current?.lat ?? currentCoords?.lat ?? photoLocation?.lat ?? booking?.dropLat;
+      const actualLng = latestCoords.lng ?? currentCoordsRef.current?.lng ?? currentCoords?.lng ?? photoLocation?.lng ?? booking?.dropLng;
       const actualAddress = await reverseGeocodeAddress(
         actualLat,
         actualLng,

@@ -16,6 +16,7 @@ import {
   Keyboard,
   Animated,
   useWindowDimensions,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -25,6 +26,7 @@ import {
   driverApiClient,
   getDynamicBaseUrl,
 } from '../lib/api';
+import { getOrCreateDeviceId } from '../lib/deviceId';
 import { getAdminRegisteredDriver } from '../lib/adminDrivers';
 import { APP_FONT, APP_FONT_BOLD, APP_FONT_MEDIUM } from '../constants/typography';
 import {
@@ -192,7 +194,7 @@ export default function DriverLoginScreen() {
     }
   };
 
-  const handleVerifyOtp = async () => {
+  const handleVerifyOtp = async (forceLogoutOtherDevice: boolean = false) => {
     const cleanPhone = phone.trim().replace(/\D/g, '').slice(-10);
     if (cleanPhone.length < 10) {
       setError('Please enter your 10-digit mobile number first');
@@ -215,16 +217,43 @@ export default function DriverLoginScreen() {
       let isVerified = false;
       let userData: any = null;
       let serverToken: string | null = null;
+      const deviceId = await getOrCreateDeviceId();
 
-      // 1. Attempt verification with backend API without enforcing DRIVER role
+      // 1. Attempt verification with backend API
       try {
-        const res = await driverApiClient.auth.verifyOtp(cleanPhone, otp.trim(), 'Driver Partner');
+        const res = await driverApiClient.auth.verifyOtp(
+          cleanPhone,
+          otp.trim(),
+          'Driver Partner',
+          'DRIVER',
+          deviceId,
+          forceLogoutOtherDevice === true
+        );
         if (res?.success && res?.token) {
           userData = res.user;
           serverToken = res.token;
           isVerified = true;
         }
       } catch (apiErr: any) {
+        if (apiErr?.code === 'ALREADY_LOGGED_IN_OTHER_DEVICE') {
+          setLoading(false);
+          Alert.alert(
+            'Active on Another Device',
+            'This driver account is currently logged in on another device. Logging in here will automatically log out that device.\n\nDo you want to continue?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Log In Here',
+                style: 'destructive',
+                onPress: () => {
+                  handleVerifyOtp(true);
+                },
+              },
+            ]
+          );
+          return;
+        }
+
         console.warn('Backend verifyOtp error:', apiErr?.message);
         if (
           otp.trim() === '1234' ||
@@ -329,6 +358,24 @@ export default function DriverLoginScreen() {
         router.replace('/documents');
       }
     } catch (err: any) {
+      if (err?.code === 'ALREADY_LOGGED_IN_OTHER_DEVICE') {
+        setLoading(false);
+        Alert.alert(
+          'Active on Another Device',
+          'This driver account is currently logged in on another device. Logging in here will automatically log out that device.\n\nDo you want to continue?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Log In Here',
+              style: 'destructive',
+              onPress: () => {
+                handleVerifyOtp(true);
+              },
+            },
+          ]
+        );
+        return;
+      }
       console.error('Login verify error:', err);
       const cleanPhone = phone.trim().replace(/\D/g, '').slice(-10);
       const regDriver = getAdminRegisteredDriver(cleanPhone);
@@ -579,7 +626,7 @@ export default function DriverLoginScreen() {
                     if (error) setError('');
                   }}
                   returnKeyType="done"
-                  onSubmitEditing={handleVerifyOtp}
+                  onSubmitEditing={() => handleVerifyOtp(false)}
                 />
 
                 {/* Dev OTP quick fill badge if present */}
@@ -601,7 +648,7 @@ export default function DriverLoginScreen() {
                   { height: inputHeight },
                   loading && styles.loginSubmitBtnDisabled,
                 ]}
-                onPress={handleVerifyOtp}
+                onPress={() => handleVerifyOtp(false)}
                 disabled={loading}
                 activeOpacity={0.88}
               >

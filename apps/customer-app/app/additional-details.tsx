@@ -104,6 +104,7 @@ export default function AdditionalDetailsScreen() {
 
   // 1. Number of Passengers state (Default to 0)
   const [passengerCount, setPassengerCount] = useState<number>(0);
+  const [showTravellersRequiredModal, setShowTravellersRequiredModal] = useState<boolean>(false);
 
   // 2. Luggage Details state
   const [selectedLuggage, setSelectedLuggage] = useState<string>('No Luggage');
@@ -141,10 +142,6 @@ export default function AdditionalDetailsScreen() {
   };
 
   const handleProceed = () => {
-    if (passengerCount <= 0) {
-      Alert.alert('Select Travellers', 'Please select at least 1 traveller before proceeding.');
-      return;
-    }
     const norm = (tripType || '').toUpperCase().trim();
     // Only exclude local trips and corporate from mandatory luggage selection
     const isLuggageOptional =
@@ -157,8 +154,9 @@ export default function AdditionalDetailsScreen() {
       norm === 'CORPORATE' ||
       norm === 'CORPORATE_TRAVEL' ||
       norm === 'CORPORATE TRAVEL';
-    if (!isLuggageOptional && (selectedLuggage === 'No Luggage' || !selectedLuggage || selectedLuggage === '0 Luggage')) {
-      Alert.alert('Select Travellers', 'Please select the number of travellers and luggage before continuing.');
+
+    if (passengerCount <= 0 || (!isLuggageOptional && (selectedLuggage === 'No Luggage' || !selectedLuggage || selectedLuggage === '0 Luggage'))) {
+      setShowTravellersRequiredModal(true);
       return;
     }
     router.push({
@@ -552,6 +550,40 @@ export default function AdditionalDetailsScreen() {
           <Ionicons name="arrow-forward" size={17} color="#ffffff" style={{ marginLeft: 6 }} />
         </TouchableOpacity>
       </View>
+
+      {/* Travellers & Luggage Required Alert Overlay */}
+      {showTravellersRequiredModal && (
+        <View style={styles.sheetAlertOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowTravellersRequiredModal(false)}
+          />
+          <View style={styles.travellersAlertCard}>
+            <Text style={styles.travellersAlertTitle}>
+              Select Travellers
+            </Text>
+
+            <Text style={styles.travellersAlertBody}>
+              Please select the number of{' '}
+              <Text style={styles.travellersAlertBold}>travellers</Text>
+              {' and '}
+              <Text style={styles.travellersAlertBold}>luggage</Text>
+              {' before continuing.'}
+            </Text>
+
+            <View style={styles.travellersAlertActions}>
+              <TouchableOpacity
+                style={styles.travellersAlertSelectBtn}
+                onPress={() => setShowTravellersRequiredModal(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.travellersAlertSelectText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -573,7 +605,7 @@ const styles = StyleSheet.create({
 
   // 1. Vehicle Hero Card
   vehicleHeroCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
@@ -674,7 +706,7 @@ const styles = StyleSheet.create({
 
   // Generic Card Section
   cardSection: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
@@ -723,7 +755,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 6,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -780,7 +812,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -828,7 +860,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000000',
@@ -937,7 +969,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     paddingHorizontal: 16,
     paddingTop: 10,
     borderTopWidth: 1,
@@ -957,6 +989,61 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   proceedButtonText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  sheetAlertOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    zIndex: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  travellersAlertCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    paddingHorizontal: 24,
+    paddingTop: 22,
+    paddingBottom: 18,
+    width: '100%',
+    maxWidth: 360,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  travellersAlertTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 12,
+  },
+  travellersAlertBody: {
+    fontSize: 15,
+    lineHeight: 23,
+    color: '#334155',
+    marginBottom: 20,
+  },
+  travellersAlertBold: {
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  travellersAlertActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 12,
+  },
+  travellersAlertSelectBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    backgroundColor: 'rgb(240, 117, 15)',
+    borderRadius: 8,
+  },
+  travellersAlertSelectText: {
     fontSize: 14,
     fontWeight: '800',
     color: '#ffffff',

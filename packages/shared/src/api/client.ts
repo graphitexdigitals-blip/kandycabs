@@ -124,6 +124,7 @@ export class KandyApiClient {
 
     if (!response.ok) {
       let errorMessage = `Request failed with status ${response.status}`;
+      let errorBody: any = null;
       try {
         const text = await response.text();
         if (text) {
@@ -135,7 +136,7 @@ export class KandyApiClient {
               : `Server returned error page (HTTP ${response.status})`;
           } else {
             try {
-              const errorBody = JSON.parse(text);
+              errorBody = JSON.parse(text);
               errorMessage = errorBody.message || errorBody.error || errorMessage;
             } catch {
               errorMessage = text.length > 200 ? `${text.substring(0, 200)}...` : text;
@@ -147,6 +148,10 @@ export class KandyApiClient {
       }
       const error: any = new Error(errorMessage);
       error.status = response.status;
+      if (errorBody && typeof errorBody === 'object') {
+        error.code = errorBody.code || errorBody.error;
+        error.data = errorBody;
+      }
       throw error;
     }
 
@@ -162,10 +167,17 @@ export class KandyApiClient {
       });
     },
 
-    verifyOtp: async (phone: string, otp: string, fullName?: string, role?: string): Promise<VerifyOtpResponse> => {
+    verifyOtp: async (
+      phone: string,
+      otp: string,
+      fullName?: string,
+      role?: string,
+      deviceId?: string,
+      forceLogoutOtherDevice?: boolean
+    ): Promise<VerifyOtpResponse> => {
       const result = await this.fetch<VerifyOtpResponse>('/api/auth/verify-otp', {
         method: 'POST',
-        body: JSON.stringify({ phone, otp, fullName, role }),
+        body: JSON.stringify({ phone, otp, fullName, role, deviceId, forceLogoutOtherDevice }),
       });
       if (result?.token) {
         await this.tokenStorage.setToken(result.token);

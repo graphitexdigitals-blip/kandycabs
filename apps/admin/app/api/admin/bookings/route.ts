@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@kandy-cabs/db';
-import { BookingStatus } from '@kandy-cabs/shared';
+import {
+  BookingStatus,
+  TripType,
+  VehicleCategory,
+  PaymentStatus,
+  PaymentType,
+  UserRole,
+  calculateFare,
+  parseSafeIsoDate,
+} from '@kandy-cabs/shared';
 import { getAdminSession } from '@/lib/auth';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
+import { calculateRouteDistance } from '@/lib/distance';
 
 export const dynamic = 'force-dynamic';
 
@@ -195,6 +205,356 @@ export async function GET(req: NextRequest) {
     console.error('Error in GET /api/admin/bookings:', error);
     return NextResponse.json(
       { success: false, message: error.message || 'Failed to fetch bookings', bookings: [] },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getAdminSession(req);
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized', message: 'Admin privileges required' },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json();
+    const {
+      customerPhone,
+      customerName,
+      customerEmail,
+      tripType = TripType.ONEWAY,
+      category = VehicleCategory.SEDAN,
+      pickupAddress,
+      pickupLat,
+      pickupLng,
+      dropAddress,
+      dropLat,
+      dropLng,
+      scheduledAt,
+      distanceKm: passedDistanceKm,
+      estimatedFare: passedEstimatedFare,
+      advanceAmount: passedAdvanceAmount,
+      advancePaymentStatus = PaymentStatus.PENDING,
+      driverPayeeAmount: passedDriverPayeeAmount,
+      driverAllowance: passedDriverAllowance,
+      assignedDriverId,
+      passengers = 4,
+      luggage = 'Normal Luggage',
+      hasCarrier = false,
+      hasPet = false,
+      flightNumber,
+      notes,
+      fleetId,
+      fleetName,
+      luggageDetails,
+      isSeniorCitizen = false,
+      isBabyOnBoard = false,
+      isPregnancyFriendly = false,
+      isHandicapped = false,
+      needAirportDrop = false,
+      needAirportPickup = false,
+      needReturnJourney = false,
+      petType,
+      specialRequirements,
+    } = body;
+
+    // 1. Validation
+    if (!customerPhone || String(customerPhone).trim().length < 5) {
+      return NextResponse.json(
+        { success: false, message: 'Customer phone number is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!pickupAddress || !dropAddress) {
+      return NextResponse.json(
+        { success: false, message: 'Pickup address and drop address are required' },
+        { status: 400 }
+      );
+    }
+
+    if (!scheduledAt) {
+      return NextResponse.json(
+        { success: false, message: 'Trip schedule date & time is required' },
+        { status: 400 }
+      );
+    }
+
+    // 2. Normalize customer phone number (ensure +91)
+    const digitsOnly = String(customerPhone).replace(/\D/g, '');
+    const tenDigits = digitsOnly.slice(-10);
+    if (tenDigits.length < 10) {
+      return NextResponse.json(
+        { success: false, message: 'Please provide a valid 10-digit mobile number' },
+        { status: 400 }
+      );
+    }
+    const normalizedPhone = `+91${tenDigits}`;
+
+    // 3. Find or Create User & Customer
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone: normalizedPhone },
+          { phone: tenDigits },
+          { phone: { contains: tenDigits } },
+        ],
+      },
+      include: { customer: true },
+    });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          phone: normalizedPhone,
+          fullName: customerName ? String(customerName).trim() : 'Valued Customer',
+          roles: [UserRole.CUSTOMER],
+          customer: {
+            create: {
+              email: customerEmail ? String(customerEmail).trim() : null,
+            },
+          },
+        },
+        include: { customer: true },
+      });
+    } else {
+      // Update full name if given and was previously empty or generic
+      if (
+        customerName &&
+        (!user.fullName || user.fullName === 'Valued Customer' || user.fullName.trim() === '')
+      ) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { fullName: String(customerName).trim() },
+        });
+      }
+
+      // Ensure customer record exists
+      if (!user.customer) {
+        const newCustomer = await prisma.customer.create({
+          data: {
+            userId: user.id,
+            email: customerEmail ? String(customerEmail).trim() : null,
+          },
+        });
+        user.customer = newCustomer;
+      } else if (customerEmail && !user.customer.email) {
+        await prisma.customer.update({
+          where: { id: user.customer.id },
+          data: { email: String(customerEmail).trim() },
+        });
+      }
+    }
+
+    const customer = user.customer!;
+
+    // 4. Coordinates & Distance
+    const pLat = typeof pickupLat === 'number' ? pickupLat : 12.9141;
+    const pLng = typeof pickupLng === 'number' ? pickupLng : 74.8560;
+    const dLat = typeof dropLat === 'number' ? dropLat : 13.0827;
+    const dLng = typeof dropLng === 'number' ? dropLng : 80.2707;
+
+    let distanceKm = Number(passedDistanceKm) || 0;
+    if (distanceKm <= 0) {
+      try {
+        const route = await calculateRouteDistance(pLat, pLng, dLat, dLng);
+        distanceKm = route.distanceKm || 50;
+      } catch {
+        distanceKm = 50;
+      }
+    }
+
+    // 5. Pricing calculation
+    let estimatedFare = Number(passedEstimatedFare) || 0;
+    if (estimatedFare <= 0) {
+      try {
+        const quote = calculateFare({
+          category,
+          tripType,
+          distanceKm,
+          scheduledAt: new Date(scheduledAt),
+        });
+        estimatedFare = quote.totalFare || 2500;
+      } catch {
+        estimatedFare = Math.round(distanceKm * 18);
+      }
+    }
+
+    let advanceAmount =
+      passedAdvanceAmount !== undefined && passedAdvanceAmount !== null
+        ? Number(passedAdvanceAmount)
+        : Math.round(estimatedFare * 0.3);
+
+    const isAdvancePaid = advancePaymentStatus === PaymentStatus.PAID;
+    const effectiveAdvancePaid = isAdvancePaid ? advanceAmount : 0;
+    const balanceAmount = Math.max(0, estimatedFare - effectiveAdvancePaid);
+
+    let driverPayeeAmount =
+      passedDriverPayeeAmount !== undefined && passedDriverPayeeAmount !== null && Number(passedDriverPayeeAmount) > 0
+        ? Number(passedDriverPayeeAmount)
+        : Math.round(estimatedFare * 0.77);
+
+    const driverAllowance = Number(passedDriverAllowance) || 0;
+
+    // 6. Generate human-readable reference & pickup OTP
+    let humanReadableRef = `KC-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+    for (let attempts = 0; attempts < 5; attempts++) {
+      const existing = await prisma.booking.findUnique({
+        where: { humanReadableRef },
+        select: { id: true },
+      });
+      if (!existing) break;
+      humanReadableRef = `KC-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+    }
+
+    const pickupOtp = Math.floor(1000 + Math.random() * 9000).toString();
+
+    // 7. Atomic transaction to create booking, payment, and events
+    const newBooking = await prisma.$transaction(async (tx) => {
+      const isDriverAssigned = Boolean(assignedDriverId);
+      const initialStatus = isDriverAssigned
+        ? BookingStatus.DRIVER_ACCEPTED
+        : BookingStatus.PENDING_ADMIN;
+
+      const booking = await tx.booking.create({
+        data: {
+          humanReadableRef,
+          customerId: customer.id,
+          tripType,
+          pickupAddress: String(pickupAddress).trim(),
+          pickupLat: pLat,
+          pickupLng: pLng,
+          dropAddress: String(dropAddress).trim(),
+          dropLat: dLat,
+          dropLng: dLng,
+          scheduledAt: parseSafeIsoDate(scheduledAt),
+          distanceKm,
+          estimatedFare,
+          advanceAmount,
+          advancePaymentStatus: advancePaymentStatus as PaymentStatus,
+          balanceAmount,
+          balancePaymentStatus: PaymentStatus.PENDING,
+          status: initialStatus,
+          assignedDriverId: assignedDriverId || null,
+          pickupOtp,
+          customerLocationSharingEnabled: true,
+          driverAllowance,
+          driverPayeeAmount,
+          driverPaymentStatus: PaymentStatus.PENDING,
+        },
+      });
+
+      // Advance payment record
+      await tx.payment.create({
+        data: {
+          bookingId: booking.id,
+          type: PaymentType.ADVANCE,
+          amount: advanceAmount,
+          razorpayOrderId: `admin_order_${Date.now()}`,
+          razorpayPaymentId: isAdvancePaid ? `admin_cash_${Date.now()}` : null,
+          status: isAdvancePaid ? PaymentStatus.PAID : PaymentStatus.PENDING,
+          verifiedAt: isAdvancePaid ? new Date() : null,
+        },
+      });
+
+      // Initial booking created TripEvent
+      await tx.tripEvent.create({
+        data: {
+          bookingId: booking.id,
+          type: 'BOOKING_CREATED',
+          payloadJson: {
+            source: 'admin-panel',
+            bookedByAdmin: true,
+            adminId: session.userId,
+            adminName: session.phone || 'Operations Admin',
+            category,
+            fleetId: fleetId || undefined,
+            fleetName: fleetName || undefined,
+            tripType,
+            passengers: Number(passengers) || 1,
+            luggage: String(luggage || 'Normal Luggage'),
+            luggageDetails: luggageDetails || undefined,
+            hasCarrier: Boolean(hasCarrier),
+            requestCarrier: Boolean(hasCarrier),
+            hasPet: Boolean(hasPet),
+            petType: petType || undefined,
+            isSeniorCitizen: Boolean(isSeniorCitizen),
+            isBabyOnBoard: Boolean(isBabyOnBoard),
+            isPregnancyFriendly: Boolean(isPregnancyFriendly),
+            isHandicapped: Boolean(isHandicapped),
+            needAirportDrop: Boolean(needAirportDrop),
+            needAirportPickup: Boolean(needAirportPickup),
+            needReturnJourney: Boolean(needReturnJourney),
+            flightNumber: flightNumber ? String(flightNumber).trim().toUpperCase() : undefined,
+            specialRequirements: specialRequirements ? String(specialRequirements).trim() : notes ? String(notes).trim() : undefined,
+            notes: notes ? String(notes).trim() : undefined,
+            passengerName: customerName ? String(customerName).trim() : user.fullName,
+            passengerPhone: normalizedPhone,
+            advancePaid: effectiveAdvancePaid,
+            advanceDue: advanceAmount,
+            balanceDue: balanceAmount,
+          },
+        },
+      });
+
+      // If a driver was assigned immediately
+      if (assignedDriverId) {
+        await tx.bookingDispatch.create({
+          data: {
+            bookingId: booking.id,
+            driverId: assignedDriverId,
+            status: 'ACCEPTED',
+            respondedAt: new Date(),
+          },
+        });
+
+        await tx.tripEvent.create({
+          data: {
+            bookingId: booking.id,
+            type: 'DRIVER_ACCEPTED',
+            payloadJson: {
+              driverId: assignedDriverId,
+              assignedByAdmin: true,
+              adminName: session.phone || 'Operations Admin',
+            },
+          },
+        });
+      }
+
+      // Audit log entry (ensure actor user exists in DB)
+      const adminUserExists = await tx.user.findUnique({
+        where: { id: session.userId },
+        select: { id: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorUserId: adminUserExists ? session.userId : null,
+          action: 'ADMIN_MANUAL_BOOKING_CREATED',
+          entityType: 'BOOKING',
+          entityId: booking.id,
+          reason: `Manual booking ${humanReadableRef} created for customer ${normalizedPhone}`,
+        },
+      });
+
+      return booking;
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: `Booking ${newBooking.humanReadableRef} created successfully for ${normalizedPhone}`,
+        booking: newBooking,
+      },
+      { status: 201 }
+    );
+  } catch (error: any) {
+    console.error('Error in POST /api/admin/bookings:', error);
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to create booking' },
       { status: 500 }
     );
   }

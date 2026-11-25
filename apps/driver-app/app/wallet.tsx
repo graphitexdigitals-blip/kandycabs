@@ -431,9 +431,9 @@ export default function DriverWalletScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#162232" />
+      <StatusBar barStyle="light-content" backgroundColor="#162636" />
 
-      {/* TOP APP BAR IN BRAND DARK BLUE (#162232) */}
+      {/* TOP APP BAR IN BRAND DARK BLUE (#162636) */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -1358,18 +1358,17 @@ export default function DriverWalletScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#162232',
+    backgroundColor: '#162636',
   },
   header: {
-    backgroundColor: '#162232',
+    backgroundColor: '#162636',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'android' ? 12 : 8,
     paddingBottom: 14,
-    borderBottomWidth: 2,
-    borderBottomColor: '#f97316',
+    borderBottomWidth: 0,
   },
   backButton: {
     flexDirection: 'row',

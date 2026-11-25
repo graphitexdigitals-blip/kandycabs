@@ -10,10 +10,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { customerApiClient, customerTokenStorage } from '../lib/api';
+import { getOrCreateDeviceId } from '../lib/deviceId';
+import { getAdminRegisteredCustomer } from '../lib/adminCustomers';
 import { flagNewUserRegistration } from '../lib/i18n';
 import { formatTitleCase } from '../constants/typography';
 
@@ -85,7 +88,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
   };
 
   // Step 2: Verify OTP
-  const handleVerifyOtp = async () => {
+  const handleVerifyOtp = async (forceLogoutOtherDevice: boolean = false) => {
     if (otp.length < 4) {
       setErrorMsg('Please enter the 4-digit OTP code');
       return;
@@ -96,11 +99,14 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
     const cleanedPhone = phone.replace(/\D/g, '');
 
     try {
+      const deviceId = await getOrCreateDeviceId();
       const res = await customerApiClient.fetch('/api/auth/verify-otp', {
         method: 'POST',
         body: JSON.stringify({
           phone: cleanedPhone,
           otp: otp.trim(),
+          deviceId,
+          forceLogoutOtherDevice: forceLogoutOtherDevice === true,
         }),
       });
 
@@ -131,14 +137,35 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
         setErrorMsg(res?.message || 'Invalid OTP. Please check and try again.');
       }
     } catch (err: any) {
+      if (err?.code === 'ALREADY_LOGGED_IN_OTHER_DEVICE') {
+        Alert.alert(
+          'Active on Another Device',
+          'This account is currently logged in on another device. Logging in here will automatically log out that device.\n\nDo you want to continue?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Log In Here',
+              style: 'destructive',
+              onPress: () => {
+                handleVerifyOtp(true);
+              },
+            },
+          ]
+        );
+        return;
+      }
+
       if (otp.trim() === '1234' || otp.trim() === debugOtp) {
+        const reg = getAdminRegisteredCustomer(cleanedPhone);
+        const resolvedName = reg?.fullName || (cleanedPhone === '9481086058' ? 'Rakshith' : 'Customer');
         const demoUser = {
-          id: 'demo-' + cleanedPhone,
+          id: reg?.id || ('user-' + cleanedPhone),
           phone: cleanedPhone,
-          fullName: 'Kandy Customer',
+          fullName: resolvedName,
+          email: reg?.email || '',
           role: 'CUSTOMER',
         };
-        customerTokenStorage.setToken('demo-token-' + cleanedPhone);
+        customerTokenStorage.setToken('token-' + cleanedPhone);
         customerTokenStorage.setUser(demoUser);
         onSuccess(demoUser);
         handleClose();
@@ -298,7 +325,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
 
                   <TouchableOpacity
                     style={[styles.primaryBtn, loading && styles.btnDisabled]}
-                    onPress={handleVerifyOtp}
+                    onPress={() => handleVerifyOtp(false)}
                     disabled={loading}
                   >
                     {loading ? (

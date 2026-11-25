@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@kandy-cabs/db';
 import { verifyAuthToken, UserRole } from '@kandy-cabs/shared';
+import { isSessionSuperceded } from './auth';
 
 export interface DriverSession {
   userId: string;
@@ -171,6 +172,11 @@ export async function getDriverSession(req: NextRequest): Promise<DriverSession 
         },
       },
     });
+
+    if (user && isSessionSuperceded(payload, user)) {
+      sessionCache.set(token, { session: null, expiresAt: now + 5000 });
+      return null;
+    }
 
     if (user && !user.driver) {
       const newDriver = await prisma.driver.create({

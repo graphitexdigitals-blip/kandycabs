@@ -304,7 +304,7 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#162232" translucent={false} />
+      <StatusBar barStyle="light-content" backgroundColor="#162636" translucent={false} />
 
       {/* Top Header Bar */}
       <View style={styles.header}>
@@ -430,16 +430,17 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FEFEFE',
   },
   header: {
-    backgroundColor: '#162232',
+    backgroundColor: '#162636',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
     paddingTop: Platform.OS === 'android' ? 12 : 10,
+    borderBottomWidth: 0,
   },
   backButton: {
     padding: 6,
@@ -455,7 +456,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   unreadCountBadge: {
-    backgroundColor: '#ea580c',
+    backgroundColor: '#FF6500',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 10,
@@ -470,7 +471,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   markReadText: {
-    color: '#ea580c',
+    color: '#FF6500',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -480,7 +481,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#e8edf3',
     gap: 8,
   },
   filterPill: {
@@ -490,7 +491,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
   },
   filterPillActive: {
-    backgroundColor: '#162232',
+    backgroundColor: '#162636',
   },
   filterPillText: {
     fontSize: 12,

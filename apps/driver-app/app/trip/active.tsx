@@ -318,7 +318,13 @@ export default function DriverTripActiveScreen() {
   useEffect(() => {
     const unsub = locationTracker.addListener((lat, lng) => {
       if (lat != null && lng != null) {
-        setCurrentCoords({ lat, lng });
+        setCurrentCoords((prev) => {
+          if (!prev) return { lat, lng };
+          if (Math.abs(prev.lat - lat) < 0.0001 && Math.abs(prev.lng - lng) < 0.0001) {
+            return prev;
+          }
+          return { lat, lng };
+        });
 
         // Auto-lock waiting starting location if not set yet
         if (isWaitingActive && !isWaitingPaused && !waitingStartCoordsRef.current) {

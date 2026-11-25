@@ -27,6 +27,7 @@ import {
   IconEdit,
   IconCash,
   IconTicket,
+  IconRefund,
 } from '@/components/Icons';
 
 export const dynamic = 'force-dynamic';
@@ -73,10 +74,14 @@ export default function AdminPaymentsPage() {
     totalDriverPaidAmount: 0,
     driverPendingCount: 0,
     totalDriverPendingAmount: 0,
+    refundsCount: 0,
+    refundsPendingCount: 0,
+    refundsSettledCount: 0,
   });
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const isRefundActive = statusFilter === 'REFUNDS' || statusFilter === 'REFUND_PENDING' || statusFilter === 'REFUND_SETTLED';
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ totalCount: 0, totalPages: 1, limit: 25, page: 1 });
@@ -767,6 +772,23 @@ Support: +91 9786452563`;
                 {summary.cancelledCount} Cancelled
               </span>
             )}
+            {(summary.refundsCount ?? 0) > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter('REFUNDS');
+                  setPage(1);
+                }}
+                className="px-2 py-0.5 rounded-md bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold border border-purple-200 transition flex items-center gap-1 cursor-pointer"
+                title="View refund transactions"
+              >
+                <IconRefund className="w-3 h-3 text-purple-600" />
+                <span>{summary.refundsCount} Refunds</span>
+                <span className="text-[10px] text-purple-600 font-semibold">
+                  ({summary.refundsPendingCount ?? 0} Due)
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -984,6 +1006,78 @@ Support: +91 9786452563`;
                 {summary.cancelledCount ?? 0}
               </span>
             </button>
+
+            {/* 7. Refund Transactions (All) */}
+            <button
+              onClick={() => {
+                setStatusFilter('REFUNDS');
+                setPage(1);
+              }}
+              title="All bookings with refund transactions & customer reimbursements"
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2 shrink-0 whitespace-nowrap cursor-pointer ${
+                statusFilter === 'REFUNDS'
+                  ? 'bg-purple-700 text-white font-bold shadow-sm shadow-purple-900/25'
+                  : 'bg-white hover:bg-purple-50 text-purple-800 border border-purple-200 font-semibold'
+              }`}
+            >
+              <IconRefund className={`w-3.5 h-3.5 ${statusFilter === 'REFUNDS' ? 'text-white' : 'text-purple-600'}`} />
+              <span>Refund Transactions</span>
+              <span
+                className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  statusFilter === 'REFUNDS' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-900'
+                }`}
+              >
+                {summary.refundsCount ?? 0}
+              </span>
+            </button>
+
+            {/* 8. Pending Refunds */}
+            <button
+              onClick={() => {
+                setStatusFilter('REFUND_PENDING');
+                setPage(1);
+              }}
+              title="Cancelled bookings where customer refund is due and pending settlement"
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2 shrink-0 whitespace-nowrap cursor-pointer ${
+                statusFilter === 'REFUND_PENDING'
+                  ? 'bg-amber-600 text-white font-bold shadow-xs'
+                  : 'bg-white hover:bg-amber-50 text-amber-900 border border-amber-200 font-semibold'
+              }`}
+            >
+              <IconClock className={`w-3.5 h-3.5 ${statusFilter === 'REFUND_PENDING' ? 'text-white' : 'text-amber-600'}`} />
+              <span>Refund Pending</span>
+              <span
+                className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  statusFilter === 'REFUND_PENDING' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-900'
+                }`}
+              >
+                {summary.refundsPendingCount ?? 0}
+              </span>
+            </button>
+
+            {/* 9. Settled Refunds */}
+            <button
+              onClick={() => {
+                setStatusFilter('REFUND_SETTLED');
+                setPage(1);
+              }}
+              title="Bookings where customer refund has been successfully settled and recorded"
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2 shrink-0 whitespace-nowrap cursor-pointer ${
+                statusFilter === 'REFUND_SETTLED'
+                  ? 'bg-emerald-700 text-white font-bold shadow-xs'
+                  : 'bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold'
+              }`}
+            >
+              <IconCheck className={`w-3.5 h-3.5 ${statusFilter === 'REFUND_SETTLED' ? 'text-white' : 'text-emerald-600'}`} strokeWidth={2.5} />
+              <span>Refund Settled</span>
+              <span
+                className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  statusFilter === 'REFUND_SETTLED' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-900'
+                }`}
+              >
+                {summary.refundsSettledCount ?? 0}
+              </span>
+            </button>
           </div>
 
           {/* Search Form */}
@@ -1006,6 +1100,72 @@ Support: +91 9786452563`;
             </button>
           </form>
         </div>
+
+        {/* Dedicated Refund Transactions Section Notice Banner */}
+        {(statusFilter === 'REFUNDS' || statusFilter === 'REFUND_PENDING' || statusFilter === 'REFUND_SETTLED') && (
+          <div className="bg-gradient-to-r from-purple-50 via-purple-50/70 to-indigo-50/60 border border-purple-200/90 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-purple-600/30">
+                <IconRefund className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-sm sm:text-base font-extrabold text-purple-950 tracking-tight">
+                    Refund Transactions & Customer Reimbursements
+                  </h3>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                    statusFilter === 'REFUND_PENDING'
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                      : statusFilter === 'REFUND_SETTLED'
+                      ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                      : 'bg-purple-200/80 text-purple-900 border border-purple-300'
+                  }`}>
+                    {statusFilter === 'REFUND_PENDING' ? 'Pending Action' : statusFilter === 'REFUND_SETTLED' ? 'Settled' : 'All Refunds'}
+                  </span>
+                </div>
+                <p className="text-xs text-purple-900/80 mt-1 max-w-2xl font-medium">
+                  Review cancelled ride refunds, track payment settlements back to customer (UPI / Bank / Razorpay), or waive cancellation fees if full customer advance refund is approved.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              <button
+                type="button"
+                onClick={() => { setStatusFilter('REFUNDS'); setPage(1); }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  statusFilter === 'REFUNDS'
+                    ? 'bg-purple-700 text-white shadow-xs'
+                    : 'bg-white hover:bg-purple-100/70 text-purple-800 border border-purple-300'
+                }`}
+              >
+                All ({summary.refundsCount ?? 0})
+              </button>
+              <button
+                type="button"
+                onClick={() => { setStatusFilter('REFUND_PENDING'); setPage(1); }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  statusFilter === 'REFUND_PENDING'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-white hover:bg-amber-100/70 text-amber-900 border border-amber-300'
+                }`}
+              >
+                Pending ({summary.refundsPendingCount ?? 0})
+              </button>
+              <button
+                type="button"
+                onClick={() => { setStatusFilter('REFUND_SETTLED'); setPage(1); }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  statusFilter === 'REFUND_SETTLED'
+                    ? 'bg-emerald-700 text-white shadow-xs'
+                    : 'bg-white hover:bg-emerald-100/70 text-emerald-900 border border-emerald-300'
+                }`}
+              >
+                Settled ({summary.refundsSettledCount ?? 0})
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Transactions Table Card: Booking Ledger */}
         <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-xs overflow-hidden">
@@ -1224,7 +1384,17 @@ Support: +91 9786452563`;
             </div>
           ) : transactions.length === 0 ? (
             <div className="py-16 text-center text-slate-400 text-sm">
-              <div>No payment transactions found matching the filter criteria.</div>
+              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-2 text-slate-400">
+                {isRefundActive ? <IconRefund className="w-5 h-5 text-purple-600" /> : <IconList className="w-5 h-5" />}
+              </div>
+              <div className="font-bold text-slate-700">
+                {isRefundActive ? 'No refund transactions found for this selection.' : 'No payment transactions found matching the filter criteria.'}
+              </div>
+              {isRefundActive && (
+                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                  When bookings with advance collections are cancelled, their refund calculations and settlement records appear here.
+                </p>
+              )}
             </div>
           ) : (
             <>
@@ -1239,7 +1409,13 @@ Support: +91 9786452563`;
                       <th className="py-4 px-4">Total Fare</th>
                       <th className="py-4 px-4">Advance</th>
                       <th className="py-4 px-4">Balance</th>
-                      <th className="py-4 px-4 text-rose-700">Refund</th>
+                      <th className={`py-4 px-4 transition-colors ${
+                        isRefundActive
+                          ? 'bg-purple-100/90 text-purple-900 border-x border-purple-200 font-black'
+                          : 'text-rose-700'
+                      }`}>
+                        Refund &amp; Settlement
+                      </th>
                       <th className="py-4 px-4">Tolls /<br /><span className="text-[10px] text-slate-400 font-normal lowercase tracking-normal">parking</span></th>
                       <th className="py-4 px-4">Driver Payout<br /><span className="text-[10px] text-amber-700 font-bold lowercase tracking-normal">/km + allowance</span></th>
                       <th className="py-4 px-4 text-emerald-800">Kandy Profit<br /><span className="text-[10px] text-emerald-600 font-bold lowercase tracking-normal">revenue − driver</span></th>
@@ -1450,7 +1626,9 @@ Support: +91 9786452563`;
                           </td>
 
                           {/* 7. Refund (Separate Column) */}
-                          <td className="py-3.5 px-4 align-top">
+                          <td className={`py-3.5 px-4 align-top transition-colors ${
+                            isRefundActive ? 'bg-purple-50/40 border-x border-purple-100' : ''
+                          }`}>
                             {t.status === 'CANCELLED' || t.cancellationData || t.advancePaymentStatus === PaymentStatus.REFUNDED ? (
                               <div className="space-y-1.5 text-[11px] min-w-[155px]">
                                 {/* Cancellation Charge Display */}

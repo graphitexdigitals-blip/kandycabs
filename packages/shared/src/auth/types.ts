@@ -6,6 +6,8 @@ export interface AuthTokenPayload {
   roles: UserRole[];
   customerId?: string | null;
   driverId?: string | null;
+  activeDeviceId?: string | null;
+  sessionVersion?: number;
 }
 
 export interface UserProfile {
@@ -48,6 +50,8 @@ export interface VerifyOtpRequest {
   phone: string;
   otp: string;
   fullName?: string;
+  deviceId?: string;
+  forceLogoutOtherDevice?: boolean;
 }
 
 export interface VerifyOtpResponse {
@@ -55,6 +59,7 @@ export interface VerifyOtpResponse {
   token?: string;
   user?: UserProfile;
   message?: string;
+  code?: string;
 }
 
 export interface AuthUserResponse {

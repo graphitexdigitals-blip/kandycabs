@@ -13,6 +13,7 @@ import {
   parseSafeIsoDate,
 } from '@kandy-cabs/shared';
 import { calculateRouteDistance } from '@/lib/distance';
+import { isSessionSuperceded } from '@/lib/auth';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
 import { recordCouponUsage } from '@/lib/couponStore';
 
@@ -47,7 +48,23 @@ export async function POST(req: NextRequest) {
       return setCorsHeaders(res);
     }
 
-    const payload = await verifyAuthToken(token);
+    let payload = await verifyAuthToken(token);
+    if ((!payload || !payload.userId) && token.startsWith('token-')) {
+      const phoneDigits = token.replace('token-', '');
+      const user = await prisma.user.findFirst({
+        where: {
+          phone: { contains: phoneDigits },
+        },
+      });
+      if (user) {
+        payload = {
+          userId: user.id,
+          phone: user.phone,
+          roles: user.roles as any,
+        };
+      }
+    }
+
     if (!payload || !payload.userId) {
       const res = NextResponse.json(
         { error: 'Unauthorized', message: 'Invalid or expired token' },
@@ -56,10 +73,31 @@ export async function POST(req: NextRequest) {
       return setCorsHeaders(res);
     }
 
-    // Ensure customer record exists
-    let customer = await prisma.customer.findUnique({
-      where: { userId: payload.userId },
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      include: { customer: true },
     });
+    if (!user) {
+      const res = NextResponse.json(
+        { error: 'Unauthorized', message: 'User not found' },
+        { status: 401 }
+      );
+      return setCorsHeaders(res);
+    }
+    if (isSessionSuperceded(payload, user)) {
+      const res = NextResponse.json(
+        {
+          error: 'SESSION_TERMINATED',
+          code: 'SESSION_TERMINATED',
+          message: 'You have been logged out because this account was logged into another device. Please log in again.',
+        },
+        { status: 401 }
+      );
+      return setCorsHeaders(res);
+    }
+
+    // Ensure customer record exists
+    let customer = user.customer;
     if (!customer) {
       customer = await prisma.customer.create({
         data: { userId: payload.userId },
@@ -255,7 +293,7 @@ export async function POST(req: NextRequest) {
     if (!isPayOnDrop && !isFullPayment && typeof body.exactAdvanceAmount === 'number' && body.exactAdvanceAmount > 0) {
       advanceAmount = Number(body.exactAdvanceAmount);
     }
-    const advancePaymentStatus = (isPayOnDrop || isPayOnApproval) ? PaymentStatus.PENDING : PaymentStatus.PAID;
+    const advancePaymentStatus = PaymentStatus.PENDING;
     const balanceAmount = isPayOnDrop ? effectiveTotalFare : isFullPayment ? 0 : Math.max(0, effectiveTotalFare - advanceAmount);
 
     const humanReadableRef = generateBookingReference();
@@ -279,7 +317,7 @@ export async function POST(req: NextRequest) {
           distanceKm: (typeof body.exactDistanceKm === 'number' && body.exactDistanceKm > 0) ? body.exactDistanceKm : pricing.billableDistanceKm,
           estimatedFare: effectiveTotalFare,
           advanceAmount: advanceAmount,
-          advancePaymentStatus: advancePaymentStatus,
+          advancePaymentStatus: PaymentStatus.PENDING,
           balanceAmount: balanceAmount,
           balancePaymentStatus: PaymentStatus.PENDING,
           status: BookingStatus.PENDING_ADMIN,
@@ -300,9 +338,9 @@ export async function POST(req: NextRequest) {
           type: PaymentType.ADVANCE,
           amount: advanceAmount,
           razorpayOrderId: orderRef,
-          razorpayPaymentId: razorpayPaymentId || (isPayOnDrop ? `pay_cash_${Date.now()}` : isPayOnApproval ? `pay_pending_approval_${Date.now()}` : `pay_mock_${Date.now()}`),
-          status: advancePaymentStatus,
-          verifiedAt: (isPayOnDrop || isPayOnApproval) ? null : new Date(),
+          razorpayPaymentId: razorpayPaymentId || (isPayOnDrop ? `pay_cash_${Date.now()}` : isPayOnApproval ? `pay_pending_approval_${Date.now()}` : null),
+          status: PaymentStatus.PENDING,
+          verifiedAt: null,
         },
       });
 

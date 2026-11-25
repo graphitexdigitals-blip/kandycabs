@@ -7,21 +7,21 @@ async function main() {
   const tempDir = path.join(root, 'apps', 'driver-app', 'dist_bundle', 'icon_patch');
   if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
-  // Locate the clean white KC letters for driver app
-  const kcWhiteLettersPath = path.join(root, 'apps', 'driver-app', 'assets', 'images', 'kc_letters_trimmed.png');
-  if (!fs.existsSync(kcWhiteLettersPath)) {
-    throw new Error('kc_letters_trimmed.png not found at ' + kcWhiteLettersPath);
+  // Locate the orange KC monogram for driver app
+  const kcOrangePath = path.join(root, 'apps', 'driver-app', 'assets', 'images', 'kc_orange_only.png');
+  if (!fs.existsSync(kcOrangePath)) {
+    throw new Error('kc_orange_only.png not found at ' + kcOrangePath);
   }
 
-  // Official brand full-bleed orange: RGB(252, 82, 4) -> #FC5204
-  const orangeBg = { r: 252, g: 82, b: 4, alpha: 1 };
+  // Official brand dark navy blue: RGB(1, 38, 67) -> #012643
+  const navyBg = { r: 1, g: 38, b: 67, alpha: 1 };
 
-  console.log('Generating crisp full-bleed orange icons with white KC monogram...');
+  console.log('Generating crisp navy blue icons with vibrant orange KC monogram...');
 
-  // Helper: generate full bleed orange icon with white KC monogram
-  async function generateFullBleedIcon(size, fontScale = 0.38) {
+  // Helper: generate navy icon with orange KC monogram
+  async function generateNavyIcon(size, fontScale = 0.58) {
     const targetW = Math.max(1, Math.round(size * fontScale));
-    const resizedMonogram = await sharp(kcWhiteLettersPath)
+    const resizedMonogram = await sharp(kcOrangePath)
       .resize({ width: targetW, fit: 'inside' })
       .toBuffer();
 
@@ -34,7 +34,7 @@ async function main() {
         width: size,
         height: size,
         channels: 4,
-        background: orangeBg,
+        background: navyBg,
       },
     })
       .composite([{ input: resizedMonogram, top, left }])
@@ -44,38 +44,36 @@ async function main() {
 
   // Master assets in apps/driver-app/assets/
   const driverAssetsDir = path.join(root, 'apps', 'driver-app', 'assets');
-  const masterIconBuf = await generateFullBleedIcon(1024, 0.38);
+  const masterIconBuf = await generateNavyIcon(1024, 0.58);
   fs.writeFileSync(path.join(driverAssetsDir, 'icon.png'), masterIconBuf);
   fs.writeFileSync(path.join(driverAssetsDir, 'adaptive-icon.png'), masterIconBuf);
   console.log('Updated apps/driver-app/assets/icon.png and adaptive-icon.png (1024x1024)');
 
   // All 15 native Android APK drawable targets
-  // Adaptive foregrounds: 108, 162, 216, 324, 432 (fontScale = 0.38)
-  // Legacy square & round icons: 48, 72, 96, 144, 192 (fontScale = 0.40)
   const iconTargets = [
     // Adaptive foregrounds
-    { name: 'res/QZ.png', size: 108, scale: 0.38 },
-    { name: 'res/zr.png', size: 162, scale: 0.38 },
-    { name: 'res/Em.png', size: 216, scale: 0.38 },
-    { name: 'res/Lf.png', size: 324, scale: 0.38 },
-    { name: 'res/as.png', size: 432, scale: 0.38 },
+    { name: 'res/QZ.png', size: 108, scale: 0.58 },
+    { name: 'res/zr.png', size: 162, scale: 0.58 },
+    { name: 'res/Em.png', size: 216, scale: 0.58 },
+    { name: 'res/Lf.png', size: 324, scale: 0.58 },
+    { name: 'res/as.png', size: 432, scale: 0.58 },
     // Legacy square icons
-    { name: 'res/9w.png', size: 48, scale: 0.40 },
-    { name: 'res/yn.png', size: 72, scale: 0.40 },
-    { name: 'res/FS.png', size: 96, scale: 0.40 },
-    { name: 'res/RJ.png', size: 144, scale: 0.40 },
-    { name: 'res/o-.png', size: 192, scale: 0.40 },
+    { name: 'res/9w.png', size: 48, scale: 0.58 },
+    { name: 'res/yn.png', size: 72, scale: 0.58 },
+    { name: 'res/FS.png', size: 96, scale: 0.58 },
+    { name: 'res/RJ.png', size: 144, scale: 0.58 },
+    { name: 'res/o-.png', size: 192, scale: 0.58 },
     // Legacy round icons
-    { name: 'res/zR.png', size: 48, scale: 0.40 },
-    { name: 'res/8c.png', size: 72, scale: 0.40 },
-    { name: 'res/wb.png', size: 96, scale: 0.40 },
-    { name: 'res/fO.png', size: 144, scale: 0.40 },
-    { name: 'res/Gc.png', size: 192, scale: 0.40 }
+    { name: 'res/zR.png', size: 48, scale: 0.58 },
+    { name: 'res/8c.png', size: 72, scale: 0.58 },
+    { name: 'res/wb.png', size: 96, scale: 0.58 },
+    { name: 'res/fO.png', size: 144, scale: 0.58 },
+    { name: 'res/Gc.png', size: 192, scale: 0.58 }
   ];
 
   const generatedList = [];
   for (const target of iconTargets) {
-    const outBuf = await generateFullBleedIcon(target.size, target.scale);
+    const outBuf = await generateNavyIcon(target.size, target.scale);
     const safeName = target.name.replace('res/', '').replace('-', '_dash_') + '_' + target.size + '.png';
     const localPath = path.join(tempDir, safeName);
     fs.writeFileSync(localPath, outBuf);
@@ -96,8 +94,8 @@ async function main() {
   for (const m of mipmapMap) {
     const targetDir = path.join(mipmapDir, m.dir);
     if (fs.existsSync(targetDir)) {
-      const squareBuf = await generateFullBleedIcon(m.squareSize, 0.40);
-      const fgBuf = await generateFullBleedIcon(m.fgSize, 0.38);
+      const squareBuf = await generateNavyIcon(m.squareSize, 0.58);
+      const fgBuf = await generateNavyIcon(m.fgSize, 0.58);
 
       fs.writeFileSync(path.join(targetDir, 'ic_launcher.png'), squareBuf);
       fs.writeFileSync(path.join(targetDir, 'ic_launcher_round.png'), squareBuf);
@@ -106,13 +104,13 @@ async function main() {
     }
   }
 
-  // Update colors.xml iconBackground to #FC5204
+  // Update colors.xml iconBackground to #012643
   const colorsXmlPath = path.join(mipmapDir, 'values', 'colors.xml');
   if (fs.existsSync(colorsXmlPath)) {
     let colorsContent = fs.readFileSync(colorsXmlPath, 'utf8');
-    colorsContent = colorsContent.replace(/<color name="iconBackground">[^<]+<\/color>/, '<color name="iconBackground">#FC5204</color>');
+    colorsContent = colorsContent.replace(/<color name="iconBackground">[^<]+<\/color>/, '<color name="iconBackground">#012643</color>');
     fs.writeFileSync(colorsXmlPath, colorsContent);
-    console.log('Updated colors.xml iconBackground to #FC5204');
+    console.log('Updated colors.xml iconBackground to #012643');
   }
 
   // In-place patch resources.arsc in base APK so it stays 100% uncompressed (Method 0) and 4-byte aligned
@@ -127,14 +125,14 @@ async function main() {
       const extraLen = buf.readUInt16LE(idx - 30 + 28);
       const dataStart = idx - 30 + 30 + fnLen + extraLen;
       const dataLen = 1191092;
-      const pattern = Buffer.from([0x08, 0x00, 0x00, 0x1D, 0x43, 0x26, 0x01, 0xFF]);
+      const patternOrange = Buffer.from([0x08, 0x00, 0x00, 0x1D, 0x04, 0x52, 0xFC, 0xFF]);
       const arscData = buf.subarray(dataStart, dataStart + dataLen);
-      const colorOffset = arscData.indexOf(pattern);
+      const colorOffset = arscData.indexOf(patternOrange);
 
       if (colorOffset !== -1) {
-        arscData[colorOffset + 4] = 0x04; // Blue
-        arscData[colorOffset + 5] = 0x52; // Green
-        arscData[colorOffset + 6] = 0xFC; // Red
+        arscData[colorOffset + 4] = 0x43; // Blue
+        arscData[colorOffset + 5] = 0x26; // Green
+        arscData[colorOffset + 6] = 0x01; // Red
         arscData[colorOffset + 7] = 0xFF; // Alpha
 
         const newCrc = zlib.crc32(arscData);
@@ -150,14 +148,14 @@ async function main() {
         }
 
         fs.writeFileSync(baseApkPath, buf);
-        console.log('In-place patched base APK resources.arsc with #FC5204 (Stored, aligned)');
+        console.log('In-place patched base APK resources.arsc with #012643 (Navy Blue, aligned)');
       } else {
-        console.log('Base APK resources.arsc already has #FC5204');
+        console.log('Base APK resources.arsc already has #012643 or pattern matched');
       }
     }
   }
 
-  // Write mapping JSON for update-driver-apk.ps1 (drawables only)
+  // Write mapping JSON for update-driver-apk.ps1 / repack_driver_apk.ps1
   fs.writeFileSync(path.join(tempDir, 'manifest.json'), JSON.stringify(generatedList, null, 2));
   console.log(`Done preparing ${generatedList.length} patch assets.`);
 }

@@ -5,6 +5,8 @@ import { verifyAuthToken, UserRole } from '@kandy-cabs/shared';
 // Public paths that do not require ADMIN authentication (customer & driver routes handle their own Bearer authentication)
 const PUBLIC_PATHS = [
   '/login',
+  '/checkout',
+  '/api/payments',
   '/api/auth',
   '/api/banners',
   '/api/driver',

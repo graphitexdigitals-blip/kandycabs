@@ -556,6 +556,26 @@ export default function BookingFunnelPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Helper to load Razorpay Checkout script dynamically
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (typeof window === 'undefined') {
+        resolve(false);
+        return;
+      }
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handlePayNow = async () => {
     if (isSubmitting) return;
     if (!scheduledDate || !scheduledTime) {
@@ -572,57 +592,165 @@ export default function BookingFunnelPage() {
       const scheduledAt = `${scheduledDate}T${scheduledTime}:00`;
       const bookingRef = `KC-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
       const pickupOtp = `${Math.floor(1000 + Math.random() * 9000)}`;
+      const payableAmount = paymentMode === 'ADVANCE' ? selectedPricing.advancePayable : selectedPricing.totalFare;
 
-      // Try creating booking on server
+      // 1. Ensure Razorpay Checkout script is loaded
+      const scriptReady = await loadRazorpayScript();
+      if (!scriptReady) {
+        alert('Could not load Razorpay payment SDK. Please check your internet connection.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 2. Create Razorpay order via server API
+      let orderId = '';
+      let keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_U3IkpH9yGG0oyk';
+
       try {
-        await fetch('/api/customer/bookings', {
+        const orderRes = await fetch('/api/payments/create-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            pickupAddress,
-            pickupLat,
-            pickupLng,
-            dropAddress,
-            dropLat,
-            dropLng,
+            amount: payableAmount,
+            receipt: bookingRef,
             category: selectedFleet.category,
             tripType,
             scheduledAt,
-            passengerName,
-            passengerPhone: `+91${passengerPhone.replace(/\D/g, '')}`,
-            passengerEmail,
-            bookingRef,
-            pickupOtp,
-            additionalRequirements: additionalReqs,
-            hasPet: additionalReqs.petFriendly,
-            isPetFriendly: additionalReqs.petFriendly,
-            petType: additionalReqs.petFriendly ? additionalReqs.petType : undefined,
-            petFee: selectedPricing.petFee,
-            totalFare: selectedPricing.totalFare,
-            advancePayable: selectedPricing.advancePayable,
-            paymentMode,
+            notes: {
+              bookingRef,
+              passengerName,
+              paymentMode,
+            },
           }),
         });
-      } catch (err) {
-        console.warn('Backend booking log warning:', err);
+
+        if (orderRes.ok) {
+          const orderData = await orderRes.json();
+          if (orderData.orderId) orderId = orderData.orderId;
+          if (orderData.keyId) keyId = orderData.keyId;
+        }
+      } catch (e) {
+        console.warn('Order API call warning, continuing with client initialization:', e);
       }
 
-      setBookingResult({
-        bookingRef,
-        pickupOtp,
-        scheduledAt,
-        totalFare: selectedPricing.totalFare,
-        advancePayable: selectedPricing.advancePayable,
-        balanceToDriver: selectedPricing.balanceToDriver,
-        passengerName,
-        passengerPhone: `+91 ${passengerPhone.replace(/\D/g, '')}`,
-        vehicleName: selectedFleet.name,
-      });
+      // 3. Razorpay Checkout Options
+      const cleanPhone = passengerPhone.replace(/\D/g, '');
+      const options = {
+        key: keyId,
+        amount: payableAmount * 100, // Amount in paise
+        currency: 'INR',
+        name: 'Kandy Cabs',
+        description: `${selectedFleet.name} (${paymentMode === 'ADVANCE' ? 'Advance Payment' : 'Full Payment'})`,
+        image: '/images/fleet-sedan.webp',
+        order_id: orderId || undefined,
+        prefill: {
+          name: passengerName || 'Valued Guest',
+          contact: cleanPhone ? `+91${cleanPhone}` : '+919999999999',
+          email: passengerEmail || 'customer@kandycabs.com',
+        },
+        notes: {
+          bookingRef,
+          tripType,
+          paymentMode,
+          vehicle: selectedFleet.name,
+        },
+        theme: {
+          color: '#162232',
+        },
+        config: {
+          display: {
+            sequence: [
+              'block.upi',
+              'block.card',
+              'block.netbanking',
+              'block.wallet',
+            ],
+            preferences: {
+              show_default_blocks: true,
+            },
+            hide: [
+              { method: 'paylater' },
+              { method: 'emi' },
+            ],
+          },
+        },
+        modal: {
+          ondismiss: () => {
+            setIsSubmitting(false);
+          },
+        },
+        handler: async (response: any) => {
+          const rzpPaymentId = response.razorpay_payment_id || `pay_test_${Date.now()}`;
+          const rzpOrderId = response.razorpay_order_id || orderId;
 
-      setStep(5); // Navigate to Step 5: Booking Confirmed!
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } finally {
+          // 4. Save booking in database
+          try {
+            await fetch('/api/customer/bookings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                pickupAddress,
+                pickupLat,
+                pickupLng,
+                dropAddress,
+                dropLat,
+                dropLng,
+                category: selectedFleet.category,
+                tripType,
+                scheduledAt,
+                passengerName,
+                passengerPhone: `+91${cleanPhone}`,
+                passengerEmail,
+                bookingRef,
+                pickupOtp,
+                additionalRequirements: additionalReqs,
+                hasPet: additionalReqs.petFriendly,
+                isPetFriendly: additionalReqs.petFriendly,
+                petType: additionalReqs.petFriendly ? additionalReqs.petType : undefined,
+                petFee: selectedPricing.petFee,
+                totalFare: selectedPricing.totalFare,
+                advancePayable: selectedPricing.advancePayable,
+                paymentMode,
+                razorpayPaymentId: rzpPaymentId,
+                razorpayOrderId: rzpOrderId,
+              }),
+            });
+          } catch (err) {
+            console.warn('Backend booking save warning:', err);
+          }
+
+          setBookingResult({
+            bookingRef,
+            pickupOtp,
+            scheduledAt,
+            totalFare: selectedPricing.totalFare,
+            advancePayable: selectedPricing.advancePayable,
+            balanceToDriver: paymentMode === 'FULL' ? 0 : selectedPricing.balanceToDriver,
+            passengerName,
+            passengerPhone: `+91 ${cleanPhone}`,
+            vehicleName: selectedFleet.name,
+            paymentMode,
+            payableAmount,
+            razorpayPaymentId: rzpPaymentId,
+            razorpayOrderId: rzpOrderId,
+          });
+
+          setIsSubmitting(false);
+          setStep(5); // Navigate to Step 5: Booking Confirmed!
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+      };
+
+      const razorpayInstance = new (window as any).Razorpay(options);
+      razorpayInstance.on('payment.failed', (failRes: any) => {
+        setIsSubmitting(false);
+        alert(`Payment not completed: ${failRes?.error?.description || 'Please try again.'}`);
+      });
+      razorpayInstance.open();
+    } catch (err) {
+      console.error('Razorpay initialization error:', err);
       setIsSubmitting(false);
+      alert('Unable to initiate Razorpay checkout. Please try again.');
     }
   };
 
@@ -2286,11 +2414,28 @@ export default function BookingFunnelPage() {
                   </span>
                 </div>
                 <div className="pt-2 border-t border-slate-200 flex justify-between">
-                  <span className="text-slate-500 font-medium">Advance Status:</span>
-                  <span className="font-bold text-emerald-600">
-                    ₹{bookingResult.advancePayable.toLocaleString('en-IN')} (PAID)
+                  <span className="text-slate-500 font-medium">Payment Mode:</span>
+                  <span className="font-bold text-slate-900">
+                    {bookingResult.paymentMode === 'FULL' ? 'Full Payment' : 'Advance Deposit'}
                   </span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-medium">Payment Status:</span>
+                  <span className="font-bold text-emerald-600 flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    ₹{(bookingResult.payableAmount || bookingResult.advancePayable).toLocaleString('en-IN')} (PAID)
+                  </span>
+                </div>
+                {bookingResult.razorpayPaymentId && (
+                  <div className="flex justify-between items-center bg-slate-100/90 -mx-4 px-4 py-2 text-[11px] border-y border-slate-200">
+                    <span className="text-slate-500 font-medium">Razorpay Payment ID:</span>
+                    <span className="font-mono font-bold text-slate-800 select-all">
+                      {bookingResult.razorpayPaymentId}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-slate-500 font-medium">Balance Due on Trip:</span>
                   <span className="font-bold text-slate-900">

@@ -59,7 +59,7 @@ export const BottomNavigationBar = memo(function BottomNavigationBar({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#162636',
     borderTopWidth: 1,
     borderTopColor: '#1e293b',
     paddingTop: 8,
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#0f172a',
+    borderColor: '#162636',
   },
   badgeAlertText: {
     color: '#ffffff',

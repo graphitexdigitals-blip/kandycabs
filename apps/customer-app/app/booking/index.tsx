@@ -17,9 +17,12 @@ import {
   Image,
   Modal,
   Switch,
+  Linking,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { WebView } from 'react-native-webview';
+import RazorpayCheckout from 'react-native-razorpay';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { AuthModal } from '../../components/AuthModal';
@@ -307,7 +310,11 @@ export default function BookingFunnelScreen() {
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
 
   // Stepper: 1: Contact Info / Login, 2: Review & Payment, 3: Success Confirmation
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(() => {
+    if (params.step === '2') return 2;
+    if (params.step === '3') return 3;
+    return 1;
+  });
 
   // Route & Vehicle Info
   const pickup = (params.pickup as string) || 'Mangaluru';
@@ -1244,6 +1251,270 @@ export default function BookingFunnelScreen() {
   const [showLuggageModal, setShowLuggageModal] = useState(false);
   const [sameAsAccount, setSameAsAccount] = useState(true);
 
+function buildRazorpayCheckoutHtml(data: {
+  keyId: string;
+  orderId: string;
+  amount: number;
+  name: string;
+  phone: string;
+  email: string;
+  bookingRef: string;
+  bookingId?: string;
+  callbackUrl?: string;
+}): string {
+  const amountPaise = Math.round(data.amount * 100);
+  const cleanPhone = (data.phone || '').replace(/\D/g, '').slice(-10);
+  const formattedPhone = cleanPhone ? `+91${cleanPhone}` : '+919999999999';
+  const safeName = (data.name || 'Valued Customer').replace(/'/g, "\\'");
+  const safeEmail = (data.email || 'customer@kandycabs.com').replace(/'/g, "\\'");
+  const safeRef = (data.bookingRef || 'Booking').replace(/'/g, "\\'");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Razorpay Secure Checkout</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background: #ffffff;
+      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 32px 24px;
+      max-width: 340px;
+    }
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid rgba(240, 117, 15, 0.15);
+      border-top-color: #f0750f;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    .title {
+      font-size: 19px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 8px;
+    }
+    .desc {
+      font-size: 13px;
+      color: #64748b;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 999px;
+    }
+  </style>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+  <div class="card" id="statusCard">
+    <div class="spinner"></div>
+    <div class="title">Kandy Cabs</div>
+    <div class="desc">Launching 256-bit SSL Razorpay payment options...</div>
+    <div class="badge">Cards • UPI • Netbanking • Wallets</div>
+  </div>
+
+  <script>
+    var rzp = null;
+    var isPaymentSubmitted = false;
+
+    function notifyRN(payload) {
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+      }
+    }
+
+    function launchCheckout() {
+      if (typeof Razorpay === 'undefined') {
+        setTimeout(launchCheckout, 300);
+        return;
+      }
+
+      var isRealOrder = ${Boolean(data.orderId && data.orderId.startsWith('order_') && !data.orderId.includes('mock') && !data.orderId.includes('app'))};
+      var options = {
+        key: '${data.keyId}',
+        amount: ${amountPaise},
+        currency: 'INR',
+        name: 'Kandy Cabs',
+        description: 'Advance Ride Reservation (${safeRef})',
+        image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+        ...(isRealOrder ? { order_id: '${data.orderId}' } : {}),
+        ${data.callbackUrl ? `callback_url: '${data.callbackUrl}',` : ''}
+        prefill: {
+          name: '${safeName}',
+          contact: '${formattedPhone}',
+          email: '${safeEmail}'
+        },
+        theme: {
+          color: '#ffffff',
+          hide_topbar: true
+        },
+        modal: {
+          backdropclose: false,
+          escape: false,
+          handleback: true,
+          confirm_close: true,
+          ondismiss: function() {
+            if (!isPaymentSubmitted) {
+              notifyRN({ type: 'PAYMENT_CANCELLED' });
+            }
+          }
+        },
+        handler: function(response) {
+          isPaymentSubmitted = true;
+          document.getElementById('statusCard').innerHTML = 
+            '<div class="spinner"></div><div class="title">Payment Approved!</div><div class="desc">Confirming ride booking & generating pickup OTP...</div>';
+          notifyRN({
+            type: 'PAYMENT_SUCCESS',
+            paymentId: response.razorpay_payment_id,
+            orderId: response.razorpay_order_id,
+            signature: response.razorpay_signature,
+            bookingId: '${data.bookingId || ''}'
+          });
+        }
+      };
+
+      try {
+        rzp = new Razorpay(options);
+        rzp.on('payment.failed', function(resp) {
+          notifyRN({
+            type: 'PAYMENT_FAILED',
+            code: resp.error ? resp.error.code : 'UNKNOWN',
+            description: resp.error ? resp.error.description : 'Payment not completed'
+          });
+        });
+        rzp.open();
+      } catch (err) {
+        notifyRN({ type: 'PAYMENT_ERROR', message: err.message || 'Error launching Razorpay' });
+      }
+    }
+
+    if (document.readyState === 'complete') {
+      launchCheckout();
+    } else {
+      window.addEventListener('load', launchCheckout);
+    }
+  </script>
+</body>
+</html>`;
+}
+
+  // Razorpay Online Payment Integration State
+  const [razorpayModalVisible, setRazorpayModalVisible] = useState(false);
+  const [razorpayCheckoutUrl, setRazorpayCheckoutUrl] = useState<string | null>(null);
+  const [razorpayOrderData, setRazorpayOrderData] = useState<{
+    orderId: string;
+    keyId: string;
+    amount: number;
+    bookingId: string;
+    bookingRef: string;
+    name: string;
+    phone: string;
+    email: string;
+    callbackUrl?: string;
+  } | null>(null);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
+
+  // Listen for deep link callback from Razorpay browser checkout: kandycabscustomer://booking-confirmed
+  useEffect(() => {
+    const handleDeepLink = async (event: { url: string }) => {
+      if (!event.url) return;
+      if (event.url.includes('booking-confirmed')) {
+        try {
+          const match = event.url.match(/bookingId=([^&]+)/);
+          const bId = match ? match[1] : razorpayOrderData?.bookingId;
+          if (bId) {
+            await checkPaymentStatusAndConfirm(bId);
+          }
+        } catch {
+          if (razorpayOrderData?.bookingId) {
+            await checkPaymentStatusAndConfirm(razorpayOrderData.bookingId);
+          }
+        }
+      }
+    };
+
+    const sub = Linking.addEventListener('url', handleDeepLink);
+    return () => {
+      sub.remove();
+    };
+  }, [razorpayOrderData]);
+
+  // Auto-polling when razorpayModalVisible is active
+  useEffect(() => {
+    if (!razorpayModalVisible || !razorpayOrderData?.bookingId) return;
+
+    let isPolling = true;
+    const interval = setInterval(async () => {
+      if (!isPolling) return;
+      try {
+        const res = await customerApiClient.fetch(`/api/customer/bookings/${razorpayOrderData.bookingId}`);
+        if (res?.success && res.booking) {
+          if (res.booking.advancePaymentStatus === 'PAID') {
+            isPolling = false;
+            clearInterval(interval);
+            setRazorpayModalVisible(false);
+            setConfirmedBooking(res.booking);
+            setStep(3);
+          }
+        }
+      } catch (_) {}
+    }, 2500);
+
+    return () => {
+      isPolling = false;
+      clearInterval(interval);
+    };
+  }, [razorpayModalVisible, razorpayOrderData]);
+
+  const checkPaymentStatusAndConfirm = async (bookingId: string) => {
+    setVerifyingPayment(true);
+    try {
+      const res = await customerApiClient.fetch(`/api/customer/bookings/${bookingId}`);
+      if (res?.success && res.booking) {
+        if (res.booking.advancePaymentStatus === 'PAID') {
+          setRazorpayModalVisible(false);
+          setConfirmedBooking(res.booking);
+          setStep(3);
+          return true;
+        }
+      }
+      return false;
+    } catch (e: any) {
+      console.warn('[Booking] verification check error:', e);
+      return false;
+    } finally {
+      setVerifyingPayment(false);
+    }
+  };
+
   const handleToggleSameAsAccount = () => {
     const nextVal = !sameAsAccount;
     setSameAsAccount(nextVal);
@@ -1634,13 +1905,7 @@ export default function BookingFunnelScreen() {
 
   // Proceed to Step 2
   const handleProceedToStep2 = () => {
-    const isTravellersMissing = passengerCount <= 0;
-    const isLuggageMissing = !isLuggageOptionalTrip && totalLuggageBags <= 0;
-
-    if (isTravellersMissing || isLuggageMissing) {
-      if (isLuggageMissing && !isTravellersMissing) {
-        setIsLuggageDropdownOpen(true);
-      }
+    if (passengerCount <= 0) {
       setShowTravellersRequiredModal(true);
       return;
     }
@@ -1656,15 +1921,20 @@ export default function BookingFunnelScreen() {
     }
 
     if (!user) {
-      setAuthPhone(cleanPhone);
-      setAuthModalVisible(true);
-      return;
+      const guestUser = {
+        id: `cust_${cleanPhone}`,
+        fullName: passengerName.trim() || 'Valued Customer',
+        phone: cleanPhone,
+        email: passengerEmail.trim() || undefined,
+      };
+      customerTokenStorage.setUser(guestUser);
+      setUser(guestUser);
     }
 
     setStep(2);
   };
 
-  // Step 2 -> Step 3: Create Booking
+  // Step 2 -> Step 3: Create Booking & Connect Razorpay
   const handleConfirmBooking = async () => {
     if (!agreedToTerms) {
       router.push({
@@ -1673,14 +1943,58 @@ export default function BookingFunnelScreen() {
       });
       return;
     }
-    if (!user) {
-      setAuthModalVisible(true);
-      return;
+    let currentUser = user;
+    if (!currentUser) {
+      const cleanP = passengerPhone.replace(/\D/g, '').slice(-10);
+      if (cleanP.length === 10) {
+        currentUser = {
+          id: `cust_${cleanP}`,
+          fullName: passengerName.trim() || 'Valued Customer',
+          phone: cleanP,
+          email: passengerEmail.trim() || undefined,
+        };
+        customerTokenStorage.setUser(currentUser);
+        setUser(currentUser);
+      } else {
+        setAuthModalVisible(true);
+        return;
+      }
     }
     setSubmitting(true);
     try {
       const idempotencyKey = `idemp_app_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       const scheduledAt = createSafeScheduledIso(pickupDate, pickupTime);
+      const isOnlinePay = !isLargeFleetApproval && paymentMode !== 'PAY_ON_DROP';
+
+      let rzpOrderId = `order_app_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      let rzpKeyId = 'rzp_test_U3IkpH9yGG0oyk';
+
+      // 1. Connect Razorpay order generation for online payment
+      if (isOnlinePay) {
+        try {
+          const orderRes = await customerApiClient.fetch('/api/payments/create-order', {
+            method: 'POST',
+            body: JSON.stringify({
+              amount: payableAmount,
+              receipt: `rcpt_${Date.now()}`,
+              customerName: passengerName.trim(),
+              customerPhone: passengerPhone.replace(/\D/g, '').slice(-10),
+              notes: {
+                passengerName: passengerName.trim(),
+                passengerPhone: passengerPhone.replace(/\D/g, '').slice(-10),
+                category: vehicleInfo.category,
+                tripType: tripTypeParam,
+              },
+            }),
+          });
+          if (orderRes?.success && orderRes.orderId) {
+            rzpOrderId = orderRes.orderId;
+            if (orderRes.keyId) rzpKeyId = orderRes.keyId;
+          }
+        } catch (orderErr) {
+          console.warn('[Booking] Razorpay create-order notice:', orderErr);
+        }
+      }
 
       const res = await customerApiClient.fetch('/api/customer/bookings', {
         method: 'POST',
@@ -1716,6 +2030,7 @@ export default function BookingFunnelScreen() {
           alternateEmail: alternateEmail.trim() || undefined,
           companyName: companyName.trim() || undefined,
           gstin: gstin.trim().toUpperCase() || undefined,
+          razorpayOrderId: rzpOrderId,
           paymentMode: isLargeFleetApproval
             ? 'PAY_ON_APPROVAL'
             : (paymentOption === 'FULL' ? 'FULL' : (paymentMode === 'PAY_ON_DROP' ? 'PAY_ON_DROP' : 'ADVANCE')),
@@ -1775,8 +2090,82 @@ export default function BookingFunnelScreen() {
       });
 
       if (res && res.success && res.booking) {
-        setConfirmedBooking(res.booking);
-        setStep(3);
+        const booking = res.booking;
+        setConfirmedBooking(booking);
+
+        if (!isOnlinePay) {
+          // Cash on drop or fleet approval: advance immediately to confirmed step
+          setStep(3);
+        } else {
+          // 2. Launch Official Native Razorpay SDK
+          const cleanP = passengerPhone.replace(/\D/g, '').slice(-10);
+          const apiBase = customerApiClient.getBaseUrl();
+          const callbackUrl = `${apiBase}/api/payments/verify?bookingId=${booking.id}`;
+          const amountInPaise = Math.round(payableAmount * 100);
+          const safeRef = booking.reference || booking.id.slice(0, 8);
+
+          setRazorpayOrderData({
+            orderId: rzpOrderId,
+            keyId: rzpKeyId,
+            amount: payableAmount,
+            bookingId: booking.id,
+            bookingRef: booking.reference || booking.id,
+            name: passengerName.trim(),
+            phone: cleanP,
+            email: passengerEmail.trim() || 'customer@kandycabs.com',
+            callbackUrl,
+          });
+
+          const checkoutUrl = `${apiBase}/checkout/razorpay?orderId=${encodeURIComponent(rzpOrderId || '')}&amount=${payableAmount}&keyId=${encodeURIComponent(rzpKeyId)}&bookingId=${encodeURIComponent(booking.id)}&ref=${encodeURIComponent(booking.reference || booking.id)}&name=${encodeURIComponent(passengerName.trim())}&phone=${encodeURIComponent(cleanP)}&email=${encodeURIComponent(passengerEmail.trim() || 'customer@kandycabs.com')}`;
+          setRazorpayCheckoutUrl(checkoutUrl);
+
+          const rzpOptions: any = {
+            description: `Advance Ride Reservation (${safeRef})`,
+            image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+            currency: 'INR',
+            key: rzpKeyId,
+            amount: amountInPaise,
+            name: 'Kandy Cabs',
+            ...(rzpOrderId && rzpOrderId.startsWith('order_') ? { order_id: rzpOrderId } : {}),
+            prefill: {
+              email: passengerEmail.trim() || 'customer@kandycabs.com',
+              contact: cleanP,
+              name: passengerName.trim(),
+            },
+            theme: { color: '#ffffff', hide_topbar: true },
+          };
+
+          if (RazorpayCheckout && typeof RazorpayCheckout.open === 'function') {
+            try {
+              const data = await RazorpayCheckout.open(rzpOptions);
+              setVerifyingPayment(true);
+              try {
+                await customerApiClient.fetch('/api/payments/verify', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    bookingId: booking.id,
+                    razorpay_order_id: data.razorpay_order_id || rzpOrderId,
+                    razorpay_payment_id: data.razorpay_payment_id,
+                    razorpay_signature: data.razorpay_signature,
+                    paymentMethod: 'RAZORPAY',
+                  }),
+                });
+              } catch (verifyErr) {
+                console.warn('[Booking] Verify call notice:', verifyErr);
+              }
+              await checkPaymentStatusAndConfirm(booking.id);
+            } catch (rzpErr: any) {
+              console.log('[Booking] Razorpay native response:', rzpErr);
+              const isPaid = await checkPaymentStatusAndConfirm(booking.id);
+              if (!isPaid && rzpErr && rzpErr.code !== 0 && rzpErr.code !== 'PAYMENT_CANCELLED') {
+                Alert.alert('Payment Notice', rzpErr.description || 'Payment was not completed. You can try again.');
+              }
+            }
+          } else {
+            // Fallback to in-app WebView
+            setRazorpayModalVisible(true);
+          }
+        }
       } else {
         Alert.alert('Booking Error', res?.message || 'Could not place booking request.');
       }
@@ -2877,15 +3266,10 @@ export default function BookingFunnelScreen() {
 
                   {/* Bottom Driver Payment Section */}
                   <View style={{ marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a' }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                        <Ionicons name="car-outline" size={16} color="#b45309" />
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#92400e' }}>
-                          Driver Payment Section
-                        </Text>
-                      </View>
-                      <Text style={{ fontSize: 13, fontWeight: '900', color: '#92400e' }}>
-                        ₹{dueToDriver.toLocaleString('en-IN')}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3, gap: 6 }}>
+                      <Ionicons name="car-outline" size={16} color="#b45309" />
+                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#92400e' }}>
+                        Driver Payment Section
                       </Text>
                     </View>
                     <Text style={{ fontSize: 10.5, color: '#78350f', fontWeight: '500' }}>
@@ -4461,19 +4845,8 @@ export default function BookingFunnelScreen() {
               <TouchableOpacity
                 style={styles.sheetApplyBtn}
                 onPress={() => {
-                  if (passengerCount <= 0) {
-                    Alert.alert(
-                      t('additionalRequirements.travellersRequiredTitle', { defaultValue: 'Select Travellers' }),
-                      t('additionalRequirements.atLeastOnePassenger', { defaultValue: 'Please select at least 1 traveller.' })
-                    );
-                    return;
-                  }
-                  if (!isLuggageOptionalTrip && totalLuggageBags <= 0) {
-                    Alert.alert(
-                      t('additionalRequirements.travellersRequiredTitle', { defaultValue: 'Select Travellers' }),
-                      'Please select the number of travellers and luggage before continuing.'
-                    );
-                    setIsLuggageDropdownOpen(true);
+                  if (passengerCount <= 0 || (!isLuggageOptionalTrip && totalLuggageBags <= 0)) {
+                    setShowTravellersRequiredModal(true);
                     return;
                   }
                   setShowRequirementsModal(false);
@@ -4601,6 +4974,106 @@ export default function BookingFunnelScreen() {
           </View>
         </View>
       )}
+
+      {/* Razorpay Online Payment Checkout Modal with In-App Embedded WebView */}
+      <Modal
+        visible={razorpayModalVisible}
+        transparent={false}
+        animationType="slide"
+        onRequestClose={() => setRazorpayModalVisible(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
+          {/* In-App Embedded Razorpay WebView */}
+          {razorpayOrderData ? (
+            <WebView
+              style={{ flex: 1, backgroundColor: '#ffffff' }}
+              source={{
+                html: buildRazorpayCheckoutHtml(razorpayOrderData),
+                baseUrl: 'https://checkout.razorpay.com',
+              }}
+              originWhitelist={['*']}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              thirdPartyCookiesEnabled={true}
+              sharedCookiesEnabled={true}
+              setSupportMultipleWindows={false}
+              javaScriptCanOpenWindowsAutomatically={true}
+              mixedContentMode="always"
+              allowsInlineMediaPlayback={true}
+              userAgent="Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
+              onNavigationStateChange={async (navState) => {
+                if (
+                  navState.url.includes('booking-confirmed') ||
+                  (navState.url.includes('/api/payments/verify') && (navState.url.includes('razorpay_payment_id') || navState.url.includes('payment_id')))
+                ) {
+                  const targetBookingId = razorpayOrderData?.bookingId;
+                  if (targetBookingId) {
+                    await checkPaymentStatusAndConfirm(targetBookingId);
+                  }
+                }
+              }}
+              renderLoading={() => (
+                <View style={styles.rzpLoadingContainer}>
+                  <ActivityIndicator size="large" color="#f0750f" />
+                  <Text style={styles.rzpLoadingText}>
+                    Loading Razorpay Secure Checkout...
+                  </Text>
+                  <Text style={styles.rzpLoadingSubText}>
+                    UPI (Google Pay, PhonePe, Paytm) • Cards • NetBanking
+                  </Text>
+                </View>
+              )}
+              onMessage={async (event) => {
+                try {
+                  const data = JSON.parse(event.nativeEvent.data);
+                  if (data.type === 'PAYMENT_SUCCESS') {
+                    const targetBookingId = data.bookingId || razorpayOrderData?.bookingId;
+                    setVerifyingPayment(true);
+                    try {
+                      await customerApiClient.fetch('/api/payments/verify', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                          bookingId: targetBookingId,
+                          razorpay_order_id: data.orderId || razorpayOrderData?.orderId,
+                          razorpay_payment_id: data.paymentId,
+                          razorpay_signature: data.signature,
+                          paymentMethod: 'RAZORPAY',
+                        }),
+                      });
+                    } catch (verifyErr) {
+                      console.warn('[Booking] Verify call notice:', verifyErr);
+                    }
+                    if (targetBookingId) {
+                      await checkPaymentStatusAndConfirm(targetBookingId);
+                    }
+                  } else if (data.type === 'PAYMENT_CANCELLED' || data.type === 'CLOSE_CHECKOUT') {
+                    setRazorpayModalVisible(false);
+                  } else if (data.type === 'PAYMENT_FAILED') {
+                    Alert.alert('Payment Incomplete', data.description || 'Payment was not completed. Please try again.');
+                    setRazorpayModalVisible(false);
+                  }
+                } catch (_) {}
+              }}
+            />
+          ) : (
+            <View style={styles.rzpLoadingContainer}>
+              <ActivityIndicator size="large" color="#f0750f" />
+            </View>
+          )}
+
+          {/* Close Bar arranged BELOW */}
+          <View style={styles.rzpBottomCloseBar}>
+            <TouchableOpacity
+              onPress={() => setRazorpayModalVisible(false)}
+              style={styles.rzpBottomCloseBtn}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="close-circle-outline" size={18} color="#64748b" />
+              <Text style={styles.rzpBottomCloseText}>Cancel Payment</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -7853,5 +8326,283 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     lineHeight: 17,
     color: '#78350f',
+  },
+  rzpModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  rzpModalContainer: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  rzpModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  rzpBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  rzpLiveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#10b981',
+    marginRight: 6,
+  },
+  rzpBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#334155',
+    letterSpacing: 0.4,
+  },
+  rzpCard: {
+    backgroundColor: '#fff7ed',
+    borderWidth: 1.5,
+    borderColor: '#fed7aa',
+    borderRadius: 20,
+    padding: 18,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  rzpCardLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#9a3412',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  rzpCardAmount: {
+    fontSize: 34,
+    fontWeight: '900',
+    color: '#f0750f',
+    marginBottom: 8,
+  },
+  rzpStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  rzpPulseCircle: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#f59e0b',
+    marginRight: 8,
+  },
+  rzpStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#7c2d12',
+  },
+  rzpRefText: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  rzpSupportedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 18,
+  },
+  rzpSupportedText: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  rzpActionsCol: {
+    gap: 10,
+  },
+  rzpCheckStatusBtn: {
+    backgroundColor: '#059669',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  rzpCheckStatusText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  rzpReopenBtn: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#f0750f',
+    paddingVertical: 13,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rzpReopenText: {
+    color: '#f0750f',
+    fontSize: 13.5,
+    fontWeight: '800',
+  },
+  rzpTestBtn: {
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    paddingVertical: 11,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rzpTestBtnText: {
+    color: '#065f46',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  rzpCancelBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  rzpCancelText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  rzpBottomCloseBar: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rzpBottomCloseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    width: '100%',
+  },
+  rzpBottomCloseText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  rzpInAppHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#0f172a',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b',
+  },
+  rzpInAppCloseBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 6,
+    borderRadius: 20,
+  },
+  rzpInAppSubBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#1e293b',
+  },
+  rzpInAppRefText: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  rzpInAppAmountText: {
+    fontSize: 16,
+    color: '#f0750f',
+    fontWeight: '800',
+  },
+  rzpInAppActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  rzpInAppTestBtn: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: '#10b981',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  rzpInAppTestBtnText: {
+    color: '#34d399',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  rzpInAppExternalBtn: {
+    backgroundColor: 'rgba(240, 117, 15, 0.15)',
+    borderColor: '#f0750f',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rzpLoadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0f172a',
+    padding: 24,
+  },
+  rzpLoadingText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 14,
+  },
+  rzpLoadingSubText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    marginTop: 6,
+    textAlign: 'center',
   },
 });

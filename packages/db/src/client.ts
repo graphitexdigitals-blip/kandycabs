@@ -11,7 +11,7 @@ const prismaClientSingleton = () => {
   let url = dbUrl;
   if (url && !url.includes('connection_limit')) {
     const separator = url.includes('?') ? '&' : '?';
-    url = `${url}${separator}connection_limit=15&pool_timeout=30`;
+    url = `${url}${separator}connection_limit=10&pool_timeout=30`;
   }
   return new PrismaClient({
     datasources: url ? { db: { url } } : undefined,

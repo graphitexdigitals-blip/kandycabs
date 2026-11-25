@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@kandy-cabs/db';
+import { PaymentStatus, PaymentType } from '@kandy-cabs/shared';
 import { getAdminSession } from '@/lib/auth';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 
@@ -133,7 +134,25 @@ export async function PATCH(
 
     const { id } = params;
     const body = await req.json();
-    const { driverAllowance, driverPayeeAmount, driverPaymentStatus } = body;
+    const {
+      driverAllowance,
+      driverPayeeAmount,
+      driverPaymentStatus,
+      advancePaymentStatus,
+      advanceAmount,
+    } = body;
+
+    const currentBooking = await prisma.booking.findUnique({
+      where: { id },
+      include: { payments: true },
+    });
+
+    if (!currentBooking) {
+      return NextResponse.json(
+        { success: false, message: 'Booking not found' },
+        { status: 404 }
+      );
+    }
 
     const dataToUpdate: any = {};
     if (driverAllowance !== undefined) {
@@ -146,38 +165,139 @@ export async function PATCH(
       dataToUpdate.driverPaymentStatus = driverPaymentStatus;
     }
 
-    const updatedBooking = await prisma.booking.update({
-      where: { id },
-      data: dataToUpdate,
-      include: {
-        customer: {
-          include: {
-            user: { select: { id: true, fullName: true, phone: true } },
-          },
-        },
-        assignedDriver: {
-          include: {
-            user: { select: { id: true, fullName: true, phone: true } },
-          },
-        },
-      },
-    });
+    let isAdvanceStatusChanged = false;
+    if (advancePaymentStatus !== undefined && advancePaymentStatus !== currentBooking.advancePaymentStatus) {
+      isAdvanceStatusChanged = true;
+      dataToUpdate.advancePaymentStatus = advancePaymentStatus as PaymentStatus;
 
-    // Record AuditLog
-    await prisma.auditLog.create({
-      data: {
-        actorUserId: session.userId,
-        action: 'ADMIN_UPDATE_DRIVER_PAYMENT',
-        entityType: 'Booking',
-        entityId: id,
-        reason: `Admin updated driver payment: Allowance=₹${driverAllowance ?? 'unchanged'}, Payee=₹${driverPayeeAmount ?? 'unchanged'}, Status=${driverPaymentStatus ?? 'unchanged'}`,
-      },
+      const advAmt = advanceAmount !== undefined ? parseFloat(String(advanceAmount)) : Number(currentBooking.advanceAmount || 0);
+      if (advanceAmount !== undefined) {
+        dataToUpdate.advanceAmount = advAmt;
+      }
+
+      if (advancePaymentStatus === PaymentStatus.PAID) {
+        dataToUpdate.balanceAmount = Math.max(0, Number(currentBooking.estimatedFare || 0) - advAmt);
+      } else {
+        dataToUpdate.balanceAmount = Number(currentBooking.estimatedFare || 0);
+      }
+    } else if (advanceAmount !== undefined) {
+      dataToUpdate.advanceAmount = parseFloat(String(advanceAmount)) || 0;
+    }
+
+    const updatedBooking = await prisma.$transaction(async (tx) => {
+      const b = await tx.booking.update({
+        where: { id },
+        data: dataToUpdate,
+        include: {
+          customer: {
+            include: {
+              user: { select: { id: true, fullName: true, phone: true } },
+            },
+          },
+          assignedDriver: {
+            include: {
+              user: { select: { id: true, fullName: true, phone: true } },
+            },
+          },
+          payments: true,
+        },
+      });
+
+      if (isAdvanceStatusChanged) {
+        const advAmt = Number(b.advanceAmount || 0);
+        const existingAdvPayment = currentBooking.payments.find((p) => p.type === PaymentType.ADVANCE);
+
+        if (advancePaymentStatus === PaymentStatus.PAID) {
+          if (existingAdvPayment) {
+            await tx.payment.update({
+              where: { id: existingAdvPayment.id },
+              data: {
+                status: PaymentStatus.PAID,
+                verifiedAt: new Date(),
+                razorpayPaymentId: existingAdvPayment.razorpayPaymentId || `admin_adv_paid_${Date.now()}`,
+              },
+            });
+          } else {
+            await tx.payment.create({
+              data: {
+                bookingId: id,
+                type: PaymentType.ADVANCE,
+                amount: advAmt,
+                razorpayOrderId: `admin_order_${Date.now()}`,
+                razorpayPaymentId: `admin_adv_paid_${Date.now()}`,
+                status: PaymentStatus.PAID,
+                verifiedAt: new Date(),
+              },
+            });
+          }
+
+          // Record TripEvent
+          await tx.tripEvent.create({
+            data: {
+              bookingId: id,
+              type: 'ADVANCE_PAID',
+              payloadJson: {
+                amount: advAmt,
+                collectedBy: 'ADMIN',
+                adminId: session.userId,
+                adminPhone: session.phone,
+                paidAt: new Date().toISOString(),
+                source: 'admin-panel',
+                note: 'Marked as Paid by Admin in Operations Panel',
+              },
+            },
+          });
+        } else if (advancePaymentStatus === PaymentStatus.PENDING) {
+          if (existingAdvPayment) {
+            await tx.payment.update({
+              where: { id: existingAdvPayment.id },
+              data: {
+                status: PaymentStatus.PENDING,
+                verifiedAt: null,
+              },
+            });
+          }
+          await tx.tripEvent.create({
+            data: {
+              bookingId: id,
+              type: 'ADVANCE_PAYMENT_PENDING',
+              payloadJson: {
+                amount: advAmt,
+                updatedBy: 'ADMIN',
+                adminId: session.userId,
+                updatedAt: new Date().toISOString(),
+                source: 'admin-panel',
+              },
+            },
+          });
+        }
+      }
+
+      // Check if actor user exists to satisfy foreign key constraint safely
+      const actorUser = session.userId
+        ? await tx.user.findUnique({ where: { id: session.userId }, select: { id: true } })
+        : null;
+
+      // Record AuditLog
+      await tx.auditLog.create({
+        data: {
+          actorUserId: actorUser?.id || null,
+          action: isAdvanceStatusChanged ? 'ADMIN_UPDATE_ADVANCE_PAYMENT' : 'ADMIN_UPDATE_DRIVER_PAYMENT',
+          entityType: 'Booking',
+          entityId: id,
+          reason: isAdvanceStatusChanged
+            ? `Admin changed advance payment status to ${advancePaymentStatus} (₹${b.advanceAmount})`
+            : `Admin updated driver payment: Allowance=₹${driverAllowance ?? 'unchanged'}, Payee=₹${driverPayeeAmount ?? 'unchanged'}, Status=${driverPaymentStatus ?? 'unchanged'}`,
+        },
+      });
+
+      return b;
     });
 
     return NextResponse.json(
       {
         success: true,
-        message: 'Driver payment details updated successfully',
+        message: 'Booking details updated successfully',
         booking: updatedBooking,
       },
       { status: 200 }

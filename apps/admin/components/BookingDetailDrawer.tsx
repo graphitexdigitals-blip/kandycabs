@@ -164,6 +164,28 @@ export function BookingDetailDrawer({
     }
   };
 
+  const [updatingAdvance, setUpdatingAdvance] = useState(false);
+
+  const handleUpdateAdvanceStatus = async (status: 'PAID' | 'PENDING') => {
+    if (!booking) return;
+    setUpdatingAdvance(true);
+    try {
+      const res = await fetch(`/api/admin/bookings/${booking.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ advancePaymentStatus: status }),
+      });
+      if (res.ok) {
+        await fetchDetail(booking.id);
+        onRefresh();
+      }
+    } catch (err) {
+      console.error('Failed to update advance payment status:', err);
+    } finally {
+      setUpdatingAdvance(false);
+    }
+  };
+
   const handleSaveDriverPayment = async () => {
     if (!booking) return;
     setSavingDriverPay(true);
@@ -1490,7 +1512,9 @@ Exclusions (If applicable):
               <div className="p-3 sm:p-4 rounded-xl border border-slate-200 bg-white">
                 <h4 className="text-xs font-bold uppercase text-slate-500 mb-2">Customer Info</h4>
                 <p className="text-sm font-bold text-slate-900">{booking.customer?.user?.fullName}</p>
-                <p className="text-xs text-slate-600 font-mono mt-0.5">{booking.customer?.user?.phone}</p>
+                <p className="text-xs text-slate-600 font-mono mt-0.5">
+                  {booking.customer?.user?.phone || bookingMeta.passengerPhone || 'No Phone'}
+                </p>
                 {booking.customer?.email && (
                   <p className="text-xs text-slate-500 mt-0.5">{booking.customer.email}</p>
                 )}
@@ -1916,9 +1940,52 @@ Exclusions (If applicable):
                       <span className="font-bold">+₹{(fMeta.petFee || 500).toFixed(2)} (Included in Total)</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-emerald-700">
-                    <span>Advance Paid (25%):</span>
-                    <span className="font-bold">₹{Number(booking.advanceAmount).toFixed(2)} ({booking.advancePaymentStatus})</span>
+                  <div className={`p-2.5 rounded-lg border flex flex-col gap-1.5 my-1.5 ${
+                    booking.advancePaymentStatus === 'PAID'
+                      ? 'bg-emerald-50/80 border-emerald-200'
+                      : 'bg-amber-50/80 border-amber-200'
+                  }`}>
+                    <div className="flex justify-between items-center">
+                      <span className={`font-semibold ${booking.advancePaymentStatus === 'PAID' ? 'text-emerald-900' : 'text-amber-900'}`}>
+                        Advance Collection:
+                      </span>
+                      <span className={`font-bold px-2 py-0.5 rounded text-[11px] ${
+                        booking.advancePaymentStatus === 'PAID'
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-amber-600 text-white'
+                      }`}>
+                        ₹{Number(booking.advanceAmount).toFixed(2)} ({booking.advancePaymentStatus === 'PAID' ? 'PAID ✓' : 'PENDING'})
+                      </span>
+                    </div>
+
+                    {booking.advancePaymentStatus === 'PENDING' ? (
+                      <button
+                        type="button"
+                        disabled={updatingAdvance}
+                        onClick={() => handleUpdateAdvanceStatus('PAID')}
+                        className="w-full mt-1 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                      >
+                        {updatingAdvance ? (
+                          <span>Updating Payment...</span>
+                        ) : (
+                          <>
+                            <span>✓ Mark Advance as Paid (Cash / UPI Received)</span>
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <div className="flex items-center justify-between text-[11px] text-emerald-800 pt-0.5">
+                        <span className="font-medium">✓ Advance payment updated and synced to Customer App</span>
+                        <button
+                          type="button"
+                          disabled={updatingAdvance}
+                          onClick={() => handleUpdateAdvanceStatus('PENDING')}
+                          className="text-[10px] text-slate-500 hover:text-rose-600 underline ml-2"
+                        >
+                          Revert to Pending
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="flex justify-between text-slate-700">
                     <span>Base Balance (75%):</span>

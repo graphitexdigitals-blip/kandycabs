@@ -19,7 +19,7 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { phone, otp, fullName, role } = body;
+    const { phone, otp, fullName, role, deviceId, forceLogoutOtherDevice } = body;
 
     if (!phone || !otp) {
       const res = NextResponse.json(
@@ -87,6 +87,25 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Check for single-device login conflict if deviceId is provided
+    if (deviceId && existingUser && !isMasterAdmin) {
+      if (
+        existingUser.activeDeviceId &&
+        existingUser.activeDeviceId !== deviceId &&
+        !forceLogoutOtherDevice
+      ) {
+        const res = NextResponse.json(
+          {
+            success: false,
+            code: 'ALREADY_LOGGED_IN_OTHER_DEVICE',
+            message: 'This account is already logged in on another device. Do you want to log out the other device and continue here?',
+          },
+          { status: 409 }
+        );
+        return setCorsHeaders(res);
+      }
+    }
+
     const isNewUser = !existingUser;
     const hasRegisteredName = !!(
       existingUser?.fullName &&
@@ -103,6 +122,8 @@ export async function POST(req: NextRequest) {
           phone: normalizedPhone,
           fullName: isMasterAdmin ? 'Master Admin' : (fullName?.trim() || (isDriverRole ? 'New Driver Partner' : '')),
           roles: isMasterAdmin ? [UserRole.ADMIN] : (isDriverRole ? [UserRole.DRIVER] : [UserRole.CUSTOMER]),
+          activeDeviceId: deviceId || null,
+          sessionVersion: 1,
           customer: isMasterAdmin || isDriverRole
             ? undefined
             : {
@@ -174,6 +195,22 @@ export async function POST(req: NextRequest) {
       return setCorsHeaders(res);
     }
 
+    // If deviceId is provided, register this active device and increment sessionVersion (invalidates old device)
+    if (deviceId && !isMasterAdmin) {
+      const nextSessionVersion = (user.sessionVersion || 0) + 1;
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          activeDeviceId: deviceId,
+          sessionVersion: nextSessionVersion,
+        },
+        include: {
+          customer: true,
+          driver: true,
+        },
+      });
+    }
+
     // Generate JWT token
     const token = await signAuthToken({
       userId: user.id,
@@ -181,6 +218,8 @@ export async function POST(req: NextRequest) {
       roles: user.roles as UserRole[],
       customerId: user.customer?.id || null,
       driverId: user.driver?.id || null,
+      activeDeviceId: user.activeDeviceId || null,
+      sessionVersion: user.sessionVersion || 1,
     });
 
     const userProfile = {

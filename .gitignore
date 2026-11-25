@@ -93,3 +93,23 @@ scripts/terms-multilingual.html
 .gradle/
 
 cloudflared.exe
+*.xml
+*.zip
+apk_test_extract/
+check_apk_icons.js
+dump_ui.js
+chrome_test.png
+customer_app_screen.png
+driver_no_border.png
+driver_now.png
+expo_customer_live.png
+kc_navy_reference_cutout.png
+otp_step.png
+otp_view.png
+profile_screen.png
+signin_modal.png
+verified_bookings.png
+verified_bookings_loaded.png
+verified_profile.png
+apps/customer-app/android_icons/
+repack_*.ps1

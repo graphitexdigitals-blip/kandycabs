@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import * as FileSystem from 'expo-file-system';
 import { customerApiClient, customerTokenStorage, formatDisplayPhone } from '../lib/api';
+import { getAdminRegisteredCustomer } from '../lib/adminCustomers';
 import { CustomerBottomDock } from '../components/CustomerBottomDock';
 import { AuthModal } from '../components/AuthModal';
 import { CircularImageCropperModal } from '../components/CircularImageCropperModal';
@@ -35,11 +36,23 @@ try {
   // Not bundled in native APK
 }
 
-const cleanCustomerName = (n: string | null | undefined): string => {
-  if (!n) return '';
-  const trimmed = n.trim();
-  if (trimmed.toLowerCase() === 'customer' || trimmed.toLowerCase() === 'kandy customer') return '';
-  return trimmed;
+const cleanCustomerName = (n: string | null | undefined, phone?: string | null): string => {
+  if (n) {
+    const trimmed = n.trim();
+    if (
+      trimmed.toLowerCase() !== 'customer' &&
+      trimmed.toLowerCase() !== 'kandy customer' &&
+      trimmed.toLowerCase() !== 'valued customer' &&
+      trimmed.length > 0
+    ) {
+      return trimmed;
+    }
+  }
+  if (phone) {
+    const reg = getAdminRegisteredCustomer(phone);
+    if (reg?.fullName) return reg.fullName;
+  }
+  return '';
 };
 
 export default function ProfileScreen() {
@@ -76,9 +89,17 @@ export default function ProfileScreen() {
   const loadProfile = useCallback(async (showLoading = false) => {
     const cachedUser = customerTokenStorage.getUser();
     if (cachedUser) {
-      setUser(cachedUser);
-      setFullName(cachedUser.fullName || '');
-      setEmail(cachedUser.email || '');
+      const reg = getAdminRegisteredCustomer(cachedUser.phone);
+      const cleanName = cleanCustomerName(cachedUser.fullName, cachedUser.phone) || reg?.fullName || '';
+      const resolvedEmail = cachedUser.email || reg?.email || '';
+      const enrichedUser = {
+        ...cachedUser,
+        fullName: cleanName,
+        email: resolvedEmail,
+      };
+      setUser(enrichedUser);
+      setFullName(cleanName);
+      setEmail(resolvedEmail);
       setLoading(false);
     } else if (showLoading) {
       setLoading(true);
@@ -102,17 +123,20 @@ export default function ProfileScreen() {
       const res: any = await Promise.race([fetchPromise, timeoutPromise]);
       if (res?.user) {
         const localUser = customerTokenStorage.getUser();
-        const cleanRemoteName = cleanCustomerName(res.user.fullName);
-        const resolvedName = cleanRemoteName || cleanCustomerName(localUser?.fullName);
+        const reg = getAdminRegisteredCustomer(res.user.phone || localUser?.phone);
+        const cleanRemoteName = cleanCustomerName(res.user.fullName, res.user.phone);
+        const resolvedName = cleanRemoteName || cleanCustomerName(localUser?.fullName, localUser?.phone) || reg?.fullName || '';
+        const resolvedEmail = res.user.customer?.email || res.user.email || localUser?.email || reg?.email || '';
         const mergedUser = {
           ...res.user,
           fullName: resolvedName,
+          email: resolvedEmail,
           profilePhoto: res.user.profilePhoto || localUser?.profilePhoto,
         };
         setUser(mergedUser);
         customerTokenStorage.setUser(mergedUser);
         setFullName(resolvedName);
-        setEmail(mergedUser.email || '');
+        setEmail(resolvedEmail);
       }
     } catch (err: any) {
       if (err?.status === 401) {
@@ -376,7 +400,7 @@ export default function ProfileScreen() {
                     />
                   ) : (
                     <Text style={styles.avatarText}>
-                      {cleanCustomerName(user.fullName) ? cleanCustomerName(user.fullName)[0].toUpperCase() : 'K'}
+                      {(cleanCustomerName(user.fullName, user.phone) || getAdminRegisteredCustomer(user.phone)?.fullName || 'K')[0].toUpperCase()}
                     </Text>
                   )}
                   {uploadingPhoto && (
@@ -392,7 +416,7 @@ export default function ProfileScreen() {
 
               <View style={styles.heroDetails}>
                 <Text style={styles.heroName} numberOfLines={1} adjustsFontSizeToFit={true} minimumFontScale={0.8}>
-                  {formatTitleCase(cleanCustomerName(user.fullName)) || t('profile.valuedCustomer')}
+                  {formatTitleCase(cleanCustomerName(user.fullName, user.phone) || getAdminRegisteredCustomer(user.phone)?.fullName) || t('profile.valuedCustomer')}
                 </Text>
                 <Text style={styles.heroPhone} numberOfLines={1} adjustsFontSizeToFit={true}>{formatDisplayPhone(user.phone)}</Text>
               </View>
@@ -499,7 +523,7 @@ export default function ProfileScreen() {
                     </View>
                     <View style={styles.detailContent}>
                       <Text style={styles.detailLabel}>{t('profile.fullName')}</Text>
-                      <Text style={styles.detailValue}>{formatTitleCase(cleanCustomerName(user.fullName)) || t('profile.notProvided')}</Text>
+                      <Text style={styles.detailValue}>{formatTitleCase(cleanCustomerName(user.fullName, user.phone) || getAdminRegisteredCustomer(user.phone)?.fullName) || t('profile.notProvided')}</Text>
                     </View>
                   </View>
 
@@ -525,7 +549,7 @@ export default function ProfileScreen() {
                     </View>
                     <View style={styles.detailContent}>
                       <Text style={styles.detailLabel}>{t('profile.emailAddress')}</Text>
-                      <Text style={styles.detailValue}>{user.email || t('profile.emailPlaceholder')}</Text>
+                      <Text style={styles.detailValue}>{user.email || getAdminRegisteredCustomer(user.phone)?.email || t('profile.emailPlaceholder')}</Text>
                     </View>
                   </View>
                 </View>
@@ -779,7 +803,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
   },
   header: {
     flexDirection: 'row',
@@ -787,7 +811,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
@@ -795,7 +819,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     alignItems: 'center',
@@ -835,7 +859,7 @@ const styles = StyleSheet.create({
   heroCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 16,
     padding: 14,
     borderWidth: 1.2,
@@ -952,7 +976,7 @@ const styles = StyleSheet.create({
 
   // Section Card
   sectionCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 14,
@@ -1168,7 +1192,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderWidth: 1,
     borderColor: '#fee2e2',
     borderRadius: 14,
@@ -1185,7 +1209,7 @@ const styles = StyleSheet.create({
   // Guest State
   guestContainer: {
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 14,
     padding: 20,
     borderWidth: 1,

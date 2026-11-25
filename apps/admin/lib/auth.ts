@@ -28,3 +28,37 @@ export async function getAdminSession(req: NextRequest): Promise<AuthTokenPayloa
 
   return payload;
 }
+
+/**
+ * Checks whether an authenticated token has been superseded by a newer login on another device.
+ */
+export function isSessionSuperceded(
+  tokenPayload: AuthTokenPayload | null,
+  user: { phone?: string | null; activeDeviceId?: string | null; sessionVersion?: number } | null
+): boolean {
+  if (!tokenPayload || !user) return false;
+  const isMaster = user.phone === '+919999999999' || user.phone === '9999999999';
+  if (isMaster) return false;
+
+  // If the user's current sessionVersion in DB is higher than what's in the token,
+  // this session was superseded/invalidated by a newer login
+  if (
+    tokenPayload.sessionVersion !== undefined &&
+    user.sessionVersion !== undefined &&
+    tokenPayload.sessionVersion < user.sessionVersion
+  ) {
+    return true;
+  }
+
+  // If activeDeviceId is tracked and differs from the token's activeDeviceId
+  if (
+    tokenPayload.activeDeviceId &&
+    user.activeDeviceId &&
+    tokenPayload.activeDeviceId !== user.activeDeviceId
+  ) {
+    return true;
+  }
+
+  return false;
+}
+

@@ -1758,11 +1758,11 @@ export default function DriverDashboardScreen() {
     <View style={[styles.container, activeBottomTab === 'PROFILE' && { backgroundColor: '#ffffff' }]}>
       <StatusBar
         barStyle="light-content"
-        backgroundColor="#162232"
+        backgroundColor="#162636"
         translucent={false}
       />
 
-      {/* TOP APP BAR IN BRAND DARK BLUE (#162232) */}
+      {/* TOP APP BAR IN BRAND DARK BLUE (#162636) */}
       <View style={[styles.mainHeaderWhite, { paddingTop: Platform.OS === 'android' ? 8 : Math.max(insets.top, 8) }]}>
         <View style={styles.headerBarInner}>
           <View style={styles.headerLogoContainer}>
@@ -3022,7 +3022,7 @@ export default function DriverDashboardScreen() {
                   </Text>
                   <TouchableOpacity onPress={() => fetchTripsData(true)} style={styles.refreshBtnLight} disabled={tripsLoading}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Ionicons name="refresh" size={12} color="#162232" />
+                      <Ionicons name="refresh" size={12} color="#162636" />
                       <Text style={styles.refreshBtnTextOrange}>
                         {tripsLoading ? t('trips.refreshing') : t('trips.refresh')}
                       </Text>
@@ -3526,15 +3526,15 @@ export default function DriverDashboardScreen() {
           onPress={() => setActiveBottomTab('HOME')}
           activeOpacity={0.7}
         >
+          {activeBottomTab === 'HOME' && <View style={styles.bottomActiveBar} />}
           <Ionicons
             name={activeBottomTab === 'HOME' ? 'home' : 'home-outline'}
             size={23}
-            color={activeBottomTab === 'HOME' ? '#ff6b00' : '#94a3b8'}
+            color={activeBottomTab === 'HOME' ? '#FF6500' : '#94a3b8'}
           />
           <Text style={[styles.bottomNavText, activeBottomTab === 'HOME' && styles.bottomNavTextActive]}>
             {t('tabs.home')}
           </Text>
-          {activeBottomTab === 'HOME' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
 
         <View style={styles.bottomNavTabDivider} />
@@ -3545,15 +3545,15 @@ export default function DriverDashboardScreen() {
           onPress={() => setActiveBottomTab('MY_TRIPS')}
           activeOpacity={0.7}
         >
+          {activeBottomTab === 'MY_TRIPS' && <View style={styles.bottomActiveBar} />}
           <Ionicons
             name={activeBottomTab === 'MY_TRIPS' ? 'receipt' : 'receipt-outline'}
             size={23}
-            color={activeBottomTab === 'MY_TRIPS' ? '#ff6b00' : '#94a3b8'}
+            color={activeBottomTab === 'MY_TRIPS' ? '#FF6500' : '#94a3b8'}
           />
           <Text style={[styles.bottomNavText, activeBottomTab === 'MY_TRIPS' && styles.bottomNavTextActive]}>
             {t('tabs.my_trips')}
           </Text>
-          {activeBottomTab === 'MY_TRIPS' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
 
         <View style={styles.bottomNavTabDivider} />
@@ -3564,15 +3564,15 @@ export default function DriverDashboardScreen() {
           onPress={() => setActiveBottomTab('SUPPORT')}
           activeOpacity={0.7}
         >
+          {activeBottomTab === 'SUPPORT' && <View style={styles.bottomActiveBar} />}
           <Ionicons
             name={activeBottomTab === 'SUPPORT' ? 'headset' : 'headset-outline'}
             size={23}
-            color={activeBottomTab === 'SUPPORT' ? '#ff6b00' : '#94a3b8'}
+            color={activeBottomTab === 'SUPPORT' ? '#FF6500' : '#94a3b8'}
           />
           <Text style={[styles.bottomNavText, activeBottomTab === 'SUPPORT' && styles.bottomNavTextActive]}>
             {t('tabs.support')}
           </Text>
-          {activeBottomTab === 'SUPPORT' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
 
         <View style={styles.bottomNavTabDivider} />
@@ -3583,11 +3583,12 @@ export default function DriverDashboardScreen() {
           onPress={() => setActiveBottomTab('PROFILE')}
           activeOpacity={0.7}
         >
+          {activeBottomTab === 'PROFILE' && <View style={styles.bottomActiveBar} />}
           <View style={styles.tabIconWrapper}>
             <Ionicons
               name={activeBottomTab === 'PROFILE' ? 'person' : 'person-outline'}
               size={23}
-              color={activeBottomTab === 'PROFILE' ? '#ff6b00' : '#94a3b8'}
+              color={activeBottomTab === 'PROFILE' ? '#FF6500' : '#94a3b8'}
             />
             {hasAnyProfilePending && (
               <View style={styles.profilePendingNotificationBadge}>
@@ -3598,7 +3599,6 @@ export default function DriverDashboardScreen() {
           <Text style={[styles.bottomNavText, activeBottomTab === 'PROFILE' && styles.bottomNavTextActive]}>
             {t('tabs.profile')}
           </Text>
-          {activeBottomTab === 'PROFILE' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
       </View>
       {/* Universal Updates & Notifications Modal */}
@@ -3684,7 +3684,7 @@ export default function DriverDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F8FAFC',
   },
   bgProtectionBanner: {
     flexDirection: 'row',
@@ -3727,9 +3727,8 @@ const styles = StyleSheet.create({
     color: '#008860',
   },
   mainHeaderWhite: {
-    backgroundColor: '#162232',
-    borderBottomWidth: 2,
-    borderBottomColor: '#f97316',
+    backgroundColor: '#162636',
+    borderBottomWidth: 0,
     paddingLeft: 16,
     paddingRight: 16,
     paddingBottom: 12,
@@ -3768,7 +3767,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   headerDriverAppTitle: {
-    color: '#f97316',
+    color: '#FF6500',
     fontSize: 13,
     fontWeight: '900',
     lineHeight: 16,
@@ -3792,7 +3791,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -3,
     right: -3,
-    backgroundColor: '#ea580c',
+    backgroundColor: '#FF6500',
     borderRadius: 9,
     minWidth: 18,
     height: 18,
@@ -3800,7 +3799,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
     borderWidth: 1.5,
-    borderColor: '#0f2744',
+    borderColor: '#162636',
     zIndex: 10,
     elevation: 4,
   },
@@ -3853,20 +3852,20 @@ const styles = StyleSheet.create({
   },
   homeTabWrapper: {
     paddingBottom: 24,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F8FAFC',
   },
   heroCardOuter: {
     marginHorizontal: 16,
     marginTop: 12,
     borderRadius: 20,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#1e3a8a',
+    backgroundColor: '#FEFEFE',
+    borderWidth: 1.2,
+    borderColor: '#BFCCDF',
+    shadowColor: '#5A7CA6',
     shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.20,
-    shadowRadius: 10,
-    elevation: 7,
+    shadowOpacity: 0.75,
+    shadowRadius: 16,
+    elevation: 8,
   },
   heroCardOuterSmall: {
     marginHorizontal: 10,
@@ -3900,11 +3899,11 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     backgroundColor: '#ffffff',
     borderWidth: 2,
-    borderColor: '#ff6b00',
+    borderColor: '#FF6500',
     padding: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0f2744',
+    shadowColor: '#162636',
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 1.5 },
     shadowRadius: 3,
@@ -4202,21 +4201,21 @@ const styles = StyleSheet.create({
   },
   heroCardGridItem: {
     width: '100%',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderWidth: 1.2,
+    borderColor: '#BFCCDF',
     flexDirection: 'row',
     alignItems: 'center',
     position: 'relative',
     minHeight: 64,
-    shadowColor: '#1e3a8a',
+    shadowColor: '#5A7CA6',
     shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.20,
-    shadowRadius: 10,
-    elevation: 7,
+    shadowOpacity: 0.75,
+    shadowRadius: 16,
+    elevation: 8,
   },
   heroCardGridIconBox: {
     width: 28,
@@ -4635,7 +4634,7 @@ const styles = StyleSheet.create({
   },
   mainScrollView: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     zIndex: 10,
   },
   mainScrollViewHome: {
@@ -5670,7 +5669,7 @@ const styles = StyleSheet.create({
   },
   dashboardCardItem: {
     width: '100%',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -5694,14 +5693,14 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: '#0f2744',
+    backgroundColor: '#162636',
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardOrangeDivider: {
     width: 2.5,
     height: 24,
-    backgroundColor: '#ff6b00',
+    backgroundColor: '#FF6500',
     marginHorizontal: 12,
     borderRadius: 1.5,
   },
@@ -5714,7 +5713,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#ff6b00',
+    backgroundColor: '#FF6500',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 4,
@@ -5726,7 +5725,7 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   cardNotifCountBadge: {
-    backgroundColor: '#ff6b00',
+    backgroundColor: '#FF6500',
     borderRadius: 11,
     minWidth: 22,
     height: 22,
@@ -5744,7 +5743,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: '#0f2744',
+    backgroundColor: '#162636',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -5755,15 +5754,15 @@ const styles = StyleSheet.create({
   },
   dashboardCardTitle: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#0f2744',
+    fontWeight: '900',
+    color: '#00142A',
     letterSpacing: -0.2,
     lineHeight: 18,
   },
   dashboardCardSub: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#64748b',
+    fontWeight: '600',
+    color: '#475569',
     marginTop: 2,
     lineHeight: 15,
   },
@@ -5773,18 +5772,18 @@ const styles = StyleSheet.create({
   },
   dashboardCardItemFull: {
     width: '100%',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 20,
     paddingVertical: 12,
     paddingHorizontal: 10,
     marginBottom: 11,
-    borderWidth: 1,
-    borderColor: '#eef2f6',
-    shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    borderWidth: 1.2,
+    borderColor: '#BFCCDF',
+    shadowColor: '#5A7CA6',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.75,
+    shadowRadius: 16,
+    elevation: 8,
     flexDirection: 'row',
     alignItems: 'center',
     position: 'relative',
@@ -5799,7 +5798,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 7,
     right: 8,
-    backgroundColor: '#ea580c',
+    backgroundColor: '#DC702F',
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -6173,8 +6172,8 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
   },
   monthPillActiveOrange: {
-    backgroundColor: '#162232',
-    borderColor: '#162232',
+    backgroundColor: '#162636',
+    borderColor: '#162636',
   },
   monthPillTextDark: {
     fontSize: 12.5,
@@ -6204,7 +6203,7 @@ const styles = StyleSheet.create({
   kpiHeaderLabelOrange: {
     fontSize: 12.5,
     fontWeight: '800',
-    color: '#162232',
+    color: '#162636',
   },
   kpiTripsCountBadgeLight: {
     paddingHorizontal: 0,
@@ -6292,7 +6291,7 @@ const styles = StyleSheet.create({
   refreshBtnTextOrange: {
     fontSize: 12.5,
     fontWeight: '800',
-    color: '#162232',
+    color: '#162636',
   },
   emptyCardWhite: {
     backgroundColor: '#ffffff',
@@ -7420,7 +7419,7 @@ const styles = StyleSheet.create({
     zIndex: 999,
     height: Platform.OS === 'android' ? 66 : 72,
     paddingBottom: Platform.OS === 'android' ? 6 : 14,
-    backgroundColor: '#162232',
+    backgroundColor: '#162636',
     flexDirection: 'row',
     alignItems: 'center',
     borderTopLeftRadius: 0,
@@ -7450,11 +7449,13 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   bottomActiveBar: {
-    width: 26,
-    height: 3,
-    backgroundColor: '#ff6b00',
-    borderRadius: 1.5,
-    marginTop: 3,
+    position: 'absolute',
+    top: 0,
+    width: 54,
+    height: 3.5,
+    backgroundColor: '#FF6500',
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
   },
   bottomNavEmoji: {
     fontSize: 18,
@@ -7471,7 +7472,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.15,
   },
   bottomNavTextActive: {
-    color: '#ff6b00',
+    color: '#FF6500',
     fontWeight: '900',
   },
   tabIconWrapper: {
@@ -7483,14 +7484,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -8,
-    backgroundColor: '#ff6b00',
+    backgroundColor: '#FF6500',
     width: 16,
     height: 16,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#162232',
+    borderColor: '#162636',
   },
   profilePendingNotificationBadgeText: {
     color: '#ffffff',

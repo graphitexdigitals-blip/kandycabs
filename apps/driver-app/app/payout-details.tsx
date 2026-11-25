@@ -192,7 +192,7 @@ export default function PayoutDetailsScreen() {
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#162232" />
+            <ActivityIndicator size="large" color="#162636" />
             <Text style={styles.loadingText}>{t('payout.loading', 'Loading Settlement Details...')}</Text>
           </View>
         ) : (
@@ -216,7 +216,7 @@ export default function PayoutDetailsScreen() {
                 <Ionicons
                   name="business-outline"
                   size={18}
-                  color={payoutMethod === 'BANK' ? '#162232' : '#64748b'}
+                  color={payoutMethod === 'BANK' ? '#162636' : '#64748b'}
                 />
                 <View style={{ marginLeft: 8, flex: 1 }}>
                   <Text
@@ -246,7 +246,7 @@ export default function PayoutDetailsScreen() {
                 <Ionicons
                   name="phone-portrait-outline"
                   size={18}
-                  color={payoutMethod === 'UPI' ? '#162232' : '#64748b'}
+                  color={payoutMethod === 'UPI' ? '#162636' : '#64748b'}
                 />
                 <View style={{ marginLeft: 8, flex: 1 }}>
                   <Text
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
   introTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#162232',
+    color: '#162636',
   },
   introDesc: {
     fontSize: 12,
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   methodTabActive: {
-    borderColor: '#162232',
+    borderColor: '#162636',
     backgroundColor: '#f0f7ff',
   },
   methodTabTitle: {
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   methodTabTitleActive: {
-    color: '#162232',
+    color: '#162636',
   },
   methodTabSub: {
     fontSize: 10,
@@ -753,11 +753,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#162232',
+    backgroundColor: '#162636',
     borderRadius: 12,
     paddingVertical: 14,
     gap: 8,
-    shadowColor: '#162232',
+    shadowColor: '#162636',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,

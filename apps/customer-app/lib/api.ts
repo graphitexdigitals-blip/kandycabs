@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { KandyApiClient, TokenStorage } from '@kandy-cabs/shared';
 
@@ -55,8 +55,11 @@ class MobileTokenStorage implements TokenStorage {
   }
 
   setToken(token: string): void {
+    const isDifferent = this.token !== token;
     this.token = token;
-    this.notify();
+    if (isDifferent) {
+      this.notify();
+    }
     try {
       if (Platform.OS === 'web') {
         if (typeof window !== 'undefined' && window.localStorage) {
@@ -71,9 +74,12 @@ class MobileTokenStorage implements TokenStorage {
   }
 
   removeToken(): void {
+    const isDifferent = this.token !== null || this.user !== null;
     this.token = null;
     this.user = null;
-    this.notify();
+    if (isDifferent) {
+      this.notify();
+    }
     try {
       if (Platform.OS === 'web') {
         if (typeof window !== 'undefined' && window.localStorage) {
@@ -116,8 +122,11 @@ class MobileTokenStorage implements TokenStorage {
   }
 
   setUser(user: any | null): void {
+    const isDifferent = JSON.stringify(this.user) !== JSON.stringify(user);
     this.user = user;
-    this.notify();
+    if (isDifferent) {
+      this.notify();
+    }
     try {
       const serialized = user ? JSON.stringify(user) : '';
       if (Platform.OS === 'web') {
@@ -155,11 +164,35 @@ class MobileTokenStorage implements TokenStorage {
 export const customerTokenStorage = new MobileTokenStorage();
 
 import Constants from 'expo-constants';
+import { getAdminRegisteredCustomer } from './adminCustomers';
 
-export function getDynamicBaseUrl(): string {
+export const CANDIDATE_API_URLS = [
+  'http://10.0.2.2:3001',
+  'http://192.168.1.3:3001',
+  'http://127.0.0.1:3001',
+];
+
+export function resolveDefaultApiUrl(): string {
+  // Accurate detection of Android emulator vs Physical device
+  const isAndroidEmulator =
+    Platform.OS === 'android' &&
+    (Platform.constants?.Brand === 'google' ||
+      Platform.constants?.Model?.toLowerCase().includes('sdk') ||
+      Platform.constants?.Model?.toLowerCase().includes('emulator') ||
+      String((Platform.constants as any)?.Fingerprint || '').includes('generic'));
+
+  const isPhysicalPhone = Platform.OS === 'android' ? !isAndroidEmulator : false;
+
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
   if (envUrl && envUrl.startsWith('http')) {
-    // If running in development on a physical device, replace 127.0.0.1 / localhost with the Metro host IP
+    // If running on a physical phone, 10.0.2.2 is an emulator-only loopback; map to PC Wi-Fi IP
+    if (isPhysicalPhone && envUrl.includes('10.0.2.2')) {
+      return envUrl.replace('10.0.2.2', '192.168.1.3').replace(/\/+$/, '');
+    }
+    // If running in Android emulator, map PC LAN IP to emulator loopback 10.0.2.2
+    if (isAndroidEmulator && envUrl.includes('192.168.1.3')) {
+      return envUrl.replace('192.168.1.3', '10.0.2.2').replace(/\/+$/, '');
+    }
     if (__DEV__ && (envUrl.includes('127.0.0.1') || envUrl.includes('localhost'))) {
       const hostUri = Constants.expoConfig?.hostUri || (Constants as any)?.manifest?.debuggerHost;
       if (hostUri) {
@@ -172,21 +205,133 @@ export function getDynamicBaseUrl(): string {
     return envUrl.replace(/\/+$/, '');
   }
 
-  // Dynamic dev fallback to Metro host machine port 3001
-  if (__DEV__) {
-    const hostUri = Constants.expoConfig?.hostUri || (Constants as any)?.manifest?.debuggerHost;
-    if (hostUri) {
-      const host = hostUri.split(':')[0];
-      if (host) {
-        return `http://${host}:3001`;
-      }
+  if (Platform.OS === 'android') {
+    if (isPhysicalPhone) {
+      return 'http://192.168.1.3:3001';
     }
+    return 'http://10.0.2.2:3001';
   }
-
-  return 'https://proven-differences-sole-replace.trycloudflare.com';
+  return 'http://192.168.1.3:3001';
 }
 
-export const customerApiClient = new KandyApiClient({
+let activeCustomerApiUrl: string = resolveDefaultApiUrl();
+
+export function getDynamicBaseUrl(): string {
+  return activeCustomerApiUrl;
+}
+
+export function setActiveBaseUrl(url: string) {
+  if (url && url.startsWith('http')) {
+    activeCustomerApiUrl = url.replace(/\/+$/, '');
+  }
+}
+
+let hasShownSessionAlert = false;
+export function handleSessionTerminated(message?: string) {
+  customerTokenStorage.removeToken();
+  if (!hasShownSessionAlert) {
+    hasShownSessionAlert = true;
+    const msg =
+      message ||
+      'You have been logged out because this account was logged into another device. Please log in again with OTP.';
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.alert(msg);
+      hasShownSessionAlert = false;
+    } else {
+      Alert.alert(
+        'Session Expired',
+        msg,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              hasShownSessionAlert = false;
+            },
+          },
+        ],
+        { cancelable: false }
+      );
+    }
+  }
+}
+
+class ResilientCustomerApiClient extends KandyApiClient {
+  async fetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const current = this.getBaseUrl();
+    const isMutation = Boolean(options.method && options.method !== 'GET');
+    const timeoutOverride = (options as any).timeoutMs || (isMutation ? 20000 : 12000);
+
+    // 1. Try current active URL first
+    try {
+      return await super.fetch<T>(endpoint, { ...options, timeoutMs: timeoutOverride } as any);
+    } catch (err: any) {
+      // If session was terminated because another device logged in, handle immediately
+      if (err?.code === 'SESSION_TERMINATED') {
+        handleSessionTerminated(err?.message);
+        throw err;
+      }
+
+      // If error is an explicit 401 Unauthorized or 400/404 business error, do not retry other servers
+      if (err?.status && err.status >= 400 && err.status < 500 && err.status !== 408) {
+        throw err;
+      }
+
+      // Do not retry mutations on other servers if it wasn't a connection error
+      const isConnError =
+        err?.status === 408 ||
+        err?.status === 0 ||
+        !err?.status ||
+        /network|timeout|timed\s*out|aborted/i.test(err?.message || '');
+      if (isMutation && !isConnError) {
+        throw err;
+      }
+
+      console.warn(`[customerApiClient] Request to ${current}${endpoint} failed. Trying alternative API URLs...`);
+
+      // 2. Try alternative candidate endpoints
+      for (const candidate of CANDIDATE_API_URLS) {
+        if (candidate === current) continue;
+        try {
+          const candidateUrl = `${candidate}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+          const res = await super.fetch<T>(candidateUrl, { ...options, timeoutMs: isMutation ? 20000 : 10000 } as any);
+          // If successful, update active URL so subsequent calls are fast
+          activeCustomerApiUrl = candidate;
+          console.log(`[customerApiClient] Switched active API URL to ${candidate}`);
+          return res;
+        } catch (_) {
+          // Continue to next candidate
+        }
+      }
+
+      // 3. Fallback for profile requests if completely offline
+      if (endpoint.includes('/api/auth/me')) {
+        const cached = customerTokenStorage.getUser();
+        const reg = getAdminRegisteredCustomer(cached?.phone);
+        if (reg) {
+          return {
+            user: {
+              id: reg.id,
+              userId: reg.userId,
+              phone: reg.phone,
+              fullName: reg.fullName,
+              email: reg.email,
+              roles: ['CUSTOMER'],
+              customer: {
+                id: reg.customerId,
+                email: reg.email,
+                savedAddresses: reg.savedAddresses,
+              },
+            },
+          } as any;
+        }
+      }
+
+      throw err;
+    }
+  }
+}
+
+export const customerApiClient = new ResilientCustomerApiClient({
   baseUrl: getDynamicBaseUrl,
   tokenStorage: customerTokenStorage,
 });

@@ -59,6 +59,9 @@ export default function AdminAuditLogsPage() {
     if (action.includes('DISPATCH') || action.includes('ACCEPTED')) {
       return 'bg-blue-100 text-blue-800 border-blue-300';
     }
+    if (action.includes('UPDATE') || action.includes('EDIT')) {
+      return 'bg-purple-100 text-purple-800 border-purple-300';
+    }
     return 'bg-slate-100 text-slate-700 border-slate-200';
   };
 
@@ -90,6 +93,7 @@ export default function AdminAuditLogsPage() {
           <div className="flex flex-wrap gap-1 sm:gap-1.5">
             {[
               { id: 'ALL', label: 'All Events' },
+              { id: 'CUSTOMER_UPDATE_TRIP', label: 'Trip Changes' },
               { id: 'PAYMENT_VERIFIED_WEBHOOK', label: 'Payments' },
               { id: 'DRIVER_KYC_APPROVED', label: 'KYC Approved' },
               { id: 'DRIVER_KYC_REJECTED', label: 'KYC Rejected' },

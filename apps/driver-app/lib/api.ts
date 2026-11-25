@@ -1,5 +1,5 @@
 import '../polyfills';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { KandyApiClient, TokenStorage } from '@kandy-cabs/shared';
 import Constants from 'expo-constants';
@@ -64,9 +64,9 @@ class MobileTokenStorage implements TokenStorage {
 export const driverTokenStorage = new MobileTokenStorage();
 
 const SECURE_API_URL_KEY = 'kandy_driver_api_url_v2';
-export const PROD_API_URL = 'https://proven-differences-sole-replace.trycloudflare.com';
+export const PROD_API_URL = 'http://192.168.1.3:3001';
 export const DEFAULT_DEV_PORT = '3001';
-export const DEFAULT_LAN_HOST = '192.168.29.207';
+export const DEFAULT_LAN_HOST = '192.168.1.3';
 export const DEFAULT_EMULATOR_HOST = '10.0.2.2';
 export const DEFAULT_LOCAL_URL = 'http://127.0.0.1:3001';
 
@@ -82,25 +82,36 @@ export function resolveDefaultApiUrl(): string {
     }
   }
 
-  // 2. EXPO_PUBLIC_API_URL if valid and not an outdated dead IP
+  // 2. EXPO_PUBLIC_API_URL from environment
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
   if (envUrl && envUrl.startsWith('http')) {
-    if (!envUrl.includes('192.168.1.3') && !envUrl.includes('192.168.1.5')) {
-      if (__DEV__ && (envUrl.includes('127.0.0.1') || envUrl.includes('localhost'))) {
-        const hostUri = Constants.expoConfig?.hostUri || (Constants as any)?.manifest?.debuggerHost;
-        if (hostUri) {
-          const host = hostUri.split(':')[0];
-          if (host && host !== '127.0.0.1' && host !== 'localhost') {
-            return envUrl.replace(/127\.0\.0\.1|localhost/, host).replace(/\/+$/, '');
-          }
+    if (__DEV__ && (envUrl.includes('127.0.0.1') || envUrl.includes('localhost'))) {
+      const hostUri = Constants.expoConfig?.hostUri || (Constants as any)?.manifest?.debuggerHost;
+      if (hostUri) {
+        const host = hostUri.split(':')[0];
+        if (host && host !== '127.0.0.1' && host !== 'localhost') {
+          return envUrl.replace(/127\.0\.0\.1|localhost/, host).replace(/\/+$/, '');
         }
       }
-      return envUrl.replace(/\/+$/, '');
     }
+    return envUrl.replace(/\/+$/, '');
   }
 
-  // 3. Fallback: Production Vercel endpoint (enables drivers on 4G cellular data to always connect)
-  return PROD_API_URL;
+  // 3. Fallback for emulator vs physical device
+  const isPhysicalPhone =
+    Constants.isDevice ||
+    (Platform.OS === 'android' &&
+      Platform.constants?.Brand !== 'google' &&
+      !Platform.constants?.Model?.toLowerCase().includes('sdk') &&
+      !Platform.constants?.Model?.toLowerCase().includes('emulator'));
+
+  if (Platform.OS === 'android') {
+    if (isPhysicalPhone) {
+      return 'http://192.168.1.3:3001';
+    }
+    return 'http://10.0.2.2:3001';
+  }
+  return 'http://192.168.1.3:3001';
 }
 
 export const DEFAULT_LAN_URL = resolveDefaultApiUrl();
@@ -111,8 +122,8 @@ let activeBaseUrl: string = resolveDefaultApiUrl();
 // Hydrate saved custom API URL asynchronously
 SecureStore.getItemAsync(SECURE_API_URL_KEY)
   .then((stored) => {
-    // Purge outdated/dead IPs from SecureStore
-    if (stored && (stored.includes('192.168.1.3') || stored.includes('192.168.1.5'))) {
+    // Purge outdated dead Cloudflare tunnels from SecureStore
+    if (stored && (stored.includes('trycloudflare.com') || stored.includes('192.168.29.'))) {
       SecureStore.deleteItemAsync(SECURE_API_URL_KEY).catch(() => {});
       stored = null;
     }
@@ -152,11 +163,52 @@ export async function resetApiUrlToLan(): Promise<string> {
   return DEFAULT_LAN_URL;
 }
 
+let hasShownDriverSessionAlert = false;
+export function handleDriverSessionTerminated(message?: string) {
+  driverTokenStorage.removeToken();
+  SecureStore.deleteItemAsync('kandy_cached_driver').catch(() => {});
+  SecureStore.deleteItemAsync('kandy_cached_vehicles').catch(() => {});
+  SecureStore.deleteItemAsync('kandy_cached_documents').catch(() => {});
+  if (!hasShownDriverSessionAlert) {
+    hasShownDriverSessionAlert = true;
+    const msg =
+      message ||
+      'You have been logged out because this driver account was logged into another device. Please log in again with OTP.';
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.alert(msg);
+      hasShownDriverSessionAlert = false;
+    } else {
+      Alert.alert(
+        'Session Expired',
+        msg,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              hasShownDriverSessionAlert = false;
+            },
+          },
+        ],
+        { cancelable: false }
+      );
+    }
+  }
+}
+
 class ResilientDriverApiClient extends KandyApiClient {
   async fetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
     try {
       return await super.fetch<T>(endpoint, options);
     } catch (err: any) {
+      if (
+        err?.code === 'SESSION_TERMINATED' ||
+        err?.message?.includes('logged out because this account was logged into another device') ||
+        err?.message?.includes('logged into another device')
+      ) {
+        handleDriverSessionTerminated(err?.message);
+        throw err;
+      }
+
       const current = this.getBaseUrl();
       const isLocal = current.includes('192.168.') || current.includes('10.0.') || current.includes('localhost') || current.includes('127.0.0.1');
 

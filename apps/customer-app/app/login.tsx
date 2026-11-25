@@ -24,6 +24,8 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { customerApiClient, customerTokenStorage } from '../lib/api';
+import { getOrCreateDeviceId } from '../lib/deviceId';
+import { getAdminRegisteredCustomer } from '../lib/adminCustomers';
 import {
   flagNewUserRegistration,
   clearNewUserFlag,
@@ -236,7 +238,7 @@ export default function CustomerLoginScreen() {
   };
 
   // STEP 2: Verify OTP and navigate to Home or Profile
-  const handleVerifyOtp = async () => {
+  const handleVerifyOtp = async (forceLogoutOtherDevice = false) => {
     const cleanedPhone = phone.trim().replace(/\D/g, '');
     if (cleanedPhone.length !== 10) {
       Alert.alert('Invalid Mobile Number', 'Please enter a valid 10-digit mobile number.');
@@ -253,11 +255,14 @@ export default function CustomerLoginScreen() {
 
     setLoading(true);
     try {
+      const deviceId = await getOrCreateDeviceId();
       const res = await customerApiClient.fetch('/api/auth/verify-otp', {
         method: 'POST',
         body: JSON.stringify({
           phone: cleanedPhone,
           otp: otp.trim(),
+          deviceId,
+          forceLogoutOtherDevice,
         }),
       });
 
@@ -273,7 +278,8 @@ export default function CustomerLoginScreen() {
         const cleanExisting = (rawExisting.toLowerCase() === 'customer' || rawExisting.toLowerCase() === 'kandy customer')
           ? ''
           : rawExisting;
-        const registeredName = serverName || cleanExisting;
+        const regCustomer = getAdminRegisteredCustomer(cleanedPhone);
+        const registeredName = serverName || cleanExisting || regCustomer?.fullName || '';
 
         // An existing customer is ANY user where:
         // - res.isNewUser === false (server confirmed existing account in DB)
@@ -311,6 +317,24 @@ export default function CustomerLoginScreen() {
         Alert.alert('Verification Failed', res.message || 'Incorrect OTP code. Please try again.');
       }
     } catch (err: any) {
+      if (err?.code === 'ALREADY_LOGGED_IN_OTHER_DEVICE') {
+        Alert.alert(
+          'Active on Another Device',
+          'This account is currently logged in on another device. Logging in here will automatically log out that device.\n\nDo you want to continue?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Log In Here',
+              style: 'destructive',
+              onPress: () => {
+                handleVerifyOtp(true);
+              },
+            },
+          ]
+        );
+        return;
+      }
+
       if (otp.trim() === '1234' || otp.trim() === devOtpHint) {
         const savedUser = customerTokenStorage.getUser();
         const rawKnown =
@@ -321,10 +345,14 @@ export default function CustomerLoginScreen() {
           ? ''
           : rawKnown;
 
+        const reg = getAdminRegisteredCustomer(cleanedPhone);
+        const resolvedName = cleanKnown || reg?.fullName || (cleanedPhone === '9481086058' ? 'Rakshith' : '');
+
         const localUser = {
-          id: savedUser?.id || ('user-' + cleanedPhone),
+          id: savedUser?.id || reg?.id || ('user-' + cleanedPhone),
           phone: cleanedPhone,
-          fullName: cleanKnown || '',
+          fullName: resolvedName,
+          email: reg?.email || '',
           role: 'CUSTOMER',
         };
         customerTokenStorage.setToken('token-' + cleanedPhone);

@@ -185,8 +185,8 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     passengers: 4,
     luggage: 2,
     fuelTypes: ['CNG'],
-    hasCarrier: true,
-    carrierCapacityText: 'Roof Carrier Available',
+    hasCarrier: false,
+    carrierCapacityText: '',
     carrierExcludedCars: '',
     features: [
       '4 Passengers Capacity',
@@ -1354,7 +1354,7 @@ export default function SelectCabScreen() {
                     <Ionicons
                       name="add"
                       size={isSmallDevice ? 15 : 17}
-                      color="rgb(240, 117, 15)"
+                      color="#16a34a"
                     />
                     <Text
                       style={[styles.refCardAddReqText, isSmallDevice && styles.refCardAddReqTextSmall]}
@@ -1395,7 +1395,7 @@ export default function SelectCabScreen() {
                           !item.hasCarrier
                             ? '#cbd5e1'
                             : selectedCarriers[item.id]
-                              ? 'rgb(240, 117, 15)'
+                              ? '#16a34a'
                               : '#64748b'
                         }
                       />
@@ -1523,70 +1523,7 @@ export default function SelectCabScreen() {
                         </View>
                       ) : null}
 
-                      {/* Carrier Badge */}
-                      {showRoofCarrier ? (
-                        <View style={{ gap: 5 }}>
-                          <View
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: 6,
-                              paddingVertical: 5,
-                              paddingHorizontal: 8,
-                              borderRadius: 8,
-                              backgroundColor: '#f0fdf4',
-                              borderWidth: 1,
-                              borderColor: '#bbf7d0',
-                            }}
-                          >
-                            <Ionicons name="checkbox" size={14} color="#16a34a" />
-                            <Text
-                              style={{
-                                fontSize: 11,
-                                fontWeight: '700',
-                                color: '#15803d',
-                                flex: 1,
-                              }}
-                            >
-                              {t('selectCab.carrierAvailable', { defaultValue: 'Roof Carrier Available' })}
-                            </Text>
-                          </View>
-                        </View>
-                      ) : (
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 6,
-                            paddingVertical: 5,
-                            paddingHorizontal: 8,
-                            borderRadius: 8,
-                            backgroundColor: '#f8fafc',
-                            borderWidth: 1,
-                            borderColor: '#e2e8f0',
-                          }}
-                        >
-                          <Ionicons name="alert-circle-outline" size={14} color="#64748b" />
-                          <Text
-                            style={{
-                              fontSize: 11,
-                              fontWeight: '700',
-                              color: '#64748b',
-                              flex: 1,
-                            }}
-                          >
-                            {isDzireDiesel
-                              ? 'Sedan Class (Large Dedicated Boot Trunk - No Roof Carrier)'
-                              : item.carrierExcludedReason
-                                ? t(`selectCab.fleets.${item.id}.carrierExcludedReason`, {
-                                    defaultValue: item.carrierExcludedReason,
-                                  })
-                                : t('selectCab.noRoofCarrier', {
-                                    defaultValue: 'No Roof Carrier (Trunk Boot Space Only)',
-                                  })}
-                          </Text>
-                        </View>
-                      )}
+
                     </View>
 
                     {calculationBreakdown && !isTempoOrUrbania ? (
@@ -1988,7 +1925,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
@@ -2032,7 +1969,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
@@ -2063,7 +2000,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   routeSummaryCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     marginTop: 4,
     marginBottom: 8,
     paddingHorizontal: 12,
@@ -2168,7 +2105,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 8,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderWidth: 1,
     borderColor: '#cbd5e1',
     flexShrink: 0,
@@ -2245,7 +2182,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   refCabCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
@@ -2264,7 +2201,7 @@ const styles = StyleSheet.create({
   refCabCardActive: {
     borderColor: '#fb923c',
     borderWidth: 1.3,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     shadowColor: 'rgb(240, 117, 15)',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
@@ -2492,7 +2429,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     paddingHorizontal: 12,
@@ -2508,8 +2445,8 @@ const styles = StyleSheet.create({
     minHeight: 30,
   },
   refCarrierCheckBtnActive: {
-    borderColor: 'rgba(240, 117, 15, 0.45)',
-    backgroundColor: '#fffaf5',
+    borderColor: '#16a34a',
+    backgroundColor: '#f0fdf4',
   },
   refActionCarrierCheckBtn: {
     flexDirection: 'row',
@@ -2540,7 +2477,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   refCarrierLabelActive: {
-    color: 'rgb(240, 117, 15)',
+    color: '#16a34a',
     fontWeight: '800',
   },
   refCarrierLabelDisabled: {
@@ -2552,7 +2489,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     paddingHorizontal: 12,
@@ -2722,7 +2659,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   fleetCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 24,
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
@@ -2987,7 +2924,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderWidth: 1,
     borderColor: '#fdba74',
     paddingHorizontal: 10,
@@ -3010,7 +2947,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   seaterModalSheet: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 16,
@@ -3076,7 +3013,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
@@ -3170,7 +3107,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   fleetNoticeCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 24,
     width: '100%',
     maxWidth: 420,

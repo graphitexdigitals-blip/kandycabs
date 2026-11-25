@@ -2,11 +2,12 @@ import '../polyfills';
 import '@kandy-cabs/shared';
 import '../lib/i18n';
 import React, { useEffect, useState } from 'react';
-import { LogBox, StatusBar } from 'react-native';
+import { LogBox, StatusBar, View } from 'react-native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { GlobalTripReviewWatcher } from '../components/GlobalTripReviewWatcher';
+import { QuickBookingFab } from '../components/QuickBookingFab';
 
 // Keep splash screen visible until custom Roboto fonts are loaded
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -15,40 +16,29 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 LogBox.ignoreAllLogs(true);
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({
+  const [fontsLoaded] = useFonts({
     'Roboto': require('../assets/fonts/Roboto-Regular.ttf'),
     'Roboto-Regular': require('../assets/fonts/Roboto-Regular.ttf'),
     'Roboto-Medium': require('../assets/fonts/Roboto-Medium.ttf'),
     'Roboto-Bold': require('../assets/fonts/Roboto-Bold.ttf'),
   });
 
-  const [ready, setReady] = useState(false);
-
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      setReady(true);
-      SplashScreen.hideAsync().catch(() => {});
-    }
-    // Safety timer ensures app renders smoothly even if font load delays
+    SplashScreen.hideAsync().catch(() => {});
     const timer = setTimeout(() => {
-      setReady(true);
       SplashScreen.hideAsync().catch(() => {});
-    }, 400);
+    }, 250);
     return () => clearTimeout(timer);
-  }, [fontsLoaded, fontError]);
-
-  if (!ready && !fontsLoaded) {
-    return null;
-  }
+  }, [fontsLoaded]);
 
   return (
-    <>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+    <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
+      <StatusBar barStyle="light-content" backgroundColor="#162636" />
       <Stack
         initialRouteName="login"
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#ffffff' },
+          contentStyle: { backgroundColor: '#f8fafc' },
         }}
       >
         <Stack.Screen name="login" />
@@ -67,6 +57,7 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <GlobalTripReviewWatcher />
-    </>
+      <QuickBookingFab />
+    </View>
   );
 }

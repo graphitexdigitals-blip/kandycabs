@@ -101,6 +101,35 @@ export function LocationPickerModal({
   const dropInputRef = useRef<TextInput>(null);
   const routeCardScrollRef = useRef<ScrollView>(null);
 
+  const focusTargetInput = (target: 'PICKUP' | 'STOP' | 'DROP', stopIdx?: number) => {
+    // 1. Explicitly blur inputs to remove typing cursor / caret from inactive fields
+    if (target !== 'PICKUP') {
+      pickupInputRef.current?.blur();
+    }
+    if (target !== 'DROP') {
+      dropInputRef.current?.blur();
+    }
+    Object.keys(stopInputRefs.current).forEach((k) => {
+      const idx = Number(k);
+      if (target !== 'STOP' || idx !== stopIdx) {
+        stopInputRefs.current[idx]?.blur();
+      }
+    });
+
+    // 2. Automatically transfer focus and typing bar to the newly active highlighted field
+    setTimeout(() => {
+      if (target === 'PICKUP') {
+        pickupInputRef.current?.focus();
+      } else if (target === 'DROP') {
+        dropInputRef.current?.focus();
+      } else if (target === 'STOP') {
+        const sIndex = stopIdx ?? activeStopIndex;
+        routeCardScrollRef.current?.scrollToEnd({ animated: true });
+        stopInputRefs.current[sIndex]?.focus();
+      }
+    }, 70);
+  };
+
   const [pickupText, setPickupText] = useState(
     pickupValue || (isPickup !== false ? currentValue : '') || ''
   );
@@ -513,8 +542,10 @@ export function LocationPickerModal({
         if (stops.length > 0 && !stops[0].label) {
           setActiveTarget('STOP');
           setActiveStopIndex(0);
+          focusTargetInput('STOP', 0);
         } else {
           setActiveTarget('DROP');
+          focusTargetInput('DROP');
         }
       } else if (activeTarget === 'STOP') {
         if (pickupText.trim() && isSameLocation(placeLoc, pickupItem || pickupText)) {
@@ -549,8 +580,10 @@ export function LocationPickerModal({
         setSearchQuery('');
         if (activeStopIndex + 1 < stops.length) {
           setActiveStopIndex(activeStopIndex + 1);
+          focusTargetInput('STOP', activeStopIndex + 1);
         } else {
           setActiveTarget('DROP');
+          focusTargetInput('DROP');
         }
       } else {
         if (pickupText.trim() && isSameLocation(placeLoc, pickupItem || pickupText)) {
@@ -574,6 +607,9 @@ export function LocationPickerModal({
         setSearchQuery('');
         if (!pickupText) {
           setActiveTarget('PICKUP');
+          focusTargetInput('PICKUP');
+        } else {
+          dropInputRef.current?.blur();
         }
       }
     } catch (e: any) {
@@ -601,10 +637,7 @@ export function LocationPickerModal({
     setActiveTarget('STOP');
     setActiveStopIndex(newIdx);
     setSearchQuery('');
-    setTimeout(() => {
-      routeCardScrollRef.current?.scrollToEnd({ animated: true });
-      stopInputRefs.current[newIdx]?.focus();
-    }, 150);
+    focusTargetInput('STOP', newIdx);
   };
 
   const handleRemoveStop = (indexToRemove: number) => {
@@ -615,8 +648,11 @@ export function LocationPickerModal({
       if (nextStops.length === 0) {
         setActiveTarget('DROP');
         setActiveStopIndex(0);
+        focusTargetInput('DROP');
       } else if (activeStopIndex >= nextStops.length) {
-        setActiveStopIndex(nextStops.length - 1);
+        const nextIdx = nextStops.length - 1;
+        setActiveStopIndex(nextIdx);
+        focusTargetInput('STOP', nextIdx);
       }
     }
   };
@@ -849,7 +885,7 @@ export function LocationPickerModal({
                     onPress={() => {
                       setActiveTarget('PICKUP');
                       setSearchQuery(pickupAirportsOnly ? '' : pickupText);
-                      pickupInputRef.current?.focus();
+                      focusTargetInput('PICKUP');
                     }}
                     style={[
                       styles.routeFieldRow,
@@ -871,6 +907,19 @@ export function LocationPickerModal({
                         setActiveTarget('PICKUP');
                         setSearchQuery(pickupAirportsOnly ? '' : pickupText);
                       }}
+                      returnKeyType="next"
+                      onSubmitEditing={() => {
+                        if (stops.length > 0 && !stops[0].label) {
+                          setActiveTarget('STOP');
+                          setActiveStopIndex(0);
+                          focusTargetInput('STOP', 0);
+                        } else if (!hideDrop && !singleLocationOnly) {
+                          setActiveTarget('DROP');
+                          focusTargetInput('DROP');
+                        }
+                      }}
+                      selectionColor="rgba(240, 117, 15, 0.3)"
+                      cursorColor="rgb(240, 117, 15)"
                       placeholder={
                         pickupPlaceholder ||
                         (pickupAirportsOnly ? t('modals.locationPicker.enterAirport', { defaultValue: 'Enter airport location' }) : t('modals.locationPicker.enterPickup', { defaultValue: 'Enter pickup location' }))
@@ -882,7 +931,7 @@ export function LocationPickerModal({
                         onPress={() => {
                           setPickupText('');
                           setSearchQuery('');
-                          pickupInputRef.current?.focus();
+                          focusTargetInput('PICKUP');
                         }}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         activeOpacity={0.7}
@@ -908,7 +957,7 @@ export function LocationPickerModal({
                               setActiveTarget('STOP');
                               setActiveStopIndex(idx);
                               setSearchQuery(stop.label);
-                              stopInputRefs.current[idx]?.focus();
+                              focusTargetInput('STOP', idx);
                             }}
                             style={[
                               styles.routeFieldRow,
@@ -930,6 +979,19 @@ export function LocationPickerModal({
                                 setActiveStopIndex(idx);
                                 setSearchQuery(stop.label);
                               }}
+                              returnKeyType="next"
+                              onSubmitEditing={() => {
+                                if (idx + 1 < stops.length) {
+                                  setActiveTarget('STOP');
+                                  setActiveStopIndex(idx + 1);
+                                  focusTargetInput('STOP', idx + 1);
+                                } else {
+                                  setActiveTarget('DROP');
+                                  focusTargetInput('DROP');
+                                }
+                              }}
+                              selectionColor="rgba(240, 117, 15, 0.3)"
+                              cursorColor="rgb(240, 117, 15)"
                               placeholder={t('modals.locationPicker.addStopPlaceholder', { defaultValue: `Add Stop ${idx + 1}`, index: idx + 1 })}
                               placeholderTextColor="#475569"
                             />
@@ -939,7 +1001,7 @@ export function LocationPickerModal({
                                   onPress={() => {
                                     handleUpdateStopText(idx, '');
                                     setSearchQuery('');
-                                    stopInputRefs.current[idx]?.focus();
+                                    focusTargetInput('STOP', idx);
                                   }}
                                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                   activeOpacity={0.7}
@@ -975,7 +1037,7 @@ export function LocationPickerModal({
                       onPress={() => {
                         setActiveTarget('DROP');
                         setSearchQuery(dropAirportsOnly ? '' : dropText);
-                        dropInputRef.current?.focus();
+                        focusTargetInput('DROP');
                       }}
                       style={[
                         styles.routeFieldRow,
@@ -997,6 +1059,12 @@ export function LocationPickerModal({
                           setActiveTarget('DROP');
                           setSearchQuery(dropAirportsOnly ? '' : dropText);
                         }}
+                        returnKeyType="done"
+                        onSubmitEditing={() => {
+                          handleConfirmAndClose();
+                        }}
+                        selectionColor="rgba(240, 117, 15, 0.3)"
+                        cursorColor="rgb(240, 117, 15)"
                         placeholder={
                           dropPlaceholder ||
                           (dropAirportsOnly ? t('modals.locationPicker.enterAirport', { defaultValue: 'Enter airport location' }) : t('modals.locationPicker.enterDrop', { defaultValue: 'Drop location' }))
@@ -1008,7 +1076,7 @@ export function LocationPickerModal({
                           onPress={() => {
                             setDropText('');
                             setSearchQuery('');
-                            dropInputRef.current?.focus();
+                            focusTargetInput('DROP');
                           }}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           activeOpacity={0.7}
@@ -1028,7 +1096,7 @@ export function LocationPickerModal({
                     onPress={() => {
                       setActiveTarget('DROP');
                       setSearchQuery(dropAirportsOnly ? '' : dropText);
-                      dropInputRef.current?.focus();
+                      focusTargetInput('DROP');
                     }}
                     style={[
                       styles.routeFieldRow,
@@ -1050,6 +1118,12 @@ export function LocationPickerModal({
                         setActiveTarget('DROP');
                         setSearchQuery(dropAirportsOnly ? '' : dropText);
                       }}
+                      returnKeyType="done"
+                      onSubmitEditing={() => {
+                        handleConfirmAndClose();
+                      }}
+                      selectionColor="rgba(240, 117, 15, 0.3)"
+                      cursorColor="rgb(240, 117, 15)"
                       placeholder={
                         dropPlaceholder ||
                         (dropAirportsOnly ? t('modals.locationPicker.enterAirport', { defaultValue: 'Enter airport location' }) : t('modals.locationPicker.enterDrop', { defaultValue: 'Enter drop location' }))
@@ -1061,7 +1135,7 @@ export function LocationPickerModal({
                         onPress={() => {
                           setDropText('');
                           setSearchQuery('');
-                          dropInputRef.current?.focus();
+                          focusTargetInput('DROP');
                         }}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         activeOpacity={0.7}
@@ -1211,8 +1285,10 @@ export function LocationPickerModal({
                       if (stops.length > 0 && !stops[0].label) {
                         setActiveTarget('STOP');
                         setActiveStopIndex(0);
+                        focusTargetInput('STOP', 0);
                       } else {
                         setActiveTarget('DROP');
+                        focusTargetInput('DROP');
                       }
                     } else if (activeTarget === 'STOP') {
                       if (pickupText.trim() && isSameLocation(item, pickupItem || pickupText)) {
@@ -1247,8 +1323,10 @@ export function LocationPickerModal({
                       setSearchQuery('');
                       if (activeStopIndex + 1 < stops.length) {
                         setActiveStopIndex(activeStopIndex + 1);
+                        focusTargetInput('STOP', activeStopIndex + 1);
                       } else {
                         setActiveTarget('DROP');
+                        focusTargetInput('DROP');
                       }
                     } else {
                       if (pickupText.trim() && isSameLocation(item, pickupItem || pickupText)) {
@@ -1272,6 +1350,9 @@ export function LocationPickerModal({
                       setSearchQuery('');
                       if (!pickupText) {
                         setActiveTarget('PICKUP');
+                        focusTargetInput('PICKUP');
+                      } else {
+                        dropInputRef.current?.blur();
                       }
                     }
                   }}

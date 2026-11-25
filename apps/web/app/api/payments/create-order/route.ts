@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
+      amount,
       pickupLat,
       pickupLng,
       dropLat,
@@ -28,46 +29,57 @@ export async function POST(req: NextRequest) {
       durationDays = 1,
       packageHours = 8,
       couponCode,
+      receipt,
+      notes = {},
     } = body;
 
-    // 1. Calculate authoritative distance
-    let distanceKm = 50;
-    if (
-      typeof pickupLat === 'number' &&
-      typeof pickupLng === 'number' &&
-      typeof dropLat === 'number' &&
-      typeof dropLng === 'number'
-    ) {
-      const route = await calculateRouteDistance(pickupLat, pickupLng, dropLat, dropLng);
-      distanceKm = route.distanceKm;
+    let payableAmount: number;
+
+    // 1. If explicit amount is passed from review/payment bar, honor it directly
+    if (typeof amount === 'number' && amount > 0) {
+      payableAmount = Math.round(amount);
+    } else {
+      // Otherwise calculate authoritative fare from route
+      let distanceKm = 50;
+      if (
+        typeof pickupLat === 'number' &&
+        typeof pickupLng === 'number' &&
+        typeof dropLat === 'number' &&
+        typeof dropLng === 'number'
+      ) {
+        const route = await calculateRouteDistance(pickupLat, pickupLng, dropLat, dropLng);
+        distanceKm = route.distanceKm;
+      }
+
+      const pricing = calculateFare({
+        category,
+        fuelType,
+        tripType,
+        distanceKm,
+        scheduledAt,
+        durationDays,
+        packageHours,
+        couponCode,
+      });
+
+      payableAmount = Math.round(pricing.advanceAmount);
     }
 
-    // 2. Compute authoritative fare
-    const pricing = calculateFare({
-      category,
-      fuelType,
-      tripType,
-      distanceKm,
-      scheduledAt,
-      durationDays,
-      packageHours,
-      couponCode,
-    });
-
-    const advanceAmount = pricing.advanceAmount;
-    const amountInPaise = Math.round(advanceAmount * 100);
-
-    const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_mock';
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'mock_secret';
+    const amountInPaise = payableAmount * 100;
+    const keyId =
+      process.env.RAZORPAY_KEY_ID ||
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+      'rzp_test_U3IkpH9yGG0oyk';
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'R4sQSwIabpMLcZhmJy7cMRPf';
 
     let orderId = `order_mock_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
 
-    // If live/real Razorpay credentials are set, call Razorpay Orders API
+    // Call official Razorpay Orders API
     if (
-      process.env.RAZORPAY_KEY_ID &&
-      !process.env.RAZORPAY_KEY_ID.includes('placeholder') &&
-      process.env.RAZORPAY_KEY_SECRET &&
-      !process.env.RAZORPAY_KEY_SECRET.includes('placeholder')
+      keyId &&
+      !keyId.includes('placeholder') &&
+      keySecret &&
+      !keySecret.includes('placeholder')
     ) {
       try {
         const authHeader = `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`;
@@ -80,11 +92,11 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             amount: amountInPaise,
             currency: 'INR',
-            receipt: `rcpt_${Date.now()}`,
+            receipt: receipt || `rcpt_${Date.now()}`,
             notes: {
-              category,
-              tripType,
-              advance: advanceAmount,
+              category: String(category),
+              tripType: String(tripType),
+              ...notes,
             },
           }),
         });
@@ -93,7 +105,8 @@ export async function POST(req: NextRequest) {
           const rzpData = (await razorpayRes.json()) as any;
           orderId = rzpData.id;
         } else {
-          console.warn('Razorpay order creation fallback to test mode:', await razorpayRes.text());
+          const errText = await razorpayRes.text();
+          console.warn('Razorpay order creation response not ok:', errText);
         }
       } catch (e) {
         console.warn('Razorpay request failed, fallback to mock orderId:', e);
@@ -104,11 +117,10 @@ export async function POST(req: NextRequest) {
       {
         success: true,
         orderId,
-        amount: advanceAmount,
+        amount: payableAmount,
         amountInPaise,
         currency: 'INR',
         keyId,
-        pricing,
       },
       { status: 200 }
     );

@@ -43,6 +43,9 @@ export async function GET(req: NextRequest) {
       customerAdvBalancePendingCount,
       customerPendingCount,
       cancelledBookingsCount,
+      refundsCount,
+      refundsPendingCount,
+      refundsSettledCount,
       driverPaidAggregate,
       driverPaidCount,
       driverPendingAggregate,
@@ -106,6 +109,46 @@ export async function GET(req: NextRequest) {
         where: {
           ...bookingDateFilter,
           status: BookingStatus.CANCELLED,
+        },
+      }),
+      // 7. All Refund-related bookings (cancelled with advance, or advance refunded, or has refund events)
+      prisma.booking.count({
+        where: {
+          ...bookingDateFilter,
+          OR: [
+            { advancePaymentStatus: PaymentStatus.REFUNDED },
+            { tripEvents: { some: { type: 'CANCELLATION_REFUND_PROCESSED' } } },
+            {
+              status: BookingStatus.CANCELLED,
+              OR: [
+                { advancePaymentStatus: PaymentStatus.PAID },
+                { advanceAmount: { gt: 0 } },
+              ],
+            },
+          ],
+        },
+      }),
+      // 8. Refunds Pending (cancelled with advance paid, but refund transaction not yet recorded)
+      prisma.booking.count({
+        where: {
+          ...bookingDateFilter,
+          status: BookingStatus.CANCELLED,
+          advancePaymentStatus: { not: PaymentStatus.REFUNDED },
+          tripEvents: { none: { type: 'CANCELLATION_REFUND_PROCESSED' } },
+          OR: [
+            { advancePaymentStatus: PaymentStatus.PAID },
+            { advanceAmount: { gt: 0 } },
+          ],
+        },
+      }),
+      // 9. Refunds Settled (completed refund transaction)
+      prisma.booking.count({
+        where: {
+          ...bookingDateFilter,
+          OR: [
+            { advancePaymentStatus: PaymentStatus.REFUNDED },
+            { tripEvents: { some: { type: 'CANCELLATION_REFUND_PROCESSED' } } },
+          ],
         },
       }),
       // Driver Settled
@@ -195,6 +238,37 @@ export async function GET(req: NextRequest) {
     } else if (status === 'CANCELLED') {
       andConditions.push({
         status: BookingStatus.CANCELLED,
+      });
+    } else if (status === 'REFUNDS' || status === 'REFUND_ALL') {
+      andConditions.push({
+        OR: [
+          { advancePaymentStatus: PaymentStatus.REFUNDED },
+          { tripEvents: { some: { type: 'CANCELLATION_REFUND_PROCESSED' } } },
+          {
+            status: BookingStatus.CANCELLED,
+            OR: [
+              { advancePaymentStatus: PaymentStatus.PAID },
+              { advanceAmount: { gt: 0 } },
+            ],
+          },
+        ],
+      });
+    } else if (status === 'REFUND_PENDING') {
+      andConditions.push({
+        status: BookingStatus.CANCELLED,
+        advancePaymentStatus: { not: PaymentStatus.REFUNDED },
+        tripEvents: { none: { type: 'CANCELLATION_REFUND_PROCESSED' } },
+        OR: [
+          { advancePaymentStatus: PaymentStatus.PAID },
+          { advanceAmount: { gt: 0 } },
+        ],
+      });
+    } else if (status === 'REFUND_SETTLED' || status === 'REFUND_DONE') {
+      andConditions.push({
+        OR: [
+          { advancePaymentStatus: PaymentStatus.REFUNDED },
+          { tripEvents: { some: { type: 'CANCELLATION_REFUND_PROCESSED' } } },
+        ],
       });
     } else if (status === 'DRIVER_PAID') {
       andConditions.push({
@@ -441,6 +515,9 @@ export async function GET(req: NextRequest) {
         customerAdvBalancePendingCount,
         customerPendingCount,
         cancelledCount: cancelledBookingsCount,
+        refundsCount,
+        refundsPendingCount,
+        refundsSettledCount,
         // Backward-compatibility keys
         paidCount: customerNoPendingCount,
         partiallyPaidCount: customerAdvBalancePendingCount,

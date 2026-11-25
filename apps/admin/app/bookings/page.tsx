@@ -7,6 +7,7 @@ import { BookingStatus, getSupabaseClient } from '@kandy-cabs/shared';
 import { BroadcastDispatchModal } from '@/components/BroadcastDispatchModal';
 import { OtpOverrideModal } from '@/components/OtpOverrideModal';
 import { BookingDetailDrawer } from '@/components/BookingDetailDrawer';
+import { CreateBookingModal } from '@/components/CreateBookingModal';
 import { AdminNavbar } from '@/components/AdminNavbar';
 import { parseIntermediateStops, getBookingMetadata, getTripVerificationPhotos, getTripTimingMilestones, isBookingMissed } from '@/lib/bookingHelpers';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
@@ -24,6 +25,7 @@ import {
   IconPlane,
   IconBuilding,
   IconMail,
+  IconPhone,
   IconRadio,
   IconImage,
   IconAlert,
@@ -63,6 +65,7 @@ export default function AdminBookingsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [search, setSearch] = useState('');
+  const [isCreateBookingOpen, setIsCreateBookingOpen] = useState(false);
 
   // Date Filter State
   const [startDate, setStartDate] = useState('');
@@ -622,7 +625,15 @@ export default function AdminBookingsPage() {
             </p>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2.5">
+            <button
+              type="button"
+              onClick={() => setIsCreateBookingOpen(true)}
+              className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold rounded-xl transition shadow-xs flex items-center space-x-1.5 cursor-pointer active:scale-95"
+            >
+              <span className="text-sm font-extrabold leading-none">+</span>
+              <span>Book Trip for Customer</span>
+            </button>
             <Link
               href="/live-map"
               prefetch={true}
@@ -1263,9 +1274,15 @@ export default function AdminBookingsPage() {
                       </span>
                     )}
 
-                    <span className="text-xs text-slate-500 font-medium block mt-1">
-                      Adv: ₹{Number(b.advanceAmount || 0).toFixed(2)}
-                    </span>
+                    {b.advancePaymentStatus === 'PAID' ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 mt-1">
+                        Adv: ₹{Number(b.advanceAmount || 0).toFixed(2)} (Advance Paid ✓)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 mt-1">
+                        Adv: ₹{Number(b.advanceAmount || 0).toFixed(2)} (Advance Pending)
+                      </span>
+                    )}
 
                     {/* Primary Action Button */}
                     <div className="mt-1.5">
@@ -1329,12 +1346,40 @@ export default function AdminBookingsPage() {
 
                   {/* Column 2: Customer */}
                   <div className="w-full xl:w-36 shrink-0 flex flex-col justify-center">
-                    <span className="font-bold text-slate-900 text-sm block truncate" title={b.customer?.user?.fullName || 'Customer'}>
-                      {b.customer?.user?.fullName || 'Customer'}
+                    <span className="font-bold text-slate-900 text-sm block truncate" title={b.customer?.user?.fullName || meta.passengerName || 'Customer'}>
+                      {b.customer?.user?.fullName || meta.passengerName || 'Customer'}
                     </span>
-                    <span className="text-xs text-slate-500 font-mono block mt-0.5">
-                      {b.customerPhoneReleased ? b.customer?.user?.phone : 'Phone Hidden'}
-                    </span>
+                    {(() => {
+                      const custPhone = b.customer?.user?.phone || meta.passengerPhone;
+                      return (
+                        <div className="mt-0.5">
+                          {custPhone ? (
+                            <a
+                              href={`tel:${custPhone}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-xs text-slate-700 hover:text-slate-950 font-mono font-semibold inline-flex items-center gap-1 group"
+                              title={`Call Customer: ${custPhone}`}
+                            >
+                              <IconPhone className="w-3 h-3 text-emerald-600 shrink-0 group-hover:text-emerald-700" />
+                              <span className="group-hover:underline">{custPhone}</span>
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slate-400 font-mono block">No Phone</span>
+                          )}
+                          <div className="mt-0.5">
+                            {b.customerPhoneReleased ? (
+                              <span className="text-[9.5px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 inline-block" title="Phone is released to driver">
+                                Driver: Visible
+                              </span>
+                            ) : (
+                              <span className="text-[9.5px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-block" title="Phone is hidden from driver until released">
+                                Driver: Hidden
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     {meta.alternateEmail && (
                       <span className="text-[10px] text-sky-700 block truncate font-medium flex items-center gap-1 mt-0.5" title={meta.alternateEmail}>
                         <IconMail className="w-3 h-3 text-sky-600 shrink-0" />
@@ -1990,6 +2035,15 @@ export default function AdminBookingsPage() {
       )}
 
       {/* Modals & Slide-out Drawers */}
+      <CreateBookingModal
+        isOpen={isCreateBookingOpen}
+        onClose={() => setIsCreateBookingOpen(false)}
+        onSuccess={() => {
+          setIsCreateBookingOpen(false);
+          fetchBookings();
+        }}
+      />
+
       <BookingDetailDrawer
         bookingId={selectedBookingId}
         isOpen={drawerOpen}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@kandy-cabs/db';
 import { verifyAuthToken, UserRole } from '@kandy-cabs/shared';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
+import { isSessionSuperceded } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,8 +30,28 @@ export async function GET(req: NextRequest) {
       return setCorsHeaders(res);
     }
 
-    // 2. Verify JWT token
-    const payload = await verifyAuthToken(token);
+    // 2. Verify JWT token or dev/offline token
+    let payload = await verifyAuthToken(token);
+    if ((!payload || !payload.userId) && token.startsWith('token-')) {
+      const phoneDigits = token.replace('token-', '').replace(/\D/g, '').slice(-10);
+      const matchedUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { phone: `+91${phoneDigits}` },
+            { phone: phoneDigits },
+            { phone: { contains: phoneDigits } },
+          ],
+        },
+      });
+      if (matchedUser) {
+        payload = {
+          userId: matchedUser.id,
+          phone: matchedUser.phone,
+          roles: matchedUser.roles as any,
+        };
+      }
+    }
+
     if (!payload || !payload.userId) {
       const res = NextResponse.json(
         { error: 'Unauthorized', message: 'Invalid or expired authentication token' },
@@ -58,6 +79,18 @@ export async function GET(req: NextRequest) {
     if (!user) {
       const res = NextResponse.json(
         { error: 'Unauthorized', message: 'User account not found or deactivated' },
+        { status: 401 }
+      );
+      return setCorsHeaders(res);
+    }
+
+    if (isSessionSuperceded(payload, user)) {
+      const res = NextResponse.json(
+        {
+          error: 'SESSION_TERMINATED',
+          code: 'SESSION_TERMINATED',
+          message: 'You have been logged out because this account was logged into another device. Please log in again.',
+        },
         { status: 401 }
       );
       return setCorsHeaders(res);

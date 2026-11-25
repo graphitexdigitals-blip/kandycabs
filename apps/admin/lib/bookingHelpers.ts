@@ -18,6 +18,8 @@ export interface BookingDetailsMetadata {
   companyName?: string;
   gstin?: string;
   source?: string;
+  passengerPhone?: string;
+  passengerName?: string;
   // Customer Ride Preferences & Requirements
   isSeniorCitizen: boolean;
   needReturnJourney: boolean;
@@ -100,6 +102,8 @@ export function getBookingMetadata(booking: any): BookingDetailsMetadata {
   let passengers = booking?.passengers;
   let luggage = booking?.luggage;
   let source = booking?.source;
+  let passengerPhone = booking?.passengerPhone;
+  let passengerName = booking?.passengerName;
   let flightNumber = booking?.flightNumber ? String(booking.flightNumber).trim().toUpperCase() : undefined;
   let alternateEmail = booking?.alternateEmail ? String(booking.alternateEmail).trim() : undefined;
   let companyName = booking?.companyName ? String(booking.companyName).trim() : undefined;
@@ -141,6 +145,8 @@ export function getBookingMetadata(booking: any): BookingDetailsMetadata {
         if (!passengers && p.passengers) passengers = p.passengers;
         if (!luggage && p.luggage) luggage = p.luggage;
         if (!source && p.source) source = p.source;
+        if (!passengerPhone && p.passengerPhone) passengerPhone = String(p.passengerPhone).trim();
+        if (!passengerName && p.passengerName) passengerName = String(p.passengerName).trim();
         if (!flightNumber && p.flightNumber) flightNumber = String(p.flightNumber).trim().toUpperCase();
         if (!alternateEmail && p.alternateEmail) alternateEmail = String(p.alternateEmail).trim();
         if (!companyName && p.companyName) companyName = String(p.companyName).trim();
@@ -246,6 +252,8 @@ export function getBookingMetadata(booking: any): BookingDetailsMetadata {
     companyName,
     gstin,
     source,
+    passengerPhone,
+    passengerName,
     isSeniorCitizen,
     needReturnJourney,
     needAirportDrop,

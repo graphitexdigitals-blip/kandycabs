@@ -32,6 +32,7 @@ import { TimePickerModal } from '../components/TimePickerModal';
 import { PlaceLocation, isLocalDistanceRoute, isSameLocation } from '../lib/locations';
 import { customerApiClient, customerTokenStorage, getDynamicBaseUrl } from '../lib/api';
 import { safeNavigate } from '../lib/safeNav';
+import { getAdminRegisteredCustomer } from '../lib/adminCustomers';
 import { LanguageSelectionModal } from '../components/LanguageSelectionModal';
 import {
   isNewUserLangPromptNeeded,
@@ -56,6 +57,25 @@ interface ServiceCategory {
   iconFamily?: 'Ionicons' | 'MaterialCommunityIcons';
   category: 'ONEWAY' | 'ROUND' | 'AIRPORT' | 'LOCAL' | 'CORPORATE' | 'TOUR';
 }
+
+const cleanCustomerName = (n: string | null | undefined, phone?: string | null): string => {
+  if (n) {
+    const trimmed = n.trim();
+    if (
+      trimmed.toLowerCase() !== 'customer' &&
+      trimmed.toLowerCase() !== 'kandy customer' &&
+      trimmed.toLowerCase() !== 'valued customer' &&
+      trimmed.length > 0
+    ) {
+      return trimmed;
+    }
+  }
+  if (phone) {
+    const reg = getAdminRegisteredCustomer(phone);
+    if (reg?.fullName) return reg.fullName;
+  }
+  return '';
+};
 
 const SERVICE_CATEGORIES: ServiceCategory[] = [
   { id: 'AIRPORT', title: 'Airport Transfer', iconFamily: 'Ionicons', iconName: 'airplane', category: 'AIRPORT' },
@@ -380,7 +400,7 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   console.log('[DIMENSIONS]', { windowWidth, windowHeight, isSmallDevice: windowHeight < 720 || windowWidth < 380 });
-  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, 28) : 0);
   const bottomInset = insets.bottom || 0;
   const screenDimensions = Dimensions.get('screen');
   const screenHeight = Math.max(screenDimensions.height, windowHeight);
@@ -573,7 +593,11 @@ export default function HomeScreen() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLangPromptModalOpen, setIsLangPromptModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<any | null>(customerTokenStorage.getUser());
-  const [userName, setUserName] = useState<string>(formatTitleCase(customerTokenStorage.getUser()?.fullName) || '');
+  const [userName, setUserName] = useState<string>(() => {
+    const u = customerTokenStorage.getUser();
+    const resolved = cleanCustomerName(u?.fullName, u?.phone);
+    return resolved ? formatTitleCase(resolved) : '';
+  });
   const [userPhone, setUserPhone] = useState<string>(customerTokenStorage.getUser()?.phone || '');
 
   const [refreshing, setRefreshing] = useState(false);
@@ -726,16 +750,17 @@ export default function HomeScreen() {
     const cached = customerTokenStorage.getUser();
     if (cached) {
       setCurrentUser(cached);
-      setUserName(formatTitleCase(cached.fullName) || 'Valued Customer');
+      const resolved = cleanCustomerName(cached.fullName, cached.phone);
+      setUserName(resolved ? formatTitleCase(resolved) : 'Valued Customer');
       setUserPhone(cached.phone || '');
     }
 
     try {
       const res = await customerApiClient.fetch('/api/auth/me');
-      const cleanName = formatTitleCase(res.user.fullName === 'Kandy Customer' ? '' : (res.user.fullName || ''));
+      const cleanName = formatTitleCase(cleanCustomerName(res.user?.fullName, res.user?.phone || cached?.phone));
       customerTokenStorage.setUser({ ...res.user, fullName: cleanName });
       setCurrentUser({ ...res.user, fullName: cleanName });
-      setUserName(cleanName);
+      setUserName(cleanName || 'Valued Customer');
       setUserPhone(res.user.phone || '');
 
       // Restore user's saved language preference if present
@@ -755,7 +780,8 @@ export default function HomeScreen() {
     const unsub = customerTokenStorage.subscribe(() => {
       const u = customerTokenStorage.getUser();
       setCurrentUser(u);
-      setUserName(formatTitleCase(u?.fullName) || '');
+      const resolved = cleanCustomerName(u?.fullName, u?.phone);
+      setUserName(resolved ? formatTitleCase(resolved) : '');
       setUserPhone(u?.phone || '');
     });
     return () => unsub();
@@ -1176,17 +1202,17 @@ export default function HomeScreen() {
 
   if (isAuthChecking) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
-        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
+        <StatusBar barStyle="light-content" backgroundColor="#162636" />
       </View>
     );
   }
 
   return (
     <View style={styles.screenWrapper}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
+      <StatusBar barStyle="light-content" backgroundColor="#162636" translucent={true} />
 
-      {/* Top Header (Dark Blue) */}
+      {/* Top Header (Brand Dark Blue) */}
       <View style={[styles.headerWrapper, { paddingTop: topInset }]}>
         <View style={[styles.header, { paddingVertical: responsiveSizes.headerPaddingVertical }]}>
           {/* Left: Brand Logo (White version for dark blue background) */}
@@ -1202,7 +1228,7 @@ export default function HomeScreen() {
             resizeMode="contain"
           />
 
-          {/* Center: Greeting & User Name (Exactly Centered in Middle of Screen) */}
+          {/* Center: Greeting & User Name (Centered in Middle of Screen) */}
           <View style={styles.headerCenterAbsolute} pointerEvents="box-none">
             <TouchableOpacity
               style={styles.greetingContainer}
@@ -2086,23 +2112,23 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screenWrapper: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
   },
   headerWrapper: {
-    backgroundColor: 'rgb(22, 34, 50)', // Deep Navy Container
+    backgroundColor: '#162636',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    backgroundColor: 'rgb(22, 34, 50)', // Deep Navy
+    backgroundColor: '#162636',
     borderBottomWidth: 1,
-    borderBottomColor: '#101925',
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     position: 'relative',
   },
   headerLogo: {
@@ -2133,7 +2159,7 @@ const styles = StyleSheet.create({
   },
   greetingSubtext: {
     fontSize: 12.5,
-    color: '#ffffff', // Crisp White
+    color: '#94a3b8',
     fontWeight: '700',
     textAlign: 'left',
     marginBottom: 1,
@@ -2141,14 +2167,14 @@ const styles = StyleSheet.create({
   greetingName: {
     fontSize: 17,
     fontWeight: '900',
-    color: '#ffffff', // Crisp White
+    color: '#ffffff',
     textAlign: 'left',
     letterSpacing: -0.3,
   },
   notificationButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2159,22 +2185,22 @@ const styles = StyleSheet.create({
   },
   notificationDot: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+    top: 5,
+    right: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: 'rgb(240, 117, 15)',
     borderWidth: 1.5,
-    borderColor: 'rgb(22, 34, 50)',
+    borderColor: '#162636',
   },
   mainContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
   },
   scrollContent: {
     flexGrow: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
     paddingBottom: 0,
   },
   promoSliderSection: {
@@ -2310,7 +2336,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     marginTop: 0,
     marginBottom: 0,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 12,
     paddingVertical: 6,
     paddingHorizontal: 11,
@@ -2379,7 +2405,7 @@ const styles = StyleSheet.create({
   },
   homeBodyCard: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     justifyContent: 'space-between',
     marginTop: 0,
     paddingTop: 0,
@@ -2393,7 +2419,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     marginTop: 0,
     marginBottom: 0,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
@@ -2548,7 +2574,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderWidth: 1,
     borderColor: '#cbd5e1',
     justifyContent: 'center',
@@ -2733,7 +2759,7 @@ const styles = StyleSheet.create({
   },
   serviceRowCard: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 13,
     paddingVertical: 6,
     paddingHorizontal: 3,
@@ -2816,7 +2842,7 @@ const styles = StyleSheet.create({
   },
   // Quick Booking Card
   quickBookingCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
@@ -2889,7 +2915,7 @@ const styles = StyleSheet.create({
   routeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
@@ -2909,7 +2935,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     borderWidth: 2,
     borderColor: '#16a34a',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
   },
   routeConnectorLine: {
     width: 1.5,
@@ -2994,7 +3020,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 12,
@@ -3108,7 +3134,7 @@ const styles = StyleSheet.create({
   popularRouteCard: {
     width: width * 0.65,
     maxWidth: 240,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
@@ -3244,7 +3270,7 @@ const styles = StyleSheet.create({
   modernFleetCard: {
     width: width * 0.58,
     maxWidth: 220,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 14,
     borderWidth: 1.2,
     borderColor: '#e2e8f0',
@@ -3315,7 +3341,7 @@ const styles = StyleSheet.create({
   modernFleetSpecPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     paddingHorizontal: 5,
@@ -3362,7 +3388,7 @@ const styles = StyleSheet.create({
     marginTop: isSmallScreen ? 14 : 18,
     marginHorizontal: 10,
     padding: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
@@ -3395,7 +3421,7 @@ const styles = StyleSheet.create({
     width: '48.5%',
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FEFEFE',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
