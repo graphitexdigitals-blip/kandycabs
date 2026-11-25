@@ -2115,17 +2115,9 @@ export default function DriverDashboardScreen() {
                                   </Text>
                                 </View>
                                 <View style={styles.dispatchTableColValue}>
-                                  <View style={styles.dispatchTableFleetRow}>
-                                    <Ionicons name="car-sport" size={13} color="#0f766e" style={{ marginRight: 6 }} />
-                                    <Text style={styles.dispatchTableFleetText} numberOfLines={1}>
-                                      {fleet.display}
-                                    </Text>
-                                    <View style={styles.dispatchTableCategoryPill}>
-                                      <Text style={styles.dispatchTableCategoryPillText}>
-                                        {fleet.category}
-                                      </Text>
-                                    </View>
-                                  </View>
+                                  <Text style={styles.dispatchTableValueText} numberOfLines={1}>
+                                    {fleet.display}
+                                  </Text>
                                 </View>
                               </View>
 
@@ -2137,12 +2129,9 @@ export default function DriverDashboardScreen() {
                                   </Text>
                                 </View>
                                 <View style={styles.dispatchTableColValue}>
-                                  <View style={styles.dispatchTableValueRow}>
-                                    <Ionicons name="person" size={12} color="#2563eb" style={{ marginRight: 6 }} />
-                                    <Text style={styles.dispatchTableValueText} numberOfLines={1}>
-                                      {passengerName}
-                                    </Text>
-                                  </View>
+                                  <Text style={styles.dispatchTableValueText} numberOfLines={1}>
+                                    {passengerName}
+                                  </Text>
                                 </View>
                               </View>
 
@@ -2154,24 +2143,20 @@ export default function DriverDashboardScreen() {
                                   </Text>
                                 </View>
                                 <View style={styles.dispatchTableColValue}>
-                                  <View style={styles.dispatchTableValueRow}>
-                                    <View style={styles.dispatchTripTypeBadge}>
-                                      <Text style={styles.dispatchTripTypeBadgeText}>
-                                        {tripTypeText}
-                                      </Text>
-                                    </View>
-                                  </View>
+                                  <Text style={styles.dispatchTableValueText} numberOfLines={1}>
+                                    {tripTypeText}
+                                  </Text>
                                 </View>
                               </View>
 
-                              {/* Row 4: Net Payout Amount (Reference style: "Net payout amount | Rs ...") */}
+                              {/* Row 4: Net Payout Amount */}
                               <View style={[styles.dispatchTableRow, styles.dispatchTableRowLast]}>
-                                <View style={[styles.dispatchTableColLabel, styles.dispatchTableColLabelHighlight]}>
-                                  <Text style={styles.dispatchTableLabelHighlightText}>
+                                <View style={styles.dispatchTableColLabel}>
+                                  <Text style={styles.dispatchTableLabelText}>
                                     {t('dashboard.net_payout_amount', { defaultValue: 'Net payout amount' })}
                                   </Text>
                                 </View>
-                                <View style={[styles.dispatchTableColValue, styles.dispatchTableColValueHighlight]}>
+                                <View style={styles.dispatchTableColValue}>
                                   <Text style={styles.dispatchTablePayoutValue}>
                                     ₹{payeeAmount.toLocaleString('en-IN')}
                                   </Text>
@@ -6058,9 +6043,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dispatchTableLabelText: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#475569',
+    color: '#000000',
   },
   dispatchTableColValue: {
     flex: 1,
@@ -6069,69 +6054,15 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     justifyContent: 'center',
   },
-  dispatchTableFleetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 4,
-  },
-  dispatchTableFleetText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0f172a',
-    flex: 1,
-  },
-  dispatchTableCategoryPill: {
-    backgroundColor: '#f0fdfa',
-    borderWidth: 1,
-    borderColor: '#99f6e4',
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-  },
-  dispatchTableCategoryPillText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: '#0f766e',
-  },
-  dispatchTableValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   dispatchTableValueText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0f172a',
-  },
-  dispatchTripTypeBadge: {
-    backgroundColor: '#fff7ed',
-    borderWidth: 1,
-    borderColor: '#fed7aa',
-    paddingHorizontal: 7,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-  },
-  dispatchTripTypeBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '800',
-    color: '#c2410c',
-    letterSpacing: 0.4,
-  },
-  dispatchTableColLabelHighlight: {
-    backgroundColor: '#f1f5f9',
-  },
-  dispatchTableLabelHighlightText: {
-    fontSize: 11.5,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  dispatchTableColValueHighlight: {
-    backgroundColor: '#f8fafc',
+    color: '#000000',
   },
   dispatchTablePayoutValue: {
-    fontSize: 14.5,
+    fontSize: 14,
     fontWeight: '900',
-    color: '#0f766e',
+    color: '#000000',
   },
   otherTripsHeader: {
     flexDirection: 'row',
