@@ -203,41 +203,37 @@ export async function reverseGeocodeOla(
     const postalCode = getComp('postal_code') || '';
     const rawName = top.name || '';
 
-    // Build specific title (Building / Landmark / Road)
-    const titleParts: string[] = [];
-    if (rawName && !rawName.toLowerCase().includes('unnamed')) {
-      titleParts.push(rawName);
-    }
-    if (street && !titleParts.some((p) => p.toLowerCase().includes(street.toLowerCase()))) {
-      titleParts.push(street);
-    }
-    if (titleParts.length === 0 && sublocality) {
-      titleParts.push(sublocality);
-    }
-    const label =
-      titleParts.length > 0
-        ? titleParts.join(', ')
-        : top.formatted_address?.split(',')[0]?.trim() || 'Current Location';
+    const cleanFormatted = (top.formatted_address || '')
+      .replace(/,\s*India$/i, '')
+      .trim();
 
-    // Build detailed sublabel (Area, Locality, Pincode)
-    const subParts: string[] = [];
-    if (sublocality && !label.toLowerCase().includes(sublocality.toLowerCase())) {
-      subParts.push(sublocality);
+    // Build specific title components (Building / Landmark / Road / Area)
+    const specificParts: string[] = [];
+    if (rawName && !rawName.toLowerCase().includes('unnamed')) {
+      specificParts.push(rawName);
     }
-    if (locality && !label.toLowerCase().includes(locality.toLowerCase())) {
-      subParts.push(locality);
+    if (street && !specificParts.some((p) => p.toLowerCase().includes(street.toLowerCase()))) {
+      specificParts.push(street);
     }
-    if (postalCode) {
-      if (subParts.length > 0) {
-        subParts[subParts.length - 1] = `${subParts[subParts.length - 1]} - ${postalCode}`;
-      } else {
-        subParts.push(postalCode);
-      }
+    if (sublocality && !specificParts.some((p) => p.toLowerCase().includes(sublocality.toLowerCase()))) {
+      specificParts.push(sublocality);
     }
-    const sublabel =
-      subParts.length > 0
-        ? subParts.join(', ')
-        : top.formatted_address || 'Detected via Live GPS';
+    if (locality && !specificParts.some((p) => p.toLowerCase().includes(locality.toLowerCase()))) {
+      specificParts.push(locality);
+    }
+    if (postalCode && !specificParts.some((p) => p.includes(postalCode))) {
+      specificParts.push(postalCode);
+    }
+
+    // Comprehensive human-readable address for exact GPS pickup
+    const label =
+      cleanFormatted.length > 10
+        ? cleanFormatted
+        : specificParts.length > 0
+        ? specificParts.join(', ')
+        : top.formatted_address || 'Current Location';
+
+    const sublabel = 'Detected via Live GPS';
 
     const result: PlaceLocation = {
       label,

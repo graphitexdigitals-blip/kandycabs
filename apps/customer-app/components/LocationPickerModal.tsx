@@ -438,6 +438,13 @@ export function LocationPickerModal({
         const olaPlace = await reverseGeocodeOla(latitude, longitude);
         if (olaPlace && olaPlace.label) {
           label = olaPlace.label;
+          if (
+            olaPlace.sublabel &&
+            olaPlace.sublabel !== 'Detected via Live GPS' &&
+            !label.toLowerCase().includes(olaPlace.sublabel.toLowerCase())
+          ) {
+            label = `${label}, ${olaPlace.sublabel}`;
+          }
           sublabel = olaPlace.sublabel || 'Detected via Live GPS';
           hasResolvedAddress = true;
         }
@@ -448,77 +455,80 @@ export function LocationPickerModal({
       // 4b. Secondary Fallback: OpenStreetMap Nominatim
       if (!hasResolvedAddress) {
         try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 2000);
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 2000);
 
-        const osmRes = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
-          {
-            headers: {
-              'Accept-Language': 'en',
-              'User-Agent': 'KandyCabsCustomerApp/1.0',
-            },
-            signal: controller.signal,
-          }
-        );
-        clearTimeout(timeout);
+          const osmRes = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+            {
+              headers: {
+                'Accept-Language': 'en',
+                'User-Agent': 'KandyCabsCustomerApp/1.0',
+              },
+              signal: controller.signal,
+            }
+          );
+          clearTimeout(timeout);
 
-        if (osmRes.ok) {
-          const data = await osmRes.json();
-          const addr = data.address || {};
+          if (osmRes.ok) {
+            const data = await osmRes.json();
+            const addr = data.address || {};
 
-          const road = addr.road || addr.pedestrian || addr.street || addr.amenity || addr.building || addr.shop || '';
-          const locality = addr.suburb || addr.neighbourhood || addr.residential || addr.quarter || '';
-          const city = addr.city || addr.town || addr.municipality || addr.village || addr.state_district || 'Mangaluru';
-          const postcode = addr.postcode || '';
+            const road = addr.road || addr.pedestrian || addr.street || addr.amenity || addr.building || addr.shop || '';
+            const locality = addr.suburb || addr.neighbourhood || addr.residential || addr.quarter || '';
+            const city = addr.city || addr.town || addr.municipality || addr.village || addr.state_district || 'Mangaluru';
+            const postcode = addr.postcode || '';
 
-          const labelParts: string[] = [];
-          if (road) labelParts.push(road);
-          if (locality && locality !== road) labelParts.push(locality);
-          if (city && !labelParts.some((p) => p.toLowerCase().includes(city.toLowerCase()))) {
-            labelParts.push(city);
-          }
+            const labelParts: string[] = [];
+            if (road) labelParts.push(road);
+            if (locality && locality !== road) labelParts.push(locality);
+            if (city && !labelParts.some((p) => p.toLowerCase().includes(city.toLowerCase()))) {
+              labelParts.push(city);
+            }
+            if (postcode && !labelParts.some((p) => p.includes(postcode))) {
+              labelParts.push(postcode);
+            }
 
-          if (labelParts.length > 0) {
-            label = labelParts.join(', ');
-            hasResolvedAddress = true;
-          } else if (data.display_name) {
-            label = data.display_name.split(',').slice(0, 3).join(', ').trim();
-            hasResolvedAddress = true;
-          }
-
-          const subParts = [locality, city, addr.state, postcode].filter(Boolean);
-          sublabel = subParts.filter((v, i, a) => a.indexOf(v) === i).join(', ') || 'Detected via Live GPS';
-        } else {
-          throw new Error('OSM Reverse failed');
-        }
-      } catch {
-        // Fallback to Native Expo Reverse Geocoder
-        try {
-          const addresses = await Location.reverseGeocodeAsync({
-            latitude,
-            longitude,
-          });
-
-          if (addresses && addresses.length > 0) {
-            const addr = addresses[0];
-            const road = addr.street || addr.name || '';
-            const district = addr.district || '';
-            const cleanDistrict = district.toLowerCase().includes('division') ? '' : district;
-            const city = addr.city || 'Mangaluru';
-
-            const parts = [road, cleanDistrict, city].filter(Boolean);
-            if (parts.length > 0) {
-              label = parts.filter((v, i, a) => a.indexOf(v) === i).join(', ');
+            if (labelParts.length > 0) {
+              label = labelParts.join(', ');
+              hasResolvedAddress = true;
+            } else if (data.display_name) {
+              label = data.display_name.replace(/,\s*India$/i, '').trim();
               hasResolvedAddress = true;
             }
-            sublabel = [city, addr.region, addr.postalCode].filter(Boolean).join(', ') || 'Detected via Live GPS';
+
+            sublabel = 'Detected via Live GPS';
+          } else {
+            throw new Error('OSM Reverse failed');
           }
         } catch {
-          // Native reverse geocode failed (no network / offline)
+          // Fallback to Native Expo Reverse Geocoder
+          try {
+            const addresses = await Location.reverseGeocodeAsync({
+              latitude,
+              longitude,
+            });
+
+            if (addresses && addresses.length > 0) {
+              const addr = addresses[0];
+              const road = addr.name || addr.street || '';
+              const district = addr.district || '';
+              const cleanDistrict = district.toLowerCase().includes('division') ? '' : district;
+              const city = addr.city || 'Mangaluru';
+              const postalCode = addr.postalCode || '';
+
+              const parts = [road, cleanDistrict, city, postalCode].filter(Boolean);
+              if (parts.length > 0) {
+                label = parts.filter((v, i, a) => a.indexOf(v) === i).join(', ');
+                hasResolvedAddress = true;
+              }
+              sublabel = 'Detected via Live GPS';
+            }
+          } catch {
+            // Native reverse geocode failed (no network / offline)
+          }
         }
       }
-    }
 
       // If offline / no network, show 'No Network Connection' error instead of setting coordinates
       if (!hasResolvedAddress || !label.trim()) {

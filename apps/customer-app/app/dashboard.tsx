@@ -462,9 +462,12 @@ export default function CustomerDashboardScreen() {
       try {
         const olaPlace = await reverseGeocodeOla(lat, lng);
         if (olaPlace && olaPlace.label) {
-          resolvedAddress = olaPlace.sublabel
-            ? `${olaPlace.label}, ${olaPlace.sublabel}`
-            : olaPlace.label;
+          resolvedAddress =
+            olaPlace.sublabel &&
+            olaPlace.sublabel !== 'Detected via Live GPS' &&
+            !olaPlace.label.toLowerCase().includes(olaPlace.sublabel.toLowerCase())
+              ? `${olaPlace.label}, ${olaPlace.sublabel}`
+              : olaPlace.label;
         }
       } catch (err) {
         console.warn('[Dashboard] Ola reverse geocode failed:', err);
