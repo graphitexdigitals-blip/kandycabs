@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from '../../components/SafeLinearGradient';
 import { TripFlowHeader } from '../../components/TripFlowHeader';
 import { useTranslation } from 'react-i18next';
+import { OlaRouteMapView } from '../../components/OlaRouteMapView';
 import { getDistanceInMeters } from '@kandy-cabs/shared';
 import { driverApiClient } from '../../lib/api';
 import { locationTracker } from '../../lib/location-tracker';
@@ -670,52 +671,20 @@ export default function DriverTripActiveScreen() {
             {booking.dropAddress || 'Destination Drop Location'}
           </Text>
 
-          {/* Stylized Map Canvas Preview */}
-          <View style={styles.mapCanvas}>
-            {/* Water Coastline Area */}
-            <View style={styles.mapWaterArea} />
-
-            {/* Stylized Roads */}
-            <View style={styles.mapRoadH1} />
-            <View style={styles.mapRoadH2} />
-            <View style={styles.mapRoadDiag1} />
-            <View style={styles.mapRoadDiag2} />
-
-            {/* Curved Blue Route Polyline */}
-            <View style={styles.mapRouteCurve1} />
-            <View style={styles.mapRouteCurve2} />
-
-            {/* Driver Navigation Marker */}
-            <View style={styles.driverMarkerContainer}>
-              <View style={styles.driverMarkerOuterRing}>
-                <View style={styles.driverMarkerInner}>
-                  <Ionicons name="navigate" size={14} color="#ffffff" style={{ transform: [{ rotate: '45deg' }] }} />
-                </View>
-              </View>
-            </View>
-
-            {/* Destination Pin Marker */}
-            <View style={styles.destinationPinContainer}>
-              <Ionicons name="location-sharp" size={28} color="#ef4444" />
-            </View>
-
-            {/* Destination Tag Pill */}
-            <View style={styles.destinationTagPill}>
-              <Ionicons name="flag" size={12} color="#2563eb" style={{ marginRight: 4 }} />
-              <Text style={styles.destinationTagText} numberOfLines={1}>
-                {booking.dropAddress || 'Destination'}
-              </Text>
-            </View>
-
-            {/* Small Selectable Floating Open Navigation Button (Inside Map, No Arrow, Low Padding) */}
-            <TouchableOpacity
-              style={styles.floatingNavBtn}
-              onPress={openDropNavigation}
-              activeOpacity={0.82}
-            >
-              <Ionicons name="navigate" size={13} color="#ffffff" style={{ marginRight: 5 }} />
-              <Text style={styles.floatingNavBtnText}>{t('active_trip.navigate_to_drop') || 'Navigate'}</Text>
-            </TouchableOpacity>
+          {/* Real Interactive Ola Maps View with Pinch & Zoom */}
+          <View style={{ marginTop: 12 }}>
+            <OlaRouteMapView
+              driverLocation={currentCoords}
+              destinationLocation={
+                typeof booking.dropLat === 'number' && typeof booking.dropLng === 'number'
+                  ? { lat: booking.dropLat, lng: booking.dropLng }
+                  : null
+              }
+              destinationAddress={booking.dropAddress || 'Destination Drop Location'}
+              isPickup={false}
+              height={230}
+              onOpenNavigation={openDropNavigation}
+            />
           </View>
 
           {/* Quick Actions Row: Vehicle Breakdown & Call KandyCabs */}
