@@ -9,16 +9,14 @@ import {
   Animated,
   PanResponder,
   useWindowDimensions,
-  Image,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname } from 'expo-router';
-import { QUICK_BOOKING_BTN_BASE64 } from '../assets/images/quickBookingBtnBase64';
 
-const BUTTON_WIDTH = 64;
-const BUTTON_HEIGHT = 64;
-const CARD_WIDTH = 220;
+const BUTTON_WIDTH = 54;
+const BUTTON_HEIGHT = 54;
+const CARD_WIDTH = 200;
 
 const WHATSAPP_NUMBER = '919008890090';
 const HELPLINE_PHONE = '+919900887777';
@@ -204,11 +202,9 @@ export function QuickBookingFab() {
           style={styles.touchArea}
         >
           <Animated.View style={[styles.fabBadge, { transform: [{ scale: pulseAnim }] }]}>
-            <Image
-              source={{ uri: QUICK_BOOKING_BTN_BASE64 }}
-              style={styles.pushBtnImage}
-              resizeMode="contain"
-            />
+            <View style={styles.cleanWhatsappBtn}>
+              <Ionicons name="logo-whatsapp" size={32} color="#ffffff" />
+            </View>
           </Animated.View>
         </TouchableOpacity>
       </Animated.View>
@@ -240,30 +236,27 @@ export function QuickBookingFab() {
                 ]}
               />
 
-              {/* Button 1: Book on WhatsApp */}
+              {/* Row 1: Book on WhatsApp */}
               <TouchableOpacity
-                style={styles.whatsAppBtn}
+                style={styles.cardRow}
                 onPress={handleWhatsAppBooking}
-                activeOpacity={0.82}
+                activeOpacity={0.75}
               >
-                <View style={styles.btnLeftGroup}>
-                  <Ionicons name="logo-whatsapp" size={20} color="#25D366" style={styles.btnIcon} />
-                  <Text style={styles.btnText}>Book on WhatsApp</Text>
-                </View>
-                <MaterialCommunityIcons name="chevron-double-right" size={20} color="#25D366" />
+                <Ionicons name="logo-whatsapp" size={24} color="#25D366" style={styles.btnIcon} />
+                <Text style={styles.btnText}>Book on WhatsApp</Text>
               </TouchableOpacity>
 
-              {/* Button 2: Call to Book */}
+              {/* Thin Divider Line */}
+              <View style={styles.cardDivider} />
+
+              {/* Row 2: Call to Book */}
               <TouchableOpacity
-                style={styles.callBtn}
+                style={styles.cardRow}
                 onPress={handleCallToBook}
-                activeOpacity={0.82}
+                activeOpacity={0.75}
               >
-                <View style={styles.btnLeftGroup}>
-                  <Ionicons name="call" size={18} color="#16a34a" style={styles.btnIcon} />
-                  <Text style={styles.btnText}>Call to Book</Text>
-                </View>
-                <MaterialCommunityIcons name="chevron-double-right" size={20} color="#16a34a" />
+                <Ionicons name="call" size={20} color="#0f172a" style={styles.btnIcon} />
+                <Text style={styles.btnText}>Call to Book</Text>
               </TouchableOpacity>
             </TouchableOpacity>
           </View>
@@ -292,15 +285,19 @@ const styles = StyleSheet.create({
     height: BUTTON_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 8,
   },
-  pushBtnImage: {
+  cleanWhatsappBtn: {
     width: BUTTON_WIDTH,
     height: BUTTON_HEIGHT,
+    borderRadius: BUTTON_WIDTH / 2,
+    backgroundColor: '#25D366',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
   },
 
   // Modal Backdrop
@@ -318,11 +315,12 @@ const styles = StyleSheet.create({
   smallCard: {
     width: CARD_WIDTH,
     backgroundColor: '#ffffff',
-    borderRadius: 24,
-    padding: 4,
+    borderRadius: 18,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.16,
     shadowRadius: 12,
     elevation: 10,
     borderWidth: 1,
@@ -356,54 +354,25 @@ const styles = StyleSheet.create({
     left: 20,
   },
 
-  // Button 1: Book on WhatsApp
-  whatsAppBtn: {
-    backgroundColor: '#ffffff',
+  cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingVertical: 10,
-    paddingHorizontal: 13,
-    borderRadius: 20,
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingHorizontal: 12,
+    borderRadius: 14,
   },
-
-  // Button 2: Call to Book
-  callBtn: {
-    backgroundColor: '#ffffff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 13,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-
-  btnLeftGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  cardDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginHorizontal: 10,
   },
   btnIcon: {
-    marginRight: 9,
+    marginRight: 10,
   },
   btnText: {
     color: '#0f172a',
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: '700',
-    letterSpacing: 0.1,
+    letterSpacing: -0.2,
   },
 });
