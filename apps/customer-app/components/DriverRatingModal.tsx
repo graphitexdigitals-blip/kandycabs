@@ -79,7 +79,17 @@ export function DriverRatingModal({
   const driver = booking.assignedDriver;
   const vehicle = booking.vehicle || driver?.vehicles?.[0];
   const driverName = driver?.user?.fullName || driver?.name || 'Assigned Driver';
-  const driverPhoto = driver?.user?.avatarUrl || driver?.avatarUrl || driver?.photoUrl || null;
+  const rawDriverPhoto =
+    driver?.user?.avatarUrl ||
+    driver?.avatarUrl ||
+    driver?.photoUrl ||
+    driver?.profilePhoto ||
+    null;
+  const driverPhoto = rawDriverPhoto
+    ? rawDriverPhoto.startsWith('http')
+      ? rawDriverPhoto
+      : `https://kandycabs-production.up.railway.app${rawDriverPhoto.startsWith('/') ? '' : '/'}${rawDriverPhoto}`
+    : null;
 
   const categoryRaw = vehicle?.category || booking.category || 'Sedan';
   const categoryFormatted = categoryRaw.charAt(0).toUpperCase() + categoryRaw.slice(1).toLowerCase();
@@ -178,49 +188,21 @@ export function DriverRatingModal({
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
-            {/* TOP CARD: DRIVER INFO & RIDE COMPLETED (Refined to match reference: suit icon, soft card, vertical divider) */}
-            <View style={styles.driverCompletedCard}>
-              <View style={styles.driverAvatarContainer}>
-                {driverPhoto ? (
-                  <Image source={{ uri: driverPhoto }} style={styles.driverAvatarImage} />
-                ) : (
-                  <View style={styles.driverAvatarFallback}>
-                    <MaterialCommunityIcons name="account-tie" size={26} color="#0f172a" />
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.driverDetailsCol}>
-                <Text style={styles.driverNameText} numberOfLines={1}>{driverName}</Text>
-                <Text style={styles.vehicleDescText}>{vehicleDesc}</Text>
-              </View>
-
-              <View style={styles.driverBadgeDivider} />
-
-              <View style={styles.rideCompletedBadge}>
-                <Ionicons name="checkmark-circle" size={24} color="#059669" />
-                <View style={styles.rideCompletedTextCol}>
-                  <Text style={styles.rideCompletedLine1}>Ride</Text>
-                  <Text style={styles.rideCompletedLine2}>completed</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.cardSeparator} />
-
-            {/* RATING CARD 1: HOW WAS YOUR DRIVER? (No box border/shadow) */}
+            {/* RATING CARD 1: HOW WAS YOUR DRIVER? (With Driver Profile Photo) */}
             <View style={styles.ratingCard}>
               <View style={styles.ratingCardHeader}>
                 <View style={styles.ratingBadge}>
-                  <View style={styles.driverIconComposite}>
-                    <Ionicons name="person" size={20} color="rgb(22, 34, 50)" />
-                    <MaterialCommunityIcons
-                      name="steering"
-                      size={12}
-                      color="rgb(22, 34, 50)"
-                      style={styles.steeringSubIcon}
+                  {driverPhoto ? (
+                    <Image
+                      source={{ uri: driverPhoto }}
+                      style={styles.driverProfileBadgePic}
+                      resizeMode="cover"
                     />
-                  </View>
+                  ) : (
+                    <View style={styles.driverProfileBadgeFallback}>
+                      <MaterialCommunityIcons name="account-tie" size={17} color="#0f172a" />
+                    </View>
+                  )}
                 </View>
                 <View style={styles.ratingHeaderCol}>
                   <Text style={styles.ratingCardTitle}>How was your driver?</Text>
@@ -259,11 +241,15 @@ export function DriverRatingModal({
 
             <View style={styles.cardSeparator} />
 
-            {/* RATING CARD 2: KANDYCABS SERVICE (No box border/shadow) */}
+            {/* RATING CARD 2: KANDYCABS SERVICE (With KandyCabs Logo) */}
             <View style={styles.ratingCard}>
               <View style={styles.ratingCardHeader}>
                 <View style={styles.ratingBadge}>
-                  <Ionicons name="car" size={22} color="rgb(22, 34, 50)" />
+                  <Image
+                    source={require('../assets/images/logo.png')}
+                    style={styles.kandyLogoBadge}
+                    resizeMode="contain"
+                  />
                 </View>
                 <View style={styles.ratingHeaderCol}>
                   <Text style={styles.ratingCardTitle}>KandyCabs service</Text>
@@ -544,23 +530,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ratingBadge: {
-    width: 26,
-    height: 26,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
   },
-  driverIconComposite: {
-    width: 24,
-    height: 24,
+  driverProfileBadgePic: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  driverProfileBadgeFallback: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   },
-  steeringSubIcon: {
-    position: 'absolute',
-    bottom: -1,
-    right: -2,
+  kandyLogoBadge: {
+    width: 30,
+    height: 22,
   },
   ratingHeaderCol: {
     flex: 1,
