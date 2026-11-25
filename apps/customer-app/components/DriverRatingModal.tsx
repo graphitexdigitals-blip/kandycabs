@@ -199,9 +199,11 @@ export function DriverRatingModal({
                       resizeMode="cover"
                     />
                   ) : (
-                    <View style={styles.driverProfileBadgeFallback}>
-                      <MaterialCommunityIcons name="account-tie" size={17} color="#0f172a" />
-                    </View>
+                    <Image
+                      source={require('../assets/images/driver_profile_icon.png')}
+                      style={styles.driverProfileBadgePic}
+                      resizeMode="contain"
+                    />
                   )}
                 </View>
                 <View style={styles.ratingHeaderCol}>
@@ -246,9 +248,9 @@ export function DriverRatingModal({
               <View style={styles.ratingCardHeader}>
                 <View style={styles.ratingBadge}>
                   <Image
-                    source={require('../assets/images/logo.png')}
-                    style={styles.kandyLogoBadge}
-                    resizeMode="contain"
+                    source={require('../assets/icon.png')}
+                    style={styles.customerAppIconBadge}
+                    resizeMode="cover"
                   />
                 </View>
                 <View style={styles.ratingHeaderCol}>
@@ -540,20 +542,11 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
   },
-  driverProfileBadgeFallback: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#e2e8f0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  kandyLogoBadge: {
-    width: 30,
-    height: 22,
+  customerAppIconBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
   },
   ratingHeaderCol: {
     flex: 1,
