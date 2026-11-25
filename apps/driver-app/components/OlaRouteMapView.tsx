@@ -201,18 +201,31 @@ export function OlaRouteMapView({
       return coordinates;
     }
 
+    var apiKey = "${OLA_MAPS_API_KEY}";
     var driverCoords = [${dLng}, ${dLat}];
     var destCoords = [${destLng}, ${destLat}];
     var initialPoly = "${initialPolyline}";
 
     var map = new maplibregl.Map({
       container: 'map',
-      style: 'https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${OLA_MAPS_API_KEY}',
+      style: 'https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=' + apiKey,
       center: driverCoords,
       zoom: 13,
       touchZoomRotate: true,
       dragPan: true,
-      attributionControl: false
+      attributionControl: false,
+      transformRequest: function(url) {
+        if (url && url.indexOf('api.olamaps.io') !== -1 && url.indexOf('api_key=') === -1) {
+          return {
+            url: url + (url.indexOf('?') !== -1 ? '&' : '?') + 'api_key=' + apiKey
+          };
+        }
+        return { url: url };
+      }
+    });
+
+    map.on('error', function(e) {
+      console.warn('MapLibre internal error:', e);
     });
 
     // Create Vehicle Marker
@@ -340,13 +353,15 @@ export function OlaRouteMapView({
       <WebView
         ref={webViewRef}
         originWhitelist={['*']}
-        source={{ html: htmlContent }}
+        source={{ html: htmlContent, baseUrl: 'https://api.olamaps.io' }}
         style={styles.webView}
         scrollEnabled={false}
         overScrollMode="never"
         bounces={false}
         javaScriptEnabled={true}
         domStorageEnabled={true}
+        mixedContentMode="always"
+        allowFileAccess={true}
         androidLayerType="hardware"
         onMessage={(event) => {
           try {
