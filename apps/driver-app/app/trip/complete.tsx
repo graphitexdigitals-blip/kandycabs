@@ -553,18 +553,6 @@ export default function DriverTripCompleteScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Photo Actions Row (Camera Only) */}
-            <View style={styles.photoActionRow}>
-              <TouchableOpacity
-                style={[styles.photoActionBtn, { flex: 1 }]}
-                onPress={handleOpenCamera}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="camera" size={15} color="#0284c7" style={{ marginRight: 6 }} />
-                <Text style={styles.photoActionBtnText}>Take Live Photo (Camera Only)</Text>
-              </TouchableOpacity>
-            </View>
-
             {/* Reference Guide Image */}
             <View style={styles.referenceSection}>
               <View style={styles.referenceImageBox}>
