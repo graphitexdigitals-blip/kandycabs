@@ -5753,6 +5753,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dashboardCardTitle: {
+    fontFamily: 'Roboto',
     fontSize: 15,
     fontWeight: '900',
     color: '#00142A',
@@ -5760,6 +5761,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   dashboardCardSub: {
+    fontFamily: 'Roboto',
     fontSize: 12,
     fontWeight: '600',
     color: '#475569',

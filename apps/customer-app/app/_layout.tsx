@@ -2,12 +2,36 @@ import '../polyfills';
 import '@kandy-cabs/shared';
 import '../lib/i18n';
 import React, { useEffect, useState } from 'react';
-import { LogBox, StatusBar, View } from 'react-native';
+import { LogBox, StatusBar, View, Text, TextInput } from 'react-native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { GlobalTripReviewWatcher } from '../components/GlobalTripReviewWatcher';
 import { QuickBookingFab } from '../components/QuickBookingFab';
+
+// Enforce global Roboto font family so custom phone themes/fonts do not override app typography
+try {
+  if ((Text as any).defaultProps == null) (Text as any).defaultProps = {};
+  (Text as any).defaultProps.style = [{ fontFamily: 'Roboto' }, (Text as any).defaultProps.style];
+
+  if ((TextInput as any).defaultProps == null) (TextInput as any).defaultProps = {};
+  (TextInput as any).defaultProps.style = [{ fontFamily: 'Roboto' }, (TextInput as any).defaultProps.style];
+
+  const OrigText = Text as any;
+  if (OrigText && OrigText.render && !OrigText.render.__robotoPatched) {
+    const origTextRender = OrigText.render;
+    OrigText.render = function (...args: any[]) {
+      const element = origTextRender.apply(this, args);
+      if (element && element.props) {
+        return React.cloneElement(element, {
+          style: [{ fontFamily: 'Roboto' }, element.props.style],
+        });
+      }
+      return element;
+    };
+    OrigText.render.__robotoPatched = true;
+  }
+} catch (_) {}
 
 // Keep splash screen visible until custom Roboto fonts are loaded
 SplashScreen.preventAutoHideAsync().catch(() => {});
