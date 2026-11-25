@@ -18,7 +18,7 @@ import { QUICK_BOOKING_BTN_BASE64 } from '../assets/images/quickBookingBtnBase64
 
 const BUTTON_WIDTH = 64;
 const BUTTON_HEIGHT = 64;
-const CARD_WIDTH = 230;
+const CARD_WIDTH = 220;
 
 const WHATSAPP_NUMBER = '919008890090';
 const HELPLINE_PHONE = '+919900887777';
@@ -318,13 +318,13 @@ const styles = StyleSheet.create({
   smallCard: {
     width: CARD_WIDTH,
     backgroundColor: '#ffffff',
-    borderRadius: 26,
-    padding: 9,
+    borderRadius: 24,
+    padding: 4,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
@@ -350,10 +350,10 @@ const styles = StyleSheet.create({
     borderLeftWidth: 1.5,
   },
   pointerTipRight: {
-    right: 22,
+    right: 20,
   },
   pointerTipLeft: {
-    left: 22,
+    left: 20,
   },
 
   // Button 1: Book on WhatsApp
@@ -362,17 +362,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 11,
-    paddingHorizontal: 15,
-    borderRadius: 25,
-    marginBottom: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+    borderRadius: 20,
+    marginBottom: 4,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
 
   // Button 2: Call to Book
@@ -381,16 +381,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 11,
-    paddingHorizontal: 15,
-    borderRadius: 25,
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
 
   btnLeftGroup: {
