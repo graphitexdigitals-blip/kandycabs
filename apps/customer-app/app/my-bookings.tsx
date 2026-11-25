@@ -1226,7 +1226,7 @@ export default function MyBookingsScreen() {
                       </View>
 
                       {/* Distance & Trip Type */}
-                      <View style={styles.tableRow}>
+                      <View style={[styles.tableRow, booking.status === BookingStatus.TRIP_COMPLETED && styles.tableRowLast]}>
                         <View style={styles.tableLabelCell}>
                           <Text style={styles.tableLabelText}>DISTANCE</Text>
                         </View>
@@ -1269,62 +1269,63 @@ export default function MyBookingsScreen() {
                           </View>
                         )}
 
-                      {/* Merged Driver & Vehicle Row */}
-                      {driver ? (
-                        <View style={[styles.tableRow, styles.tableRowLast]}>
-                          <View style={styles.tableLabelCell}>
-                            <Text style={styles.tableLabelText}>DRIVER</Text>
-                          </View>
-                          <View style={styles.tableValueCell}>
-                            <View style={styles.tableDriverRow}>
-                              <Text style={styles.tableDriverName} numberOfLines={1}>
-                                {driver.user?.fullName || t('myBookings.assignedDriver', { defaultValue: 'Assigned Driver' })}
+                      {/* Merged Driver & Vehicle Row (Hidden once trip is completed) */}
+                      {booking.status !== BookingStatus.TRIP_COMPLETED && (
+                        driver ? (
+                          <View style={[styles.tableRow, styles.tableRowLast]}>
+                            <View style={styles.tableLabelCell}>
+                              <Text style={styles.tableLabelText}>DRIVER</Text>
+                            </View>
+                            <View style={styles.tableValueCell}>
+                              <View style={styles.tableDriverRow}>
+                                <Text style={styles.tableDriverName} numberOfLines={1}>
+                                  {driver.user?.fullName || t('myBookings.assignedDriver', { defaultValue: 'Assigned Driver' })}
+                                </Text>
+                                <View style={styles.tableRatingPill}>
+                                  <Ionicons name="star" size={11} color="#f59e0b" />
+                                  <Text style={styles.tableRatingText}>
+                                    {booking.driverRating ? Number(booking.driverRating).toFixed(1) : '4.9'}
+                                  </Text>
+                                </View>
+                                {driver.user?.phone &&
+                                  booking.status !== BookingStatus.CANCELLED && (
+                                    <TouchableOpacity
+                                      style={styles.tableCallBtn}
+                                      onPress={() => Linking.openURL(`tel:${driver.user.phone}`)}
+                                    >
+                                      <Ionicons name="call" size={11} color="#ffffff" style={{ marginRight: 3 }} />
+                                      <Text style={styles.tableCallBtnText}>{t('myBookings.call', { defaultValue: 'Call' })}</Text>
+                                    </TouchableOpacity>
+                                  )}
+                              </View>
+                              <Text style={styles.tableVehicleSubText} numberOfLines={1}>
+                                {(vehicle?.category || booking.category || 'SEDAN').toUpperCase()}
+                                <Text style={styles.tablePlateText}>
+                                  {'  •  '}{vehicle?.plateNumber || 'KA 01 MJ 2023'}
+                                </Text>
                               </Text>
-                              <View style={styles.tableRatingPill}>
-                                <Ionicons name="star" size={11} color="#f59e0b" />
-                                <Text style={styles.tableRatingText}>
-                                  {booking.driverRating ? Number(booking.driverRating).toFixed(1) : '4.9'}
+                            </View>
+                          </View>
+                        ) : (
+                          <View style={[styles.tableRow, styles.tableRowLast]}>
+                            <View style={styles.tableLabelCell}>
+                              <Text style={styles.tableLabelText}>DRIVER</Text>
+                            </View>
+                            <View style={styles.tableValueCell}>
+                              <View style={styles.tableDriverRow}>
+                                <Text style={styles.tableMutedText}>
+                                  {t('myBookings.pendingDispatch', { defaultValue: 'Pending Dispatch' })}
                                 </Text>
                               </View>
-                              {driver.user?.phone &&
-                                booking.status !== BookingStatus.TRIP_COMPLETED &&
-                                booking.status !== BookingStatus.CANCELLED && (
-                                  <TouchableOpacity
-                                    style={styles.tableCallBtn}
-                                    onPress={() => Linking.openURL(`tel:${driver.user.phone}`)}
-                                  >
-                                    <Ionicons name="call" size={11} color="#ffffff" style={{ marginRight: 3 }} />
-                                    <Text style={styles.tableCallBtnText}>{t('myBookings.call', { defaultValue: 'Call' })}</Text>
-                                  </TouchableOpacity>
-                                )}
-                            </View>
-                            <Text style={styles.tableVehicleSubText} numberOfLines={1}>
-                              {(vehicle?.category || booking.category || 'SEDAN').toUpperCase()}
-                              <Text style={styles.tablePlateText}>
-                                {'  •  '}{vehicle?.plateNumber || 'KA 01 MJ 2023'}
-                              </Text>
-                            </Text>
-                          </View>
-                        </View>
-                      ) : (
-                        <View style={[styles.tableRow, styles.tableRowLast]}>
-                          <View style={styles.tableLabelCell}>
-                            <Text style={styles.tableLabelText}>DRIVER</Text>
-                          </View>
-                          <View style={styles.tableValueCell}>
-                            <View style={styles.tableDriverRow}>
-                              <Text style={styles.tableMutedText}>
-                                {t('myBookings.pendingDispatch', { defaultValue: 'Pending Dispatch' })}
+                              <Text style={styles.tableVehicleSubText} numberOfLines={1}>
+                                {(booking.category || 'SEDAN').toUpperCase()}
+                                <Text style={styles.tableValueMutedText}>
+                                  {'  •  '}Requested
+                                </Text>
                               </Text>
                             </View>
-                            <Text style={styles.tableVehicleSubText} numberOfLines={1}>
-                              {(booking.category || 'SEDAN').toUpperCase()}
-                              <Text style={styles.tableValueMutedText}>
-                                {'  •  '}Requested
-                              </Text>
-                            </Text>
                           </View>
-                        </View>
+                        )
                       )}
                     </View>
 
