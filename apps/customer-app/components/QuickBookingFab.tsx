@@ -9,13 +9,15 @@ import {
   Animated,
   PanResponder,
   useWindowDimensions,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname } from 'expo-router';
+import { QUICK_BOOKING_BTN_BASE64 } from '../assets/images/quickBookingBtnBase64';
 
-const BUTTON_WIDTH = 54;
-const BUTTON_HEIGHT = 54;
+const BUTTON_WIDTH = 64;
+const BUTTON_HEIGHT = 64;
 const CARD_WIDTH = 220;
 
 const WHATSAPP_NUMBER = '919008890090';
@@ -208,9 +210,11 @@ export function QuickBookingFab() {
           style={styles.touchArea}
         >
           <Animated.View style={[styles.fabBadge, { transform: [{ scale: pulseAnim }] }]}>
-            <View style={styles.cleanWhatsappBtn}>
-              <Ionicons name="logo-whatsapp" size={32} color="#ffffff" />
-            </View>
+            <Image
+              source={{ uri: QUICK_BOOKING_BTN_BASE64 }}
+              style={styles.pushBtnImage}
+              resizeMode="contain"
+            />
           </Animated.View>
         </TouchableOpacity>
       </Animated.View>
@@ -304,19 +308,15 @@ const styles = StyleSheet.create({
     height: BUTTON_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  cleanWhatsappBtn: {
-    width: BUTTON_WIDTH,
-    height: BUTTON_HEIGHT,
-    borderRadius: BUTTON_WIDTH / 2,
-    backgroundColor: '#25D366',
-    alignItems: 'center',
-    justifyContent: 'center',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.35,
     shadowRadius: 6,
     elevation: 8,
+  },
+  pushBtnImage: {
+    width: BUTTON_WIDTH,
+    height: BUTTON_HEIGHT,
   },
 
   // Modal Backdrop
