@@ -825,16 +825,16 @@ export function NewTripsModal({
 
                 {/* Customer & Fare */}
                 <View style={styles.detailsInfoBox}>
-                  <Text style={styles.detailsInfoSectionTitle}>CUSTOMER & DRIVER PAYEE</Text>
+                  <Text style={styles.detailsInfoSectionTitle}>CUSTOMER & CHAUFFEUR PAYEE</Text>
                   <View style={[styles.detailsInfoRow, { marginTop: 8 }]}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.detailsInfoLabel}>Passenger Name</Text>
+                      <Text style={styles.detailsInfoLabel}>Customer Name</Text>
                       <Text style={styles.detailsInfoValue}>
-                        {selectedTripDetails?.booking?.customer?.user?.fullName || 'Customer'}
+                        {selectedTripDetails?.booking?.customer?.user?.fullName || selectedTripDetails?.booking?.customer?.name || selectedTripDetails?.booking?.customerName || 'Customer'}
                       </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={styles.detailsInfoLabel}>Driver Fare Amount</Text>
+                      <Text style={styles.detailsInfoLabel}>Chauffeur Fare Amount</Text>
                       <Text style={[styles.detailsInfoValue, { color: '#16a34a', fontSize: 16, fontWeight: '900' }]}>
                         ₹{selectedTripDetails?.payeeAmount?.toLocaleString('en-IN') || '--'}
                       </Text>

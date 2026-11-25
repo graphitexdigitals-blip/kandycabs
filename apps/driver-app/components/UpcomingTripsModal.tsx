@@ -1174,9 +1174,10 @@ export function UpcomingTripCard({
               <TouchableOpacity
                 style={[styles.viewAssignedTripBtn, { flex: 7 }]}
                 onPress={() => {
+                  const customerName = trip?.customer?.user?.fullName || trip?.customer?.name || trip?.customerName || trip?.passengerName || 'Customer';
                   Alert.alert(
                     `Trip: ${trip?.humanReadableRef || 'Details'}`,
-                    `Pickup: ${trip?.pickupAddress || '--'}\nDrop: ${trip?.dropAddress || '--'}\nDistance: ${trip?.distanceKm || '--'} km\nScheduled: ${pickupDateFormatted} ${pickupTimeFormatted}\nTrip Type: ${tripTypeDisplay}\nDriver Amount: ₹${activeVendorCost.toLocaleString('en-IN')}`
+                    `Customer: ${customerName}\nPickup: ${trip?.pickupAddress || '--'}\nDrop: ${trip?.dropAddress || '--'}\nDistance: ${trip?.distanceKm || '--'} km\nScheduled: ${pickupDateFormatted} ${pickupTimeFormatted}\nTrip Type: ${tripTypeDisplay}\nChauffeur Amount: ₹${activeVendorCost.toLocaleString('en-IN')}`
                   );
                 }}
                 activeOpacity={0.85}
@@ -1279,9 +1280,10 @@ export function UpcomingTripCard({
             <TouchableOpacity
               style={[styles.quickActionPill, styles.quickActionDetailsPill]}
               onPress={() => {
+                const customerName = trip?.customer?.user?.fullName || trip?.customer?.name || trip?.customerName || trip?.passengerName || 'Customer';
                 Alert.alert(
                   `Trip: ${trip?.humanReadableRef || 'Details'}`,
-                  `Pickup: ${trip?.pickupAddress || '--'}\nDrop: ${trip?.dropAddress || '--'}\nDistance: ${trip?.distanceKm || '--'} km\nScheduled: ${pickupDateFormatted} ${pickupTimeFormatted}\nTrip Type: ${tripTypeDisplay}\nDriver Amount: ₹${activeVendorCost.toLocaleString('en-IN')}`
+                  `Customer: ${customerName}\nPickup: ${trip?.pickupAddress || '--'}\nDrop: ${trip?.dropAddress || '--'}\nDistance: ${trip?.distanceKm || '--'} km\nScheduled: ${pickupDateFormatted} ${pickupTimeFormatted}\nTrip Type: ${tripTypeDisplay}\nChauffeur Amount: ₹${activeVendorCost.toLocaleString('en-IN')}`
                 );
               }}
               activeOpacity={0.8}

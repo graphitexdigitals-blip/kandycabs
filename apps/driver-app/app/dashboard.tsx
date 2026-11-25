@@ -2946,9 +2946,10 @@ export default function DriverDashboardScreen() {
                                   ? Number(upBooking.driverPayeeAmount)
                                   : (Number(upBooking.distanceKm || 0) * 10 + (Number(upBooking.driverAllowance) || 300))
                               );
+                              const customerName = upBooking?.customer?.user?.fullName || upBooking?.customer?.name || upBooking?.customerName || upBooking?.passengerName || 'Customer';
                               Alert.alert(
                                 `Queued Trip: ${upBooking.humanReadableRef}`,
-                                `Pickup: ${upBooking.pickupAddress}\nDrop: ${upBooking.dropAddress}\nDistance: ${upBooking.distanceKm || '--'} km\nScheduled: ${pickupDateStr} ${pickupTimeStr}\nDriver Amount: ₹${queuedVendorCost.toLocaleString('en-IN')}`
+                                `Customer: ${customerName}\nPickup: ${upBooking.pickupAddress}\nDrop: ${upBooking.dropAddress}\nDistance: ${upBooking.distanceKm || '--'} km\nScheduled: ${pickupDateStr} ${pickupTimeStr}\nChauffeur Amount: ₹${queuedVendorCost.toLocaleString('en-IN')}`
                               );
                             }}
                             activeOpacity={0.8}
@@ -3194,7 +3195,7 @@ export default function DriverDashboardScreen() {
                         <View>
                           <Text style={styles.tripPaymentStatusLabel}>{t('trips.driver_payment_status')}</Text>
                           <Text style={styles.tripPaymentVendorCostSub}>
-                            Driver Amount: <Text style={{ fontWeight: '900', color: '#0f2744' }}>₹{vendorCost.toLocaleString('en-IN')}</Text>
+                            Chauffeur Amount: <Text style={{ fontWeight: '900', color: '#0f2744' }}>₹{vendorCost.toLocaleString('en-IN')}</Text>
                           </Text>
                         </View>
                         <View style={[styles.settledBadgePillInline, isSettled ? styles.badgeGreen : styles.badgeAmber]}>
