@@ -323,51 +323,9 @@ export default function DriverVehicleInspectionScreen() {
     }
   };
 
-  const handleGalleryPick = async (index: number) => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync().catch(() => ({ status: 'denied' }));
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Photo library access is required to select photos.');
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.4,
-        base64: true,
-        allowsEditing: false,
-      });
-      if (result && !result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        const dataUri = asset.uri || (asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : '');
-        applyCapturedPhoto(index, dataUri);
-      }
-    } catch (err: any) {
-      Alert.alert('Gallery Error', err?.message || 'Could not select photo from gallery');
-    }
-  };
-
   const handleChoosePhotoSource = (index: number) => {
-    Alert.alert(
-      'Attach Verification Photo',
-      `Capture or select ${inspectionAngleConfigs[index]?.title || 'photo'}:`,
-      [
-        {
-          text: '📷 Open Camera',
-          onPress: () => handleCameraCapture(index),
-        },
-        {
-          text: '🖼️ Choose from Gallery',
-          onPress: () => handleGalleryPick(index),
-        },
-        {
-          text: '⚡ Use Sample Photo',
-          onPress: () => {
-            applyCapturedPhoto(index, `demo_${inspectionAngleConfigs[index]?.id || index}`);
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    // Open camera directly without gallery/source picker dialog
+    handleCameraCapture(index);
   };
 
   const handleCameraCapture = async (index: number) => {
@@ -387,11 +345,7 @@ export default function DriverVehicleInspectionScreen() {
           if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
             Alert.alert(
               'Camera Permission Denied',
-              'Camera permission was not granted. Would you like to select from gallery instead?',
-              [
-                { text: '🖼️ Choose from Gallery', onPress: () => handleGalleryPick(index) },
-                { text: 'Cancel', style: 'cancel' },
-              ]
+              'Camera permission is required to capture verification photos. Please allow camera access in device settings.'
             );
             return;
           }
@@ -402,11 +356,7 @@ export default function DriverVehicleInspectionScreen() {
       if (status !== 'granted') {
         Alert.alert(
           'Permission Required',
-          'Camera access is required. Would you like to select a photo from your gallery instead?',
-          [
-            { text: '🖼️ Choose from Gallery', onPress: () => handleGalleryPick(index) },
-            { text: 'Cancel', style: 'cancel' },
-          ]
+          'Camera access is required to capture verification photos. Please enable camera permission in device settings.'
         );
         return;
       }
@@ -416,7 +366,6 @@ export default function DriverVehicleInspectionScreen() {
         result = await ImagePicker.launchCameraAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           quality: 0.35,
-          base64: true,
           allowsEditing: false,
           cameraType: isFront ? ImagePicker.CameraType.front : ImagePicker.CameraType.back,
         });
@@ -426,15 +375,13 @@ export default function DriverVehicleInspectionScreen() {
           result = await ImagePicker.launchCameraAsync({
             allowsEditing: false,
             quality: 0.35,
-            base64: true,
           });
         } catch (camErr2: any) {
           console.warn('launchCameraAsync failed:', camErr2);
           Alert.alert(
             'Camera Unavailable',
-            'Camera could not be launched on this device. Would you like to choose a photo from your gallery instead?',
+            'Camera could not be launched on this device.',
             [
-              { text: '🖼️ Choose from Gallery', onPress: () => handleGalleryPick(index) },
               {
                 text: '⚡ Use Sample Photo',
                 onPress: () => applyCapturedPhoto(index, `demo_${inspectionAngleConfigs[index]?.id || index}`),
@@ -454,11 +401,7 @@ export default function DriverVehicleInspectionScreen() {
     } catch (err: any) {
       Alert.alert(
         'Camera Error',
-        'Could not capture photo. Would you like to select from gallery instead?',
-        [
-          { text: '🖼️ Choose from Gallery', onPress: () => handleGalleryPick(index) },
-          { text: 'Cancel', style: 'cancel' },
-        ]
+        'Could not capture photo. Please try again.'
       );
     }
   };
