@@ -173,53 +173,6 @@ export default function DriverOdometerScreen() {
     }
   };
 
-  const handlePickGalleryImage = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          t('start_odometer.permission_required', 'Permission Required'),
-          t('start_odometer.gallery_permission_required', 'Gallery access is required to upload odometer photo.')
-        );
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.3,
-        base64: true,
-      });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
-        setOdometerImageUri(dataUri);
-        setError('');
-
-        const latest = locationTracker.getCurrentCoordinates();
-        let locStamp: { lat: number; lng: number; time: string } | null = null;
-        if (latest.lat != null && latest.lng != null) {
-          locStamp = {
-            lat: latest.lat,
-            lng: latest.lng,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          };
-          setPhotoLocation(locStamp);
-        }
-        if (bookingId) {
-          setTripStartDraft(bookingId, {
-            odometerImageUri: dataUri,
-            photoLocation: locStamp,
-          });
-        }
-      }
-    } catch (err: any) {
-      Alert.alert(
-        t('start_odometer.gallery_error', 'Gallery Error'),
-        err.message || t('start_odometer.failed_select_image', 'Failed to select image')
-      );
-    }
-  };
-
   const handleOpenSelfieCamera = async () => {
     try {
       if (Platform.OS === 'android') {
@@ -271,34 +224,7 @@ export default function DriverOdometerScreen() {
           console.warn('Selfie launchCameraAsync failed:', camErr2);
           Alert.alert(
             t('start_odometer.camera_error', 'Camera Error'),
-            'Could not open camera on this device. Would you like to select a photo from your gallery instead?',
-            [
-              {
-                text: 'Choose from Gallery',
-                onPress: async () => {
-                  try {
-                    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                    if (status !== 'granted') return;
-                    const res = await ImagePicker.launchImageLibraryAsync({
-                      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                      allowsEditing: false,
-                      quality: 0.35,
-                      base64: true,
-                    });
-                    if (!res.canceled && res.assets && res.assets.length > 0) {
-                      const asset = res.assets[0];
-                      const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
-                      applySelfiePhoto(dataUri);
-                    }
-                  } catch (_) {}
-                },
-              },
-              {
-                text: 'Use Sample Selfie',
-                onPress: () => applySelfiePhoto('demo_selfie'),
-              },
-              { text: 'Cancel', style: 'cancel' },
-            ]
+            'Could not open camera on this device. Please check camera permissions.'
           );
           return;
         }
@@ -340,70 +266,12 @@ export default function DriverOdometerScreen() {
     }
   };
 
-  const handlePickSelfieGallery = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') return;
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.35,
-        base64: true,
-      });
-      if (!res.canceled && res.assets && res.assets.length > 0) {
-        const asset = res.assets[0];
-        const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
-        applySelfiePhoto(dataUri);
-      }
-    } catch (_) {}
-  };
-
   const handleSelfieAction = () => {
-    Alert.alert(
-      t('start_odometer.select_selfie_source', 'Attach Cabin Selfie'),
-      t('start_odometer.select_selfie_source_sub', 'Choose camera, gallery, or sample:'),
-      [
-        {
-          text: '📸 Take Selfie (Camera)',
-          onPress: handleOpenSelfieCamera,
-        },
-        {
-          text: '🖼️ Choose from Gallery',
-          onPress: handlePickSelfieGallery,
-        },
-        {
-          text: '👤 Use Sample Selfie',
-          onPress: () => applySelfiePhoto('demo_selfie'),
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    handleOpenSelfieCamera();
   };
 
   const handlePhotoAction = () => {
-    Alert.alert(
-      t('start_odometer.select_photo_source', 'Attach Odometer Photo'),
-      t('start_odometer.select_photo_source_sub', 'Choose camera, gallery, or a test sample:'),
-      [
-        {
-          text: '📸 Take Photo (Camera)',
-          onPress: handleOpenCamera,
-        },
-        {
-          text: '🖼️ Choose from Gallery',
-          onPress: handlePickGalleryImage,
-        },
-        {
-          text: '🚗 Sample 1 (057,612 km)',
-          onPress: () => handleSelectSampleOdometer('057612', ODOMETER_SAMPLE_57612_BASE64),
-        },
-        {
-          text: '🚗 Sample 2 (091,308 km)',
-          onPress: () => handleSelectSampleOdometer('091308', ODOMETER_SAMPLE_91308_BASE64),
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    handleOpenCamera();
   };
 
   const handleOpenCamera = async () => {
@@ -448,14 +316,7 @@ export default function DriverOdometerScreen() {
         console.warn('Odometer launchCameraAsync failed:', camErr);
         Alert.alert(
           t('start_odometer.camera_error', 'Camera Error'),
-          'Could not launch camera. Would you like to select odometer photo from your gallery instead?',
-          [
-            {
-              text: 'Choose from Gallery',
-              onPress: handlePickGalleryImage,
-            },
-            { text: 'Cancel', style: 'cancel' },
-          ]
+          'Could not launch camera. Please check camera permissions.'
         );
         return;
       }
@@ -698,21 +559,12 @@ export default function DriverOdometerScreen() {
                 {/* Selfie Action Row */}
                 <View style={styles.photoActionRow}>
                   <TouchableOpacity
-                    style={styles.photoActionBtn}
+                    style={[styles.photoActionBtn, { flex: 1 }]}
                     onPress={handleOpenSelfieCamera}
                     activeOpacity={0.8}
                   >
                     <Ionicons name="camera" size={14} color="#2563eb" style={{ marginRight: 5 }} />
-                    <Text style={styles.photoActionBtnText}>Take Selfie</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.photoActionBtn}
-                    onPress={handlePickSelfieGallery}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="images" size={14} color="#7c3aed" style={{ marginRight: 5 }} />
-                    <Text style={styles.photoActionBtnText}>Choose Gallery</Text>
+                    <Text style={styles.photoActionBtnText}>Take Live Selfie (Camera Only)</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -812,24 +664,15 @@ export default function DriverOdometerScreen() {
                     )}
                   </TouchableOpacity>
 
-                  {/* Photo Actions Row (Camera & Gallery) */}
+                  {/* Photo Actions Row (Camera Only) */}
                   <View style={styles.photoActionRow}>
                     <TouchableOpacity
-                      style={styles.photoActionBtn}
+                      style={[styles.photoActionBtn, { flex: 1 }]}
                       onPress={handleOpenCamera}
                       activeOpacity={0.8}
                     >
                       <Ionicons name="camera" size={15} color="#0284c7" style={{ marginRight: 6 }} />
-                      <Text style={styles.photoActionBtnText}>Take Photo</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.photoActionBtn}
-                      onPress={handlePickGalleryImage}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="images" size={15} color="#7c3aed" style={{ marginRight: 6 }} />
-                      <Text style={styles.photoActionBtnText}>Choose from Gallery</Text>
+                      <Text style={styles.photoActionBtnText}>Take Live Photo (Camera Only)</Text>
                     </TouchableOpacity>
                   </View>
 

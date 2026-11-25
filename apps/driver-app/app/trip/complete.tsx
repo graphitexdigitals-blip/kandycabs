@@ -200,72 +200,8 @@ export default function DriverTripCompleteScreen() {
     }
   };
 
-  const handlePickGalleryImage = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(t('complete_trip.permission_required'), 'Gallery access is required to upload odometer photo.');
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.3,
-        base64: true,
-      });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        const dataUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
-        setOdometerImageUri(dataUri);
-        setOdometerPhotoAttached(true);
-        setError('');
-        const latest = locationTracker.getCurrentCoordinates();
-        let locStamp: { lat: number; lng: number; time: string } | null = null;
-        if (latest.lat != null && latest.lng != null) {
-          locStamp = {
-            lat: latest.lat,
-            lng: latest.lng,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          };
-          setPhotoLocation(locStamp);
-        }
-        const id = bookingId || booking?.id;
-        if (id) {
-          setTripCompletionDraft(id, {
-            odometerImageUri: dataUri,
-            photoLocation: locStamp,
-          });
-        }
-      }
-    } catch (err: any) {
-      Alert.alert('Gallery Error', err.message || 'Failed to pick image from gallery');
-    }
-  };
-
   const handlePhotoAction = () => {
-    Alert.alert(
-      'Attach Final Odometer Photo',
-      'Choose camera, gallery, or a test sample:',
-      [
-        {
-          text: '📸 Take Photo (Camera)',
-          onPress: handleOpenCamera,
-        },
-        {
-          text: '🖼️ Choose from Gallery',
-          onPress: handlePickGalleryImage,
-        },
-        {
-          text: '🚗 Sample 1 (057,612 km)',
-          onPress: () => handleSelectSampleOdometer('057612', ODOMETER_SAMPLE_57612_BASE64),
-        },
-        {
-          text: '🚗 Sample 2 (091,308 km)',
-          onPress: () => handleSelectSampleOdometer('091308', ODOMETER_SAMPLE_91308_BASE64),
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    handleOpenCamera();
   };
 
   const handleOpenCamera = async () => {
@@ -617,24 +553,15 @@ export default function DriverTripCompleteScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Photo Actions Row (Camera & Gallery) */}
+            {/* Photo Actions Row (Camera Only) */}
             <View style={styles.photoActionRow}>
               <TouchableOpacity
-                style={styles.photoActionBtn}
+                style={[styles.photoActionBtn, { flex: 1 }]}
                 onPress={handleOpenCamera}
                 activeOpacity={0.8}
               >
                 <Ionicons name="camera" size={15} color="#0284c7" style={{ marginRight: 6 }} />
-                <Text style={styles.photoActionBtnText}>Take Photo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.photoActionBtn}
-                onPress={handlePickGalleryImage}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="images" size={15} color="#7c3aed" style={{ marginRight: 6 }} />
-                <Text style={styles.photoActionBtnText}>Choose from Gallery</Text>
+                <Text style={styles.photoActionBtnText}>Take Live Photo (Camera Only)</Text>
               </TouchableOpacity>
             </View>
 
