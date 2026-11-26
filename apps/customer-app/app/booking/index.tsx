@@ -1346,25 +1346,6 @@ function buildRazorpayCheckoutHtml(data: {
     var rzp = null;
     var isPaymentSubmitted = false;
 
-    // Intercept window.open so bank simulation pages (Success/Decline) load directly in the view
-    window.open = function(url) {
-      if (url && typeof url === 'string' && url !== 'about:blank') {
-        window.location.href = url;
-      }
-      return window;
-    };
-    document.addEventListener('submit', function(e) {
-      if (e.target && e.target.target === '_blank') {
-        e.target.target = '_self';
-      }
-    }, true);
-    document.addEventListener('click', function(e) {
-      var a = e.target && e.target.closest ? e.target.closest('a') : null;
-      if (a && a.target === '_blank') {
-        a.target = '_self';
-      }
-    }, true);
-
     function notifyRN(payload) {
       if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
         window.ReactNativeWebView.postMessage(JSON.stringify(payload));
@@ -1373,7 +1354,7 @@ function buildRazorpayCheckoutHtml(data: {
 
     function launchCheckout() {
       if (typeof Razorpay === 'undefined') {
-        setTimeout(launchCheckout, 300);
+        setTimeout(launchCheckout, 150);
         return;
       }
 
@@ -1385,7 +1366,6 @@ function buildRazorpayCheckoutHtml(data: {
         name: 'Kandy Cabs',
         description: 'Advance Ride Reservation (${safeRef})',
         ...(isRealOrder ? { order_id: '${data.orderId}' } : {}),
-        ${data.callbackUrl ? `callback_url: '${data.callbackUrl}',` : ''}
         prefill: {
           name: '${safeName}',
           contact: '${formattedPhone}',
@@ -1396,10 +1376,12 @@ function buildRazorpayCheckoutHtml(data: {
         },
         modal: {
           backdropclose: false,
+          escape: false,
+          handleback: false,
+          confirm_close: false,
           ondismiss: function() {
-            if (!isPaymentSubmitted) {
-              notifyRN({ type: 'PAYMENT_CANCELLED' });
-            }
+            // Do NOT auto-cancel when modal transitions; user has explicit 'Cancel Payment' button
+            console.log('[Razorpay] checkout modal ondismiss event');
           }
         },
         handler: function(response) {
@@ -1422,11 +1404,14 @@ function buildRazorpayCheckoutHtml(data: {
       try {
         rzp = new Razorpay(options);
         rzp.on('payment.failed', function(resp) {
-          notifyRN({
-            type: 'PAYMENT_FAILED',
-            code: resp.error ? resp.error.code : 'UNKNOWN',
-            description: resp.error ? resp.error.description : 'Payment not completed'
-          });
+          console.warn('[Razorpay] Payment failed:', resp);
+          if (!isPaymentSubmitted) {
+            notifyRN({
+              type: 'PAYMENT_FAILED',
+              code: resp.error ? resp.error.code : 'UNKNOWN',
+              description: resp.error ? resp.error.description : 'Payment was not completed. Please try again.'
+            });
+          }
         });
         rzp.open();
       } catch (err) {
@@ -5040,7 +5025,7 @@ function buildRazorpayCheckoutHtml(data: {
               domStorageEnabled={true}
               thirdPartyCookiesEnabled={true}
               sharedCookiesEnabled={true}
-              setSupportMultipleWindows={true}
+              setSupportMultipleWindows={false}
               javaScriptCanOpenWindowsAutomatically={true}
               mixedContentMode="always"
               allowsInlineMediaPlayback={true}
