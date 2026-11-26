@@ -18,6 +18,7 @@ import {
   Modal,
   Switch,
   Linking,
+  NativeModules,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
@@ -2135,7 +2136,14 @@ function buildRazorpayCheckoutHtml(data: {
             theme: { color: '#ffffff', hide_topbar: true },
           };
 
-          if (RazorpayCheckout && typeof RazorpayCheckout.open === 'function') {
+          const hasNativeRazorpay = Boolean(
+            NativeModules &&
+            NativeModules.RNRazorpayCheckout &&
+            RazorpayCheckout &&
+            typeof RazorpayCheckout.open === 'function'
+          );
+
+          if (hasNativeRazorpay) {
             try {
               const data = await RazorpayCheckout.open(rzpOptions);
               setVerifyingPayment(true);
@@ -2157,12 +2165,21 @@ function buildRazorpayCheckoutHtml(data: {
             } catch (rzpErr: any) {
               console.log('[Booking] Razorpay native response:', rzpErr);
               const isPaid = await checkPaymentStatusAndConfirm(booking.id);
-              if (!isPaid && rzpErr && rzpErr.code !== 0 && rzpErr.code !== 'PAYMENT_CANCELLED') {
-                Alert.alert('Payment Notice', rzpErr.description || 'Payment was not completed. You can try again.');
+              if (!isPaid) {
+                const isNativeModuleMissing =
+                  !NativeModules?.RNRazorpayCheckout ||
+                  (rzpErr?.message && (rzpErr.message.includes('open') || rzpErr.message.includes('null')));
+
+                if (isNativeModuleMissing) {
+                  console.log('[Booking] Native Razorpay unlinked, opening in-app WebView checkout');
+                  setRazorpayModalVisible(true);
+                } else if (rzpErr && rzpErr.code !== 0 && rzpErr.code !== 'PAYMENT_CANCELLED') {
+                  Alert.alert('Payment Notice', rzpErr.description || 'Payment was not completed. You can try again.');
+                }
               }
             }
           } else {
-            // Fallback to in-app WebView
+            // Fallback to in-app WebView (Expo Go, dev client, or unlinked environment)
             setRazorpayModalVisible(true);
           }
         }
