@@ -5001,13 +5001,16 @@ function buildRazorpayCheckoutHtml(data: {
       >
         <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
           {/* In-App Embedded Razorpay WebView */}
-          {razorpayOrderData ? (
+          {razorpayCheckoutUrl || razorpayOrderData ? (
             <WebView
               style={{ flex: 1, backgroundColor: '#ffffff' }}
-              source={{
-                html: buildRazorpayCheckoutHtml(razorpayOrderData),
-                baseUrl: 'https://checkout.razorpay.com',
-              }}
+              source={
+                razorpayCheckoutUrl
+                  ? { uri: razorpayCheckoutUrl }
+                  : {
+                      html: buildRazorpayCheckoutHtml(razorpayOrderData!),
+                    }
+              }
               originWhitelist={['*']}
               javaScriptEnabled={true}
               domStorageEnabled={true}
@@ -5017,7 +5020,30 @@ function buildRazorpayCheckoutHtml(data: {
               javaScriptCanOpenWindowsAutomatically={true}
               mixedContentMode="always"
               allowsInlineMediaPlayback={true}
+              startInLoadingState={true}
               userAgent="Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
+              onShouldStartLoadWithRequest={(request) => {
+                const { url } = request;
+                if (!url) return true;
+                if (url.includes('about:blank#blocked')) {
+                  return false;
+                }
+                if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('about:')) {
+                  Linking.openURL(url).catch((err) => {
+                    console.warn('[WebView] External app link error:', err);
+                  });
+                  return false;
+                }
+                return true;
+              }}
+              onError={(syntheticEvent) => {
+                const { nativeEvent } = syntheticEvent;
+                console.warn('[WebView Error]', nativeEvent);
+              }}
+              onHttpError={(syntheticEvent) => {
+                const { nativeEvent } = syntheticEvent;
+                console.warn('[WebView HTTP Error]', nativeEvent.statusCode, nativeEvent.url);
+              }}
               onNavigationStateChange={async (navState) => {
                 if (
                   navState.url.includes('booking-confirmed') ||
@@ -5067,6 +5093,9 @@ function buildRazorpayCheckoutHtml(data: {
                     setRazorpayModalVisible(false);
                   } else if (data.type === 'PAYMENT_FAILED') {
                     Alert.alert('Payment Incomplete', data.description || 'Payment was not completed. Please try again.');
+                    setRazorpayModalVisible(false);
+                  } else if (data.type === 'PAYMENT_ERROR') {
+                    Alert.alert('Payment Error', data.message || 'Could not load payment gateway.');
                     setRazorpayModalVisible(false);
                   }
                 } catch (_) {}
