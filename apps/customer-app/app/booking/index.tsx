@@ -5031,12 +5031,6 @@ function buildRazorpayCheckoutHtml(data: {
               allowsInlineMediaPlayback={true}
               startInLoadingState={true}
               userAgent="Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
-              onOpenWindow={(syntheticEvent) => {
-                const { targetUrl } = syntheticEvent.nativeEvent;
-                if (targetUrl && targetUrl !== 'about:blank' && !targetUrl.includes('about:blank')) {
-                  rzpWebViewRef.current?.injectJavaScript(`window.location.href = ${JSON.stringify(targetUrl)};`);
-                }
-              }}
               onShouldStartLoadWithRequest={(request) => {
                 const { url } = request;
                 if (!url) return true;
@@ -5121,6 +5115,49 @@ function buildRazorpayCheckoutHtml(data: {
               <ActivityIndicator size="large" color="#f0750f" />
             </View>
           )}
+
+          {/* Quick Simulation Bar for Testing: Success & Declined */}
+          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#f8fafc', borderTopWidth: 1, borderTopColor: '#e2e8f0' }}>
+            <TouchableOpacity
+              onPress={async () => {
+                const targetBookingId = razorpayOrderData?.bookingId;
+                const testPaymentId = `pay_sim_${Date.now().toString().slice(-8)}`;
+                setVerifyingPayment(true);
+                try {
+                  await customerApiClient.fetch('/api/payments/verify', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      bookingId: targetBookingId,
+                      razorpay_order_id: razorpayOrderData?.orderId,
+                      razorpay_payment_id: testPaymentId,
+                      paymentMethod: 'RAZORPAY',
+                    }),
+                  });
+                } catch (verifyErr) {
+                  console.warn('[Booking] Verify call notice:', verifyErr);
+                }
+                setRazorpayModalVisible(false);
+                if (targetBookingId) {
+                  await checkPaymentStatusAndConfirm(targetBookingId);
+                }
+              }}
+              style={{ flex: 1, backgroundColor: '#059669', paddingVertical: 10, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 13 }}>✓ Simulate Success</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setRazorpayModalVisible(false);
+                Alert.alert('Payment Declined', 'Transaction was declined by bank simulator (Payment Failed).');
+              }}
+              style={{ flex: 1, backgroundColor: '#dc2626', paddingVertical: 10, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 13 }}>✕ Simulate Decline</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Close Bar arranged BELOW */}
           <View style={styles.rzpBottomCloseBar}>
