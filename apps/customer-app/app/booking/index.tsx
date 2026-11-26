@@ -1365,7 +1365,6 @@ function buildRazorpayCheckoutHtml(data: {
         currency: 'INR',
         name: 'Kandy Cabs',
         description: 'Advance Ride Reservation (${safeRef})',
-        image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
         ...(isRealOrder ? { order_id: '${data.orderId}' } : {}),
         ${data.callbackUrl ? `callback_url: '${data.callbackUrl}',` : ''}
         prefill: {
@@ -1374,14 +1373,10 @@ function buildRazorpayCheckoutHtml(data: {
           email: '${safeEmail}'
         },
         theme: {
-          color: '#ffffff',
-          hide_topbar: true
+          color: '#f0750f'
         },
         modal: {
           backdropclose: false,
-          escape: false,
-          handleback: true,
-          confirm_close: true,
           ondismiss: function() {
             if (!isPaymentSubmitted) {
               notifyRN({ type: 'PAYMENT_CANCELLED' });
@@ -1390,8 +1385,11 @@ function buildRazorpayCheckoutHtml(data: {
         },
         handler: function(response) {
           isPaymentSubmitted = true;
-          document.getElementById('statusCard').innerHTML = 
-            '<div class="spinner"></div><div class="title">Payment Approved!</div><div class="desc">Confirming ride booking & generating pickup OTP...</div>';
+          var statusCard = document.getElementById('statusCard');
+          if (statusCard) {
+            statusCard.innerHTML = 
+              '<div class="spinner"></div><div class="title">Payment Approved!</div><div class="desc">Confirming ride booking & generating pickup OTP...</div>';
+          }
           notifyRN({
             type: 'PAYMENT_SUCCESS',
             paymentId: response.razorpay_payment_id,
@@ -1417,10 +1415,18 @@ function buildRazorpayCheckoutHtml(data: {
       }
     }
 
+    function init() {
+      if (typeof Razorpay !== 'undefined') {
+        launchCheckout();
+      } else {
+        setTimeout(init, 100);
+      }
+    }
+    setTimeout(init, 50);
     if (document.readyState === 'complete') {
-      launchCheckout();
+      init();
     } else {
-      window.addEventListener('load', launchCheckout);
+      window.addEventListener('load', init);
     }
   </script>
 </body>
@@ -5001,16 +5007,13 @@ function buildRazorpayCheckoutHtml(data: {
       >
         <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
           {/* In-App Embedded Razorpay WebView */}
-          {razorpayCheckoutUrl || razorpayOrderData ? (
+          {razorpayOrderData ? (
             <WebView
               style={{ flex: 1, backgroundColor: '#ffffff' }}
-              source={
-                razorpayCheckoutUrl
-                  ? { uri: razorpayCheckoutUrl }
-                  : {
-                      html: buildRazorpayCheckoutHtml(razorpayOrderData!),
-                    }
-              }
+              source={{
+                html: buildRazorpayCheckoutHtml(razorpayOrderData),
+                baseUrl: 'https://kandycabs.com',
+              }}
               originWhitelist={['*']}
               javaScriptEnabled={true}
               domStorageEnabled={true}

@@ -13,10 +13,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const [showSlowNotice, setShowSlowNotice] = React.useState(false);
 
   const isLoginPage = pathname === '/login';
+  const isPublicPage = isLoginPage || pathname.startsWith('/checkout');
 
   // Safety timer to show manual bypass/redirect if check takes > 2.5s
   useEffect(() => {
-    if (isLoading && !isLoginPage) {
+    if (isLoading && !isPublicPage) {
       const timer = setTimeout(() => {
         setShowSlowNotice(true);
       }, 2500);
@@ -24,15 +25,15 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     } else {
       setShowSlowNotice(false);
     }
-  }, [isLoading, isLoginPage]);
+  }, [isLoading, isPublicPage]);
 
   useEffect(() => {
-    if (!isLoading && !user && !isLoginPage) {
+    if (!isLoading && !user && !isPublicPage) {
       router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
     }
-  }, [isLoading, user, isLoginPage, pathname, router]);
+  }, [isLoading, user, isPublicPage, pathname, router]);
 
-  if (isLoginPage) {
+  if (isPublicPage) {
     return <>{children}</>;
   }
 
