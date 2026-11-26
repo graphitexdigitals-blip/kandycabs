@@ -1346,6 +1346,25 @@ function buildRazorpayCheckoutHtml(data: {
     var rzp = null;
     var isPaymentSubmitted = false;
 
+    // Intercept window.open so bank simulation pages (Success/Decline) load directly in the view
+    window.open = function(url) {
+      if (url && typeof url === 'string' && url !== 'about:blank') {
+        window.location.href = url;
+      }
+      return window;
+    };
+    document.addEventListener('submit', function(e) {
+      if (e.target && e.target.target === '_blank') {
+        e.target.target = '_self';
+      }
+    }, true);
+    document.addEventListener('click', function(e) {
+      var a = e.target && e.target.closest ? e.target.closest('a') : null;
+      if (a && a.target === '_blank') {
+        a.target = '_self';
+      }
+    }, true);
+
     function notifyRN(payload) {
       if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
         window.ReactNativeWebView.postMessage(JSON.stringify(payload));
@@ -1436,6 +1455,7 @@ function buildRazorpayCheckoutHtml(data: {
   // Razorpay Online Payment Integration State
   const [razorpayModalVisible, setRazorpayModalVisible] = useState(false);
   const [razorpayCheckoutUrl, setRazorpayCheckoutUrl] = useState<string | null>(null);
+  const rzpWebViewRef = useRef<WebView>(null);
   const [razorpayOrderData, setRazorpayOrderData] = useState<{
     orderId: string;
     keyId: string;
@@ -5009,6 +5029,7 @@ function buildRazorpayCheckoutHtml(data: {
           {/* In-App Embedded Razorpay WebView */}
           {razorpayOrderData ? (
             <WebView
+              ref={rzpWebViewRef}
               style={{ flex: 1, backgroundColor: '#ffffff' }}
               source={{
                 html: buildRazorpayCheckoutHtml(razorpayOrderData),
@@ -5019,12 +5040,18 @@ function buildRazorpayCheckoutHtml(data: {
               domStorageEnabled={true}
               thirdPartyCookiesEnabled={true}
               sharedCookiesEnabled={true}
-              setSupportMultipleWindows={false}
+              setSupportMultipleWindows={true}
               javaScriptCanOpenWindowsAutomatically={true}
               mixedContentMode="always"
               allowsInlineMediaPlayback={true}
               startInLoadingState={true}
               userAgent="Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
+              onOpenWindow={(syntheticEvent) => {
+                const { targetUrl } = syntheticEvent.nativeEvent;
+                if (targetUrl && targetUrl !== 'about:blank' && !targetUrl.includes('about:blank')) {
+                  rzpWebViewRef.current?.injectJavaScript(`window.location.href = ${JSON.stringify(targetUrl)};`);
+                }
+              }}
               onShouldStartLoadWithRequest={(request) => {
                 const { url } = request;
                 if (!url) return true;
