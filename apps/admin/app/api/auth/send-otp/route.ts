@@ -6,6 +6,10 @@ import {
   generateOtp,
   hashOtp,
   sendOtpSms,
+  isTestAccountAllowed,
+  shouldExposeDebugOtp,
+  OTP_SEND_LIMIT,
+  OTP_SEND_WINDOW_MS,
 } from '@kandy-cabs/shared';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
 
@@ -37,9 +41,26 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedPhone = normalizePhoneNumber(phone);
-    const isMasterAdmin = normalizedPhone === '+919999999999' || normalizedPhone === '9999999999';
-    const isTestDriver = normalizedPhone.includes('8888888888') || normalizedPhone.includes('9587425635');
-    const otp = (isMasterAdmin || isTestDriver) ? '1234' : generateOtp(4);
+    // Fixed test accounts: always in dev, in production only with ALLOW_TEST_ACCOUNTS=true
+    const isTestAccount = isTestAccountAllowed(normalizedPhone);
+
+    if (!isTestAccount) {
+      const recentSends = await prisma.otpVerification.count({
+        where: {
+          phone: normalizedPhone,
+          createdAt: { gt: new Date(Date.now() - OTP_SEND_WINDOW_MS) },
+        },
+      });
+      if (recentSends >= OTP_SEND_LIMIT) {
+        const res = NextResponse.json(
+          { success: false, message: 'Too many OTP requests. Please try again in a few minutes.' },
+          { status: 429 }
+        );
+        return setCorsHeaders(res);
+      }
+    }
+
+    const otp = isTestAccount ? '1234' : generateOtp(4);
     const otpHash = await hashOtp(otp);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
 
@@ -89,7 +110,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Save OTP to database
-    await prisma.otpVerification.create({
+    const otpRecord = await prisma.otpVerification.create({
       data: {
         phone: normalizedPhone,
         otpHash,
@@ -97,11 +118,20 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Dispatch OTP SMS (if SMS provider is configured)
-    await sendOtpSms(normalizedPhone, otp);
+    // Dispatch OTP SMS via MSG91. Test accounts have fixed OTPs and no real SMS.
+    if (!isTestAccount) {
+      const smsResult = await sendOtpSms(normalizedPhone, otp);
+      if (!smsResult.success) {
+        // Don't leave a usable OTP behind for a message that was never sent
+        await prisma.otpVerification.delete({ where: { id: otpRecord.id } }).catch(() => {});
+        const res = NextResponse.json(
+          { success: false, message: 'We could not send the OTP right now. Please try again shortly.' },
+          { status: 502 }
+        );
+        return setCorsHeaders(res);
+      }
+    }
 
-    const isDev = process.env.NODE_ENV !== 'production';
-    const enableDemoOtp = process.env.ENABLE_DEMO_OTP !== 'false';
     const responsePayload: any = {
       success: true,
       message: 'OTP sent successfully',
@@ -109,7 +139,7 @@ export async function POST(req: NextRequest) {
       existingName: resolvedExistingName || null,
     };
 
-    if (isDev || isMasterAdmin || isTestDriver || enableDemoOtp) {
+    if (shouldExposeDebugOtp(normalizedPhone)) {
       responsePayload.debugOtp = otp;
     }
 

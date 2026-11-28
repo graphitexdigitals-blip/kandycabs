@@ -5,6 +5,7 @@ import {
   normalizePhoneNumber,
   isValidIndianPhoneNumber,
   verifyOtpHash,
+  canBypassOtp,
   signAuthToken,
   UserRole,
 } from '@kandy-cabs/shared';
@@ -39,7 +40,6 @@ export async function POST(req: NextRequest) {
 
     const normalizedPhone = normalizePhoneNumber(phone);
     const isMasterAdmin = normalizedPhone === '+919999999999' || normalizedPhone === '9999999999';
-    const isTestDriver = normalizedPhone.includes('8888888888') || normalizedPhone.includes('9587425635');
 
     // Retrieve active OTP record (unexpired and unused)
     const otpRecord = await prisma.otpVerification.findFirst({
@@ -51,9 +51,8 @@ export async function POST(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    const isDev = process.env.NODE_ENV !== 'production';
-    const isPlaceholderSms = !process.env.SMS_PROVIDER_API_KEY || process.env.SMS_PROVIDER_API_KEY.includes('placeholder');
-    const isDevBypass = (isDev || isPlaceholderSms || isMasterAdmin || isTestDriver) && (otp.trim() === '1234' || otp.trim() === '0000');
+    // 1234 / 0000 only work outside production, or for test accounts when ALLOW_TEST_ACCOUNTS=true
+    const isDevBypass = canBypassOtp(normalizedPhone, otp);
 
     let isValid = false;
     if (isDevBypass) {

@@ -4,57 +4,87 @@ export interface SmsSendResult {
   error?: string;
 }
 
+const MSG91_OTP_URL = 'https://control.msg91.com/api/v5/otp';
+const MSG91_TIMEOUT_MS = 10_000;
+
 /**
- * Sends an OTP SMS via configured SMS gateway or logs to console in development
+ * Sends a login OTP by SMS through MSG91.
+ *
+ * - Outside production the OTP is only logged, MSG91 is never called.
+ * - In production MSG91_AUTH_KEY and MSG91_TEMPLATE_ID are required. If either
+ *   is missing the send fails, so the caller can tell the user instead of
+ *   pretending an SMS went out.
+ * - MSG91 whitelists by server IP, so production traffic must leave from the
+ *   whitelisted (static) outbound IP.
  */
 export async function sendOtpSms(
   phone: string,
-  otp: string
+  otp: string,
+  options: { expiryMinutes?: number } = {}
 ): Promise<SmsSendResult> {
-  const apiKey = process.env.SMS_PROVIDER_API_KEY;
-  const isDev = process.env.NODE_ENV !== 'production';
+  const isProduction = process.env.NODE_ENV === 'production';
 
-  // In development or when using placeholder key, log the OTP for testing
-  if (!apiKey || apiKey.startsWith('sms_') || apiKey === 'sms_api_key_placeholder' || isDev) {
+  if (!isProduction) {
     console.log(`\x1b[33m[SMS DISPATCH - DEV]\x1b[0m Sending OTP ${otp} to ${phone}`);
-    return {
-      success: true,
-      messageId: `dev-sms-${Date.now()}`,
-    };
+    return { success: true, messageId: `dev-sms-${Date.now()}` };
   }
 
+  const authKey = process.env.MSG91_AUTH_KEY;
+  const templateId = process.env.MSG91_TEMPLATE_ID;
+  if (!authKey || !templateId) {
+    console.error('[SMS] MSG91_AUTH_KEY and MSG91_TEMPLATE_ID must be set in production');
+    return { success: false, error: 'SMS service is not configured' };
+  }
+
+  // MSG91 expects the number with country code and no "+", e.g. 919876543210
+  const digits = phone.replace(/\D/g, '');
+  const mobile = digits.length === 10 ? `91${digits}` : digits;
+
+  const params = new URLSearchParams({
+    template_id: templateId,
+    mobile,
+    otp,
+    otp_expiry: String(options.expiryMinutes ?? 5),
+  });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), MSG91_TIMEOUT_MS);
+
   try {
-    // Production SMS gateway integration (e.g. Fast2SMS / MSG91 / Twilio)
-    // Custom integration hook:
-    const response = await fetch('https://www.fast2sms.com/dev/bulkV2', {
+    const response = await fetch(`${MSG91_OTP_URL}?${params.toString()}`, {
       method: 'POST',
       headers: {
-        authorization: apiKey,
+        authkey: authKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        route: 'otp',
-        variables_values: otp,
-        numbers: phone.replace(/^\+91/, ''),
-      }),
+      body: '{}',
+      signal: controller.signal,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('SMS Gateway Error:', errorText);
-      return { success: false, error: errorText };
+    const text = await response.text();
+    let data: any = {};
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // non-JSON body, handled below
     }
 
-    const data = (await response.json()) as any;
-    return {
-      success: data.return === true || data.status_code === 200,
-      messageId: data.request_id || `${Date.now()}`,
-    };
+    // MSG91 answers {"type":"success","request_id":"..."} or {"type":"error","message":"..."}
+    if (!response.ok || data.type !== 'success') {
+      const reason = data.message || text || `HTTP ${response.status}`;
+      console.error('[SMS] MSG91 error:', reason);
+      return { success: false, error: String(reason) };
+    }
+
+    return { success: true, messageId: data.request_id || data.message };
   } catch (err: any) {
-    console.error('Failed to send SMS OTP:', err);
+    const timedOut = err?.name === 'AbortError';
+    console.error('[SMS] Failed to send OTP via MSG91:', timedOut ? 'timeout' : err);
     return {
       success: false,
-      error: err.message || 'SMS service unavailable',
+      error: timedOut ? 'SMS service timed out' : err?.message || 'SMS service unavailable',
     };
+  } finally {
+    clearTimeout(timer);
   }
 }

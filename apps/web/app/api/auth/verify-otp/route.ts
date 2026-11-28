@@ -4,6 +4,7 @@ import {
   normalizePhoneNumber,
   isValidIndianPhoneNumber,
   verifyOtpHash,
+  canBypassOtp,
   signAuthToken,
   UserRole,
 } from '@kandy-cabs/shared';
@@ -48,9 +49,8 @@ export async function POST(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    const isDev = process.env.NODE_ENV !== 'production';
-    const isPlaceholderSms = !process.env.SMS_PROVIDER_API_KEY || process.env.SMS_PROVIDER_API_KEY.includes('placeholder');
-    const isDevBypass = (isDev || isPlaceholderSms) && (otp.trim() === '1234' || otp.trim() === '0000');
+    // 1234 / 0000 only work outside production, or for test accounts when ALLOW_TEST_ACCOUNTS=true
+    const isDevBypass = canBypassOtp(normalizedPhone, otp);
 
     if (!otpRecord && !isDevBypass) {
       const res = NextResponse.json(

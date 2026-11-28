@@ -6,6 +6,10 @@ import {
   generateOtp,
   hashOtp,
   sendOtpSms,
+  isTestAccountAllowed,
+  shouldExposeDebugOtp,
+  OTP_SEND_LIMIT,
+  OTP_SEND_WINDOW_MS,
 } from '@kandy-cabs/shared';
 import { setCorsHeaders, handleOptions } from '@/lib/cors';
 
@@ -60,12 +64,31 @@ export async function POST(req: NextRequest) {
     // Allow both existing drivers and new driver partner registrations
     const isNewDriver = body.role === 'DRIVER' && (!existingUser || !isDriver);
 
-    const otp = generateOtp(4);
+    // Fixed test accounts: always in dev, in production only with ALLOW_TEST_ACCOUNTS=true
+    const isTestAccount = isTestAccountAllowed(normalizedPhone);
+
+    if (!isTestAccount) {
+      const recentSends = await prisma.otpVerification.count({
+        where: {
+          phone: normalizedPhone,
+          createdAt: { gt: new Date(Date.now() - OTP_SEND_WINDOW_MS) },
+        },
+      });
+      if (recentSends >= OTP_SEND_LIMIT) {
+        const res = NextResponse.json(
+          { success: false, message: 'Too many OTP requests. Please try again in a few minutes.' },
+          { status: 429 }
+        );
+        return setCorsHeaders(res);
+      }
+    }
+
+    const otp = isTestAccount ? '1234' : generateOtp(4);
     const otpHash = await hashOtp(otp);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
 
     // Save OTP to database
-    await prisma.otpVerification.create({
+    const otpRecord = await prisma.otpVerification.create({
       data: {
         phone: normalizedPhone,
         otpHash,
@@ -73,12 +96,19 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Dispatch OTP SMS
-    await sendOtpSms(normalizedPhone, otp);
-
-    const isDev = process.env.NODE_ENV !== 'production';
-    const isPlaceholderSms = !process.env.SMS_PROVIDER_API_KEY || process.env.SMS_PROVIDER_API_KEY.includes('placeholder');
-    const enableDemoOtp = process.env.ENABLE_DEMO_OTP !== 'false';
+    // Dispatch OTP SMS via MSG91. Test accounts have fixed OTPs and no real SMS.
+    if (!isTestAccount) {
+      const smsResult = await sendOtpSms(normalizedPhone, otp);
+      if (!smsResult.success) {
+        // Don't leave a usable OTP behind for a message that was never sent
+        await prisma.otpVerification.delete({ where: { id: otpRecord.id } }).catch(() => {});
+        const res = NextResponse.json(
+          { success: false, message: 'We could not send the OTP right now. Please try again shortly.' },
+          { status: 502 }
+        );
+        return setCorsHeaders(res);
+      }
+    }
 
     let resolvedExistingName = existingUser?.fullName?.trim() || '';
     if (!resolvedExistingName || resolvedExistingName === 'Kandy Customer' || resolvedExistingName.toLowerCase() === 'customer') {
@@ -119,7 +149,7 @@ export async function POST(req: NextRequest) {
       driverStatus: existingUser?.driver?.verificationStatus || null,
     };
 
-    if (isDev || isPlaceholderSms || enableDemoOtp) {
+    if (shouldExposeDebugOtp(normalizedPhone)) {
       responsePayload.debugOtp = otp;
     }
 

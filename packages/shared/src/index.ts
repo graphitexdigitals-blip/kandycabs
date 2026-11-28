@@ -7,6 +7,7 @@ export * from './auth/types';
 export * from './auth/jwt';
 export * from './auth/hash';
 export * from './auth/sms';
+export * from './auth/otp-policy';
 export * from './auth/guards';
 export * from './api/client';
 export * from './pricing/types';
