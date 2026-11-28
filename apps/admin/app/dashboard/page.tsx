@@ -342,15 +342,15 @@ export default function AdminDashboardPage() {
             </div>
           </Link>
 
-          {/* Card 4: Pending KYC */}
+          {/* Card 4: Pending KYC & Payouts */}
           <Link
-            href="/vehicle-evidence"
+            href="/vehicle-evidence?status=PENDING"
             className="group bg-white hover:bg-slate-50/50 border border-slate-200/80 hover:border-slate-300 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center space-x-1 sm:space-x-1.5 text-slate-700 mb-0.5">
                 <IconClock className="w-3.5 h-3.5 text-slate-800 shrink-0" />
-                <span className="text-[9.5px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-tight truncate">Pending KYC</span>
+                <span className="text-[9.5px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-tight truncate">Pending Review</span>
               </div>
               <div className="text-xl sm:text-2xl font-black text-slate-900 my-0.5 sm:my-1">
                 {loading ? '...' : stats.drivers.pendingKyc}
@@ -415,13 +415,13 @@ export default function AdminDashboardPage() {
 
             {/* 4. Vehicle KYC */}
             <Link
-              href="/vehicle-evidence"
+              href="/vehicle-evidence?status=PENDING"
               className="bg-white border border-[#E2E8F0] hover:border-[#F95700]/40 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl transition duration-150 group shadow-xs hover:shadow-md flex items-center space-x-3 shrink-0 min-w-[130px] lg:min-w-0 flex-1"
               title="Vehicle & Driver KYC"
             >
               <IconShield className="w-7 h-7 sm:w-8 sm:h-8 text-[#0F172A] group-hover:text-[#F95700] shrink-0 transition-all duration-200 group-hover:scale-110" />
               <div className="min-w-0 flex-1">
-                <h4 className="text-xs sm:text-[13px] font-bold text-[#0F172A] group-hover:text-[#F95700] transition-colors truncate">Driver KYC</h4>
+                <h4 className="text-xs sm:text-[13px] font-bold text-[#0F172A] group-hover:text-[#F95700] transition-colors truncate">Driver KYC & Payout</h4>
                 <p className="text-[10px] sm:text-[11px] font-medium text-slate-400 truncate">{stats.drivers.pendingKyc} pending</p>
               </div>
             </Link>

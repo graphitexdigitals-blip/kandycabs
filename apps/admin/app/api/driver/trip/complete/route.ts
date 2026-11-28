@@ -29,6 +29,12 @@ export async function POST(req: NextRequest) {
       finalOdometer,
       finalOdometerImagePath,
       tollAmount = 0,
+      nhTollAmount = 0,
+      expresswayTollAmount = 0,
+      niceRoadTollAmount = 0,
+      specialPermitAmount = 0,
+      statePermitAmount = 0,
+      airportFeeAmount = 0,
       parkingAmount = 0,
       paymentMethod = 'CASH', // CASH or UPI_QR
       actualDropLat,
@@ -88,16 +94,58 @@ export async function POST(req: NextRequest) {
 
     // Calculate actual distance from start/end odometer readings
     const actualDistanceKm = Math.max(0, Math.round((endOdo - startOdo) * 10) / 10);
-    const parsedToll = Math.max(0, parseFloat(String(tollAmount)) || 0);
+    const bookedDistanceKm = Number(booking.distanceKm || 0);
+    const baseBookedFare = Number(booking.estimatedFare || 0);
+
+    // Determine extra KM rate:
+    // Proportional unit rate (e.g. ₹2,565 / 171 km = ₹15/km) or fallback to 15
+    const unitRate = bookedDistanceKm > 0 ? (baseBookedFare / bookedDistanceKm) : 15;
+    const extraKmRate = Math.round(unitRate) || 15;
+
+    let extraKm = 0;
+    let extraKmCharge = 0;
+    let finalTripFare = baseBookedFare;
+
+    // Minimum guaranteed distance rule:
+    // If actualDistanceKm <= bookedDistanceKm, keep full booked base fare (do not decrease).
+    // If actualDistanceKm > bookedDistanceKm, calculate extra km charge.
+    if (bookedDistanceKm > 0 && actualDistanceKm > bookedDistanceKm) {
+      extraKm = Math.round((actualDistanceKm - bookedDistanceKm) * 10) / 10;
+      extraKmCharge = Math.round(extraKm * extraKmRate);
+      finalTripFare = baseBookedFare + extraKmCharge;
+    }
+
+    const isAdvancePaid = booking.advancePaymentStatus === PaymentStatus.PAID;
+    const advancePaid = isAdvancePaid ? Number(booking.advanceAmount || 0) : 0;
+    const baseBalance = Math.max(0, Math.round(finalTripFare - advancePaid));
+
+    const parsedNhToll = Math.max(0, parseFloat(String(nhTollAmount)) || 0);
+    const parsedExpresswayToll = Math.max(0, parseFloat(String(expresswayTollAmount || niceRoadTollAmount)) || 0);
+    const parsedSpecialPermit = Math.max(0, parseFloat(String(specialPermitAmount)) || 0);
+    const parsedStatePermit = Math.max(0, parseFloat(String(statePermitAmount)) || 0);
+    const parsedAirportFee = Math.max(0, parseFloat(String(airportFeeAmount)) || 0);
     const parsedParking = Math.max(0, parseFloat(String(parkingAmount)) || 0);
+
+    const calculatedToll =
+      parsedNhToll +
+      parsedExpresswayToll +
+      parsedSpecialPermit +
+      parsedStatePermit +
+      parsedAirportFee;
+    const parsedToll = calculatedToll > 0 ? calculatedToll : Math.max(0, parseFloat(String(tollAmount)) || 0);
+    const totalExtraCharges = parsedToll + parsedParking;
 
     const isPayLater =
       paymentMethod === 'PAY_LATER' ||
       booking.tripEvents?.some((e: any) => e.type === 'CUSTOMER_PAY_LATER') ||
       false;
 
-    const baseBalance = Number(booking.balanceAmount);
-    const totalBalanceCollected = baseBalance + parsedToll + parsedParking;
+    const totalBalanceCollected = baseBalance + totalExtraCharges;
+
+    // Proportional driver payout update for extra km
+    const originalDriverPayee = Number(booking.driverPayeeAmount || Math.round(baseBookedFare * 0.77));
+    const driverExtraShare = Math.round(extraKmCharge * 0.77);
+    const updatedDriverPayee = originalDriverPayee + driverExtraShare;
 
     // Atomic Transaction: complete trip, record odometer reconciliation, tolls/parking, actual drop location and balance Payment
     const updated = await prisma.$transaction(
@@ -110,6 +158,9 @@ export async function POST(req: NextRequest) {
             finalOdometer: endOdo,
             finalOdometerImagePath: storedFinalOdometerPath || null,
             actualDistanceKm,
+            estimatedFare: finalTripFare,
+            balanceAmount: baseBalance,
+            driverPayeeAmount: updatedDriverPayee,
             tollAmount: parsedToll,
             parkingAmount: parsedParking,
             balancePaymentStatus: isPayLater ? PaymentStatus.PENDING : PaymentStatus.PAID,
@@ -133,7 +184,13 @@ export async function POST(req: NextRequest) {
                 pendingBalanceDue: totalBalanceCollected,
                 baseBalance,
                 tollAmount: parsedToll,
+                nhTollAmount: parsedNhToll,
+                expresswayTollAmount: parsedExpresswayToll,
+                specialPermitAmount: parsedSpecialPermit,
+                statePermitAmount: parsedStatePermit,
+                airportFeeAmount: parsedAirportFee,
                 parkingAmount: parsedParking,
+                totalExtraCharges,
                 reason: 'Customer will pay balance later to Admin/Office. Driver collected ₹0.',
                 timestamp: now.toISOString(),
               },
@@ -163,8 +220,23 @@ export async function POST(req: NextRequest) {
               startOdometer: startOdo,
               finalOdometer: endOdo,
               actualDistanceKm,
+              bookedDistanceKm,
+              extraKm,
+              extraKmRate,
+              extraKmCharge,
+              baseBookedFare,
+              finalTripFare,
+              advancePaid,
+              baseBalance,
               tollAmount: parsedToll,
+              nhTollAmount: parsedNhToll,
+              expresswayTollAmount: parsedExpresswayToll,
+              specialPermitAmount: parsedSpecialPermit,
+              statePermitAmount: parsedStatePermit,
+              airportFeeAmount: parsedAirportFee,
               parkingAmount: parsedParking,
+              totalExtraCharges,
+              driverPayeeAmount: updatedDriverPayee,
               totalBalanceCollected: isPayLater ? 0 : totalBalanceCollected,
               pendingBalanceDue: isPayLater ? totalBalanceCollected : 0,
               isPayLater,

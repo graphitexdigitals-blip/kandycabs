@@ -1029,7 +1029,7 @@ export default function AdminPricingPage() {
                 <span className="text-xs font-bold text-amber-700">km</span>
               </div>
 
-              {[150, 200, 250, 350, 500].map((km) => (
+              {[100, 130, 150, 200, 250, 350, 500].map((km) => (
                 <button
                   key={km}
                   type="button"
@@ -1051,6 +1051,8 @@ export default function AdminPricingPage() {
               const hasThreshold = typeof variant.extraKmThreshold === 'number' && variant.extraKmThreshold > 0;
               const threshold = hasThreshold ? variant.extraKmThreshold! : null;
               const isBeyondThreshold = Boolean(threshold && testDistanceKm > threshold);
+              const minKm = variant.minKm || 150;
+              const isBelowMin = testDistanceKm < minKm;
 
               let baseKm = testDistanceKm;
               let extraKm = 0;
@@ -1062,6 +1064,12 @@ export default function AdminPricingPage() {
                 extraKm = testDistanceKm - threshold;
                 baseFare = baseKm * variant.rate;
                 extraKmFare = extraKm * variant.extraKm;
+              } else if (isBelowMin) {
+                // If trip distance is less than minimum base KM (e.g. 130 km < 150 km), enforce minimum base package rate
+                baseKm = minKm;
+                extraKm = 0;
+                baseFare = minKm * variant.rate;
+                extraKmFare = 0;
               } else {
                 baseKm = testDistanceKm;
                 extraKm = 0;
@@ -1203,6 +1211,16 @@ export default function AdminPricingPage() {
                           <div className="flex justify-between text-amber-800 font-semibold">
                             <span>Extra ({extraKm} km @ ₹{variant.extraKm}/km):</span>
                             <span className="font-bold">+ ₹{extraKmFare.toLocaleString('en-IN')}</span>
+                          </div>
+                        </>
+                      ) : isBelowMin ? (
+                        <>
+                          <div className="flex justify-between">
+                            <span>Base (Min {minKm} km @ ₹{variant.rate}/km):</span>
+                            <span className="font-bold text-slate-800">₹{baseFare.toLocaleString('en-IN')}</span>
+                          </div>
+                          <div className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 mt-0.5 font-medium">
+                            Trip ({testDistanceKm} km) &lt; Min {minKm} km. Minimum base package of {minKm} km applies.
                           </div>
                         </>
                       ) : (

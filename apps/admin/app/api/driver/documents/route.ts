@@ -75,6 +75,25 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    let languages: string[] = [];
+    if (driver.adminNotes) {
+      const langMatch = driver.adminNotes.match(/\[Languages:\s*(\[[\s\S]*?\])\]/);
+      if (langMatch && langMatch[1]) {
+        try {
+          languages = JSON.parse(langMatch[1]);
+        } catch {}
+      }
+      if (languages.length === 0) {
+        const peMatch = driver.adminNotes.match(/\[ProfileExtra:\s*(\{.*?\})\]/);
+        if (peMatch && peMatch[1]) {
+          try {
+            const pe = JSON.parse(peMatch[1]);
+            if (Array.isArray(pe.languages)) languages = pe.languages;
+          } catch {}
+        }
+      }
+    }
+
     let rejectionReason: string | null = null;
     if (driver.adminNotes) {
       const rejMatch = driver.adminNotes.match(/\[RejectionReason:\s*([^\]]+)\]/);
@@ -107,6 +126,7 @@ export async function GET(req: NextRequest) {
           vehiclePhotos: driver.vehiclePhotos || [],
           verificationStatus: driver.verificationStatus,
           rejectionReason,
+          languages: languages.length > 0 ? languages : ['Kannada', 'English'],
           adminNotes: driver.adminNotes,
           carModel,
           carriageCapacity,
@@ -267,6 +287,26 @@ export async function POST(req: NextRequest) {
       dataToUpdate.adminNotes = notesToUpdate;
     }
 
+    // Languages Known support
+    const reqLanguages = Array.isArray(body.languages) && body.languages.length > 0 ? body.languages : null;
+    if (reqLanguages) {
+      const langTag = `[Languages: ${JSON.stringify(reqLanguages)}]`;
+      notesToUpdate = notesToUpdate.replace(/\[Languages:[\s\S]*?\]/g, '').trim();
+      notesToUpdate = notesToUpdate ? `${notesToUpdate} ${langTag}` : langTag;
+
+      // Also sync into ProfileExtra
+      const peMatch = notesToUpdate.match(/\[ProfileExtra:\s*(\{.*?\})\]/);
+      let peObj: Record<string, any> = {};
+      if (peMatch && peMatch[1]) {
+        try { peObj = JSON.parse(peMatch[1]); } catch {}
+      }
+      peObj.languages = reqLanguages;
+      const peTag = `[ProfileExtra: ${JSON.stringify(peObj)}]`;
+      notesToUpdate = notesToUpdate.replace(/\[ProfileExtra:[^\]]+\]/g, '').trim();
+      notesToUpdate = notesToUpdate ? `${notesToUpdate} ${peTag}` : peTag;
+      dataToUpdate.adminNotes = notesToUpdate;
+    }
+
     if (fullName !== undefined && fullName !== null && String(fullName).trim()) {
       try {
         await prisma.user.update({
@@ -334,6 +374,14 @@ export async function POST(req: NextRequest) {
             },
           });
         }
+      }
+
+      // Soft-delete any vehicles that were removed from the fleet
+      for (let i = reqVehicles.length; i < updatedDriver.vehicles.length; i++) {
+        await prisma.vehicle.update({
+          where: { id: updatedDriver.vehicles[i].id },
+          data: { deletedAt: new Date() },
+        });
       }
     } else if (updatedDriver.vehicles.length > 0) {
       const vId = updatedDriver.vehicles[0].id;

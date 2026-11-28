@@ -55,14 +55,6 @@ export async function POST(req: NextRequest) {
       return setCorsHeaders(res);
     }
 
-    if (!startingOdometer || !startingOdometerImagePath) {
-      const res = NextResponse.json(
-        { success: false, message: 'Starting odometer reading and photo evidence are mandatory to start trip' },
-        { status: 400 }
-      );
-      return setCorsHeaders(res);
-    }
-
     const booking = await prisma.booking.findFirst({
       where: {
         id: bookingId,
@@ -74,6 +66,24 @@ export async function POST(req: NextRequest) {
       const res = NextResponse.json(
         { success: false, message: 'Booking not found or not assigned to you' },
         { status: 404 }
+      );
+      return setCorsHeaders(res);
+    }
+
+    // Resolve starting odometer: support 0/000000 and fallback to database if already captured on odometer screen
+    const parsedReqOdo = startingOdometer !== undefined && startingOdometer !== null && String(startingOdometer).trim() !== ''
+      ? parseFloat(String(startingOdometer))
+      : NaN;
+    const resolvedStartingOdo = !isNaN(parsedReqOdo) && parsedReqOdo >= 0
+      ? parsedReqOdo
+      : (booking.startingOdometer !== null && booking.startingOdometer !== undefined ? Number(booking.startingOdometer) : NaN);
+
+    const effectiveOdometerImagePath = startingOdometerImagePath || booking.startingOdometerImagePath;
+
+    if (isNaN(resolvedStartingOdo) || resolvedStartingOdo < 0 || !effectiveOdometerImagePath) {
+      const res = NextResponse.json(
+        { success: false, message: 'Starting odometer reading and photo evidence are mandatory to start trip' },
+        { status: 400 }
       );
       return setCorsHeaders(res);
     }
@@ -179,8 +189,8 @@ export async function POST(req: NextRequest) {
           where: { id: bookingId },
           data: {
             status: BookingStatus.TRIP_STARTED,
-            startingOdometer: startingOdometer ? parseFloat(String(startingOdometer)) : null,
-            startingOdometerImagePath: storedOdometerPath || null,
+            startingOdometer: !isNaN(resolvedStartingOdo) ? resolvedStartingOdo : (booking.startingOdometer ?? null),
+            startingOdometerImagePath: storedOdometerPath || effectiveOdometerImagePath || null,
             vehicleInspectionPhotos: storedInspectionPhotos,
             actualPickupAddress: resolvedPickupAddress || booking.pickupAddress,
             actualPickupLat: resolvedPickupLat ?? booking.pickupLat,

@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
       bookingStatusGroups,
       driverStatusGroups,
       onlineDrivers,
+      totalPendingReviewDrivers,
       totalFleets,
       pricingRulesCount,
       paymentsSummary,
@@ -58,6 +59,17 @@ export async function GET(req: NextRequest) {
 
       // 3. Online Drivers count
       prisma.driver.count({ where: { onlineStatus: true, deletedAt: null } }),
+
+      // 3b. Pending Review Drivers count (includes KYC or Bank/Payout pending)
+      prisma.driver.count({
+        where: {
+          deletedAt: null,
+          OR: [
+            { verificationStatus: DriverVerificationStatus.PENDING },
+            { payoutStatus: 'PENDING' },
+          ],
+        },
+      }),
 
       // 4. Total Fleet Categories
       prisma.fleetCategory.count(),
@@ -223,7 +235,7 @@ export async function GET(req: NextRequest) {
       totalDrivers += g._count._all;
     }
 
-    const pendingKycDrivers = driverCountsMap[DriverVerificationStatus.PENDING] || 0;
+    const pendingKycDrivers = totalPendingReviewDrivers;
     const approvedDrivers = driverCountsMap[DriverVerificationStatus.APPROVED] || 0;
 
     // Evaluate expiring & expired documents across all drivers (threshold <= 5 days)

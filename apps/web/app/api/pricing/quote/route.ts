@@ -206,6 +206,7 @@ export async function POST(req: NextRequest) {
             ratePerKm: dbRule ? Number(dbRule.baseRatePerKm) : f.rate,
             extraKmRate: dbRule ? Number(dbRule.extraKmRate) : dbFleet ? Number(dbFleet.extraKmRate) : undefined,
             extraKmThreshold: dbRule?.extraKmThreshold ? Number(dbRule.extraKmThreshold) : dbFleet?.extraKmThreshold ? Number(dbFleet.extraKmThreshold) : undefined,
+            minKm: dbRule?.minKm ? Number(dbRule.minKm) : dbFleet?.minKm ? Number(dbFleet.minKm) : (cat === VehicleCategory.URBANIA || (cat as string) === 'FORCE_URBANIA' || cat === VehicleCategory.TEMPO_TRAVELER ? 150 : undefined),
             driverAllowance: dbRule ? Number(dbRule.driverAllowance) : dbFleet ? Number(dbFleet.driverAllowance) : undefined,
             nightCharge: dbRule ? Number(dbRule.nightCharge) : dbFleet ? Number(dbFleet.nightCharge) : undefined,
             nightChargeEnabled: nightSettings ? Boolean(nightSettings.enabled) : true,

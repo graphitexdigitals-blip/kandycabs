@@ -94,6 +94,8 @@ function RazorpayCheckoutContent() {
       description: `Advance Payment for ${bookingRef}`,
       image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
       order_id: isRealOrderId ? orderId : undefined,
+      redirect: true,
+      callback_url: `/api/payments/verify?bookingId=${bookingId}`,
       prefill: {
         name: name,
         contact: phone,

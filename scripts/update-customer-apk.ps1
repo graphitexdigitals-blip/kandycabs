@@ -80,6 +80,37 @@ if (Test-Path $androidIconsDir) {
     Write-Output "Updated all 15 native Android launcher icon densities in APK res/!"
 }
 
+# Update native splashscreen drawables and binary XML
+$androidResDir = Join-Path $root "apps\customer-app\android\app\src\main\res"
+$splashList = @(
+    @{ file = "drawable-mdpi\splashscreen_image.png"; target = "res/A7.png" },
+    @{ file = "drawable-hdpi\splashscreen_image.png"; target = "res/Cp.png" },
+    @{ file = "drawable-xhdpi\splashscreen_image.png"; target = "res/gf.png" },
+    @{ file = "drawable-xxhdpi\splashscreen_image.png"; target = "res/ux.png" },
+    @{ file = "drawable-xxxhdpi\splashscreen_image.png"; target = "res/h6.png" },
+    @{ file = "drawable-hdpi\splashscreen_image.png"; target = "res/NJ.png" }
+)
+
+foreach ($item in $splashList) {
+    $srcPath = Join-Path $androidResDir $item.file
+    $targetEntry = $item.target
+    if (Test-Path $srcPath) {
+        $existing = $zip.GetEntry($targetEntry)
+        if ($null -ne $existing) { $existing.Delete() }
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $srcPath, $targetEntry)
+        Write-Output "Updated native splash drawable: $targetEntry from $($item.file)"
+    }
+}
+
+# Update binary splashscreen.xml (res/-P.xml) with expanded dimensions (280dp x 286dp)
+$splashXmlPatch = Join-Path $root "apps\customer-app\android\splashscreen_binary_modified.xml"
+if (Test-Path $splashXmlPatch) {
+    $existing = $zip.GetEntry("res/-P.xml")
+    if ($null -ne $existing) { $existing.Delete() }
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $splashXmlPatch, "res/-P.xml")
+    Write-Output "Updated native splashscreen binary XML (res/-P.xml) with 280dp x 286dp dimensions!"
+}
+
 # Also add/update all drawable assets exported by Metro
 $distDir = Join-Path $root "apps\customer-app\dist_bundle"
 Get-ChildItem -Path $distDir -Directory -Filter "drawable-*" | ForEach-Object {

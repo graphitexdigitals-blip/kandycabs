@@ -12,6 +12,7 @@ import {
   SafeAreaView,
   StatusBar,
   KeyboardAvoidingView,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,6 +49,17 @@ export default function PayoutDetailsScreen() {
   // Status
   const [payoutStatus, setPayoutStatus] = useState('PENDING');
 
+  // Toggle between read-only View Mode and Edit Mode
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Check if driver has existing configured payout details
+  const hasSavedDetails = React.useMemo(() => {
+    if (payoutMethod === 'UPI') {
+      return Boolean(payoutUpiId && payoutUpiId.trim());
+    }
+    return Boolean(bankAccountNumber && bankAccountNumber.trim() && bankIfsc && bankIfsc.trim());
+  }, [payoutMethod, payoutUpiId, bankAccountNumber, bankIfsc]);
+
   useEffect(() => {
     loadPayoutDetails();
   }, []);
@@ -58,7 +70,8 @@ export default function PayoutDetailsScreen() {
       const res = await driverApiClient.fetch('/api/driver/payout');
       if (res && res.success && res.payout) {
         const p = res.payout;
-        setPayoutMethod(p.payoutMethod === 'UPI' ? 'UPI' : 'BANK');
+        const method = p.payoutMethod === 'UPI' ? 'UPI' : 'BANK';
+        setPayoutMethod(method);
         setBankAccountHolderName(p.bankAccountHolderName || '');
         setBankAccountNumber(p.bankAccountNumber || '');
         setConfirmAccountNumber(p.bankAccountNumber || '');
@@ -69,9 +82,16 @@ export default function PayoutDetailsScreen() {
         setPayoutPhone(p.payoutPhone || '');
         setPayoutEmail(p.payoutEmail || '');
         setPayoutStatus(p.payoutStatus || 'PENDING');
+
+        const hasDetails = (method === 'UPI' && Boolean(p.payoutUpiId)) || (method === 'BANK' && Boolean(p.bankAccountNumber));
+        // Default to non-editable view mode if details exist, otherwise edit mode
+        setIsEditing(!hasDetails);
+      } else {
+        setIsEditing(true);
       }
     } catch (err: any) {
       console.warn('Failed to load payout details:', err);
+      setIsEditing(true);
     } finally {
       setLoading(false);
     }
@@ -79,20 +99,19 @@ export default function PayoutDetailsScreen() {
 
   const handleDemoFill = () => {
     if (payoutMethod === 'BANK') {
-      setBankAccountHolderName('Mohan Kumar');
+      setBankAccountHolderName('Ramesh Kumar');
       setBankAccountNumber('50100428912345');
       setConfirmAccountNumber('50100428912345');
       setBankIfsc('HDFC0001234');
       setBankName('HDFC Bank');
-      setPayoutPhone('919900447660');
-      setPayoutEmail('mohan.driver@kandycabs.in');
+      setPayoutPhone('9587425635');
+      setPayoutEmail('driver@kandycabs.in');
     } else {
-      setUpiFullName('Mohan Kumar');
-      setPayoutUpiId('mohankumar@oksbi');
-      setPayoutPhone('919900447660');
-      setPayoutEmail('mohan.driver@kandycabs.in');
+      setUpiFullName('Ramesh Kumar');
+      setPayoutUpiId('rameshkumar@oksbi');
+      setPayoutPhone('9587425635');
+      setPayoutEmail('driver@kandycabs.in');
     }
-    Alert.alert('⚡ Demo Values Filled', `Filled demo ${payoutMethod === 'BANK' ? 'Bank Account' : 'UPI'} details.`);
   };
 
   const handleSave = async () => {
@@ -146,13 +165,13 @@ export default function PayoutDetailsScreen() {
 
       if (res && res.success) {
         setPayoutStatus('PENDING');
+        setIsEditing(false);
         Alert.alert(
           t('payout.alert_saved_title', '✓ Saved Successfully'),
-          t('payout.alert_saved_msg', 'Your payout details have been recorded and submitted for admin verification. Weekly trip settlements will be routed to this account.'),
+          t('payout.alert_saved_msg', 'Your payout details have been updated and locked for security. You can edit them anytime.'),
           [
             {
               text: 'OK',
-              onPress: () => router.back(),
             },
           ]
         );
@@ -187,7 +206,32 @@ export default function PayoutDetailsScreen() {
 
           <Text style={styles.headerTitle}>{t('payout.title', 'Settlement & Bank')}</Text>
 
-          <View style={{ width: 68 }} />
+          {hasSavedDetails ? (
+            <TouchableOpacity
+              onPress={() => setIsEditing(!isEditing)}
+              style={styles.headerActionBtn}
+              activeOpacity={0.7}
+            >
+              {isEditing ? (
+                <Ionicons
+                  name="close-circle"
+                  size={16}
+                  color="#64748b"
+                />
+              ) : (
+                <Image
+                  source={require('../assets/images/icon-edit-pencil.png')}
+                  style={{ width: 18, height: 18, tintColor: '#f0750f' }}
+                  resizeMode="contain"
+                />
+              )}
+              <Text style={[styles.headerActionText, isEditing && { color: '#64748b' }]}>
+                {isEditing ? 'Cancel' : 'Edit'}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 68 }} />
+          )}
         </View>
 
         {loading ? (
@@ -201,8 +245,125 @@ export default function PayoutDetailsScreen() {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
+            {!isEditing && hasSavedDetails ? (
+              /* NON-EDITABLE VIEW MODE */
+              <View style={styles.viewModeContainer}>
+                {/* Active Account Card */}
+                <View style={styles.summaryCard}>
+                  <View style={styles.summaryCardHeader}>
+                    <View style={styles.summaryMethodBadge}>
+                      <Image
+                        source={require('../assets/images/icon-hand-rupee.png')}
+                        style={styles.summaryMethodIcon}
+                        resizeMode="contain"
+                      />
+                      <Text style={styles.summaryMethodBadgeText}>
+                        {payoutMethod === 'UPI' ? 'Instant UPI Transfer' : 'Direct Bank Transfer (IMPS/NEFT)'}
+                      </Text>
+                    </View>
 
+                    <View style={[
+                      styles.summaryStatusBadge,
+                      payoutStatus === 'VERIFIED' ? styles.statusBadgeVerified : styles.statusBadgePending
+                    ]}>
+                      <Ionicons
+                        name={payoutStatus === 'VERIFIED' ? 'checkmark-circle' : 'time-outline'}
+                        size={13}
+                        color={payoutStatus === 'VERIFIED' ? '#16a34a' : '#d97706'}
+                      />
+                      <Text style={[
+                        styles.summaryStatusText,
+                        { color: payoutStatus === 'VERIFIED' ? '#16a34a' : '#d97706' }
+                      ]}>
+                        {payoutStatus === 'VERIFIED' ? 'Verified' : 'Under Review'}
+                      </Text>
+                    </View>
+                  </View>
 
+                  <View style={styles.summaryCardDivider} />
+
+                  {payoutMethod === 'UPI' ? (
+                    <View style={styles.summaryDetailsList}>
+                      <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>Driver's Name</Text>
+                        <Text style={styles.summaryValue}>{upiFullName || bankAccountHolderName || '—'}</Text>
+                      </View>
+                      <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>UPI ID (VPA)</Text>
+                        <Text style={[styles.summaryValue, styles.summaryValueHighlight]}>{payoutUpiId || '—'}</Text>
+                      </View>
+                      <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>Payout Mobile</Text>
+                        <Text style={styles.summaryValue}>{payoutPhone ? `+91 ${payoutPhone}` : '—'}</Text>
+                      </View>
+                      {payoutEmail ? (
+                        <View style={styles.summaryRow}>
+                          <Text style={styles.summaryLabel}>Receipt Email</Text>
+                          <Text style={styles.summaryValue}>{payoutEmail}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : (
+                    <View style={styles.summaryDetailsList}>
+                      <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>Account Holder</Text>
+                        <Text style={styles.summaryValue}>{bankAccountHolderName || '—'}</Text>
+                      </View>
+                      <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>Bank Name</Text>
+                        <Text style={styles.summaryValue}>{bankName || 'Direct Bank Account'}</Text>
+                      </View>
+                      <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>Account Number</Text>
+                        <Text style={[styles.summaryValue, styles.summaryValueHighlight]}>
+                          {bankAccountNumber
+                            ? `${'•'.repeat(Math.max(0, bankAccountNumber.length - 4))} ${bankAccountNumber.slice(-4)}`
+                            : '—'}
+                        </Text>
+                      </View>
+                      <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>Bank IFSC Code</Text>
+                        <Text style={[styles.summaryValue, { textTransform: 'uppercase' }]}>{bankIfsc || '—'}</Text>
+                      </View>
+                      <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>Payout Mobile</Text>
+                        <Text style={styles.summaryValue}>{payoutPhone ? `+91 ${payoutPhone}` : '—'}</Text>
+                      </View>
+                      {payoutEmail ? (
+                        <View style={styles.summaryRow}>
+                          <Text style={styles.summaryLabel}>Receipt Email</Text>
+                          <Text style={styles.summaryValue}>{payoutEmail}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  )}
+
+                  {/* Security Lock Note */}
+                  <View style={styles.securityNoteBox}>
+                    <Ionicons name="shield-checkmark" size={16} color="#059669" />
+                    <Text style={styles.securityNoteText}>
+                      Your payout details are saved and locked for security. Tap the button below anytime to edit or switch your account.
+                    </Text>
+                  </View>
+
+                  {/* Edit Action Button */}
+                  <TouchableOpacity
+                    style={styles.editActionBtn}
+                    onPress={() => setIsEditing(true)}
+                    activeOpacity={0.85}
+                  >
+                    <Image
+                      source={require('../assets/images/icon-edit-pencil.png')}
+                      style={{ width: 22, height: 22, tintColor: '#ffffff' }}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.editActionBtnText}>EDIT PAYOUT DETAILS</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              /* EDITABLE FORM MODE */
+              <View>
             {/* Payout Method Selector Tabs */}
             <View style={styles.methodSelectorBox}>
               <TouchableOpacity
@@ -265,6 +426,18 @@ export default function PayoutDetailsScreen() {
                 </View>
               </TouchableOpacity>
             </View>
+
+            {/* Quick Demo Fill Button */}
+            <TouchableOpacity
+              style={styles.demoFillBtn}
+              onPress={handleDemoFill}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="flash" size={15} color="#ea580c" />
+              <Text style={styles.demoFillText}>
+                ⚡ Fill Demo {payoutMethod === 'BANK' ? 'Bank Account' : 'UPI Details'}
+              </Text>
+            </TouchableOpacity>
 
             {/* OPTION 1: BANK ACCOUNT TRANSFER */}
             {payoutMethod === 'BANK' && (
@@ -495,6 +668,19 @@ export default function PayoutDetailsScreen() {
                 </>
               )}
             </TouchableOpacity>
+
+            {/* Cancel Edit Button */}
+            {hasSavedDetails && (
+              <TouchableOpacity
+                style={styles.cancelEditBtn}
+                onPress={() => setIsEditing(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelEditBtnText}>Cancel Editing</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
             <View style={{ height: 40 }} />
           </ScrollView>
@@ -771,6 +957,176 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#ffffff',
     letterSpacing: 0.3,
+  },
+  demoFillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#fff7ed',
+    borderWidth: 1.5,
+    borderColor: '#ffedd5',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  demoFillText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#ea580c',
+    letterSpacing: 0.2,
+  },
+  headerActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    backgroundColor: 'transparent',
+  },
+  headerActionText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#f0750f',
+  },
+  viewModeContainer: {
+    marginBottom: 20,
+  },
+  summaryCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    padding: 18,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  summaryCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryMethodBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    paddingVertical: 2,
+  },
+  summaryMethodIcon: {
+    width: 22,
+    height: 22,
+  },
+  summaryMethodBadgeText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f2744',
+  },
+  summaryStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  statusBadgeVerified: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  statusBadgePending: {
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fef3c7',
+  },
+  summaryStatusText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  summaryCardDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 14,
+  },
+  summaryDetailsList: {
+    gap: 12,
+    marginBottom: 16,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  summaryLabel: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  summaryValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  summaryValueHighlight: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontWeight: '800',
+    color: '#0f2744',
+  },
+  securityNoteBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 16,
+  },
+  securityNoteText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#166534',
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  editActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#f0750f',
+    borderRadius: 12,
+    paddingVertical: 14,
+    shadowColor: '#f0750f',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  editActionBtnText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 0.3,
+  },
+  cancelEditBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  cancelEditBtnText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#64748b',
   },
 });
 

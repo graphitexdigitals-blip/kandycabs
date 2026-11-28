@@ -107,11 +107,11 @@ export function resolveDefaultApiUrl(): string {
 
   if (Platform.OS === 'android') {
     if (isPhysicalPhone) {
-      return PROD_API_URL;
+      return `http://192.168.1.3:3001`;
     }
     return 'http://10.0.2.2:3001';
   }
-  return PROD_API_URL;
+  return `http://192.168.1.3:3001`;
 }
 
 export const DEFAULT_LAN_URL = resolveDefaultApiUrl();
@@ -123,7 +123,7 @@ let activeBaseUrl: string = resolveDefaultApiUrl();
 SecureStore.getItemAsync(SECURE_API_URL_KEY)
   .then((stored) => {
     // Purge outdated dead Cloudflare tunnels from SecureStore
-    if (stored && (stored.includes('trycloudflare.com') || stored.includes('192.168.29.'))) {
+    if (stored && (stored.includes('trycloudflare.com') || stored.includes('192.168.1.'))) {
       SecureStore.deleteItemAsync(SECURE_API_URL_KEY).catch(() => {});
       stored = null;
     }
@@ -218,7 +218,9 @@ class ResilientDriverApiClient extends KandyApiClient {
         const fallbackUrl = `${PROD_API_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
         try {
           const res = await super.fetch<T>(fallbackUrl, options);
-          activeBaseUrl = PROD_API_URL;
+          if (!__DEV__) {
+            activeBaseUrl = PROD_API_URL;
+          }
           return res;
         } catch (_) {
           throw err;

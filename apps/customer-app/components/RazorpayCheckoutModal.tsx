@@ -45,6 +45,7 @@ function buildRazorpayCheckoutHtml(data: RazorpayOrderPayload): string {
   const safeName = (data.name || 'Valued Customer').replace(/'/g, "\\'");
   const safeEmail = (data.email || 'customer@kandycabs.com').replace(/'/g, "\\'");
   const safeRef = (data.bookingRef || 'Booking').replace(/'/g, "\\'");
+  const safeCallbackUrl = (data.callbackUrl || `http://10.0.2.2:3001/api/payments/verify?bookingId=${data.bookingId || ''}`).replace(/'/g, "\\'");
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -176,6 +177,8 @@ function buildRazorpayCheckoutHtml(data: RazorpayOrderPayload): string {
         description: 'Advance Ride Payment (${safeRef})',
         image: 'https://kandycabs.com/images/logo.png',
         ...(isRealOrder ? { order_id: '${data.orderId}' } : {}),
+        redirect: true,
+        callback_url: '${safeCallbackUrl}',
         prefill: {
           name: '${safeName}',
           contact: '${formattedPhone}',
@@ -191,9 +194,7 @@ function buildRazorpayCheckoutHtml(data: RazorpayOrderPayload): string {
           handleback: false,
           confirm_close: false,
           ondismiss: function() {
-            if (!isPaymentSubmitted) {
-              notifyRN({ type: 'PAYMENT_CANCELLED' });
-            }
+            console.log('[Razorpay Modal] Dismiss event');
           }
         },
         handler: function(response) {

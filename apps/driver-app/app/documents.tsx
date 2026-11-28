@@ -23,6 +23,7 @@ import { LinearGradient } from '../components/SafeLinearGradient';
 import { driverApiClient } from '../lib/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { AVAILABLE_LANGUAGES } from '../constants/languages';
 
 type VehicleCategoryType = 'HATCHBACK' | 'SEDAN' | 'SUV' | 'SUV_PREMIUM' | 'TEMPO_TRAVELER';
 type FuelTypeVal = 'DIESEL' | 'PETROL' | 'CNG';
@@ -325,6 +326,7 @@ export default function DriverDocumentsUploadScreen() {
 
   // Driver Details
   const [fullName, setFullName] = useState('');
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(['Kannada', 'English']);
 
   // Vehicle & Carriage Specs
   const [plateNumber, setPlateNumber] = useState('');
@@ -397,6 +399,19 @@ export default function DriverDocumentsUploadScreen() {
 
         if (d.docDates && typeof d.docDates === 'object') {
           setDocDates(d.docDates);
+        }
+
+        // Languages Known
+        if (Array.isArray(d.languages) && d.languages.length > 0) {
+          setSelectedLanguages(d.languages);
+        } else if (d.adminNotes) {
+          const langMatch = d.adminNotes.match(/\[Languages:\s*(\[[\s\S]*?\])\]/);
+          if (langMatch && langMatch[1]) {
+            try {
+              const parsed = JSON.parse(langMatch[1]);
+              if (Array.isArray(parsed) && parsed.length > 0) setSelectedLanguages(parsed);
+            } catch {}
+          }
         }
 
         // Multi-vehicle array population
@@ -497,6 +512,9 @@ export default function DriverDocumentsUploadScreen() {
             }
             if (cd.verificationStatus) {
               setVerificationStatus(cd.verificationStatus);
+            }
+            if (Array.isArray(cd.languages) && cd.languages.length > 0) {
+              setSelectedLanguages(cd.languages);
             }
             if (
               cd.verificationStatus === 'APPROVED' ||
@@ -748,19 +766,29 @@ export default function DriverDocumentsUploadScreen() {
 
   const handleRemoveVehicle = (idxToRemove: number) => {
     if (vehiclesList.length <= 1) {
-      Alert.alert('Cannot Remove', 'You must have at least one vehicle registered.');
+      Alert.alert(
+        t('vehicles.cannot_remove_title', 'Cannot Delete'),
+        t('vehicles.cannot_remove_msg', 'You must have at least one active vehicle registered in your fleet.')
+      );
       return;
     }
     const target = vehiclesList[idxToRemove];
+    const plate = (target?.plateNumber || `Vehicle ${idxToRemove + 1}`).trim().toUpperCase();
+    const model = (target?.carModel || target?.category || 'Cab').trim();
+
     Alert.alert(
-      'Remove Vehicle?',
-      `Are you sure you want to remove Vehicle ${idxToRemove + 1} (${target.plateNumber || target.carModel || 'Unnamed'}) and its documents?`,
+      t('vehicles.remove_vehicle_title', 'Delete Vehicle'),
+      t('vehicles.remove_vehicle_msg', {
+        plate,
+        model,
+        defaultValue: `Do you want to delete ${plate} (${model})? Are you sure you want to delete this vehicle from your registered fleet?`,
+      }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('vehicles.cancel', 'Cancel'), style: 'cancel' },
         {
-          text: 'Remove',
+          text: t('vehicles.delete_btn', 'Delete'),
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             const nextList = vehiclesList.filter((_, i) => i !== idxToRemove);
             const nextIdx = Math.min(
               activeVehicleIndex >= idxToRemove ? Math.max(0, activeVehicleIndex - 1) : activeVehicleIndex,
@@ -770,21 +798,59 @@ export default function DriverDocumentsUploadScreen() {
             setActiveVehicleIndex(nextIdx);
 
             const nextActive = nextList[nextIdx];
-            setPlateNumber(nextActive.plateNumber || '');
-            setCategory(nextActive.category || 'SEDAN');
-            setCarModel(nextActive.carModel || '');
-            setFuelType(nextActive.fuelType || 'DIESEL');
-            setCarriageCapacity(nextActive.carriageCapacity || 'No');
-            setRcDocUrl(nextActive.rcDocUrl || null);
-            setInsuranceDocUrl(nextActive.insuranceDocUrl || null);
-            setFitnessDocUrl(nextActive.fitnessDocUrl || null);
-            setTaxDocUrl(nextActive.taxDocUrl || null);
-            setPermitDocUrl(nextActive.permitDocUrl || null);
-            setPucDocUrl(nextActive.pucDocUrl || null);
-            setDocDates((prev) => ({
-              ...prev,
-              ...(nextActive.docDates || {}),
-            }));
+            if (nextActive) {
+              setPlateNumber(nextActive.plateNumber || '');
+              setCategory(nextActive.category || 'SEDAN');
+              setCarModel(nextActive.carModel || '');
+              setFuelType(nextActive.fuelType || 'DIESEL');
+              setCarriageCapacity(nextActive.carriageCapacity || 'No');
+              setRcDocUrl(nextActive.rcDocUrl || null);
+              setInsuranceDocUrl(nextActive.insuranceDocUrl || null);
+              setFitnessDocUrl(nextActive.fitnessDocUrl || null);
+              setTaxDocUrl(nextActive.taxDocUrl || null);
+              setPermitDocUrl(nextActive.permitDocUrl || null);
+              setPucDocUrl(nextActive.pucDocUrl || null);
+              setDocDates((prev) => ({
+                ...prev,
+                ...(nextActive.docDates || {}),
+              }));
+            }
+
+            // Sync deletion with backend & local cache immediately
+            try {
+              await SecureStore.setItemAsync('kandy_cached_vehicles', JSON.stringify(nextList));
+              const primaryVeh = nextList[0];
+              const driverCacheRaw = await SecureStore.getItemAsync('kandy_cached_driver');
+              if (driverCacheRaw) {
+                const driverCache = JSON.parse(driverCacheRaw);
+                driverCache.vehicles = nextList;
+                if (primaryVeh) {
+                  driverCache.vehicle = {
+                    plateNumber: primaryVeh.plateNumber ? primaryVeh.plateNumber.trim().toUpperCase() : 'PENDING',
+                    model: primaryVeh.carModel ? primaryVeh.carModel.trim() : 'Sedan',
+                    category: primaryVeh.category || 'SEDAN',
+                    seatCount: primaryVeh.category === 'TEMPO_TRAVELER' ? 12 : primaryVeh.category === 'SUV_PREMIUM' ? 7 : primaryVeh.category === 'SUV' ? 6 : 4,
+                  };
+                }
+                await SecureStore.setItemAsync('kandy_cached_driver', JSON.stringify(driverCache));
+              }
+
+              await driverApiClient.fetch('/api/driver/documents', {
+                method: 'POST',
+                body: JSON.stringify({
+                  vehicles: nextList,
+                  ...(primaryVeh ? {
+                    plateNumber: primaryVeh.plateNumber ? primaryVeh.plateNumber.trim().toUpperCase() : null,
+                    category: primaryVeh.category,
+                    carModel: primaryVeh.carModel ? primaryVeh.carModel.trim() : '',
+                    fuelType: primaryVeh.fuelType,
+                    carriageCapacity: primaryVeh.carriageCapacity ? primaryVeh.carriageCapacity.trim() : 'No',
+                  } : {}),
+                }),
+              });
+            } catch (err) {
+              console.warn('Sync after vehicle deletion error:', err);
+            }
           },
         },
       ]
@@ -1053,6 +1119,7 @@ export default function DriverDocumentsUploadScreen() {
 
   const handleFillDemoPhotos = () => {
     setFullName('Ramesh Kumar');
+    setSelectedLanguages(['Kannada', 'English', 'Hindi', 'Tulu']);
     setProfilePhotoUrl('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80');
     setLicenseDocUrl('https://images.unsplash.com/photo-1584433144859-1fc3ab64a957?w=800&auto=format&fit=crop&q=80');
     setAadhaarDocUrl('https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=800&auto=format&fit=crop&q=80');
@@ -1222,6 +1289,7 @@ export default function DriverDocumentsUploadScreen() {
           pucDocUrl: primaryVeh.pucDocUrl,
           docDates,
           vehicles: compiledVehicles,
+          languages: selectedLanguages,
         }),
       });
 
@@ -1231,6 +1299,7 @@ export default function DriverDocumentsUploadScreen() {
         verificationStatus: 'PENDING',
         profilePhotoUrl,
         licenseNumber: licenseNumber ? licenseNumber.trim().toUpperCase() : 'PENDING',
+        languages: selectedLanguages,
         vehicle: {
           plateNumber: primaryVeh.plateNumber ? primaryVeh.plateNumber.trim().toUpperCase() : 'PENDING',
           model: primaryVeh.carModel ? primaryVeh.carModel.trim() : 'Sedan',
@@ -1453,9 +1522,9 @@ export default function DriverDocumentsUploadScreen() {
             {/* Driver KYC Row: DL, Aadhaar, PAN */}
             <View style={styles.docsRowGrid}>
               {[
-                { target: 'license' as const, title: t('kyc_docs.driving_license', 'Driving License'), icon: 'card' as const, url: licenseDocUrl },
-                { target: 'aadhaar' as const, title: t('kyc_docs.aadhaar_card', 'Aadhaar Card'), icon: 'finger-print' as const, url: aadhaarDocUrl },
-                { target: 'pan' as const, title: t('kyc_docs.pan_card', 'PAN Card'), icon: 'id-card-outline' as const, url: panDocUrl },
+                { target: 'license' as const, title: t('kyc_docs.driving_license', 'Driving License'), url: licenseDocUrl },
+                { target: 'aadhaar' as const, title: t('kyc_docs.aadhaar_card', 'Aadhaar Card'), url: aadhaarDocUrl },
+                { target: 'pan' as const, title: t('kyc_docs.pan_card', 'PAN Card'), url: panDocUrl },
               ].map((item) => (
                 <TouchableOpacity
                   key={item.target}
@@ -1465,7 +1534,25 @@ export default function DriverDocumentsUploadScreen() {
                 >
                   <View style={styles.docCardTopBlock}>
                     <View style={styles.docIconCircle}>
-                      <Ionicons name={item.icon} size={32} color="#0f2744" />
+                      {item.target === 'license' ? (
+                        <Image
+                          source={require('../assets/images/driving-license-icon.png')}
+                          style={{ width: 42, height: 42 }}
+                          resizeMode="contain"
+                        />
+                      ) : item.target === 'aadhaar' ? (
+                        <Image
+                          source={require('../assets/images/aadhaar-card-icon.png')}
+                          style={{ width: 42, height: 42 }}
+                          resizeMode="contain"
+                        />
+                      ) : (
+                        <Image
+                          source={require('../assets/images/pan-card-icon.png')}
+                          style={{ width: 42, height: 42 }}
+                          resizeMode="contain"
+                        />
+                      )}
                     </View>
                     <Text style={styles.docCardTitle} numberOfLines={2}>
                       {item.title}
@@ -1493,6 +1580,71 @@ export default function DriverDocumentsUploadScreen() {
                   )}
                 </TouchableOpacity>
               ))}
+            </View>
+          </View>
+        )}
+
+        {/* ============================================================ */}
+        {/* DRIVER LANGUAGES KNOWN                                       */}
+        {/* ============================================================ */}
+        {!isVehicleOnlyMode && (
+          <View style={styles.stepCardWhite}>
+            <View style={styles.step3HeaderBetween}>
+              <View style={{ flex: 1, paddingRight: 6 }}>
+                <Text style={styles.stepTitleText}>{t('kyc_docs.languages_title', 'Languages Known')}</Text>
+                <Text style={styles.stepSubtitleTextMini}>
+                  {t('kyc_docs.languages_sub', 'Select all languages you can comfortably speak with passengers')}
+                </Text>
+              </View>
+
+              <View style={styles.verificationBadgeBlue}>
+                <Ionicons name="chatbubbles" size={12} color="#1d4ed8" style={{ marginRight: 4 }} />
+                <Text style={styles.verificationBadgeBlueText}>
+                  {t('kyc_docs.languages_count', {
+                    count: selectedLanguages.length,
+                    defaultValue: `${selectedLanguages.length} Selected`
+                  })}
+                </Text>
+              </View>
+            </View>
+
+            {/* Language Chips Multi-Selector */}
+            <View style={styles.docLangChipsWrapper}>
+              <View style={styles.docLangChipsRow}>
+                {AVAILABLE_LANGUAGES.map((lang) => {
+                  const isSelected = selectedLanguages.includes(lang.id);
+                  return (
+                    <TouchableOpacity
+                      key={lang.id}
+                      style={[
+                        styles.docLangChip,
+                        isSelected && styles.docLangChipSelected,
+                      ]}
+                      onPress={() => {
+                        setSelectedLanguages((prev) =>
+                          isSelected ? prev.filter((l) => l !== lang.id) : [...prev, lang.id]
+                        );
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={isSelected ? 'checkmark-circle' : 'add-circle-outline'}
+                        size={15}
+                        color={isSelected ? '#ffffff' : '#475569'}
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text
+                        style={[
+                          styles.docLangChipText,
+                          isSelected && styles.docLangChipTextSelected,
+                        ]}
+                      >
+                        {lang.label} {lang.native !== lang.label ? `(${lang.native})` : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
           </View>
         )}
@@ -1594,83 +1746,134 @@ export default function DriverDocumentsUploadScreen() {
                       const vehMod = (veh.carModel || '').trim();
 
                       return (
-                        <TouchableOpacity
+                        <View
                           key={veh.id || idx}
                           style={[
                             styles.fleetDropdownItem,
                             isSelected && styles.fleetDropdownItemSelected,
                             idx > 0 && styles.fleetDropdownItemSeparator,
                           ]}
-                          onPress={() => {
-                            handleSwitchVehicle(idx);
-                            setFleetDropdownOpen(false);
-                          }}
-                          activeOpacity={0.7}
                         >
-                          <View
-                            style={[
-                              styles.fleetDropdownItemIconBox,
-                              isSelected && styles.fleetDropdownItemIconBoxSelected,
-                            ]}
+                          <TouchableOpacity
+                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                            onPress={() => {
+                              handleSwitchVehicle(idx);
+                              setFleetDropdownOpen(false);
+                            }}
+                            activeOpacity={0.7}
                           >
-                            <Ionicons
-                              name="car"
-                              size={15}
-                              color={isSelected ? '#0f2744' : '#94a3b8'}
-                            />
-                          </View>
-
-                          <View style={{ flex: 1, marginLeft: 10 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Text
-                                style={[
-                                  styles.fleetDropdownItemPlate,
-                                  isSelected && styles.fleetDropdownItemPlateSelected,
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {vehPlate}
-                              </Text>
-                              {isSelected && (
-                                <View style={styles.fleetActiveTag}>
-                                  <Text style={styles.fleetActiveTagText}>{t('kyc_docs.active', 'Active')}</Text>
-                                </View>
-                              )}
-                            </View>
-                            <Text style={styles.fleetDropdownItemSub} numberOfLines={1}>
-                              {vehCat}{vehMod && vehMod.toUpperCase() !== vehCat ? ` • ${vehMod}` : ''}
-                            </Text>
-                          </View>
-
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                             <View
                               style={[
-                                styles.fleetDropdownItemBadge,
-                                count === 6
-                                  ? { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }
-                                  : { backgroundColor: '#fef2f2', borderColor: '#fca5a5' },
-                                isSelected && styles.fleetDropdownItemBadgeSelected,
+                                styles.fleetDropdownItemIconBox,
+                                isSelected && styles.fleetDropdownItemIconBoxSelected,
                               ]}
                             >
-                              <Text
-                                style={[
-                                  styles.fleetDropdownItemBadgeText,
-                                  count === 6 ? { color: '#166534' } : { color: '#dc2626' },
-                                  isSelected && styles.fleetDropdownItemBadgeTextSelected,
-                                ]}
-                              >
-                                {count}/6
+                              <Ionicons
+                                name="car"
+                                size={15}
+                                color={isSelected ? '#0f2744' : '#94a3b8'}
+                              />
+                            </View>
+
+                            <View style={{ flex: 1, marginLeft: 10 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text
+                                  style={[
+                                    styles.fleetDropdownItemPlate,
+                                    isSelected && styles.fleetDropdownItemPlateSelected,
+                                  ]}
+                                  numberOfLines={1}
+                                >
+                                  {vehPlate}
+                                </Text>
+                                {isSelected && (
+                                  <View style={styles.fleetActiveTag}>
+                                    <Text style={styles.fleetActiveTagText}>{t('kyc_docs.active', 'Active')}</Text>
+                                  </View>
+                                )}
+                              </View>
+                              <Text style={styles.fleetDropdownItemSub} numberOfLines={1}>
+                                {vehCat}{vehMod && vehMod.toUpperCase() !== vehCat ? ` • ${vehMod}` : ''}
                               </Text>
                             </View>
-                            {isSelected ? (
-                              <Ionicons name="checkmark-circle" size={18} color="rgb(240, 117, 15)" />
-                            ) : (
-                              <Ionicons name="chevron-forward" size={14} color="#64748b" />
+                          </TouchableOpacity>
+
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                            <TouchableOpacity
+                              onPress={() => {
+                                handleSwitchVehicle(idx);
+                                setFleetDropdownOpen(false);
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <View
+                                style={[
+                                  styles.fleetDropdownItemBadge,
+                                  count === 6
+                                    ? { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }
+                                    : { backgroundColor: '#fef2f2', borderColor: '#fca5a5' },
+                                  isSelected && styles.fleetDropdownItemBadgeSelected,
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.fleetDropdownItemBadgeText,
+                                    count === 6 ? { color: '#166534' } : { color: '#dc2626' },
+                                    isSelected && styles.fleetDropdownItemBadgeTextSelected,
+                                  ]}
+                                >
+                                  {count}/6
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+
+                            {/* Delete Fleet Vehicle Button */}
+                            {vehiclesList.length > 1 && (
+                              <TouchableOpacity
+                                style={styles.fleetItemDeleteBtn}
+                                onPress={() => handleRemoveVehicle(idx)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                activeOpacity={0.7}
+                                accessibilityLabel={`Delete ${vehPlate}`}
+                              >
+                                <Ionicons name="trash-outline" size={15} color="#dc2626" />
+                              </TouchableOpacity>
                             )}
+
+                            <TouchableOpacity
+                              onPress={() => {
+                                handleSwitchVehicle(idx);
+                                setFleetDropdownOpen(false);
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              {isSelected ? (
+                                <Ionicons name="checkmark-circle" size={18} color="rgb(240, 117, 15)" />
+                              ) : (
+                                <Ionicons name="chevron-forward" size={14} color="#64748b" />
+                              )}
+                            </TouchableOpacity>
                           </View>
-                        </TouchableOpacity>
+                        </View>
                       );
                     })}
+
+                    {/* Quick action to add another vehicle */}
+                    <View style={styles.fleetDropdownActionsRow}>
+                      <TouchableOpacity
+                        style={styles.fleetDropdownAddOptionBtn}
+                        onPress={() => {
+                          setFleetDropdownOpen(false);
+                          handleAddVehicle();
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="add-circle" size={15} color="rgb(240, 117, 15)" style={{ marginRight: 4 }} />
+                        <Text style={styles.fleetDropdownAddOptionText}>
+                          {t('kyc_docs.add_another_vehicle', '+ Add Another Vehicle')}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 )}
               </View>
@@ -1696,34 +1899,50 @@ export default function DriverDocumentsUploadScreen() {
               </Text>
             </View>
 
-            {(() => {
-              const uploadedCount = [rcDocUrl, insuranceDocUrl, fitnessDocUrl, taxDocUrl, permitDocUrl, pucDocUrl].filter(Boolean).length;
-              const isAllDone = uploadedCount === 6;
-              return (
-                <View style={[
-                  styles.verificationBadgeBlue,
-                  isAllDone
-                    ? { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }
-                    : { backgroundColor: '#fef2f2', borderColor: '#fca5a5' }
-                ]}>
-                  <Ionicons
-                    name={isAllDone ? 'checkmark-circle' : 'alert-circle'}
-                    size={12}
-                    color={isAllDone ? '#16a34a' : '#dc2626'}
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text style={[
-                    styles.verificationBadgeBlueText,
-                    { color: isAllDone ? '#166534' : '#dc2626' }
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {(() => {
+                const uploadedCount = [rcDocUrl, insuranceDocUrl, fitnessDocUrl, taxDocUrl, permitDocUrl, pucDocUrl].filter(Boolean).length;
+                const isAllDone = uploadedCount === 6;
+                return (
+                  <View style={[
+                    styles.verificationBadgeBlue,
+                    isAllDone
+                      ? { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }
+                      : { backgroundColor: '#fef2f2', borderColor: '#fca5a5' }
                   ]}>
-                    {t('kyc_docs.vehicle_uploaded_count', {
-                      count: uploadedCount,
-                      defaultValue: `${uploadedCount}/6 Uploaded`
-                    })}
+                    <Ionicons
+                      name={isAllDone ? 'checkmark-circle' : 'alert-circle'}
+                      size={12}
+                      color={isAllDone ? '#16a34a' : '#dc2626'}
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text style={[
+                      styles.verificationBadgeBlueText,
+                      { color: isAllDone ? '#166534' : '#dc2626' }
+                    ]}>
+                      {t('kyc_docs.vehicle_uploaded_count', {
+                        count: uploadedCount,
+                        defaultValue: `${uploadedCount}/6 Uploaded`
+                      })}
+                    </Text>
+                  </View>
+                );
+              })()}
+
+              {vehiclesList.length > 1 && (
+                <TouchableOpacity
+                  style={styles.stepDeleteVehBtn}
+                  onPress={() => handleRemoveVehicle(activeVehicleIndex)}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Delete Fleet Vehicle"
+                >
+                  <Ionicons name="trash-outline" size={13} color="#dc2626" />
+                  <Text style={styles.stepDeleteVehBtnText}>
+                    {t('kyc_docs.delete_fleet_btn', 'Delete Fleet')}
                   </Text>
-                </View>
-              );
-            })()}
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
 
@@ -1899,7 +2118,25 @@ export default function DriverDocumentsUploadScreen() {
             {/* Modal Header */}
             <View style={styles.modalHeaderRow}>
               <View style={styles.modalHeaderIconCircle}>
-                {activeModalTarget === 'rc' ? (
+                {activeModalTarget === 'license' ? (
+                  <Image
+                    source={require('../assets/images/driving-license-icon.png')}
+                    style={{ width: 34, height: 34 }}
+                    resizeMode="contain"
+                  />
+                ) : activeModalTarget === 'aadhaar' ? (
+                  <Image
+                    source={require('../assets/images/aadhaar-card-icon.png')}
+                    style={{ width: 34, height: 34 }}
+                    resizeMode="contain"
+                  />
+                ) : activeModalTarget === 'pan' ? (
+                  <Image
+                    source={require('../assets/images/pan-card-icon.png')}
+                    style={{ width: 34, height: 34 }}
+                    resizeMode="contain"
+                  />
+                ) : activeModalTarget === 'rc' ? (
                   <Image
                     source={require('../assets/images/rc-book-icon.png')}
                     style={{ width: 32, height: 32, tintColor: '#0f2744' }}
@@ -4099,6 +4336,63 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700',
     color: '#ef4444',
+  },
+  fleetItemDeleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepDeleteVehBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    gap: 4,
+  },
+  stepDeleteVehBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#dc2626',
+  },
+  docLangChipsWrapper: {
+    marginTop: 14,
+  },
+  docLangChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  docLangChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  docLangChipSelected: {
+    backgroundColor: '#0f2744',
+    borderColor: '#0f2744',
+  },
+  docLangChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  docLangChipTextSelected: {
+    color: '#ffffff',
+    fontWeight: '700',
   },
   multiVehicleCard: {
     backgroundColor: '#ffffff',

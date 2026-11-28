@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
         experienceYears: profileExtra.experienceYears || '5',
         city: profileExtra.city || 'Mangaluru',
         address: profileExtra.address || '',
+        languages: Array.isArray(profileExtra.languages) && profileExtra.languages.length > 0 ? profileExtra.languages : ['Kannada', 'English'],
       },
     });
     return setCorsHeaders(response);
@@ -101,6 +102,7 @@ async function handleUpdateProfile(req: NextRequest) {
       experienceYears,
       city,
       address,
+      languages,
     } = body;
 
     // 1. Update user full name
@@ -150,11 +152,18 @@ async function handleUpdateProfile(req: NextRequest) {
       ...(experienceYears !== undefined ? { experienceYears: String(experienceYears).trim() } : {}),
       ...(city !== undefined ? { city: String(city).trim() } : {}),
       ...(address !== undefined ? { address: String(address).trim() } : {}),
+      ...(Array.isArray(languages) ? { languages } : {}),
     };
 
     const profileTag = `[ProfileExtra: ${JSON.stringify(mergedProfileExtra)}]`;
     notesToUpdate = notesToUpdate.replace(/\[ProfileExtra:[^\]]+\]/g, '').trim();
     notesToUpdate = notesToUpdate ? `${notesToUpdate} ${profileTag}` : profileTag;
+
+    if (Array.isArray(languages)) {
+      const langTag = `[Languages: ${JSON.stringify(languages)}]`;
+      notesToUpdate = notesToUpdate.replace(/\[Languages:[\s\S]*?\]/g, '').trim();
+      notesToUpdate = notesToUpdate ? `${notesToUpdate} ${langTag}` : langTag;
+    }
     driverUpdateData.adminNotes = notesToUpdate;
 
     const updatedDriver = await prisma.driver.update({

@@ -660,48 +660,86 @@ export default function DriverDashboardScreen() {
   // Already accepted trips belong strictly in Upcoming Trips or as active trip on Dashboard
   const newTripsList = useMemo(() => {
     return (dispatches || []).filter((d: any) => {
-      const bId = d.bookingId || d.booking?.id || d.id;
+      const b = d.booking || {};
+      const bId = d.bookingId || b.id || d.id;
+
+      // 1. If assigned to ANOTHER driver, do NOT show it!
+      if (b.assignedDriverId && driver?.id && b.assignedDriverId !== driver.id) {
+        return false;
+      }
+
+      // 2. If booking is already accepted or active/completed by someone else
+      if (
+        b.status &&
+        b.status !== BookingStatus.PENDING_ADMIN &&
+        b.status !== BookingStatus.DISPATCHED &&
+        b.status !== 'PENDING_ADMIN' &&
+        b.status !== 'DISPATCHED' &&
+        b.status !== 'PENDING'
+      ) {
+        return false;
+      }
+
       const isAccepted =
         d.isAccepted === true ||
         d.status === 'ACCEPTED' ||
         Boolean(acceptedDispatches[d.id]) ||
         Boolean(acceptedDispatches[bId]) ||
-        d.booking?.status === BookingStatus.DRIVER_ACCEPTED ||
-        d.booking?.status === 'DRIVER_ACCEPTED';
+        b.status === BookingStatus.DRIVER_ACCEPTED ||
+        b.status === 'DRIVER_ACCEPTED';
       const isDeclinedOrCancelled =
         d.status === 'DECLINED' ||
         d.status === 'EXPIRED' ||
         d.status === 'CANCELLED' ||
-        d.booking?.status === BookingStatus.CANCELLED ||
-        d.booking?.status === 'CANCELLED';
+        b.status === BookingStatus.CANCELLED ||
+        b.status === 'CANCELLED';
 
       return !isAccepted && !isDeclinedOrCancelled;
     });
-  }, [dispatches, acceptedDispatches]);
+  }, [dispatches, acceptedDispatches, driver?.id]);
 
   // Only count brand new dispatches assigned by admin that are awaiting driver action
   // Do NOT show count / badge if trip is accepted, declined, cancelled, or pending admin cancellation
   const pendingNewTripsCount = useMemo(() => {
     return (dispatches || []).filter((d: any) => {
-      const bId = d.bookingId || d.booking?.id || d.id;
+      const b = d.booking || {};
+      const bId = d.bookingId || b.id || d.id;
+
+      // 1. If assigned to ANOTHER driver, do NOT count it!
+      if (b.assignedDriverId && driver?.id && b.assignedDriverId !== driver.id) {
+        return false;
+      }
+
+      // 2. If booking is already accepted or active/completed by someone else
+      if (
+        b.status &&
+        b.status !== BookingStatus.PENDING_ADMIN &&
+        b.status !== BookingStatus.DISPATCHED &&
+        b.status !== 'PENDING_ADMIN' &&
+        b.status !== 'DISPATCHED' &&
+        b.status !== 'PENDING'
+      ) {
+        return false;
+      }
+
       const isAccepted =
         d.isAccepted === true ||
         d.status === 'ACCEPTED' ||
         Boolean(acceptedDispatches[d.id]) ||
         Boolean(acceptedDispatches[bId]) ||
-        d.booking?.status === BookingStatus.DRIVER_ACCEPTED ||
-        d.booking?.status === 'DRIVER_ACCEPTED';
+        b.status === BookingStatus.DRIVER_ACCEPTED ||
+        b.status === 'DRIVER_ACCEPTED';
       const isDeclinedOrCancelled =
         d.status === 'DECLINED' ||
         d.status === 'EXPIRED' ||
         d.status === 'CANCELLED' ||
-        d.booking?.status === BookingStatus.CANCELLED ||
-        d.booking?.status === 'CANCELLED' ||
+        b.status === BookingStatus.CANCELLED ||
+        b.status === 'CANCELLED' ||
         d.isCancelRequested === true;
 
       return !isAccepted && !isDeclinedOrCancelled;
     }).length;
-  }, [dispatches, acceptedDispatches]);
+  }, [dispatches, acceptedDispatches, driver?.id]);
 
   // Detailed document verification status for KYC verification card
   const verificationDocs = useMemo(() => {
@@ -1077,8 +1115,14 @@ export default function DriverDashboardScreen() {
     });
 
     const unsubRevoke = driverRealtimeClient.on('DISPATCH_REVOKED', (data: any) => {
+      const revBId = data?.bookingId;
+      const revDId = data?.dispatchId;
       setDispatches((prev) =>
-        prev.filter((d) => d.id !== data.dispatchId && d.bookingId !== data.bookingId)
+        prev.filter((d) => {
+          if (revDId && d.id === revDId) return false;
+          if (revBId && (d.bookingId === revBId || d.booking?.id === revBId || d.id === revBId)) return false;
+          return true;
+        })
       );
     });
 
@@ -1295,7 +1339,16 @@ export default function DriverDashboardScreen() {
         }
         fetchDriverData();
       } else if (res.alreadyTaken) {
-        setDispatches((prev) => prev.filter((d) => d.id !== dispatchId));
+        const targetBId = bookingId || dispatchId;
+        setDispatches((prev) =>
+          prev.filter(
+            (d) =>
+              d.id !== dispatchId &&
+              d.bookingId !== targetBId &&
+              d.booking?.id !== targetBId &&
+              d.id !== targetBId
+          )
+        );
         Alert.alert(
           'Ride Unavailable',
           'This ride was already accepted by another driver.'
@@ -1304,7 +1357,16 @@ export default function DriverDashboardScreen() {
       }
     } catch (err: any) {
       if (err.status === 409) {
-        setDispatches((prev) => prev.filter((d) => d.id !== dispatchId));
+        const targetBId = bookingId || dispatchId;
+        setDispatches((prev) =>
+          prev.filter(
+            (d) =>
+              d.id !== dispatchId &&
+              d.bookingId !== targetBId &&
+              d.booking?.id !== targetBId &&
+              d.id !== targetBId
+          )
+        );
         Alert.alert('Ride Taken', 'This ride was already accepted by another driver.');
       } else {
         Alert.alert('Error', err.message || 'Failed to accept dispatch');
@@ -1457,6 +1519,7 @@ export default function DriverDashboardScreen() {
         experienceYears: updatedDriver.experienceYears,
         city: updatedDriver.city,
         address: updatedDriver.address,
+        languages: updatedDriver.languages,
       };
 
       const res: any = await driverApiClient
@@ -1472,6 +1535,7 @@ export default function DriverDashboardScreen() {
               fullName: updatedDriver.fullName,
               licenseNumber: updatedDriver.licenseNumber,
               profilePhotoUrl: updatedDriver.profilePhotoUrl,
+              languages: updatedDriver.languages,
               extraDocs: payload,
             }),
           }).catch(() => null);
@@ -1973,73 +2037,48 @@ export default function DriverDashboardScreen() {
                         ? Number(d.payeeAmount)
                         : Number(b?.driverPayeeAmount || 0) > 0
                         ? Number(b.driverPayeeAmount)
-                        : (Number(b?.distanceKm || 0) > 0 ? Number(b.distanceKm) * 10 + (Number(b?.driverAllowance) || 300) : Number(b?.estimatedFare || b?.totalPrice || 0))
+                        : (Number(b?.distanceKm || 0) > 0 ? Number(b.distanceKm) * 13 + (Number(b?.driverAllowance) || 300) : Number(b?.estimatedFare || b?.totalPrice || 0))
                     );
+                    const chauffeurAllowance = Math.round(
+                      Number(b?.driverAllowance) > 0
+                        ? Number(b.driverAllowance)
+                        : (Number(b?.driverAllowanceDaily) > 0 ? Number(b.driverAllowanceDaily) : 300)
+                    );
+                    const vehicleCharges = Math.max(0, payeeAmount - chauffeurAllowance);
                     const reqs = parseCustomerRequirements(b, t);
                     const note = extractCustomerNotes(b);
 
                     return (
                       <View key={d.id || `home-dispatch-${index}`} style={styles.homeDirectDispatchCard}>
-                        {/* Header Banner: NEW RIDE + Ref + Distance */}
+                        {/* Header Banner: New Trip Request */}
                         <View style={styles.dispatchHeaderBanner}>
                           <View style={styles.dispatchHeaderRow}>
-                            <View>
-                              <View style={styles.newAlertBadge}>
-                                <Ionicons name="radio-button-on" size={13} color="#2563eb" />
-                                <Text style={styles.newAlertText}>
-                                  {t('dashboard.new_ride', 'NEW RIDE')}
-                                </Text>
-                              </View>
-                              <Text style={styles.dispatchRefText}>
-                                {b?.humanReadableRef || 'RIDE'}
-                              </Text>
-                            </View>
-                            <View style={styles.distanceBadgeLight}>
-                              <Text style={styles.distanceBadgeTextLight}>
-                                📍 {b?.distanceKm || '--'} km
+                            <View style={styles.newAlertBadgeFull}>
+                              <Ionicons
+                                name="car"
+                                size={18}
+                                color="#ffffff"
+                                style={{ marginRight: 10 }}
+                              />
+                              <Text style={styles.newAlertTextWhite}>
+                                {t('dashboard.new_trip_request', 'New Trip Request')}
                               </Text>
                             </View>
                           </View>
-                        </View>
-
-                        {/* Trip Date & Pickup Time Banner */}
-                        <View style={styles.tripDateBanner}>
-                          <View style={styles.tripDateBannerLeft}>
-                            <Ionicons name="calendar" size={14} color="#0284c7" />
-                            <Text style={styles.tripDateBannerLabel}>
-                              {t('dashboard.pickup_date_time_banner', { defaultValue: 'PICKUP DATE & TIME:' })}
-                            </Text>
-                            <Text style={styles.tripDateBannerValue}>
-                              {tripTiming.fullText}
-                            </Text>
-                          </View>
-                          {tripTiming.isToday ? (
-                            <View style={styles.todayTagPill}>
-                              <Text style={styles.todayTagText}>
-                                {t('dashboard.today_tag', { defaultValue: 'TODAY' })}
-                              </Text>
-                            </View>
-                          ) : tripTiming.isTomorrow ? (
-                            <View style={styles.tomorrowTagPill}>
-                              <Text style={styles.tomorrowTagText}>
-                                {t('dashboard.tomorrow_tag', { defaultValue: 'TOMORROW' })}
-                              </Text>
-                            </View>
-                          ) : null}
                         </View>
 
                         {/* Stepper Route */}
                         <View style={styles.stepperContainer}>
                           <View style={styles.stepperLeft}>
                             <View style={styles.stepPoint}>
-                              <Ionicons name="location-sharp" size={16} color="#16a34a" style={styles.pickupPin} />
+                              <Ionicons name="location-sharp" size={18} color="#16a34a" style={styles.pickupPin} />
                               <View style={styles.stepTextGroup}>
                                 <Text style={styles.locationTitle}>{b?.pickupAddress || 'Pickup Location'}</Text>
                               </View>
                             </View>
                             <View style={styles.dashedTrail} />
                             <View style={styles.stepPoint}>
-                              <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
+                              <Ionicons name="location-sharp" size={18} color="#dc2626" style={styles.dropPin} />
                               <View style={styles.stepTextGroup}>
                                 <Text style={styles.locationTitle}>{b?.dropAddress || 'Drop Location'}</Text>
                               </View>
@@ -2106,8 +2145,65 @@ export default function DriverDashboardScreen() {
                           const passengerName = b?.customer?.user?.fullName || 'Customer';
 
                           return (
-                            <View style={styles.dispatchTableContainer}>
-                              {/* Row 1: Selected Fleet */}
+                            <>
+                              <View style={styles.dispatchTableContainer}>
+                              {/* Row 1: Booking Number */}
+                              <View style={styles.dispatchTableRow}>
+                                <View style={styles.dispatchTableColLabel}>
+                                  <Text style={styles.dispatchTableLabelText}>
+                                    {t('dashboard.booking_no_label', { defaultValue: 'Booking number' })}
+                                  </Text>
+                                </View>
+                                <View style={styles.dispatchTableColValue}>
+                                  <Text style={styles.dispatchTableValueMonospace} numberOfLines={1}>
+                                    {b?.humanReadableRef || 'RIDE'}
+                                  </Text>
+                                </View>
+                              </View>
+
+                              {/* Row 2: Date */}
+                              <View style={styles.dispatchTableRow}>
+                                <View style={styles.dispatchTableColLabel}>
+                                  <Text style={styles.dispatchTableLabelText}>
+                                    {t('dashboard.date_label', { defaultValue: 'Date' })}
+                                  </Text>
+                                </View>
+                                <View style={styles.dispatchTableColValue}>
+                                  <Text style={styles.dispatchTableValueText} numberOfLines={1}>
+                                    {tripTiming.dateText}
+                                  </Text>
+                                </View>
+                              </View>
+
+                              {/* Row 3: Time */}
+                              <View style={styles.dispatchTableRow}>
+                                <View style={styles.dispatchTableColLabel}>
+                                  <Text style={styles.dispatchTableLabelText}>
+                                    {t('dashboard.time_label', { defaultValue: 'Time' })}
+                                  </Text>
+                                </View>
+                                <View style={styles.dispatchTableColValue}>
+                                  <Text style={styles.dispatchTableValueText} numberOfLines={1}>
+                                    {tripTiming.timeText || '--'}
+                                  </Text>
+                                </View>
+                              </View>
+
+                              {/* Row 4: Distance (KM) */}
+                              <View style={styles.dispatchTableRow}>
+                                <View style={styles.dispatchTableColLabel}>
+                                  <Text style={styles.dispatchTableLabelText}>
+                                    {t('dashboard.distance_km_label', { defaultValue: 'Distance' })}
+                                  </Text>
+                                </View>
+                                <View style={styles.dispatchTableColValue}>
+                                  <Text style={styles.dispatchTableValueText} numberOfLines={1}>
+                                    {b?.distanceKm ? `${b.distanceKm} km` : '--'}
+                                  </Text>
+                                </View>
+                              </View>
+
+                              {/* Row 5: Selected Fleet */}
                               <View style={styles.dispatchTableRow}>
                                 <View style={styles.dispatchTableColLabel}>
                                   <Text style={styles.dispatchTableLabelText}>
@@ -2121,22 +2217,8 @@ export default function DriverDashboardScreen() {
                                 </View>
                               </View>
 
-                              {/* Row 2: Passenger */}
-                              <View style={styles.dispatchTableRow}>
-                                <View style={styles.dispatchTableColLabel}>
-                                  <Text style={styles.dispatchTableLabelText}>
-                                    {t('dashboard.passenger_label', { defaultValue: 'Passenger' })}
-                                  </Text>
-                                </View>
-                                <View style={styles.dispatchTableColValue}>
-                                  <Text style={styles.dispatchTableValueText} numberOfLines={1}>
-                                    {passengerName}
-                                  </Text>
-                                </View>
-                              </View>
-
-                              {/* Row 3: Trip Type */}
-                              <View style={styles.dispatchTableRow}>
+                              {/* Row 6: Trip Type (Last row of table) */}
+                              <View style={[styles.dispatchTableRow, styles.dispatchTableRowLast]}>
                                 <View style={styles.dispatchTableColLabel}>
                                   <Text style={styles.dispatchTableLabelText}>
                                     {t('dashboard.trip_type_label', { defaultValue: 'Trip type' })}
@@ -2148,22 +2230,49 @@ export default function DriverDashboardScreen() {
                                   </Text>
                                 </View>
                               </View>
+                            </View>
 
-                              {/* Row 4: Net Payout Amount */}
-                              <View style={[styles.dispatchTableRow, styles.dispatchTableRowLast]}>
-                                <View style={styles.dispatchTableColLabel}>
-                                  <Text style={styles.dispatchTableLabelText}>
-                                    {t('dashboard.net_payout_amount', { defaultValue: 'Net payout amount' })}
-                                  </Text>
-                                </View>
-                                <View style={styles.dispatchTableColValue}>
-                                  <Text style={styles.dispatchTablePayoutValue}>
-                                    ₹{payeeAmount.toLocaleString('en-IN')}
-                                  </Text>
-                                </View>
+                            {/* Driver Amount Details: Separate section outside table */}
+                            <View style={styles.dispatchAmountCard}>
+                              <View style={styles.dispatchAmountRow}>
+                                <Text style={styles.dispatchAmountLabel}>
+                                  {t('dashboard.vehicle_charges_label', { defaultValue: 'Vehicle charges' })}
+                                </Text>
+                                <Text style={styles.dispatchAmountValue}>
+                                  ₹{vehicleCharges.toLocaleString('en-IN')}
+                                </Text>
+                              </View>
+
+                              <View style={styles.dispatchAmountRow}>
+                                <Text style={styles.dispatchAmountLabel}>
+                                  {t('dashboard.chauffeur_allowance_label', { defaultValue: 'Chauffeur allowance' })}
+                                </Text>
+                                <Text style={styles.dispatchAmountValue}>
+                                  ₹{chauffeurAllowance.toLocaleString('en-IN')}
+                                </Text>
+                              </View>
+
+                              <View style={styles.dispatchAmountDivider} />
+
+                              <View style={styles.dispatchAmountTotalRow}>
+                                <Text style={styles.dispatchAmountTotalLabel}>
+                                  {t('dashboard.total_amount_label', { defaultValue: 'Total amount' })}
+                                </Text>
+                                <Text style={styles.dispatchAmountTotalValue}>
+                                  ₹{payeeAmount.toLocaleString('en-IN')}
+                                </Text>
                               </View>
                             </View>
-                          );
+
+                            {/* Toll Note Banner: outside amount section box */}
+                            <View style={styles.dispatchTollNoteBanner}>
+                              <Ionicons name="information-circle" size={15} color="#ea580c" style={{ marginRight: 6 }} />
+                              <Text style={styles.dispatchTollNoteText}>
+                                Toll, State Permit Tax & Parking extra (If applicable)
+                              </Text>
+                            </View>
+                          </>
+                        );
                         })()}
 
                         {/* Action Buttons: DECLINE & ACCEPT RIDE */}
@@ -3140,13 +3249,6 @@ export default function DriverDashboardScreen() {
                             {isMissed ? 'MISSED TRIP' : trip.status.replace(/_/g, ' ')}
                           </Text>
                         </View>
-                        {!isCancelled && !isMissed && (
-                          <View style={[styles.settledBadgePill, isSettled ? styles.badgeGreen : styles.badgeAmber]}>
-                            <Text style={isSettled ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                              {isSettled ? t('trips.paid') : t('trips.not_paid')}
-                            </Text>
-                          </View>
-                        )}
                       </View>
                     </View>
 
@@ -3193,14 +3295,14 @@ export default function DriverDashboardScreen() {
                     {!isMissed && (
                       <View style={styles.tripPaymentStatusRow}>
                         <View>
-                          <Text style={styles.tripPaymentStatusLabel}>{t('trips.driver_payment_status')}</Text>
+                          <Text style={styles.tripPaymentStatusLabel}>Chauffeur Trip Earning:</Text>
                           <Text style={styles.tripPaymentVendorCostSub}>
-                            Chauffeur Amount: <Text style={{ fontWeight: '900', color: '#0f2744' }}>₹{vendorCost.toLocaleString('en-IN')}</Text>
+                            Amount: <Text style={{ fontWeight: '900', color: '#0f2744' }}>₹{vendorCost.toLocaleString('en-IN')}</Text>
                           </Text>
                         </View>
-                        <View style={[styles.settledBadgePillInline, isSettled ? styles.badgeGreen : styles.badgeAmber]}>
-                          <Text style={isSettled ? styles.badgeTextGreen : styles.badgeTextAmber}>
-                            {isSettled ? `✓ ${t('trips.paid')}` : `⏳ ${t('trips.not_paid')}`}
+                        <View style={[styles.settledBadgePillInline, { backgroundColor: '#ecfdf5', borderColor: '#a7f3d0' }]}>
+                          <Text style={{ fontSize: 11, fontWeight: '800', color: '#059669' }}>
+                            ✓ In Wallet
                           </Text>
                         </View>
                       </View>
@@ -3448,7 +3550,7 @@ export default function DriverDashboardScreen() {
                 activeOpacity={0.7}
               >
                 <View style={styles.cardDarkIconBox}>
-                  <Ionicons name="business" size={19} color="#ffffff" />
+                  <MaterialCommunityIcons name="bank" size={19} color="#ffffff" />
                 </View>
                 <View style={styles.cardOrangeDivider} />
                 <View style={styles.dashboardCardTextBox}>
@@ -3579,15 +3681,15 @@ export default function DriverDashboardScreen() {
           onPress={() => setActiveBottomTab('HOME')}
           activeOpacity={0.7}
         >
-          {activeBottomTab === 'HOME' && <View style={styles.bottomActiveBar} />}
           <Ionicons
             name={activeBottomTab === 'HOME' ? 'home' : 'home-outline'}
             size={23}
-            color={activeBottomTab === 'HOME' ? '#FF6500' : '#94a3b8'}
+            color={activeBottomTab === 'HOME' ? '#FF6500' : '#ffffff'}
           />
           <Text style={[styles.bottomNavText, activeBottomTab === 'HOME' && styles.bottomNavTextActive]}>
             {t('tabs.home')}
           </Text>
+          {activeBottomTab === 'HOME' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
 
         <View style={styles.bottomNavTabDivider} />
@@ -3598,15 +3700,15 @@ export default function DriverDashboardScreen() {
           onPress={() => setActiveBottomTab('MY_TRIPS')}
           activeOpacity={0.7}
         >
-          {activeBottomTab === 'MY_TRIPS' && <View style={styles.bottomActiveBar} />}
           <Ionicons
             name={activeBottomTab === 'MY_TRIPS' ? 'receipt' : 'receipt-outline'}
             size={23}
-            color={activeBottomTab === 'MY_TRIPS' ? '#FF6500' : '#94a3b8'}
+            color={activeBottomTab === 'MY_TRIPS' ? '#FF6500' : '#ffffff'}
           />
           <Text style={[styles.bottomNavText, activeBottomTab === 'MY_TRIPS' && styles.bottomNavTextActive]}>
             {t('tabs.my_trips')}
           </Text>
+          {activeBottomTab === 'MY_TRIPS' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
 
         <View style={styles.bottomNavTabDivider} />
@@ -3617,15 +3719,15 @@ export default function DriverDashboardScreen() {
           onPress={() => setActiveBottomTab('SUPPORT')}
           activeOpacity={0.7}
         >
-          {activeBottomTab === 'SUPPORT' && <View style={styles.bottomActiveBar} />}
           <Ionicons
             name={activeBottomTab === 'SUPPORT' ? 'headset' : 'headset-outline'}
             size={23}
-            color={activeBottomTab === 'SUPPORT' ? '#FF6500' : '#94a3b8'}
+            color={activeBottomTab === 'SUPPORT' ? '#FF6500' : '#ffffff'}
           />
           <Text style={[styles.bottomNavText, activeBottomTab === 'SUPPORT' && styles.bottomNavTextActive]}>
             {t('tabs.support')}
           </Text>
+          {activeBottomTab === 'SUPPORT' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
 
         <View style={styles.bottomNavTabDivider} />
@@ -3636,12 +3738,11 @@ export default function DriverDashboardScreen() {
           onPress={() => setActiveBottomTab('PROFILE')}
           activeOpacity={0.7}
         >
-          {activeBottomTab === 'PROFILE' && <View style={styles.bottomActiveBar} />}
           <View style={styles.tabIconWrapper}>
             <Ionicons
               name={activeBottomTab === 'PROFILE' ? 'person' : 'person-outline'}
               size={23}
-              color={activeBottomTab === 'PROFILE' ? '#FF6500' : '#94a3b8'}
+              color={activeBottomTab === 'PROFILE' ? '#FF6500' : '#ffffff'}
             />
             {hasAnyProfilePending && (
               <View style={styles.profilePendingNotificationBadge}>
@@ -3652,6 +3753,7 @@ export default function DriverDashboardScreen() {
           <Text style={[styles.bottomNavText, activeBottomTab === 'PROFILE' && styles.bottomNavTextActive]}>
             {t('tabs.profile')}
           </Text>
+          {activeBottomTab === 'PROFILE' && <View style={styles.bottomActiveBar} />}
         </TouchableOpacity>
       </View>
       {/* Universal Updates & Notifications Modal */}
@@ -3909,20 +4011,20 @@ const styles = StyleSheet.create({
   },
   heroCardOuter: {
     marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 20,
+    marginTop: 8,
+    borderRadius: 18,
     backgroundColor: '#FEFEFE',
     borderWidth: 1.2,
     borderColor: '#BFCCDF',
     shadowColor: '#5A7CA6',
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.75,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+    elevation: 6,
   },
   heroCardOuterSmall: {
     marginHorizontal: 10,
-    marginTop: 10,
+    marginTop: 8,
     borderRadius: 16,
   },
   heroCardContent: {
@@ -3930,14 +4032,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
   },
   heroCardContentSmall: {
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 9,
   },
   homeMenuSectionWrapper: {
-    marginTop: 12,
+    marginTop: 8,
   },
   heroDriverGroupLeft: {
     flexDirection: 'row',
@@ -4107,9 +4209,9 @@ const styles = StyleSheet.create({
   },
   heroTripsSummaryRow: {
     flexDirection: 'column',
-    gap: 12,
+    gap: 8,
     paddingHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   heroTripWhiteCard: {
     flex: 1,
@@ -4249,26 +4351,26 @@ const styles = StyleSheet.create({
   heroCardsGridInside: {
     flexDirection: 'column',
     paddingHorizontal: 16,
-    paddingBottom: 16,
-    gap: 12,
+    paddingBottom: 14,
+    gap: 8,
   },
   heroCardGridItem: {
     width: '100%',
     backgroundColor: '#FEFEFE',
-    borderRadius: 16,
-    paddingVertical: 12,
+    borderRadius: 15,
+    paddingVertical: 11,
     paddingHorizontal: 14,
     borderWidth: 1.2,
     borderColor: '#BFCCDF',
     flexDirection: 'row',
     alignItems: 'center',
     position: 'relative',
-    minHeight: 64,
+    minHeight: 60,
     shadowColor: '#5A7CA6',
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.75,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
+    elevation: 5,
   },
   heroCardGridIconBox: {
     width: 28,
@@ -4855,10 +4957,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'transparent',
-    paddingVertical: 8,
-    paddingHorizontal: 0,
-    marginVertical: 4,
+    backgroundColor: '#edf5fe',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginTop: 6,
+    marginBottom: 4,
   },
   stepperLeft: {
     flex: 1,
@@ -4901,9 +5007,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   dashedTrail: {
-    width: 2,
-    height: 18,
-    backgroundColor: '#cbd5e1',
+    width: 0,
+    height: 15,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderColor: '#475569',
     marginLeft: 7,
     marginVertical: 2,
   },
@@ -4911,9 +5019,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   locationTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '800',
     color: '#0f172a',
+    lineHeight: 20,
   },
   locationSubtitle: {
     fontSize: 10,
@@ -5750,9 +5859,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cardPureIconBox: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  handRupeeIcon: {
+    width: 26,
+    height: 26,
+  },
   cardOrangeDivider: {
     width: 2.5,
-    height: 24,
+    height: 22,
     backgroundColor: '#FF6500',
     marginHorizontal: 12,
     borderRadius: 1.5,
@@ -5965,38 +6085,28 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   dispatchHeaderBanner: {
-    backgroundColor: '#f8fafc',
-    marginHorizontal: -14,
-    marginTop: -14,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-    borderTopLeftRadius: 17,
-    borderTopRightRadius: 17,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    marginBottom: 10,
+    marginBottom: 0,
   },
   dispatchHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    width: '100%',
   },
-  newAlertBadge: {
+  newAlertBadgeFull: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'transparent',
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    alignSelf: 'flex-start',
-    marginBottom: 2,
+    backgroundColor: '#051329',
+    width: '100%',
+    height: 38,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    marginBottom: 0,
   },
-  newAlertText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#0f2744',
-    letterSpacing: 0.3,
+  newAlertTextWhite: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.2,
   },
   dispatchRefText: {
     fontSize: 14,
@@ -6021,8 +6131,8 @@ const styles = StyleSheet.create({
     borderColor: '#cbd5e1',
     borderRadius: 8,
     overflow: 'hidden',
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: 4,
+    marginBottom: 0,
   },
   dispatchTableRow: {
     flexDirection: 'row',
@@ -6035,35 +6145,126 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   dispatchTableColLabel: {
-    width: 128,
+    width: 138,
     backgroundColor: '#f8fafc',
     borderRightWidth: 1,
     borderRightColor: '#e2e8f0',
-    paddingHorizontal: 9,
-    paddingVertical: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     justifyContent: 'center',
   },
   dispatchTableLabelText: {
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: '700',
     color: '#000000',
+  },
+  dispatchTableSubLabelText: {
+    fontSize: 10.5,
+    color: '#64748b',
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  dispatchTablePayoutLabelText: {
+    fontWeight: '800',
+    color: '#0f172a',
   },
   dispatchTableColValue: {
     flex: 1,
     backgroundColor: '#ffffff',
-    paddingHorizontal: 9,
-    paddingVertical: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     justifyContent: 'center',
   },
   dispatchTableValueText: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 13.5,
+    fontWeight: '800',
     color: '#000000',
   },
   dispatchTablePayoutValue: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
     color: '#000000',
+  },
+  dispatchAmountCard: {
+    backgroundColor: '#edf5fe',
+    borderWidth: 1,
+    borderColor: '#c8dcf7',
+    borderRadius: 8,
+    marginTop: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  dispatchAmountRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  dispatchAmountLabel: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  dispatchAmountValue: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#000000',
+  },
+  dispatchTollNoteBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FDF1E7',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  dispatchTollNoteText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#0f172a',
+    flex: 1,
+  },
+  dispatchAmountDivider: {
+    height: 1,
+    backgroundColor: '#c8dcf7',
+    marginVertical: 6,
+  },
+  dispatchAmountTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 2,
+  },
+  dispatchAmountTotalLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#000000',
+  },
+  dispatchAmountTotalValue: {
+    fontSize: 16.5,
+    fontWeight: '900',
+    color: '#000000',
+  },
+  dispatchTableValueMonospace: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0f2744',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  tableTagPill: {
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    borderRadius: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  tableTagText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#b45309',
   },
   otherTripsHeader: {
     flexDirection: 'row',
@@ -6105,8 +6306,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     borderWidth: 1.5,
-    borderColor: '#dc2626',
-    backgroundColor: '#dc2626',
+    borderColor: '#D00000',
+    backgroundColor: '#D00000',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -6121,11 +6322,11 @@ const styles = StyleSheet.create({
     flex: 1.5,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#16a34a',
+    backgroundColor: '#008800',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#16a34a',
+    shadowColor: '#008800',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 6,
@@ -7515,6 +7716,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
     paddingTop: 3,
+    paddingBottom: 7,
   },
   bottomNavTabDivider: {
     width: 1,
@@ -7524,12 +7726,12 @@ const styles = StyleSheet.create({
   },
   bottomActiveBar: {
     position: 'absolute',
-    top: 0,
-    width: 54,
+    bottom: 0,
+    width: 46,
     height: 3.5,
     backgroundColor: '#FF6500',
-    borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
   },
   bottomNavEmoji: {
     fontSize: 18,
@@ -7540,10 +7742,10 @@ const styles = StyleSheet.create({
   },
   bottomNavText: {
     fontSize: 11.5,
-    color: '#94a3b8',
-    fontWeight: '700',
+    color: '#ffffff',
+    fontWeight: '800',
     marginTop: 2,
-    letterSpacing: 0.15,
+    letterSpacing: 0.2,
   },
   bottomNavTextActive: {
     color: '#FF6500',

@@ -101,6 +101,7 @@ function AdminVehicleEvidenceContent() {
 
   // Edit Driver & Vehicle modal state
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [isModalEditing, setIsModalEditing] = useState(false);
   const [editDriverLoading, setEditDriverLoading] = useState(false);
   const [editDriverError, setEditDriverError] = useState('');
   const [editDriverData, setEditDriverData] = useState({
@@ -177,6 +178,8 @@ function AdminVehicleEvidenceContent() {
 
   const openEditModal = (driver: any) => {
     if (!driver) return;
+    setSelectedDriverId(driver.driverId);
+    setIsModalEditing(false);
     const carModelMatch = driver.adminNotes?.match(/\[Car Model:\s*([^\]]+)\]/);
     const carriageMatch = driver.adminNotes?.match(/\[Luggage\/Carriage:\s*([^\]]+)\]/);
     setEditDriverData({
@@ -343,6 +346,9 @@ function AdminVehicleEvidenceContent() {
     return drivers.filter((d) => {
       if (statusFilter === 'EXPIRING') {
         if (!d.hasExpiringDocs) return false;
+      } else if (statusFilter === 'PENDING') {
+        const isPending = d.verificationStatus === 'PENDING' || d.payoutStatus === 'PENDING';
+        if (!isPending) return false;
       } else if (statusFilter !== 'ALL' && d.verificationStatus !== statusFilter) {
         return false;
       }
@@ -488,6 +494,12 @@ function AdminVehicleEvidenceContent() {
                         Pending Review
                       </span>
                     )}
+                    {driver.payoutStatus === 'PENDING' && (
+                      <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                        <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse" />
+                        {driver.payoutMethod === 'UPI' ? 'UPI Pending' : 'Bank Pending'}
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-slate-600 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                     <span className="flex items-center gap-1">
@@ -513,13 +525,13 @@ function AdminVehicleEvidenceContent() {
               <button
                 onClick={() => openEditModal(driver)}
                 className="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-                title="Edit Driver & Vehicle Details"
+                title="View & Edit Driver Details"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
                 </svg>
-                <span>Edit Details</span>
+                <span>View Details</span>
               </button>
               <button
                 disabled={submitting || driver.verificationStatus === 'APPROVED'}
@@ -571,10 +583,10 @@ function AdminVehicleEvidenceContent() {
               className="py-2 px-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
               </svg>
-              <span>Edit Details</span>
+              <span>View Details</span>
             </button>
             <button
               disabled={submitting || driver.verificationStatus === 'APPROVED'}
@@ -1040,11 +1052,20 @@ function AdminVehicleEvidenceContent() {
                 <line x1="12" y1="14" x2="12" y2="17" />
                 <line x1="16" y1="14" x2="16" y2="17" />
               </svg>
-              <div>
+              <div className="flex items-center gap-2">
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                   <span className="hidden sm:inline">Bank Account & Payout Details (RAZORPAYX)</span>
-                  <span className="sm:hidden">Bank Account & Payout Details</span>
+                  <span className="sm:hidden">Payout Details</span>
                 </h3>
+                {driver.payoutMethod === 'UPI' ? (
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                    UPI Mode
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                    Bank Account
+                  </span>
+                )}
               </div>
             </div>
 
@@ -1072,76 +1093,129 @@ function AdminVehicleEvidenceContent() {
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  <span>{driver.payoutStatus === 'VERIFIED' ? 'Mark Pending' : 'Verify Bank'}</span>
+                  <span>{driver.payoutStatus === 'VERIFIED' ? 'Mark Pending' : (driver.payoutMethod === 'UPI' ? 'Verify UPI' : 'Verify Bank')}</span>
                 </button>
                 <button
                   onClick={() => openEditModal(driver)}
-                  className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs transition flex items-center gap-1 cursor-pointer"
+                  className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
+                  title="View & Edit Details"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
                   </svg>
-                  <span>Edit</span>
+                  <span>View Details</span>
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Desktop Bank Details Cards */}
-          <div className="hidden sm:grid grid-cols-3 gap-3 text-xs">
-            <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs min-w-0">
-              <div className="text-[10px] text-slate-400 font-semibold uppercase truncate">Account Holder Name</div>
-              <div className="font-bold text-slate-900 mt-0.5 truncate">
-                {driver.bankAccountHolderName || 'Not Provided'}
+          {/* Desktop Payout Details Cards */}
+          {driver.payoutMethod === 'UPI' ? (
+            <div className="hidden sm:grid grid-cols-3 gap-3 text-xs">
+              <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs min-w-0">
+                <div className="text-[10px] text-slate-400 font-semibold uppercase truncate">Payee Name</div>
+                <div className="font-bold text-slate-900 mt-0.5 truncate">
+                  {driver.bankAccountHolderName || 'Not Provided'}
+                </div>
+              </div>
+              <div className="bg-white p-2.5 rounded-xl border border-blue-200/80 bg-blue-50/20 shadow-2xs min-w-0">
+                <div className="text-[10px] text-blue-600 font-semibold uppercase truncate">UPI ID (VPA Handle)</div>
+                <div className="font-mono font-bold text-blue-900 mt-0.5 truncate select-all">
+                  {driver.payoutUpiId || 'Not Provided'}
+                </div>
+              </div>
+              <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs min-w-0">
+                <div className="text-[10px] text-slate-400 font-semibold uppercase truncate">Payout Contact (Phone / Email)</div>
+                <div className="font-bold text-slate-900 mt-0.5 truncate">
+                  {driver.payoutPhone || driver.phone || 'Not Provided'}
+                  {driver.payoutEmail ? ` • ${driver.payoutEmail}` : ''}
+                </div>
               </div>
             </div>
-            <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs min-w-0">
-              <div className="text-[10px] text-slate-400 font-semibold uppercase truncate">Bank Account Number</div>
-              <div className="font-mono font-bold text-slate-900 mt-0.5 truncate">
-                {driver.bankAccountNumber
-                  ? `•••• ${driver.bankAccountNumber.slice(-4)}`
-                  : 'Not Provided'}
+          ) : (
+            <div className="hidden sm:grid grid-cols-3 gap-3 text-xs">
+              <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs min-w-0">
+                <div className="text-[10px] text-slate-400 font-semibold uppercase truncate">Account Holder Name</div>
+                <div className="font-bold text-slate-900 mt-0.5 truncate">
+                  {driver.bankAccountHolderName || 'Not Provided'}
+                </div>
+              </div>
+              <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs min-w-0">
+                <div className="text-[10px] text-slate-400 font-semibold uppercase truncate">Bank Account Number</div>
+                <div className="font-mono font-bold text-slate-900 mt-0.5 truncate select-all">
+                  {driver.bankAccountNumber || 'Not Provided'}
+                </div>
+              </div>
+              <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs min-w-0">
+                <div className="text-[10px] text-slate-400 font-semibold uppercase truncate">Bank IFSC & Name</div>
+                <div className="font-mono font-bold text-slate-900 mt-0.5 truncate">
+                  {driver.bankIfsc || 'Not Provided'}
+                  {driver.bankName ? ` (${driver.bankName})` : ''}
+                </div>
               </div>
             </div>
-            <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs min-w-0">
-              <div className="text-[10px] text-slate-400 font-semibold uppercase truncate">Bank IFSC Code</div>
-              <div className="font-mono font-bold text-slate-900 mt-0.5 truncate">
-                {driver.bankIfsc || 'Not Provided'}
-              </div>
-            </div>
-          </div>
+          )}
 
-          {/* Mobile Bank Details Cards (2 column grid) */}
-          <div className="grid sm:hidden grid-cols-2 gap-2 text-xs">
-            <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-2xs min-w-0">
-              <div className="text-[10px] text-slate-400 font-semibold uppercase truncate">Account Holder</div>
-              <div className="font-bold text-slate-900 mt-0.5 truncate">
-                {driver.bankAccountHolderName || 'Not Provided'}
+          {/* Mobile Payout Details Cards */}
+          {driver.payoutMethod === 'UPI' ? (
+            <div className="grid sm:hidden grid-cols-2 gap-2 text-xs">
+              <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-2xs min-w-0">
+                <div className="text-[10px] text-slate-400 font-semibold uppercase truncate">Payee Name</div>
+                <div className="font-bold text-slate-900 mt-0.5 truncate">
+                  {driver.bankAccountHolderName || 'Not Provided'}
+                </div>
+              </div>
+              <div className="bg-white p-2 rounded-xl border border-blue-200 bg-blue-50/20 shadow-2xs min-w-0">
+                <div className="text-[10px] text-blue-600 font-semibold uppercase truncate">UPI ID (VPA)</div>
+                <div className="font-mono font-bold text-blue-900 mt-0.5 truncate select-all">
+                  {driver.payoutUpiId || 'Not Provided'}
+                </div>
               </div>
             </div>
-            <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-2xs min-w-0">
-              <div className="text-[10px] text-slate-400 font-semibold uppercase truncate">Bank IFSC</div>
-              <div className="font-mono font-bold text-slate-900 mt-0.5 truncate">
-                {driver.bankIfsc || 'Not Provided'}
+          ) : (
+            <div className="grid sm:hidden grid-cols-2 gap-2 text-xs">
+              <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-2xs min-w-0">
+                <div className="text-[10px] text-slate-400 font-semibold uppercase truncate">Account Holder</div>
+                <div className="font-bold text-slate-900 mt-0.5 truncate">
+                  {driver.bankAccountHolderName || 'Not Provided'}
+                </div>
+              </div>
+              <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-2xs min-w-0">
+                <div className="text-[10px] text-slate-400 font-semibold uppercase truncate">Bank IFSC</div>
+                <div className="font-mono font-bold text-slate-900 mt-0.5 truncate">
+                  {driver.bankIfsc || 'Not Provided'}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Full-width Mobile Verify Bank Button */}
-          <button
-            onClick={() => handleTogglePayoutStatus(driver.driverId, driver.payoutStatus === 'VERIFIED' ? 'PENDING' : 'VERIFIED')}
-            className={`w-full py-2.5 rounded-xl text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 sm:hidden cursor-pointer ${
-              driver.payoutStatus === 'VERIFIED'
-                ? 'bg-slate-800 hover:bg-slate-700'
-                : 'bg-emerald-700 hover:bg-emerald-600'
-            }`}
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            <span>{driver.payoutStatus === 'VERIFIED' ? 'Mark Pending' : 'Verify Bank'}</span>
-          </button>
+          {/* Mobile Action Buttons */}
+          <div className="grid grid-cols-2 gap-2 sm:hidden">
+            <button
+              onClick={() => handleTogglePayoutStatus(driver.driverId, driver.payoutStatus === 'VERIFIED' ? 'PENDING' : 'VERIFIED')}
+              className={`py-2.5 rounded-xl text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                driver.payoutStatus === 'VERIFIED'
+                  ? 'bg-slate-800 hover:bg-slate-700'
+                  : 'bg-emerald-700 hover:bg-emerald-600'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>{driver.payoutStatus === 'VERIFIED' ? 'Mark Pending' : (driver.payoutMethod === 'UPI' ? 'Verify UPI' : 'Verify Bank')}</span>
+            </button>
+            <button
+              onClick={() => openEditModal(driver)}
+              className="py-2.5 rounded-xl bg-white text-slate-800 border border-slate-200 font-bold text-xs shadow-2xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>View Details</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1319,17 +1393,31 @@ function AdminVehicleEvidenceContent() {
                               </span>
                             )}
                           </div>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border flex-shrink-0 ${
-                              d.verificationStatus === 'APPROVED'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : d.verificationStatus === 'REJECTED'
-                                ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                : 'bg-amber-50 text-amber-700 border-amber-200'
-                            }`}
-                          >
-                            {d.verificationStatus}
-                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {d.payoutStatus === 'PENDING' && (
+                              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase border bg-amber-100 text-amber-900 border-amber-300">
+                                {d.payoutMethod === 'UPI' ? 'UPI Pending' : 'Bank Pending'}
+                              </span>
+                            )}
+                            <div className="flex items-center gap-1 shrink-0">
+                              {d.payoutStatus === 'PENDING' && (
+                                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase border bg-amber-100 text-amber-900 border-amber-300">
+                                  {d.payoutMethod === 'UPI' ? 'UPI Pending' : 'Bank Pending'}
+                                </span>
+                              )}
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border flex-shrink-0 ${
+                                  d.verificationStatus === 'APPROVED'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : d.verificationStatus === 'REJECTED'
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                                }`}
+                              >
+                                {d.verificationStatus}
+                              </span>
+                            </div>
+                          </div>
                         </div>
 
                         {/* Line 2: Phone & DL */}
@@ -1479,17 +1567,24 @@ function AdminVehicleEvidenceContent() {
                                 </span>
                               )}
                             </div>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border flex-shrink-0 ${
-                                d.verificationStatus === 'APPROVED'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : d.verificationStatus === 'REJECTED'
-                                  ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                  : 'bg-amber-50 text-amber-700 border-amber-200'
-                              }`}
-                            >
-                              {d.verificationStatus}
-                            </span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {d.payoutStatus === 'PENDING' && (
+                                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase border bg-amber-100 text-amber-900 border-amber-300">
+                                  {d.payoutMethod === 'UPI' ? 'UPI Pending' : 'Bank Pending'}
+                                </span>
+                              )}
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border flex-shrink-0 ${
+                                  d.verificationStatus === 'APPROVED'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : d.verificationStatus === 'REJECTED'
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                                }`}
+                              >
+                                {d.verificationStatus}
+                              </span>
+                            </div>
                           </div>
                           <div className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
                             <svg className="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1649,25 +1744,69 @@ function AdminVehicleEvidenceContent() {
         </div>
       )}
 
-      {/* Edit Driver & Vehicle Details Modal */}
+      {/* Edit / View Driver & Vehicle Details Modal */}
       {editModalOpen && selectedDriver && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <svg className="w-4 h-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-                <span>Edit Driver & Vehicle Specifications</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setEditModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 text-lg font-bold"
-              >
-                ✕
-              </button>
+            {/* Modal Header */}
+            <div className="flex justify-between items-center pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold ${
+                  isModalEditing ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
+                }`}>
+                  {isModalEditing ? (
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                    </svg>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+                    {isModalEditing ? 'Edit Driver & Vehicle Specifications' : 'Driver & Vehicle Specifications'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    {isModalEditing ? 'Update driver contact, vehicle parameters, and payout accounts' : 'Verified driver specifications & payout configurations'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {!isModalEditing ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsModalEditing(true)}
+                    className="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-white rounded-full text-xs font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    <span>Edit Details</span>
+                  </button>
+                ) : (
+                  <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                    Editing Mode
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditModalOpen(false);
+                    setIsModalEditing(false);
+                  }}
+                  className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center text-base font-bold transition cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {editDriverError && (
@@ -1681,178 +1820,397 @@ function AdminVehicleEvidenceContent() {
               </div>
             )}
 
-            <form onSubmit={handleEditDriver} className="space-y-4 text-xs">
-              {/* Section 1: Driver Identity */}
-              <div>
-                <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">
-                  1. Driver Identity & Contact
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Driver Full Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={editDriverData.fullName}
-                      onChange={(e) => setEditDriverData({ ...editDriverData, fullName: e.target.value })}
-                      placeholder="e.g. Suresh Gowda"
-                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                    />
+            {!isModalEditing ? (
+              /* VIEW MODE: Non-editable structured information */
+              <div className="space-y-4 text-xs">
+                {/* Section 1: Driver Identity */}
+                <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200">
+                  <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2.5 flex items-center justify-between">
+                    <span>1. Driver Identity & Contact</span>
+                    <span className="text-[10px] font-semibold text-slate-400">Driver ID: {selectedDriver.driverId.slice(0, 8)}...</span>
                   </div>
-
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Mobile Number (10 digits) *</label>
-                    <div className="flex">
-                      <span className="bg-slate-100 text-slate-600 px-3 py-2.5 rounded-l-lg border border-r-0 border-slate-300 font-semibold">
-                        +91
-                      </span>
-                      <input
-                        type="tel"
-                        maxLength={10}
-                        required
-                        value={editDriverData.phone}
-                        onChange={(e) => setEditDriverData({ ...editDriverData, phone: e.target.value.replace(/\D/g, '') })}
-                        placeholder="9876543210"
-                        className="w-full bg-white border border-slate-300 rounded-r-lg p-2.5 text-slate-900 font-bold placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                      />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                      <div className="text-[10px] text-slate-400 font-semibold uppercase">Driver Full Name</div>
+                      <div className="text-xs font-bold text-slate-900 mt-0.5">{editDriverData.fullName || '—'}</div>
+                    </div>
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                      <div className="text-[10px] text-slate-400 font-semibold uppercase">Mobile Number</div>
+                      <div className="text-xs font-mono font-bold text-slate-900 mt-0.5">+91 {editDriverData.phone || '—'}</div>
+                    </div>
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                      <div className="text-[10px] text-slate-400 font-semibold uppercase">Driving License (DL)</div>
+                      <div className="text-xs font-mono font-bold text-slate-900 mt-0.5 uppercase">{editDriverData.licenseNumber || 'Not Provided'}</div>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-3">
-                  <label className="block text-slate-700 font-bold mb-1">Driving License Number (DL)</label>
-                  <input
-                    type="text"
-                    value={editDriverData.licenseNumber}
-                    onChange={(e) => setEditDriverData({ ...editDriverData, licenseNumber: e.target.value })}
-                    placeholder="e.g. KA 01 2023 0089745"
-                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none uppercase"
-                  />
-                </div>
-              </div>
-
-              {/* Section 2: Vehicle & Carriage Specifications */}
-              <div className="pt-3 border-t border-slate-200">
-                <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">
-                  2. Vehicle Specifications & Carriage
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Vehicle Category (Segment)</label>
-                    <select
-                      value={editDriverData.category}
-                      onChange={(e) => setEditDriverData({ ...editDriverData, category: e.target.value })}
-                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                    >
-                      <option value="HATCHBACK">Hatchback (4 Seats • WagonR, Swift, Tiago)</option>
-                      <option value="SEDAN">Sedan (4 Seats • Dzire, Etios, Aura)</option>
-                      <option value="SUV">SUV (6 Seats • Ertiga, Carens, XL6)</option>
-                      <option value="SUV_PREMIUM">SUV Premium (7 Seats • Innova Crysta, Hycross)</option>
-                      <option value="TEMPO_TRAVELER">Tempo Traveller (12 Seats • Force Traveller)</option>
-                    </select>
+                {/* Section 2: Vehicle & Carriage Specifications */}
+                <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200">
+                  <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2.5">
+                    2. Vehicle Specifications & Carriage
                   </div>
-
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Which Car (Make & Model Name)</label>
-                    <input
-                      type="text"
-                      value={editDriverData.carModel}
-                      onChange={(e) => setEditDriverData({ ...editDriverData, carModel: e.target.value })}
-                      placeholder="e.g. Maruti Suzuki Dzire / Wagon R"
-                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                      <div className="text-[10px] text-slate-400 font-semibold uppercase">Vehicle Category (Segment)</div>
+                      <div className="text-xs font-bold text-slate-900 mt-0.5">
+                        {editDriverData.category === 'HATCHBACK' && 'Hatchback (4 Seats • WagonR, Swift, Tiago)'}
+                        {editDriverData.category === 'SEDAN' && 'Sedan (4 Seats • Dzire, Etios, Aura)'}
+                        {editDriverData.category === 'SUV' && 'SUV (6 Seats • Ertiga, Carens, XL6)'}
+                        {editDriverData.category === 'SUV_PREMIUM' && 'SUV Premium (7 Seats • Innova Crysta, Hycross)'}
+                        {editDriverData.category === 'TEMPO_TRAVELER' && 'Tempo Traveller (12 Seats • Force Traveller)'}
+                        {!['HATCHBACK', 'SEDAN', 'SUV', 'SUV_PREMIUM', 'TEMPO_TRAVELER'].includes(editDriverData.category) && editDriverData.category}
+                      </div>
+                    </div>
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                      <div className="text-[10px] text-slate-400 font-semibold uppercase">Car Model / Make</div>
+                      <div className="text-xs font-bold text-slate-900 mt-0.5">{editDriverData.carModel || 'Not Specified'}</div>
+                    </div>
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                      <div className="text-[10px] text-slate-400 font-semibold uppercase">Vehicle Plate / Registration</div>
+                      <div className="mt-1">
+                        <div className="inline-flex items-center rounded-md border border-slate-300 overflow-hidden font-mono font-bold text-xs shadow-2xs">
+                          <span className="bg-slate-900 text-amber-400 px-1.5 py-0.5 text-[9px] font-black">IND</span>
+                          <span className="bg-white px-2 py-0.5 text-slate-900 uppercase tracking-wider">{editDriverData.plateNumber || 'No Plate'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                      <div className="text-[10px] text-slate-400 font-semibold uppercase">Fuel & Luggage Capacity</div>
+                      <div className="text-xs font-semibold text-slate-900 mt-0.5">
+                        <span className="font-bold">{editDriverData.fuelType}</span> • {editDriverData.carriageCapacity}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Vehicle Plate / Registration Number</label>
-                    <div className="flex">
-                      <span className="bg-slate-900 text-amber-400 px-2.5 py-2.5 rounded-l-lg border border-r-0 border-slate-800 font-black text-[10px]">
-                        IND
-                      </span>
-                      <input
-                        type="text"
-                        value={editDriverData.plateNumber}
-                        onChange={(e) => setEditDriverData({ ...editDriverData, plateNumber: e.target.value })}
-                        placeholder="e.g. KA 19 2025"
-                        className="w-full bg-white border border-slate-300 rounded-r-lg p-2.5 text-slate-900 font-mono font-bold placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none uppercase"
-                      />
+                {/* Section 3: Bank & Payout Details */}
+                <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      3. Bank & Payout Details (RazorpayX)
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {editDriverData.payoutMethod === 'UPI' ? (
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                          UPI Mode
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                          Bank Account
+                        </span>
+                      )}
+                      {editDriverData.payoutStatus === 'VERIFIED' ? (
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[10px] font-bold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Verified
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-md text-[10px] font-bold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending Review
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Fuel Type</label>
-                    <select
-                      value={editDriverData.fuelType}
-                      onChange={(e) => setEditDriverData({ ...editDriverData, fuelType: e.target.value })}
-                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                    >
-                      <option value="DIESEL">Diesel</option>
-                      <option value="PETROL">Petrol</option>
-                      <option value="CNG">CNG</option>
-                    </select>
-                  </div>
+                  {editDriverData.payoutMethod === 'BANK' ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <div className="text-[10px] text-slate-400 font-semibold uppercase">Account Holder Name</div>
+                        <div className="text-xs font-bold text-slate-900 mt-0.5">{editDriverData.bankAccountHolderName || 'Not Provided'}</div>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <div className="text-[10px] text-slate-400 font-semibold uppercase">Bank Account Number</div>
+                        <div className="text-xs font-mono font-bold text-slate-900 mt-0.5 select-all">{editDriverData.bankAccountNumber || 'Not Provided'}</div>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <div className="text-[10px] text-slate-400 font-semibold uppercase">Bank IFSC Code</div>
+                        <div className="text-xs font-mono font-bold text-slate-900 mt-0.5 uppercase select-all">{editDriverData.bankIfsc || 'Not Provided'}</div>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <div className="text-[10px] text-slate-400 font-semibold uppercase">Bank Name (For Display)</div>
+                        <div className="text-xs font-bold text-slate-900 mt-0.5">{editDriverData.bankName || 'Not Specified'}</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <div className="text-[10px] text-slate-400 font-semibold uppercase">Payee Full Name</div>
+                        <div className="text-xs font-bold text-slate-900 mt-0.5">{editDriverData.bankAccountHolderName || 'Not Provided'}</div>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-lg border border-blue-200/80 bg-blue-50/20 shadow-2xs">
+                        <div className="text-[10px] text-blue-600 font-semibold uppercase">UPI ID (VPA Handle)</div>
+                        <div className="text-xs font-mono font-bold text-blue-900 mt-0.5 select-all">{editDriverData.payoutUpiId || 'Not Provided'}</div>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <div className="text-[10px] text-slate-400 font-semibold uppercase">Payout Contact Phone</div>
+                        <div className="text-xs font-mono font-bold text-slate-900 mt-0.5">{editDriverData.payoutPhone || 'Not Provided'}</div>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <div className="text-[10px] text-slate-400 font-semibold uppercase">Payout Receipt Email</div>
+                        <div className="text-xs font-bold text-slate-900 mt-0.5 truncate">{editDriverData.payoutEmail || 'Not Provided'}</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="mt-3">
-                  <label className="block text-slate-700 font-bold mb-1">Carriage / Luggage Allowance</label>
-                  <select
-                    value={editDriverData.carriageCapacity}
-                    onChange={(e) => setEditDriverData({ ...editDriverData, carriageCapacity: e.target.value })}
-                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                  >
-                    <option value="None (No Carriage / Luggage Space)">None (No Luggage Space)</option>
-                    <option value="2 Large Bags (Standard Boot)">2 Large Bags (Standard Boot)</option>
-                    <option value="3 Large Bags (Spacious Boot)">3 Large Bags (Spacious Boot)</option>
-                    <option value="4 Large Bags (SUV Boot Space)">4 Large Bags (SUV Boot Space)</option>
-                    <option value="5+ Large Bags (Max Cargo)">5+ Large Bags (Max Cargo)</option>
-                    <option value="Roof Carrier Included (Heavy Luggage / Hill Trips)">Roof Carrier Included (Heavy Luggage)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Section 3: Bank & Payout Details (RazorpayX) */}
-              <div className="pt-3 border-t border-slate-200">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                    3. Bank & Payout Details (RazorpayX)
+                {/* View Mode Footer Actions */}
+                <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+                  <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    <span>View mode active. Tap Edit Details to modify.</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label className="text-[11px] font-bold text-slate-600">Verification Status:</label>
-                    <select
-                      value={editDriverData.payoutStatus}
-                      onChange={(e) => setEditDriverData({ ...editDriverData, payoutStatus: e.target.value })}
-                      className={`text-[11px] font-bold rounded px-2 py-1 border ${
-                        editDriverData.payoutStatus === 'VERIFIED'
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                          : 'bg-amber-50 text-amber-800 border-amber-300'
-                      }`}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditModalOpen(false);
+                        setIsModalEditing(false);
+                      }}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-xs text-slate-700 font-semibold rounded-lg transition cursor-pointer"
                     >
-                      <option value="PENDING">Pending Verification</option>
-                      <option value="VERIFIED">Verified</option>
+                      Close
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsModalEditing(true)}
+                      className="px-4 py-2 bg-slate-950 hover:bg-slate-800 text-white font-bold text-xs rounded-lg shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                      <span>Edit Details</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* EDIT MODE: Interactive form inputs */
+              <form onSubmit={handleEditDriver} className="space-y-4 text-xs">
+                {/* Section 1: Driver Identity */}
+                <div>
+                  <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    1. Driver Identity & Contact
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">Driver Full Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={editDriverData.fullName}
+                        onChange={(e) => setEditDriverData({ ...editDriverData, fullName: e.target.value })}
+                        placeholder="e.g. Suresh Gowda"
+                        className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">Mobile Number (10 digits) *</label>
+                      <div className="flex">
+                        <span className="bg-slate-100 text-slate-600 px-3 py-2.5 rounded-l-lg border border-r-0 border-slate-300 font-semibold">
+                          +91
+                        </span>
+                        <input
+                          type="tel"
+                          maxLength={10}
+                          required
+                          value={editDriverData.phone}
+                          onChange={(e) => setEditDriverData({ ...editDriverData, phone: e.target.value.replace(/\D/g, '') })}
+                          placeholder="9876543210"
+                          className="w-full bg-white border border-slate-300 rounded-r-lg p-2.5 text-slate-900 font-bold placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <label className="block text-slate-700 font-bold mb-1">Driving License Number (DL)</label>
+                    <input
+                      type="text"
+                      value={editDriverData.licenseNumber}
+                      onChange={(e) => setEditDriverData({ ...editDriverData, licenseNumber: e.target.value })}
+                      placeholder="e.g. KA 01 2023 0089745"
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none uppercase"
+                    />
+                  </div>
+                </div>
+
+                {/* Section 2: Vehicle & Carriage Specifications */}
+                <div className="pt-3 border-t border-slate-200">
+                  <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    2. Vehicle Specifications & Carriage
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">Vehicle Category (Segment)</label>
+                      <select
+                        value={editDriverData.category}
+                        onChange={(e) => setEditDriverData({ ...editDriverData, category: e.target.value })}
+                        className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      >
+                        <option value="HATCHBACK">Hatchback (4 Seats • WagonR, Swift, Tiago)</option>
+                        <option value="SEDAN">Sedan (4 Seats • Dzire, Etios, Aura)</option>
+                        <option value="SUV">SUV (6 Seats • Ertiga, Carens, XL6)</option>
+                        <option value="SUV_PREMIUM">SUV Premium (7 Seats • Innova Crysta, Hycross)</option>
+                        <option value="TEMPO_TRAVELER">Tempo Traveller (12 Seats • Force Traveller)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">Which Car (Make & Model Name)</label>
+                      <input
+                        type="text"
+                        value={editDriverData.carModel}
+                        onChange={(e) => setEditDriverData({ ...editDriverData, carModel: e.target.value })}
+                        placeholder="e.g. Maruti Suzuki Dzire / Wagon R"
+                        className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">Vehicle Plate / Registration Number</label>
+                      <div className="flex">
+                        <span className="bg-slate-900 text-amber-400 px-2.5 py-2.5 rounded-l-lg border border-r-0 border-slate-800 font-black text-[10px]">
+                          IND
+                        </span>
+                        <input
+                          type="text"
+                          value={editDriverData.plateNumber}
+                          onChange={(e) => setEditDriverData({ ...editDriverData, plateNumber: e.target.value })}
+                          placeholder="e.g. KA 19 2025"
+                          className="w-full bg-white border border-slate-300 rounded-r-lg p-2.5 text-slate-900 font-mono font-bold placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none uppercase"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">Fuel Type</label>
+                      <select
+                        value={editDriverData.fuelType}
+                        onChange={(e) => setEditDriverData({ ...editDriverData, fuelType: e.target.value })}
+                        className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      >
+                        <option value="DIESEL">Diesel</option>
+                        <option value="PETROL">Petrol</option>
+                        <option value="CNG">CNG</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <label className="block text-slate-700 font-bold mb-1">Carriage / Luggage Allowance</label>
+                    <select
+                      value={editDriverData.carriageCapacity}
+                      onChange={(e) => setEditDriverData({ ...editDriverData, carriageCapacity: e.target.value })}
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    >
+                      <option value="None (No Carriage / Luggage Space)">None (No Luggage Space)</option>
+                      <option value="2 Large Bags (Standard Boot)">2 Large Bags (Standard Boot)</option>
+                      <option value="3 Large Bags (Spacious Boot)">3 Large Bags (Spacious Boot)</option>
+                      <option value="4 Large Bags (SUV Boot Space)">4 Large Bags (SUV Boot Space)</option>
+                      <option value="5+ Large Bags (Max Cargo)">5+ Large Bags (Max Cargo)</option>
+                      <option value="Roof Carrier Included (Heavy Luggage / Hill Trips)">Roof Carrier Included (Heavy Luggage)</option>
                     </select>
                   </div>
                 </div>
 
-                <div className="mb-3">
-                  <label className="block text-slate-700 font-bold mb-1">Payout Method</label>
-                  <select
-                    value={editDriverData.payoutMethod}
-                    onChange={(e) => setEditDriverData({ ...editDriverData, payoutMethod: e.target.value })}
-                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none font-semibold"
-                  >
-                    <option value="BANK">Option 1: Bank Account Transfer (NEFT/IMPS)</option>
-                    <option value="UPI">Option 2: UPI Transfer (Instant VPA)</option>
-                  </select>
-                </div>
+                {/* Section 3: Bank & Payout Details (RazorpayX) */}
+                <div className="pt-3 border-t border-slate-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      3. Bank & Payout Details (RazorpayX)
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[11px] font-bold text-slate-600">Verification Status:</label>
+                      <select
+                        value={editDriverData.payoutStatus}
+                        onChange={(e) => setEditDriverData({ ...editDriverData, payoutStatus: e.target.value })}
+                        className={`text-[11px] font-bold rounded px-2 py-1 border ${
+                          editDriverData.payoutStatus === 'VERIFIED'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                            : 'bg-amber-50 text-amber-800 border-amber-300'
+                        }`}
+                      >
+                        <option value="PENDING">Pending Verification</option>
+                        <option value="VERIFIED">Verified</option>
+                      </select>
+                    </div>
+                  </div>
 
-                {editDriverData.payoutMethod === 'BANK' ? (
-                  <>
+                  <div className="mb-3">
+                    <label className="block text-slate-700 font-bold mb-1">Payout Method</label>
+                    <select
+                      value={editDriverData.payoutMethod}
+                      onChange={(e) => setEditDriverData({ ...editDriverData, payoutMethod: e.target.value })}
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none font-semibold"
+                    >
+                      <option value="BANK">Option 1: Bank Account Transfer (NEFT/IMPS)</option>
+                      <option value="UPI">Option 2: UPI Transfer (Instant VPA)</option>
+                    </select>
+                  </div>
+
+                  {editDriverData.payoutMethod === 'BANK' ? (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-slate-700 font-bold mb-1">Account Holder Name *</label>
+                          <input
+                            type="text"
+                            value={editDriverData.bankAccountHolderName}
+                            onChange={(e) => setEditDriverData({ ...editDriverData, bankAccountHolderName: e.target.value })}
+                            placeholder="e.g. Ramesh Kumar"
+                            className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-slate-700 font-bold mb-1">Bank Account Number *</label>
+                          <input
+                            type="text"
+                            value={editDriverData.bankAccountNumber}
+                            onChange={(e) => setEditDriverData({ ...editDriverData, bankAccountNumber: e.target.value })}
+                            placeholder="e.g. 50100428912345"
+                            className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                        <div>
+                          <label className="block text-slate-700 font-bold mb-1">Bank IFSC Code *</label>
+                          <input
+                            type="text"
+                            value={editDriverData.bankIfsc}
+                            onChange={(e) => setEditDriverData({ ...editDriverData, bankIfsc: e.target.value.toUpperCase() })}
+                            placeholder="e.g. HDFC0001234"
+                            maxLength={11}
+                            className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono uppercase placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-slate-700 font-bold mb-1">Bank Name (For Display)</label>
+                          <input
+                            type="text"
+                            value={editDriverData.bankName}
+                            onChange={(e) => setEditDriverData({ ...editDriverData, bankName: e.target.value })}
+                            placeholder="e.g. HDFC Bank"
+                            className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-slate-700 font-bold mb-1">Account Holder Name *</label>
+                        <label className="block text-slate-700 font-bold mb-1">Driver's Full Name *</label>
                         <input
                           type="text"
                           value={editDriverData.bankAccountHolderName}
@@ -1863,111 +2221,76 @@ function AdminVehicleEvidenceContent() {
                       </div>
 
                       <div>
-                        <label className="block text-slate-700 font-bold mb-1">Bank Account Number *</label>
+                        <label className="block text-slate-700 font-bold mb-1">UPI ID (e.g. driver@oksbi) *</label>
                         <input
                           type="text"
-                          value={editDriverData.bankAccountNumber}
-                          onChange={(e) => setEditDriverData({ ...editDriverData, bankAccountNumber: e.target.value })}
-                          placeholder="e.g. 50100428912345"
+                          value={editDriverData.payoutUpiId}
+                          onChange={(e) => setEditDriverData({ ...editDriverData, payoutUpiId: e.target.value })}
+                          placeholder="e.g. driver@oksbi"
                           className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
                         />
                       </div>
                     </div>
+                  )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                      <div>
-                        <label className="block text-slate-700 font-bold mb-1">Bank IFSC Code *</label>
-                        <input
-                          type="text"
-                          value={editDriverData.bankIfsc}
-                          onChange={(e) => setEditDriverData({ ...editDriverData, bankIfsc: e.target.value.toUpperCase() })}
-                          placeholder="e.g. HDFC0001234"
-                          maxLength={11}
-                          className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono uppercase placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-slate-700 font-bold mb-1">Bank Name (For Display)</label>
-                        <input
-                          type="text"
-                          value={editDriverData.bankName}
-                          onChange={(e) => setEditDriverData({ ...editDriverData, bankName: e.target.value })}
-                          placeholder="e.g. HDFC Bank"
-                          className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                     <div>
-                      <label className="block text-slate-700 font-bold mb-1">Driver's Full Name *</label>
+                      <label className="block text-slate-700 font-bold mb-1">Payout Mobile Number (Optional)</label>
                       <input
-                        type="text"
-                        value={editDriverData.bankAccountHolderName}
-                        onChange={(e) => setEditDriverData({ ...editDriverData, bankAccountHolderName: e.target.value })}
-                        placeholder="e.g. Ramesh Kumar"
+                        type="tel"
+                        value={editDriverData.payoutPhone}
+                        onChange={(e) => setEditDriverData({ ...editDriverData, payoutPhone: e.target.value })}
+                        placeholder="e.g. 9876543210"
                         className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-slate-700 font-bold mb-1">UPI ID (e.g. driver@oksbi) *</label>
+                      <label className="block text-slate-700 font-bold mb-1">Payout Email Address (Optional)</label>
                       <input
-                        type="text"
-                        value={editDriverData.payoutUpiId}
-                        onChange={(e) => setEditDriverData({ ...editDriverData, payoutUpiId: e.target.value })}
-                        placeholder="e.g. driver@oksbi"
-                        className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        type="email"
+                        value={editDriverData.payoutEmail}
+                        onChange={(e) => setEditDriverData({ ...editDriverData, payoutEmail: e.target.value })}
+                        placeholder="e.g. driver@kandycabs.in"
+                        className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
                       />
                     </div>
                   </div>
-                )}
+                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Payout Mobile Number (Optional)</label>
-                    <input
-                      type="tel"
-                      value={editDriverData.payoutPhone}
-                      onChange={(e) => setEditDriverData({ ...editDriverData, payoutPhone: e.target.value })}
-                      placeholder="e.g. 9876543210"
-                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">Payout Email Address (Optional)</label>
-                    <input
-                      type="email"
-                      value={editDriverData.payoutEmail}
-                      onChange={(e) => setEditDriverData({ ...editDriverData, payoutEmail: e.target.value })}
-                      placeholder="e.g. driver@kandycabs.in"
-                      className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                    />
+                {/* Edit Mode Footer Actions */}
+                <div className="flex justify-between items-center pt-3 border-t border-slate-200">
+                  <button
+                    type="button"
+                    disabled={editDriverLoading}
+                    onClick={() => setIsModalEditing(false)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-xs text-slate-700 font-semibold rounded-lg transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>Cancel Editing</span>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={editDriverLoading}
+                      onClick={() => {
+                        setEditModalOpen(false);
+                        setIsModalEditing(false);
+                      }}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-xs text-slate-600 font-semibold rounded-lg transition cursor-pointer"
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={editDriverLoading}
+                      className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg shadow-xs disabled:opacity-50 transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      {editDriverLoading ? 'Saving Changes...' : '✓ Save Changes'}
+                    </button>
                   </div>
                 </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-200">
-                <button
-                  type="button"
-                  disabled={editDriverLoading}
-                  onClick={() => setEditModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-xs text-slate-700 font-semibold rounded-lg transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={editDriverLoading}
-                  className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg shadow-xs disabled:opacity-50 transition flex items-center gap-1.5"
-                >
-                  {editDriverLoading ? 'Saving Changes...' : '✓ Save Changes'}
-                </button>
-              </div>
-            </form>
+              </form>
+            )}
           </div>
         </div>
       )}

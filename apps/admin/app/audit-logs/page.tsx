@@ -53,6 +53,9 @@ export default function AdminAuditLogsPage() {
     if (action.includes('REJECTED') || action.includes('CANCELLED')) {
       return 'bg-rose-100 text-rose-800 border-rose-300';
     }
+    if (action.includes('PENDING')) {
+      return 'bg-amber-100 text-amber-800 border-amber-300';
+    }
     if (action.includes('OVERRIDE')) {
       return 'bg-amber-100 text-amber-800 border-amber-300';
     }
@@ -93,6 +96,8 @@ export default function AdminAuditLogsPage() {
           <div className="flex flex-wrap gap-1 sm:gap-1.5">
             {[
               { id: 'ALL', label: 'All Events' },
+              { id: 'PAYOUT_DETAILS_UPDATED', label: 'Payout Updates' },
+              { id: 'PAYOUT_REVIEW_APPROVED', label: 'Payout Approvals' },
               { id: 'CUSTOMER_UPDATE_TRIP', label: 'Trip Changes' },
               { id: 'PAYMENT_VERIFIED_WEBHOOK', label: 'Payments' },
               { id: 'DRIVER_KYC_APPROVED', label: 'KYC Approved' },

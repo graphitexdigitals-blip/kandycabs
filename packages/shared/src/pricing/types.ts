@@ -22,6 +22,7 @@ export interface DynamicRateOverrides {
   ratePerKm?: number;
   extraKmRate?: number;
   extraKmThreshold?: number;
+  minKm?: number;
   driverAllowance?: number;
   nightCharge?: number;
   nightChargeEnabled?: boolean;

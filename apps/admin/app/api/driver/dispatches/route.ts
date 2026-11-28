@@ -21,6 +21,21 @@ export async function GET(req: NextRequest) {
       return setCorsHeaders(res);
     }
 
+    // Clean up any stale PENDING dispatches where the booking was already accepted/assigned to another driver
+    await prisma.bookingDispatch.updateMany({
+      where: {
+        driverId: session.driverId,
+        status: DispatchStatus.PENDING,
+        booking: {
+          assignedDriverId: { not: null, notIn: [session.driverId] },
+        },
+      },
+      data: {
+        status: DispatchStatus.EXPIRED,
+        respondedAt: new Date(),
+      },
+    }).catch(() => {});
+
     const pendingDispatches = await prisma.bookingDispatch.findMany({
       where: {
         driverId: session.driverId,
@@ -29,6 +44,10 @@ export async function GET(req: NextRequest) {
             status: DispatchStatus.PENDING,
             booking: {
               deletedAt: null,
+              OR: [
+                { assignedDriverId: null },
+                { assignedDriverId: session.driverId },
+              ],
               status: { in: [BookingStatus.PENDING_ADMIN, BookingStatus.DISPATCHED] },
             },
           },
@@ -64,10 +83,28 @@ export async function GET(req: NextRequest) {
       ],
     });
 
-    const sanitizedDispatches = pendingDispatches.map((d) => {
+    // Double safeguard: filter out any dispatch where the booking is assigned to another driver
+    const availableDispatches = pendingDispatches.filter((d) => {
+      const b = d.booking;
+      if (!b) return false;
+      if (b.assignedDriverId && b.assignedDriverId !== session.driverId) {
+        return false;
+      }
+      if (
+        d.status === DispatchStatus.PENDING &&
+        b.status !== BookingStatus.PENDING_ADMIN &&
+        b.status !== BookingStatus.DISPATCHED
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    const sanitizedDispatches = availableDispatches.map((d) => {
       const b = d.booking;
       const bAny = b as any;
-      const createdPayload = (b?.tripEvents?.[0]?.payloadJson as any) || {};
+      const bookingCreatedEvt = b?.tripEvents?.find((e: any) => e.type === 'BOOKING_CREATED');
+      const createdPayload = (bookingCreatedEvt?.payloadJson as any) || (b?.tripEvents?.[0]?.payloadJson as any) || {};
       let viaStops: any[] = [];
       if (Array.isArray(createdPayload.viaStops) && createdPayload.viaStops.length > 0) {
         viaStops = createdPayload.viaStops;
@@ -91,6 +128,10 @@ export async function GET(req: NextRequest) {
         ...d,
         booking: {
           ...b,
+          fleetId: createdPayload.fleetId || bAny.fleetId || null,
+          fleetName: createdPayload.fleetName || createdPayload.selectedVehicleName || bAny.fleetName || bAny.selectedVehicleName || null,
+          selectedVehicleName: createdPayload.selectedVehicleName || createdPayload.fleetName || bAny.selectedVehicleName || null,
+          category: createdPayload.fleetId || bAny.category,
           viaStops,
           stops: viaStops,
           notes: createdPayload.notes || bAny.notes || null,

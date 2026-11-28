@@ -22,7 +22,7 @@ $env:EXPO_PUBLIC_API_URL = "http://192.168.1.3:3001"
 Write-Host "Using EXPO_PUBLIC_API_URL = $env:EXPO_PUBLIC_API_URL" -ForegroundColor Green
 
 Set-Location $customerAppDir
-& $npxCmd expo export:embed --entry-file index.js --platform android --dev false --bundle-output $bundleFile --assets-dest $distDir
+cmd.exe /c "npx.cmd expo export:embed --entry-file index.js --platform android --dev false --bundle-output dist_bundle/index.android.bundle --assets-dest dist_bundle < nul"
 if ($LASTEXITCODE -ne 0) {
     throw "Metro export failed with exit code $LASTEXITCODE"
 }

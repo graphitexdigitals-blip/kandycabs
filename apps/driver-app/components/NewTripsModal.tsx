@@ -260,6 +260,20 @@ export function NewTripsModal({
                   {dispatches.map((d, index) => {
                 const b = d?.booking || {};
                 const bookingId = b?.id || d.bookingId;
+
+                // If already assigned to a DIFFERENT driver or status is no longer pending/dispatched, do not show
+                if (b?.assignedDriverId && driver?.id && b.assignedDriverId !== driver.id) {
+                  return null;
+                }
+                if (
+                  b?.status &&
+                  b.status !== 'PENDING_ADMIN' &&
+                  b.status !== 'DISPATCHED' &&
+                  b.status !== 'PENDING'
+                ) {
+                  return null;
+                }
+
                 const isAccepting = acceptingId === d.id;
                 const isDeclining = decliningId === d.id;
                 const tripTiming = formatTripDateTime(b?.scheduledAt, t);
@@ -270,6 +284,12 @@ export function NewTripsModal({
                     ? Number(b.driverPayeeAmount)
                     : Number(b?.distanceKm || 0) * 13 + (Number(b?.driverAllowance) || 300)
                 );
+                const chauffeurAllowance = Math.round(
+                  Number(b?.driverAllowance) > 0
+                    ? Number(b.driverAllowance)
+                    : (Number(b?.driverAllowanceDaily) > 0 ? Number(b.driverAllowanceDaily) : 300)
+                );
+                const vehicleCharges = Math.max(0, payeeAmount - chauffeurAllowance);
 
                 const reqs = parseCustomerRequirements(b, t);
                 const note = extractCustomerNotes(b);
@@ -292,10 +312,10 @@ export function NewTripsModal({
 
                 return (
                   <View key={d.id || `dispatch-${index}`} style={styles.floatingDispatchCardWhite}>
-                    {/* Header Banner: Negative Margins with #f8fafc background matching Image 1 */}
+                    {/* Header Banner */}
                     <View style={styles.dispatchHeaderBanner}>
                       <View style={styles.dispatchHeaderRow}>
-                        <View>
+                        <View style={{ width: '100%' }}>
                           {isCancelPending ? (
                             <View style={styles.cancelPendingAlertBadge}>
                               <Ionicons
@@ -319,53 +339,20 @@ export function NewTripsModal({
                               </Text>
                             </View>
                           ) : (
-                            <View style={styles.newAlertBadge}>
+                            <View style={styles.newAlertBadgeFull}>
                               <Ionicons
-                                name="radio-button-on"
-                                size={13}
-                                color="#2563eb"
+                                name="car"
+                                size={18}
+                                color="#ffffff"
+                                style={{ marginRight: 10 }}
                               />
-                              <Text style={styles.newAlertText}>
-                                {t('dashboard.new_ride', 'NEW RIDE')}
+                              <Text style={styles.newAlertTextWhite}>
+                                {t('dashboard.new_trip_request', 'New Trip Request')}
                               </Text>
                             </View>
                           )}
-                          <Text style={styles.dispatchRefText}>
-                            {b?.humanReadableRef || 'RIDE'}
-                          </Text>
-                        </View>
-                        <View style={styles.distanceBadgeLight}>
-                          <Text style={styles.distanceBadgeTextLight}>
-                            📍 {b?.distanceKm || '--'} km
-                          </Text>
                         </View>
                       </View>
-                    </View>
-
-                    {/* Trip Date & Pickup Time Banner */}
-                    <View style={styles.tripDateBanner}>
-                      <View style={styles.tripDateBannerLeft}>
-                        <Ionicons name="calendar" size={14} color="#0284c7" />
-                        <Text style={styles.tripDateBannerLabel}>
-                          {t('dashboard.pickup_date_time_banner', { defaultValue: 'PICKUP DATE & TIME:' })}
-                        </Text>
-                        <Text style={styles.tripDateBannerValue}>
-                          {tripTiming.fullText}
-                        </Text>
-                      </View>
-                      {tripTiming.isToday ? (
-                        <View style={styles.todayTagPill}>
-                          <Text style={styles.todayTagText}>
-                            {t('dashboard.today_tag', { defaultValue: 'TODAY' })}
-                          </Text>
-                        </View>
-                      ) : tripTiming.isTomorrow ? (
-                        <View style={styles.tomorrowTagPill}>
-                          <Text style={styles.tomorrowTagText}>
-                            {t('dashboard.tomorrow_tag', { defaultValue: 'TOMORROW' })}
-                          </Text>
-                        </View>
-                      ) : null}
                     </View>
 
                     {/* Stepper Route (Clean open design matching Image 1) */}
@@ -373,7 +360,7 @@ export function NewTripsModal({
                       <View style={styles.stepperLeft}>
                         {/* Pickup */}
                         <View style={styles.stepPoint}>
-                          <Ionicons name="location-sharp" size={16} color="#16a34a" style={styles.pickupPin} />
+                          <Ionicons name="location-sharp" size={18} color="#16a34a" style={styles.pickupPin} />
                           <View style={styles.stepTextGroup}>
                             <Text style={styles.locationTitle}>{b?.pickupAddress || 'Pickup Location'}</Text>
                           </View>
@@ -384,7 +371,7 @@ export function NewTripsModal({
 
                         {/* Drop */}
                         <View style={styles.stepPoint}>
-                          <Ionicons name="location-sharp" size={16} color="#dc2626" style={styles.dropPin} />
+                          <Ionicons name="location-sharp" size={18} color="#dc2626" style={styles.dropPin} />
                           <View style={styles.stepTextGroup}>
                             <Text style={styles.locationTitle}>{b?.dropAddress || 'Drop Location'}</Text>
                           </View>
@@ -451,8 +438,65 @@ export function NewTripsModal({
                       const passengerName = b?.customer?.user?.fullName || 'Customer';
 
                       return (
-                        <View style={styles.dispatchTableContainer}>
-                          {/* Row 1: Selected Fleet */}
+                        <>
+                          <View style={styles.dispatchTableContainer}>
+                          {/* Row 1: Booking Number */}
+                          <View style={styles.dispatchTableRow}>
+                            <View style={styles.dispatchTableColLabel}>
+                              <Text style={styles.dispatchTableLabelText}>
+                                {t('dashboard.booking_no_label', { defaultValue: 'Booking number' })}
+                              </Text>
+                            </View>
+                            <View style={styles.dispatchTableColValue}>
+                              <Text style={styles.dispatchTableValueMonospace} numberOfLines={1}>
+                                {b?.humanReadableRef || 'RIDE'}
+                              </Text>
+                            </View>
+                          </View>
+
+                          {/* Row 2: Date */}
+                          <View style={styles.dispatchTableRow}>
+                            <View style={styles.dispatchTableColLabel}>
+                              <Text style={styles.dispatchTableLabelText}>
+                                {t('dashboard.date_label', { defaultValue: 'Date' })}
+                              </Text>
+                            </View>
+                            <View style={styles.dispatchTableColValue}>
+                              <Text style={styles.dispatchTableValueText} numberOfLines={1}>
+                                {tripTiming.dateText}
+                              </Text>
+                            </View>
+                          </View>
+
+                          {/* Row 3: Time */}
+                          <View style={styles.dispatchTableRow}>
+                            <View style={styles.dispatchTableColLabel}>
+                              <Text style={styles.dispatchTableLabelText}>
+                                {t('dashboard.time_label', { defaultValue: 'Time' })}
+                              </Text>
+                            </View>
+                            <View style={styles.dispatchTableColValue}>
+                              <Text style={styles.dispatchTableValueText} numberOfLines={1}>
+                                {tripTiming.timeText || '--'}
+                              </Text>
+                            </View>
+                          </View>
+
+                          {/* Row 4: Distance (KM) */}
+                          <View style={styles.dispatchTableRow}>
+                            <View style={styles.dispatchTableColLabel}>
+                              <Text style={styles.dispatchTableLabelText}>
+                                {t('dashboard.distance_km_label', { defaultValue: 'Distance' })}
+                              </Text>
+                            </View>
+                            <View style={styles.dispatchTableColValue}>
+                              <Text style={styles.dispatchTableValueText} numberOfLines={1}>
+                                {b?.distanceKm ? `${b.distanceKm} km` : '--'}
+                              </Text>
+                            </View>
+                          </View>
+
+                          {/* Row 5: Selected Fleet */}
                           <View style={styles.dispatchTableRow}>
                             <View style={styles.dispatchTableColLabel}>
                               <Text style={styles.dispatchTableLabelText}>
@@ -466,22 +510,9 @@ export function NewTripsModal({
                             </View>
                           </View>
 
-                          {/* Row 2: Passenger */}
-                          <View style={styles.dispatchTableRow}>
-                            <View style={styles.dispatchTableColLabel}>
-                              <Text style={styles.dispatchTableLabelText}>
-                                {t('dashboard.passenger_label', { defaultValue: 'Passenger' })}
-                              </Text>
-                            </View>
-                            <View style={styles.dispatchTableColValue}>
-                              <Text style={styles.dispatchTableValueText} numberOfLines={1}>
-                                {passengerName}
-                              </Text>
-                            </View>
-                          </View>
 
-                          {/* Row 3: Trip Type */}
-                          <View style={styles.dispatchTableRow}>
+                          {/* Row 6: Trip Type (Last row of table) */}
+                          <View style={[styles.dispatchTableRow, styles.dispatchTableRowLast]}>
                             <View style={styles.dispatchTableColLabel}>
                               <Text style={styles.dispatchTableLabelText}>
                                 {t('dashboard.trip_type_label', { defaultValue: 'Trip type' })}
@@ -493,22 +524,49 @@ export function NewTripsModal({
                               </Text>
                             </View>
                           </View>
+                        </View>
 
-                          {/* Row 4: Net Payout Amount */}
-                          <View style={[styles.dispatchTableRow, styles.dispatchTableRowLast]}>
-                            <View style={styles.dispatchTableColLabel}>
-                              <Text style={styles.dispatchTableLabelText}>
-                                {t('dashboard.net_payout_amount', { defaultValue: 'Net payout amount' })}
-                              </Text>
-                            </View>
-                            <View style={styles.dispatchTableColValue}>
-                              <Text style={styles.dispatchTablePayoutValue}>
-                                ₹{payeeAmount.toLocaleString('en-IN')}
-                              </Text>
-                            </View>
+                        {/* Driver Amount Details: Separate section outside table */}
+                        <View style={styles.dispatchAmountCard}>
+                          <View style={styles.dispatchAmountRow}>
+                            <Text style={styles.dispatchAmountLabel}>
+                              {t('dashboard.vehicle_charges_label', { defaultValue: 'Vehicle charges' })}
+                            </Text>
+                            <Text style={styles.dispatchAmountValue}>
+                              ₹{vehicleCharges.toLocaleString('en-IN')}
+                            </Text>
+                          </View>
+
+                          <View style={styles.dispatchAmountRow}>
+                            <Text style={styles.dispatchAmountLabel}>
+                              {t('dashboard.chauffeur_allowance_label', { defaultValue: 'Chauffeur allowance' })}
+                            </Text>
+                            <Text style={styles.dispatchAmountValue}>
+                              ₹{chauffeurAllowance.toLocaleString('en-IN')}
+                            </Text>
+                          </View>
+
+                          <View style={styles.dispatchAmountDivider} />
+
+                          <View style={styles.dispatchAmountTotalRow}>
+                            <Text style={styles.dispatchAmountTotalLabel}>
+                              {t('dashboard.total_amount_label', { defaultValue: 'Total amount' })}
+                            </Text>
+                            <Text style={styles.dispatchAmountTotalValue}>
+                              ₹{payeeAmount.toLocaleString('en-IN')}
+                            </Text>
                           </View>
                         </View>
-                      );
+
+                        {/* Toll Note Banner: outside amount section box */}
+                        <View style={styles.dispatchTollNoteBanner}>
+                          <Ionicons name="information-circle" size={15} color="#ea580c" style={{ marginRight: 6 }} />
+                          <Text style={styles.dispatchTollNoteText}>
+                            Toll, State Permit Tax & Parking extra (If applicable)
+                          </Text>
+                        </View>
+                      </>
+                    );
                     })()}
 
                     {/* Action Buttons Row: (Pending Admin) if cancel requested, or (Cancel Ride & Details) if accepted, or (Decline & Accept) if pending */}
@@ -1051,38 +1109,28 @@ const styles = StyleSheet.create({
     }),
   },
   dispatchHeaderBanner: {
-    backgroundColor: '#f8fafc',
-    marginHorizontal: -14,
-    marginTop: -14,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-    borderTopLeftRadius: 17,
-    borderTopRightRadius: 17,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    marginBottom: 10,
+    marginBottom: 0,
   },
   dispatchHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    width: '100%',
   },
-  newAlertBadge: {
+  newAlertBadgeFull: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'transparent',
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    alignSelf: 'flex-start',
-    marginBottom: 2,
+    backgroundColor: '#051329',
+    width: '100%',
+    height: 38,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    marginBottom: 0,
   },
-  newAlertText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#0f2744',
-    letterSpacing: 0.3,
+  newAlertTextWhite: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.2,
   },
   dispatchRefText: {
     fontSize: 14,
@@ -1165,10 +1213,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'transparent',
-    paddingVertical: 8,
-    paddingHorizontal: 0,
-    marginVertical: 4,
+    backgroundColor: '#edf5fe',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginTop: 6,
+    marginBottom: 4,
   },
   stepperLeft: {
     flex: 1,
@@ -1190,17 +1242,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   locationTitle: {
-    fontSize: 13.5,
+    fontSize: 15,
     fontWeight: '800',
     color: '#0f2744',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   dashedTrail: {
-    width: 2,
-    height: 16,
+    width: 0,
+    height: 15,
     borderStyle: 'dashed',
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: '#475569',
     marginLeft: 8,
     marginVertical: 2,
   },
@@ -1284,8 +1336,8 @@ const styles = StyleSheet.create({
     borderColor: '#cbd5e1',
     borderRadius: 8,
     overflow: 'hidden',
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: 4,
+    marginBottom: 0,
   },
   dispatchTableRow: {
     flexDirection: 'row',
@@ -1298,35 +1350,126 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   dispatchTableColLabel: {
-    width: 128,
+    width: 138,
     backgroundColor: '#f8fafc',
     borderRightWidth: 1,
     borderRightColor: '#e2e8f0',
-    paddingHorizontal: 9,
-    paddingVertical: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     justifyContent: 'center',
   },
   dispatchTableLabelText: {
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: '700',
     color: '#000000',
+  },
+  dispatchTableSubLabelText: {
+    fontSize: 10.5,
+    color: '#64748b',
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  dispatchTablePayoutLabelText: {
+    fontWeight: '800',
+    color: '#0f172a',
   },
   dispatchTableColValue: {
     flex: 1,
     backgroundColor: '#ffffff',
-    paddingHorizontal: 9,
-    paddingVertical: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     justifyContent: 'center',
   },
   dispatchTableValueText: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 13.5,
+    fontWeight: '800',
     color: '#000000',
   },
   dispatchTablePayoutValue: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
     color: '#000000',
+  },
+  dispatchAmountCard: {
+    backgroundColor: '#edf5fe',
+    borderWidth: 1,
+    borderColor: '#c8dcf7',
+    borderRadius: 8,
+    marginTop: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  dispatchAmountRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  dispatchAmountLabel: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  dispatchAmountValue: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#000000',
+  },
+  dispatchTollNoteBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FDF1E7',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  dispatchTollNoteText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#0f172a',
+    flex: 1,
+  },
+  dispatchAmountDivider: {
+    height: 1,
+    backgroundColor: '#c8dcf7',
+    marginVertical: 6,
+  },
+  dispatchAmountTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 2,
+  },
+  dispatchAmountTotalLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#000000',
+  },
+  dispatchAmountTotalValue: {
+    fontSize: 16.5,
+    fontWeight: '900',
+    color: '#000000',
+  },
+  dispatchTableValueMonospace: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0f2744',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  tableTagPill: {
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    borderRadius: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  tableTagText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#b45309',
   },
 
   /* Decline & Accept Action Buttons Row - EXACTLY AS IMAGE 1 */
@@ -1341,8 +1484,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     borderWidth: 1.5,
-    borderColor: '#dc2626',
-    backgroundColor: '#dc2626',
+    borderColor: '#D00000',
+    backgroundColor: '#D00000',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1357,11 +1500,11 @@ const styles = StyleSheet.create({
     flex: 1.45,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#16a34a',
+    backgroundColor: '#008800',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#16a34a',
+    shadowColor: '#008800',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 6,
@@ -1615,10 +1758,10 @@ const styles = StyleSheet.create({
     flex: 1.4,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#dc2626',
+    backgroundColor: '#D00000',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#dc2626',
+    shadowColor: '#D00000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,

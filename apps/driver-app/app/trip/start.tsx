@@ -665,21 +665,24 @@ export default function DriverTripStartScreen() {
     }
 
     const draft = bookingId ? getTripStartDraft(bookingId) : null;
-    const finalStartingOdometer = startingOdometer || draft?.startingOdometer;
-    const finalOdometerImageUri = odometerImageUri || draft?.odometerImageUri;
+    const finalStartingOdometer = (startingOdometer !== undefined && startingOdometer !== '')
+      ? startingOdometer
+      : (draft?.startingOdometer !== undefined && draft?.startingOdometer !== ''
+          ? draft.startingOdometer
+          : (booking?.startingOdometer !== null && booking?.startingOdometer !== undefined ? String(booking.startingOdometer) : ''));
+
+    const finalOdometerImageUri = odometerImageUri || draft?.odometerImageUri || booking?.startingOdometerImagePath;
     const finalSelfieUri = driverSelfieUri || draft?.driverSelfieUri || 'demo_selfie';
     const finalInspectionPhotos = inspectionPhotos.filter(Boolean).length > 0
       ? inspectionPhotos.filter(Boolean)
       : (draft?.inspectionPhotos?.filter(Boolean) || ['demo_front', 'demo_rear', 'demo_inside_front', 'demo_inside_back']);
 
-    if (!finalStartingOdometer) {
-      setError('Please capture starting odometer reading first.');
-      router.push({ pathname: '/trip/odometer', params: { bookingId } });
-      return;
-    }
-    if (!finalOdometerImageUri) {
-      setError('Starting odometer photo is mandatory. Please capture odometer photo.');
-      router.push({ pathname: '/trip/odometer', params: { bookingId } });
+    // If odometer reading or photo evidence is missing, route driver to the Odometer page immediately so the error shows on the Odometer page only
+    if (finalStartingOdometer === '' || !finalOdometerImageUri) {
+      const odoMsg = finalStartingOdometer === ''
+        ? 'Starting odometer reading is mandatory. Please enter starting reading in KM.'
+        : 'Starting odometer photo is mandatory. Please capture odometer photo.';
+      router.replace({ pathname: '/trip/odometer', params: { bookingId, error: odoMsg } });
       return;
     }
 
@@ -728,7 +731,16 @@ export default function DriverTripStartScreen() {
           params: { bookingId },
         });
       } else {
-        setError(res.message);
+        const errorMsg = res.message || 'Failed to start trip';
+        if (errorMsg.toLowerCase().includes('odometer')) {
+          // Show odometer errors on the Odometer page only
+          router.replace({
+            pathname: '/trip/odometer',
+            params: { bookingId, error: errorMsg },
+          });
+          return;
+        }
+        setError(errorMsg);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to verify OTP and start trip');

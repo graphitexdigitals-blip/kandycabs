@@ -372,12 +372,73 @@ export interface FleetInfo {
   category: string;
 }
 
+export function normalizeFleetName(name: string): string {
+  if (!name || typeof name !== 'string') return '';
+  const clean = name.replace(/\s*[–—\-]\s*/g, ' – ').trim();
+  const lower = clean.toLowerCase();
+  if (lower.includes('compact') || lower.includes('glanza') || lower.includes('wagonr') || lower.includes('tiago')) {
+    return 'Sedan – Compact';
+  }
+  if (lower.includes('etios')) {
+    return 'Sedan – Toyota Etios';
+  }
+  if (lower.includes('dzire') || lower.includes('swift')) {
+    return 'Sedan – Swift Dzire';
+  }
+  if (lower.includes('ertiga')) {
+    return 'SUV – Ertiga';
+  }
+  if (lower.includes('carens')) {
+    return 'SUV – Kia Carens';
+  }
+  if (lower.includes('crysta')) {
+    return 'SUV – Innova Crysta';
+  }
+  if (lower.includes('innova')) {
+    return 'SUV – Toyota Innova';
+  }
+  if (lower.includes('urbania')) {
+    return 'Force Urbania';
+  }
+  if (lower.includes('traveller') || lower.includes('traveler')) {
+    return 'Tempo Traveller';
+  }
+  return clean;
+}
+
 export function getFleetDisplay(b: any): FleetInfo {
-  if (!b) return { display: 'Sedan (Dzire, Etios)', category: 'SEDAN' };
+  if (!b) return { display: 'Sedan – Swift Dzire', category: 'SWIFT_DZIRE' };
 
-  const model = b?.vehicle?.model || b?.vehicleModel || b?.carModel || b?.vehicleName;
+  // 1. Direct explicit fleetName or selectedVehicleName
+  const directName = b?.fleetName || b?.selectedVehicleName || b?.vehicleName;
+  if (directName && typeof directName === 'string' && directName.trim().length > 0) {
+    const display = normalizeFleetName(directName.trim());
+    return { display, category: b?.fleetId || b?.category || 'VEHICLE' };
+  }
 
-  const rawCat = (
+  // 2. Check tripEvents BOOKING_CREATED payload
+  if (Array.isArray(b?.tripEvents)) {
+    for (const evt of b.tripEvents) {
+      try {
+        const p = typeof evt.payloadJson === 'string' ? JSON.parse(evt.payloadJson) : evt.payloadJson;
+        const pName = p?.fleetName || p?.selectedVehicleName || p?.vehicleName;
+        if (pName && typeof pName === 'string' && pName.trim().length > 0) {
+          return { display: normalizeFleetName(pName.trim()), category: p?.fleetId || b?.category || 'VEHICLE' };
+        }
+      } catch (_) {}
+    }
+  }
+
+  // 3. Check notes or specialRequirements for [FLEET: ...]
+  const combinedNotes = `${b?.notes || ''} ${b?.specialRequirements || ''}`;
+  const fleetTagMatch = combinedNotes.match(/\[FLEET:\s*([^\]|;\n]+)\]/i);
+  if (fleetTagMatch && fleetTagMatch[1]) {
+    return { display: normalizeFleetName(fleetTagMatch[1].trim()), category: b?.category || 'VEHICLE' };
+  }
+
+  // 4. Resolve from fleetId or category
+  let rawCat = (
+    b?.fleetId ||
     b?.category ||
     b?.vehicleCategory ||
     b?.vehicle?.category ||
@@ -385,69 +446,89 @@ export function getFleetDisplay(b: any): FleetInfo {
     b?.fleetCategory?.name ||
     b?.fleetCategory ||
     ''
-  ).toString().toUpperCase();
+  ).toString().toUpperCase().trim();
 
-  let formatted = '';
-  let shortCat = 'SEDAN';
-
-  switch (rawCat) {
-    case 'SEDAN':
-      formatted = model ? `Sedan • ${model}` : 'Sedan (Dzire, Etios)';
-      shortCat = 'SEDAN';
-      break;
-    case 'SWIFT_DZIRE':
-      formatted = 'Swift Dzire (Sedan)';
-      shortCat = 'SEDAN';
-      break;
-    case 'TOYOTA_ETIOS':
-      formatted = 'Toyota Etios (Sedan)';
-      shortCat = 'SEDAN';
-      break;
-    case 'HATCHBACK':
-      formatted = model ? `Hatchback • ${model}` : 'Hatchback (WagonR, Tiago)';
-      shortCat = 'HATCHBACK';
-      break;
-    case 'SUV':
-      formatted = model ? `SUV • ${model}` : 'SUV (Ertiga, Carens)';
-      shortCat = 'SUV';
-      break;
-    case 'SUV_ERTIGA':
-      formatted = 'Maruti Ertiga (SUV)';
-      shortCat = 'ERTIGA';
-      break;
-    case 'SUV_CARENS':
-      formatted = 'Kia Carens (SUV)';
-      shortCat = 'CARENS';
-      break;
-    case 'SUV_PREMIUM':
-    case 'SUV_INNOVA':
-    case 'INNOVA':
-    case 'INNOVA_CRYSTA':
-    case 'SUV_CRYSTA':
-      formatted = 'Innova Crysta (Premium SUV)';
-      shortCat = 'CRYSTA';
-      break;
-    case 'TEMPO_TRAVELER':
-    case 'TEMPO_TRAVELLER':
-    case 'URBANIA':
-      formatted = 'Tempo Traveller';
-      shortCat = 'TEMPO';
-      break;
-    default:
-      if (model) {
-        formatted = model;
-        shortCat = rawCat ? rawCat.replace(/^SUV_/, '').replace(/_/g, ' ') : 'VEHICLE';
-      } else if (rawCat) {
-        formatted = rawCat.replace(/_/g, ' ');
-        shortCat = rawCat.replace(/^SUV_/, '').replace(/_/g, ' ');
-      } else {
-        formatted = 'Sedan (Dzire, Etios)';
-        shortCat = 'SEDAN';
-      }
-      break;
+  // Also check if any tripEvent payload has fleetId
+  if (Array.isArray(b?.tripEvents)) {
+    for (const evt of b.tripEvents) {
+      try {
+        const p = typeof evt.payloadJson === 'string' ? JSON.parse(evt.payloadJson) : evt.payloadJson;
+        if (p?.fleetId) {
+          rawCat = String(p.fleetId).toUpperCase().trim();
+          break;
+        }
+      } catch (_) {}
+    }
   }
 
-  return { display: formatted, category: shortCat };
+  const model = (b?.vehicle?.model || b?.vehicleModel || b?.carModel || b?.vehicleName || '').toLowerCase();
+
+  switch (rawCat) {
+    case 'SWIFT_DZIRE':
+    case 'DZIRE':
+      return { display: 'Sedan – Swift Dzire', category: 'SWIFT_DZIRE' };
+
+    case 'TOYOTA_ETIOS':
+    case 'ETIOS':
+      return { display: 'Sedan – Toyota Etios', category: 'TOYOTA_ETIOS' };
+
+    case 'HATCHBACK':
+    case 'COMPACT':
+      return { display: 'Sedan – Compact', category: 'HATCHBACK' };
+
+    case 'SUV_ERTIGA':
+    case 'ERTIGA':
+      return { display: 'SUV – Ertiga', category: 'SUV_ERTIGA' };
+
+    case 'SUV_CARENS':
+    case 'CARENS':
+      return { display: 'SUV – Kia Carens', category: 'SUV_CARENS' };
+
+    case 'SUV_INNOVA':
+    case 'INNOVA':
+      return { display: 'SUV – Toyota Innova', category: 'SUV_INNOVA' };
+
+    case 'SUV_CRYSTA':
+    case 'INNOVA_CRYSTA':
+    case 'SUV_PREMIUM':
+    case 'CRYSTA':
+      return { display: 'SUV – Innova Crysta', category: 'SUV_CRYSTA' };
+
+    case 'SEDAN':
+      if (model.includes('etios') || model.includes('toyota')) {
+        return { display: 'Sedan – Toyota Etios', category: 'TOYOTA_ETIOS' };
+      }
+      if (model.includes('dzire') || model.includes('swift')) {
+        return { display: 'Sedan – Swift Dzire', category: 'SWIFT_DZIRE' };
+      }
+      return { display: 'Sedan – Swift Dzire', category: 'SEDAN' };
+
+    case 'SUV':
+      if (model.includes('carens') || model.includes('kia')) {
+        return { display: 'SUV – Kia Carens', category: 'SUV_CARENS' };
+      }
+      if (model.includes('crysta')) {
+        return { display: 'SUV – Innova Crysta', category: 'SUV_CRYSTA' };
+      }
+      if (model.includes('innova')) {
+        return { display: 'SUV – Toyota Innova', category: 'SUV_INNOVA' };
+      }
+      return { display: 'SUV – Ertiga', category: 'SUV_ERTIGA' };
+
+    case 'TEMPO_TRAVELER':
+    case 'TEMPO_TRAVELLER':
+    case 'TRAVELLER':
+    case 'TEMPO':
+      return { display: 'Tempo Traveller', category: 'TEMPO_TRAVELER' };
+
+    case 'URBANIA':
+    case 'FORCE_URBANIA':
+      return { display: 'Force Urbania', category: 'URBANIA' };
+
+    default:
+      if (model) return { display: model, category: rawCat };
+      return { display: rawCat.replace(/_/g, ' '), category: rawCat };
+  }
 }
 
 

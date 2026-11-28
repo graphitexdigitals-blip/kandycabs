@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { AdminNavbar } from '@/components/AdminNavbar';
 import { AdminTaxInvoiceModal } from '@/components/AdminTaxInvoiceModal';
 import { PaymentStatus } from '@kandy-cabs/shared';
@@ -696,22 +697,25 @@ Support: +91 9786452563`;
             </div>
           </div>
 
-          {/* 3. Driver Unpaid (Pending) */}
-          <div className="bg-white rounded-2xl border border-rose-200/80 p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group">
+          {/* 3. Driver Wallet Liabilities */}
+          <Link
+            href="/driver-payouts"
+            className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group cursor-pointer"
+          >
             <div>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-rose-700 truncate">Driver Unpaid</span>
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 ring-4 ring-rose-100 shrink-0" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 truncate">Driver Wallet Liabilities</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100 shrink-0" />
               </div>
               <div className="text-2xl sm:text-3xl font-black text-[#0F172A] mt-3 tracking-tight truncate">
                 ₹{(summary.totalDriverPendingAmount || 0).toLocaleString('en-IN')}
               </div>
             </div>
-            <div className="text-xs font-semibold text-rose-600 flex items-center gap-1.5 mt-3 pt-3 border-t border-rose-100/80">
-              <span className="font-bold">{summary.driverPendingCount || 0}</span>
-              <span className="truncate">pending driver settlements</span>
+            <div className="text-xs font-semibold text-slate-600 flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+              <span className="truncate">View & Settle in Driver Payouts</span>
+              <span className="text-emerald-600 font-bold">→</span>
             </div>
-          </div>
+          </Link>
 
           {/* 4. Driver Settled (Paid) */}
           <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group">
@@ -819,49 +823,15 @@ Support: +91 9786452563`;
               </span>
             </button>
 
-            {/* Driver Paid */}
-            <button
-              onClick={() => {
-                setStatusFilter('DRIVER_PAID');
-                setPage(1);
-              }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2 shrink-0 whitespace-nowrap cursor-pointer ${
-                statusFilter === 'DRIVER_PAID'
-                  ? 'bg-[#0F172A] text-white font-bold shadow-sm shadow-slate-900/25'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-[#E2E8F0]'
-              }`}
+            {/* Driver Wallet & Payouts Direct Navigation */}
+            <Link
+              href="/driver-payouts"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 whitespace-nowrap bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-2xs cursor-pointer"
+              title="Open Driver Wallet Balances & Settlement Payouts"
             >
-              <span>✓ Driver Paid</span>
-              <span
-                className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  statusFilter === 'DRIVER_PAID' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
-                }`}
-              >
-                {summary.driverPaidCount || 0}
-              </span>
-            </button>
-
-            {/* Driver Unpaid */}
-            <button
-              onClick={() => {
-                setStatusFilter('DRIVER_UNPAID');
-                setPage(1);
-              }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2 shrink-0 whitespace-nowrap cursor-pointer ${
-                statusFilter === 'DRIVER_UNPAID'
-                  ? 'bg-[#0F172A] text-white font-bold shadow-sm shadow-slate-900/25'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-[#E2E8F0]'
-              }`}
-            >
-              <span>✕ Driver Unpaid</span>
-              <span
-                className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  statusFilter === 'DRIVER_UNPAID' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
-                }`}
-              >
-                {summary.driverPendingCount || 0}
-              </span>
-            </button>
+              <IconWallet className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Driver Wallet & Payouts →</span>
+            </Link>
 
             {/* 1. Customer Amount Received (No Pending) */}
             <button
@@ -1750,17 +1720,10 @@ Support: +91 9786452563`;
                                   <span>Total Payout</span>
                                   <span className="text-slate-900 font-black">₹{totalDriverPayout.toLocaleString('en-IN')}</span>
                                 </div>
-                                {isDriverPaid ? (
-                                  <div className="mt-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold text-center flex items-center justify-center gap-1">
-                                    <span>✓</span>
-                                    <span>Driver Paid</span>
-                                  </div>
-                                ) : (
-                                  <div className="mt-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold text-center flex items-center justify-center gap-1">
-                                    <span>!</span>
-                                    <span>Driver Unpaid</span>
-                                  </div>
-                                )}
+                                <div className="mt-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-bold text-center flex items-center justify-center gap-1">
+                                  <IconWallet className="w-3 h-3 text-emerald-600" />
+                                  <span>In Driver Wallet</span>
+                                </div>
                               </div>
                             ) : (
                               <span className="text-slate-400 italic text-[11px]">No driver</span>
@@ -1831,36 +1794,17 @@ Support: +91 9786452563`;
                                 </button>
                               </div>
 
-                              {/* Bottom row: Mark Paid Button or Status */}
+                              {/* Bottom row: Driver Wallet Link */}
                               {t.driverName && (
                                 <div className="w-full">
-                                  {isDriverPaid ? (
-                                    <button
-                                      type="button"
-                                      disabled={isProcessing}
-                                      onClick={() => handleToggleDriverPayment(t.id, 'PENDING')}
-                                      className="w-full px-2 py-1 bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 rounded-lg text-[10px] font-semibold transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
-                                      title="Mark Driver Unpaid"
-                                    >
-                                      <IconChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      disabled={isProcessing}
-                                      onClick={() => handleToggleDriverPayment(t.id, 'PAID')}
-                                      className="w-full px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1.5 shadow-2xs disabled:opacity-50 cursor-pointer"
-                                    >
-                                      {isProcessing ? (
-                                        <span>...</span>
-                                      ) : (
-                                        <>
-                                          <IconCheck className="w-3.5 h-3.5 text-white" strokeWidth={3} />
-                                          <span>Mark Driver Paid</span>
-                                        </>
-                                      )}
-                                    </button>
-                                  )}
+                                  <Link
+                                    href={`/driver-payouts?driverId=${t.driverId || ''}`}
+                                    className="w-full px-2 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                                    title="View Driver Wallet & Settle Payout"
+                                  >
+                                    <IconWallet className="w-3.5 h-3.5 text-emerald-400" />
+                                    <span>Driver Wallet</span>
+                                  </Link>
                                 </div>
                               )}
                             </div>
@@ -1992,17 +1936,10 @@ Support: +91 9786452563`;
                         {/* Driver Payout Badge in collapsed view */}
                         <div>
                           {t.driverName && (
-                            isDriverPaid ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <span>✓</span>
-                                <span>Driver Paid</span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                                <span>!</span>
-                                <span>Driver Unpaid (₹{totalDriverEarning.toLocaleString('en-IN')})</span>
-                              </span>
-                            )
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                              <IconWallet className="w-3 h-3 text-emerald-600" />
+                              <span>In Driver Wallet (₹{totalDriverEarning.toLocaleString('en-IN')})</span>
+                            </span>
                           )}
                         </div>
 
@@ -2207,32 +2144,13 @@ Support: +91 9786452563`;
                             </button>
 
                             {t.driverName && (
-                              isDriverPaid ? (
-                                <button
-                                  type="button"
-                                  disabled={isProcessing}
-                                  onClick={() => handleToggleDriverPayment(t.id, 'PENDING')}
-                                  className="px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
-                                >
-                                  <span>Mark Unpaid</span>
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  disabled={isProcessing}
-                                  onClick={() => handleToggleDriverPayment(t.id, 'PAID')}
-                                  className="flex-1 min-w-[140px] px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs disabled:opacity-50 cursor-pointer"
-                                >
-                                  {isProcessing ? (
-                                    <span>...</span>
-                                  ) : (
-                                    <>
-                                      <IconCheck className="w-3.5 h-3.5 text-white" strokeWidth={3} />
-                                      <span>Mark Driver Paid</span>
-                                    </>
-                                  )}
-                                </button>
-                              )
+                              <Link
+                                href={`/driver-payouts?driverId=${t.driverId || ''}`}
+                                className="flex-1 min-w-[140px] px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                              >
+                                <IconWallet className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>Driver Wallet</span>
+                              </Link>
                             )}
                           </div>
                         </div>
@@ -2336,16 +2254,11 @@ Support: +91 9786452563`;
                 <span className="text-[10px] text-slate-500 mt-0.5 block">Settled after ride completion</span>
               </div>
 
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Driver Payment Status</label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
-                >
-                  <option value="PAID">DRIVER PAID (Settled)</option>
-                  <option value="PENDING">DRIVER UNPAID (Pending)</option>
-                </select>
+              <div className="bg-emerald-50/70 p-3 rounded-xl border border-emerald-200 text-xs space-y-1">
+                <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider block">Wallet Balance Credit</span>
+                <p className="text-emerald-900 font-medium">
+                  This payout amount is automatically credited to the driver&apos;s digital wallet. Settlement is recorded via the <strong>Driver Wallet &amp; Payouts</strong> page.
+                </p>
               </div>
 
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex justify-between items-center text-xs">

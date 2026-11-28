@@ -22,6 +22,7 @@ import {
   IconXCircle,
   IconSteeringWheel,
   IconScale,
+  IconWallet,
 } from './Icons';
 
 interface NavItem {
@@ -130,6 +131,13 @@ export function AdminNavbar() {
       label: 'Security Deposit & Fines',
       description: 'Driver security deposits, violation penalties & deductions',
       icon: IconScale,
+      section: 'FLEET & DRIVERS',
+    },
+    {
+      href: '/driver-payouts',
+      label: 'Driver Wallet & Payouts',
+      description: 'Fleet driver wallet balances, earnings & settlements',
+      icon: IconWallet,
       section: 'FLEET & DRIVERS',
     },
     {

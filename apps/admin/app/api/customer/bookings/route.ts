@@ -357,6 +357,9 @@ export async function POST(req: NextRequest) {
           payloadJson: {
             source: 'customer-app',
             category,
+            fleetId: body.fleetId || undefined,
+            fleetName: body.fleetName || body.selectedVehicleName || undefined,
+            selectedVehicleName: body.selectedVehicleName || body.fleetName || undefined,
             tripType,
             viaStops: Array.isArray(body.viaStops) ? body.viaStops : (Array.isArray(body.stops) ? body.stops : []),
             stops: Array.isArray(body.viaStops) ? body.viaStops : (Array.isArray(body.stops) ? body.stops : []),

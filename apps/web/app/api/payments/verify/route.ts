@@ -10,29 +10,35 @@ export async function OPTIONS() {
   return handleOptions();
 }
 
+export async function GET(req: NextRequest) {
+  return POST(req);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get('content-type') || '';
     const acceptHeader = req.headers.get('accept') || '';
-    const isBrowserNavigation = acceptHeader.includes('text/html') || contentType.includes('application/x-www-form-urlencoded');
+    const isBrowserNavigation = req.method === 'GET' || acceptHeader.includes('text/html') || contentType.includes('application/x-www-form-urlencoded');
 
     let body: any = {};
-    if (contentType.includes('application/json')) {
-      body = await req.json().catch(() => ({}));
-    } else if (contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data')) {
-      const formData = await req.formData().catch(() => null);
-      if (formData) {
-        body = Object.fromEntries(formData.entries());
-      }
-    } else {
-      const text = await req.text().catch(() => '');
-      try {
-        body = JSON.parse(text);
-      } catch {
+    if (req.method !== 'GET') {
+      if (contentType.includes('application/json')) {
+        body = await req.json().catch(() => ({}));
+      } else if (contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data')) {
+        const formData = await req.formData().catch(() => null);
+        if (formData) {
+          body = Object.fromEntries(formData.entries());
+        }
+      } else {
+        const text = await req.text().catch(() => '');
         try {
-          body = Object.fromEntries(new URLSearchParams(text));
+          body = JSON.parse(text);
         } catch {
-          body = {};
+          try {
+            body = Object.fromEntries(new URLSearchParams(text));
+          } catch {
+            body = {};
+          }
         }
       }
     }
@@ -43,12 +49,62 @@ export async function POST(req: NextRequest) {
     const razorpay_payment_id = (body.razorpay_payment_id || searchParams.get('razorpay_payment_id') || '') as string;
     const razorpay_signature = (body.razorpay_signature || searchParams.get('razorpay_signature') || '') as string;
     const paymentMethod = (body.paymentMethod || 'RAZORPAY') as string;
+    const errorDescription =
+      (body['error[description]'] ||
+        searchParams.get('error[description]') ||
+        body.error_description ||
+        searchParams.get('error_description') ||
+        '') as string;
+    const errorCode =
+      (body['error[code]'] ||
+        searchParams.get('error[code]') ||
+        body.error_code ||
+        searchParams.get('error_code') ||
+        '') as string;
 
     if (!razorpay_payment_id) {
       if (isBrowserNavigation) {
+        const safeDesc = (errorDescription || 'Payment was not completed. You can try again anytime.').replace(/'/g, "\\'");
         return new NextResponse(
-          `<!DOCTYPE html><html><body style="background:#0f172a;color:#fff;font-family:sans-serif;padding:24px;text-align:center;"><h2>Payment Incomplete</h2><p>Payment ID missing. Please retry from app.</p></body></html>`,
-          { status: 400, headers: { 'Content-Type': 'text/html' } }
+          `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Payment Incomplete</title>
+  <style>
+    body { background: #0f172a; color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; padding: 24px; box-sizing: border-box; }
+    .icon { font-size: 52px; color: #f59e0b; margin-bottom: 12px; }
+    h2 { font-size: 22px; margin: 0 0 8px; color: #f8fafc; }
+    p { font-size: 14px; color: #94a3b8; margin: 0 0 20px; max-width: 320px; line-height: 1.5; }
+    .btn { background: #f0750f; color: #fff; border: none; border-radius: 12px; padding: 12px 28px; font-size: 15px; font-weight: 700; cursor: pointer; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="icon">⚠</div>
+  <h2>Payment Not Completed</h2>
+  <p>${errorDescription || 'Payment was not completed. You can try again anytime.'}</p>
+  <button class="btn" onclick="retryPayment()">Try Again</button>
+  <script>
+    function notifyRN(msg) {
+      try {
+        if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+          window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+        }
+      } catch (_) {}
+    }
+    notifyRN({
+      type: 'PAYMENT_FAILED',
+      code: '${errorCode || 'CANCELLED'}',
+      description: '${safeDesc}'
+    });
+    function retryPayment() {
+      notifyRN({ type: 'CLOSE_CHECKOUT' });
+    }
+  </script>
+</body>
+</html>`,
+          { status: 200, headers: { 'Content-Type': 'text/html' } }
         );
       }
       const res = NextResponse.json(
@@ -76,6 +132,12 @@ export async function POST(req: NextRequest) {
 
     if (!isSignatureValid) {
       console.warn('[Razorpay Verify] Signature mismatch for order:', razorpay_order_id);
+      if (isBrowserNavigation) {
+        return new NextResponse(
+          `<!DOCTYPE html><html><body style="background:#0f172a;color:#fff;font-family:sans-serif;padding:24px;text-align:center;"><h2>Payment Signature Notice</h2><p>Payment signature check did not match. Please contact support.</p></body></html>`,
+          { status: 400, headers: { 'Content-Type': 'text/html' } }
+        );
+      }
       const res = NextResponse.json(
         { success: false, message: 'Payment signature verification failed' },
         { status: 400 }
@@ -101,6 +163,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (!targetBooking) {
+      if (isBrowserNavigation) {
+        return new NextResponse(
+          `<!DOCTYPE html><html><body style="background:#0f172a;color:#fff;font-family:sans-serif;padding:24px;text-align:center;"><h2>Booking Not Found</h2><p>Associated booking not found for this transaction.</p></body></html>`,
+          { status: 404, headers: { 'Content-Type': 'text/html' } }
+        );
+      }
       const res = NextResponse.json(
         { success: false, message: 'Associated booking not found for this order' },
         { status: 404 }
@@ -118,7 +186,7 @@ export async function POST(req: NextRequest) {
         data: {
           advancePaymentStatus: PaymentStatus.PAID,
           status:
-            targetBooking.status === BookingStatus.DRAFT
+            targetBooking.status === ('DRAFT' as any)
               ? BookingStatus.PENDING_ADMIN
               : targetBooking.status,
         },

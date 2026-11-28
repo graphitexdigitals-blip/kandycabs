@@ -134,6 +134,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const existingDriver = await prisma.driver.findUnique({
+      where: { id: session.driverId },
+      include: { user: true },
+    });
+
     const updatedDriver = await prisma.driver.update({
       where: { id: session.driverId },
       data: {
@@ -149,6 +154,31 @@ export async function POST(req: NextRequest) {
         payoutStatus: 'PENDING',
       },
     });
+
+    // Record comprehensive audit trail for the payout details change
+    try {
+      const oldDesc = existingDriver
+        ? (existingDriver.payoutMethod === 'UPI'
+            ? `UPI (${existingDriver.payoutUpiId || 'None'})`
+            : `Bank A/c (${existingDriver.bankAccountNumber ? `••••${existingDriver.bankAccountNumber.slice(-4)}` : 'None'}, IFSC: ${existingDriver.bankIfsc || 'None'})`)
+        : 'None';
+
+      const newDesc = method === 'UPI'
+        ? `UPI (${payoutUpiId.trim()})`
+        : `Bank A/c (${bankAccountNumber.trim()}, IFSC: ${bankIfsc.trim().toUpperCase()})`;
+
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: session.userId,
+          action: 'PAYOUT_DETAILS_UPDATED',
+          entityType: 'DRIVER',
+          entityId: session.driverId,
+          reason: `Driver ${existingDriver?.user?.fullName || session.user?.fullName || 'Driver'} updated payout details. Previous: ${oldDesc} ➔ New: ${newDesc}. Status set to REVIEW PENDING.`,
+        },
+      });
+    } catch (auditErr) {
+      console.error('Failed to write audit log for payout update:', auditErr);
+    }
 
     const res = NextResponse.json({
       success: true,

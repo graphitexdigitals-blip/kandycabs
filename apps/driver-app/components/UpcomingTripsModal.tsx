@@ -22,6 +22,7 @@ import {
   parseCustomerRequirements,
   extractCustomerNotes,
   isTripPhoneReleased,
+  getFleetDisplay,
 } from '../lib/tripRequirements';
 import {
   setTripInProcess,
@@ -873,58 +874,19 @@ export function UpcomingTripCard({
       : trip.tripType.replace(/_/g, ' ')
     : 'ONEWAY';
 
-  const vehicleDisplay = (() => {
-    if (trip?.vehicle?.model) return trip.vehicle.model;
-    if (trip?.vehicleModel) return trip.vehicleModel;
-    if (trip?.carModel) return trip.carModel;
-    if (trip?.vehicleName) return trip.vehicleName;
-
-    const rawCat = (
-      trip?.vehicle?.category ||
-      trip?.vehicleCategory ||
-      trip?.category ||
-      trip?.carType ||
-      trip?.fleetCategory?.name ||
-      trip?.fleetCategory ||
-      ''
-    ).toString().toUpperCase();
-
-    switch (rawCat) {
-      case 'SEDAN':
-        return 'Etios, Swift Dzire';
-      case 'SWIFT_DZIRE':
-        return 'Swift Dzire';
-      case 'TOYOTA_ETIOS':
-        return 'Toyota Etios';
-      case 'HATCHBACK':
-        return 'Compact (WagonR, Tiago)';
-      case 'SUV':
-        return 'Ertiga, Carens';
-      case 'SUV_ERTIGA':
-        return 'Maruti Ertiga';
-      case 'SUV_CARENS':
-        return 'Kia Carens';
-      case 'SUV_PREMIUM':
-      case 'SUV_INNOVA':
-      case 'INNOVA':
-      case 'INNOVA_CRYSTA':
-        return 'Innova Crysta';
-      case 'TEMPO_TRAVELER':
-      case 'TEMPO_TRAVELLER':
-        return 'Tempo Traveller';
-      default:
-        if (rawCat) {
-          return rawCat.replace(/_/g, ' ');
-        }
-        return 'Sedan (Dzire, Etios)';
-    }
-  })();
+  const vehicleDisplay = getFleetDisplay(trip).display;
 
   const activeVendorCost = Math.round(
     Number(trip?.driverPayeeAmount || 0) > 0
       ? Number(trip.driverPayeeAmount)
       : Number(trip?.distanceKm || 0) * 13 + (Number(trip?.driverAllowance) || 300)
   );
+  const activeAllowance = Math.round(
+    Number(trip?.driverAllowance) > 0
+      ? Number(trip.driverAllowance)
+      : 300
+  );
+  const activeVehicleCharges = Math.max(0, activeVendorCost - activeAllowance);
 
   const handleSlideStartTrip = async () => {
     if (driver?.verificationStatus !== 'APPROVED') {
@@ -1184,7 +1146,7 @@ export function UpcomingTripCard({
                   const customerName = trip?.customer?.user?.fullName || trip?.customer?.name || trip?.customerName || trip?.passengerName || 'Customer';
                   Alert.alert(
                     `Trip: ${trip?.humanReadableRef || 'Details'}`,
-                    `Customer: ${customerName}\nPickup: ${trip?.pickupAddress || '--'}\nDrop: ${trip?.dropAddress || '--'}\nDistance: ${trip?.distanceKm || '--'} km\nScheduled: ${pickupDateFormatted} ${pickupTimeFormatted}\nTrip Type: ${tripTypeDisplay}\nChauffeur Amount: ₹${activeVendorCost.toLocaleString('en-IN')}`
+                    `Customer: ${customerName}\nPickup: ${trip?.pickupAddress || '--'}\nDrop: ${trip?.dropAddress || '--'}\nDistance: ${trip?.distanceKm || '--'} km\nScheduled: ${pickupDateFormatted} ${pickupTimeFormatted}\nTrip Type: ${tripTypeDisplay}\nVehicle Charges: ₹${activeVehicleCharges.toLocaleString('en-IN')}\nChauffeur Allowance: ₹${activeAllowance.toLocaleString('en-IN')}\nTotal Amount: ₹${activeVendorCost.toLocaleString('en-IN')}`
                   );
                 }}
                 activeOpacity={0.85}
@@ -1238,8 +1200,8 @@ export function UpcomingTripCard({
               <SlideToAccept
                 onAccept={handleSlideStartTrip}
                 isAccepting={isStartingTrip}
-                title={t('dashboard.slide_to_manage_trip', { defaultValue: 'MANAGE TRIP' })}
-                acceptingTitle={t('dashboard.managing_trip', { defaultValue: 'MANAGING TRIP...' })}
+                title={t('dashboard.slide_to_start_trip', { defaultValue: 'START TRIP' })}
+                acceptingTitle={t('dashboard.starting_trip', { defaultValue: 'STARTING TRIP...' })}
               />
             </View>
           ) : null}
@@ -1290,7 +1252,7 @@ export function UpcomingTripCard({
                 const customerName = trip?.customer?.user?.fullName || trip?.customer?.name || trip?.customerName || trip?.passengerName || 'Customer';
                 Alert.alert(
                   `Trip: ${trip?.humanReadableRef || 'Details'}`,
-                  `Customer: ${customerName}\nPickup: ${trip?.pickupAddress || '--'}\nDrop: ${trip?.dropAddress || '--'}\nDistance: ${trip?.distanceKm || '--'} km\nScheduled: ${pickupDateFormatted} ${pickupTimeFormatted}\nTrip Type: ${tripTypeDisplay}\nChauffeur Amount: ₹${activeVendorCost.toLocaleString('en-IN')}`
+                  `Customer: ${customerName}\nPickup: ${trip?.pickupAddress || '--'}\nDrop: ${trip?.dropAddress || '--'}\nDistance: ${trip?.distanceKm || '--'} km\nScheduled: ${pickupDateFormatted} ${pickupTimeFormatted}\nTrip Type: ${tripTypeDisplay}\nVehicle Charges: ₹${activeVehicleCharges.toLocaleString('en-IN')}\nChauffeur Allowance: ₹${activeAllowance.toLocaleString('en-IN')}\nTotal Amount: ₹${activeVendorCost.toLocaleString('en-IN')}`
                 );
               }}
               activeOpacity={0.8}

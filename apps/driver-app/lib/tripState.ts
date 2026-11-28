@@ -211,7 +211,11 @@ export interface TripCompletionDraft {
   odometerImageUri?: string | null;
   tollAmount?: string;
   nhTollAmount?: string;
+  expresswayTollAmount?: string;
   niceRoadTollAmount?: string;
+  specialPermitAmount?: string;
+  statePermitAmount?: string;
+  airportFeeAmount?: string;
   parkingAmount?: string;
   photoLocation?: { lat: number; lng: number; time: string } | null;
   ocrResultText?: any;

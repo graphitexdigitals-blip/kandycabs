@@ -328,9 +328,55 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // D. Settled / Withdrawn Payouts
+    // D. Settled / Withdrawn Payouts (including RazorpayX & Mobile App withdrawals)
     let settledPayouts = 0;
+    let pendingTransferAmount = 0;
     const settlementTransactions: any[] = [];
+
+    // Query AuditLog for driver mobile app withdrawals
+    let driverPayoutLogs: any[] = [];
+    try {
+      driverPayoutLogs = await prisma.auditLog.findMany({
+        where: { entityType: 'DriverPayout' },
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch {}
+
+    driverPayoutLogs.forEach((log) => {
+      try {
+        if (!log.reason) return;
+        const p = JSON.parse(log.reason);
+        if (p.driverId === activeDriver.id || p.recipientName === activeDriver.name) {
+          const isCancelled = p.status === 'CANCELLED';
+          const isProcessed = p.status === 'PROCESSED';
+          const amt = Number(p.amount || 0);
+
+          if (isProcessed) {
+            settledPayouts += amt;
+          } else if (p.status === 'PENDING') {
+            pendingTransferAmount += amt;
+          }
+
+          settlementTransactions.push({
+            id: p.payoutId || log.entityId || log.id,
+            type: 'SETTLEMENT',
+            category: 'PAYOUT_WITHDRAWAL',
+            title: p.mode === 'UPI' ? 'Instant UPI Withdrawal (RazorpayX)' : 'Bank Payout Withdrawal (RazorpayX)',
+            subtitle: isCancelled
+              ? (p.subtitle || 'Your payout has been cancelled • Amount not deducted')
+              : isProcessed
+              ? `Transferred to ${p.destination || activeDriver.bankName}`
+              : `Transfer to ${p.destination || activeDriver.bankName} (Processing Bank Transfer)`,
+            amount: -amt,
+            date: p.createdAt || log.createdAt,
+            status: isCancelled ? 'PAYOUT_CANCELLED' : isProcessed ? 'PROCESSED' : 'PENDING_TRANSFER',
+            paymentMethod: p.mode || 'IMPS',
+            utrNumber: p.utr,
+          });
+        }
+      } catch {}
+    });
+
     driverLedgerRecords
       .filter((r) => r.type === 'SETTLEMENT')
       .forEach((r) => {
@@ -339,7 +385,7 @@ export async function GET(req: NextRequest) {
           id: r.id,
           type: 'SETTLEMENT',
           category: 'PAYOUT_WITHDRAWAL',
-          title: r.title || 'Weekly Settlement Payout',
+          title: r.title || 'Bank Payout Withdrawal (RazorpayX)',
           subtitle: r.remarks || `Transferred to ${activeDriver.bankName || 'Bank'}`,
           amount: -r.amount,
           date: r.createdAt,
@@ -350,31 +396,56 @@ export async function GET(req: NextRequest) {
       });
 
     if (settlementTransactions.length === 0) {
-      settledPayouts = 12500;
+      settledPayouts = 20500;
+      pendingTransferAmount = 2000;
       settlementTransactions.push(
         {
-          id: 'TX-SETTLE-001',
+          id: 'TX-RZPX-001',
           type: 'SETTLEMENT',
           category: 'PAYOUT_WITHDRAWAL',
-          title: 'Weekly Payout Settled to Bank',
-          subtitle: `NEFT Transfer to ${activeDriver.bankName || 'HDFC Bank'} •••• ${activeDriver.bankAccountNumber?.slice(-4) || '2345'}`,
-          amount: -6500,
-          date: new Date(Date.now() - 7 * 86400000).toISOString(),
-          status: 'PROCESSED',
-          paymentMethod: 'BANK_TRANSFER',
-          utrNumber: 'RZP2026111248102',
+          title: 'Bank Payout Withdrawal (RazorpayX)',
+          subtitle: `Transfer to ${activeDriver.bankName || 'HDFC Bank'} (•••• 2345) (Processing Bank Transfer)`,
+          amount: -2000,
+          date: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
+          status: 'PENDING_TRANSFER',
+          paymentMethod: 'IMPS',
+          utrNumber: 'RZPX202684920194',
         },
         {
-          id: 'TX-SETTLE-002',
+          id: 'TX-RZPX-002',
           type: 'SETTLEMENT',
           category: 'PAYOUT_WITHDRAWAL',
-          title: 'Direct UPI Payout Settled',
-          subtitle: `Instant settlement to ${activeDriver.payoutUpiId || 'mohan@oksbi'}`,
-          amount: -6000,
-          date: new Date(Date.now() - 14 * 86400000).toISOString(),
+          title: 'Bank Payout Withdrawal (RazorpayX)',
+          subtitle: `Transferred to ${activeDriver.bankName || 'HDFC Bank'} (•••• 2345)`,
+          amount: -2000,
+          date: new Date(Date.now() - 1000 * 60 * 85).toISOString(),
           status: 'PROCESSED',
-          paymentMethod: 'UPI',
-          utrNumber: 'UPI492019385012',
+          paymentMethod: 'IMPS',
+          utrNumber: 'RZPX202611948291',
+        },
+        {
+          id: 'TX-RZPX-003',
+          type: 'SETTLEMENT',
+          category: 'PAYOUT_WITHDRAWAL',
+          title: 'Bank Payout Withdrawal (RazorpayX)',
+          subtitle: 'Your payout has been cancelled • Amount not deducted',
+          amount: -12000,
+          date: new Date(Date.now() - 1000 * 60 * 100).toISOString(),
+          status: 'PAYOUT_CANCELLED',
+          paymentMethod: 'IMPS',
+          utrNumber: 'RZPX202638192831',
+        },
+        {
+          id: 'TX-RZPX-004',
+          type: 'SETTLEMENT',
+          category: 'PAYOUT_WITHDRAWAL',
+          title: 'Bank Payout Withdrawal (RazorpayX)',
+          subtitle: 'Your payout has been cancelled • Amount not deducted',
+          amount: -2000,
+          date: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+          status: 'PAYOUT_CANCELLED',
+          paymentMethod: 'IMPS',
+          utrNumber: 'RZPX202677192842',
         }
       );
     }
@@ -402,6 +473,7 @@ export async function GET(req: NextRequest) {
         totalFines,
         pendingFines,
         availableBalance,
+        pendingTransferAmount,
         totalCompletedTrips: tripTransactions.length,
       },
       history: allHistory,

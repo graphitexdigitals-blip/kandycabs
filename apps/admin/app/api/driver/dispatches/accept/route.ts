@@ -46,12 +46,43 @@ export async function POST(req: NextRequest) {
 
     // Atomic Transaction with Concurrency Protection
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Attempt atomic assignment lock on the booking
+      // 1. Fetch current booking to inspect assignment state
+      const currentBooking = await tx.booking.findUnique({
+        where: { id: bookingId },
+        select: { id: true, assignedDriverId: true, status: true },
+      });
+
+      if (!currentBooking) {
+        return { success: false, notFound: true, message: 'Booking not found' };
+      }
+
+      // If already assigned to a DIFFERENT driver, another driver took this ride!
+      if (
+        currentBooking.assignedDriverId &&
+        currentBooking.assignedDriverId !== session.driverId
+      ) {
+        // Expire this driver's dispatch so it never shows again
+        await tx.bookingDispatch.updateMany({
+          where: {
+            bookingId,
+            driverId: session.driverId,
+          },
+          data: {
+            status: DispatchStatus.EXPIRED,
+            respondedAt: new Date(),
+          },
+        });
+        return { success: false, alreadyTaken: true };
+      }
+
+      // If unassigned or already assigned to THIS driver, safely lock/confirm the booking
       const updatedCount = await tx.booking.updateMany({
         where: {
           id: bookingId,
-          assignedDriverId: null,
-          status: { in: [BookingStatus.PENDING_ADMIN, BookingStatus.DISPATCHED] },
+          OR: [
+            { assignedDriverId: null },
+            { assignedDriverId: session.driverId },
+          ],
         },
         data: {
           assignedDriverId: session.driverId,
@@ -61,6 +92,16 @@ export async function POST(req: NextRequest) {
 
       if (updatedCount.count === 0) {
         // Concurrency collision: Another driver already accepted this booking!
+        await tx.bookingDispatch.updateMany({
+          where: {
+            bookingId,
+            driverId: session.driverId,
+          },
+          data: {
+            status: DispatchStatus.EXPIRED,
+            respondedAt: new Date(),
+          },
+        });
         return { success: false, alreadyTaken: true };
       }
 
@@ -80,8 +121,7 @@ export async function POST(req: NextRequest) {
       await tx.bookingDispatch.updateMany({
         where: {
           bookingId,
-          id: { not: dispatchId },
-          status: DispatchStatus.PENDING,
+          driverId: { not: session.driverId },
         },
         data: {
           status: DispatchStatus.EXPIRED,

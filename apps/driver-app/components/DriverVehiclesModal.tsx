@@ -150,11 +150,11 @@ export function DriverVehiclesModal({
     const plate = target?.plateNumber || `Vehicle #${index + 1}`;
 
     Alert.alert(
-      t('vehicles.remove_vehicle_title', 'Remove Vehicle'),
+      t('vehicles.remove_vehicle_title', 'Delete Vehicle'),
       t('vehicles.remove_vehicle_msg', {
         plate,
         model: target?.model || 'Cab',
-        defaultValue: `Are you sure you want to remove ${plate} (${target?.model || 'Cab'}) from your registered fleet?`,
+        defaultValue: `Do you want to delete ${plate} (${target?.model || 'Cab'})? Are you sure you want to delete this vehicle from your registered fleet?`,
       }),
       [
         { text: t('vehicles.cancel', 'Cancel'), style: 'cancel' },

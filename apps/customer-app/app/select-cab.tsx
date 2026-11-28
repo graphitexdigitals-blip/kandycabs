@@ -184,7 +184,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     purpose: 'Budget city & short outstation trips',
     passengers: 4,
     luggage: 2,
-    fuelTypes: ['CNG'],
+    fuelTypes: ['CNG', 'PETROL'],
     hasCarrier: false,
     carrierCapacityText: '',
     carrierExcludedCars: '',
@@ -256,7 +256,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     purpose: 'Spacious 6-seater for ghats & family vacations',
     passengers: 6,
     luggage: 4,
-    fuelTypes: ['CNG'],
+    fuelTypes: ['CNG', 'PETROL'],
     hasCarrier: true,
     carrierCapacityText: 'Roof Carrier Available',
     carrierExcludedCars: '',
@@ -306,7 +306,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     purpose: 'Legendary reliable 7-seater for ghats, temples & long tours',
     passengers: 7,
     luggage: 5,
-    fuelTypes: [],
+    fuelTypes: ['DIESEL'],
     hasCarrier: true,
     carrierCapacityText: 'Roof Carrier Available',
     carrierExcludedCars: '',
@@ -331,7 +331,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     purpose: 'VIP highway cruising with premium captain seats',
     passengers: 7,
     luggage: 5,
-    fuelTypes: [],
+    fuelTypes: ['DIESEL'],
     hasCarrier: true,
     carrierCapacityText: 'Roof Carrier Available',
     carrierExcludedCars: '',
@@ -356,7 +356,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     purpose: 'Pilgrimage, marriage & corporate tour outings',
     passengers: 14,
     luggage: 10,
-    fuelTypes: [],
+    fuelTypes: ['DIESEL'],
     hasCarrier: true,
     carrierCapacityText: 'Roof Carrier Available',
     carrierExcludedCars: '',
@@ -381,7 +381,7 @@ const DEFAULT_FLEET_DATA: FleetItem[] = [
     purpose: 'Executive group trips, corporate delegates & VIP tours',
     passengers: 17,
     luggage: 10,
-    fuelTypes: [],
+    fuelTypes: ['DIESEL'],
     hasCarrier: true,
     carrierCapacityText: 'Spacious Boot & Roof Luggage Space',
     carrierExcludedCars: '',
@@ -468,6 +468,15 @@ const formatSummaryTime = (timeStr: string) => {
     return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
   }
   return timeStr;
+};
+
+const getFuelDisplayLabel = (fuel: string) => {
+  const upper = (fuel || '').toUpperCase();
+  if (upper === 'CNG') return 'CNG';
+  if (upper === 'PETROL') return 'Petrol';
+  if (upper === 'DIESEL') return 'Diesel';
+  if (upper === 'ELECTRIC' || upper === 'EV') return 'Electric';
+  return fuel;
 };
 
 export default function SelectCabScreen() {
@@ -589,8 +598,8 @@ export default function SelectCabScreen() {
             if (!live) return def;
 
             const enabledFuels: string[] = [];
-            if (Array.isArray(live.fuelTypes)) {
-              enabledFuels.push(...live.fuelTypes);
+            if (Array.isArray(live.fuelTypes) && live.fuelTypes.length > 0) {
+              enabledFuels.push(...live.fuelTypes.map((f: string) => f.toUpperCase()));
             } else {
               if (live.cngEnabled) enabledFuels.push('CNG');
               if (live.petrolEnabled) enabledFuels.push('PETROL');
@@ -599,7 +608,7 @@ export default function SelectCabScreen() {
 
             return {
               ...def,
-              fuelTypes: def.id === 'HATCHBACK' ? ['CNG'] : def.id === 'SWIFT_DZIRE' ? ['DIESEL'] : def.fuelTypes,
+              fuelTypes: enabledFuels.length > 0 ? enabledFuels : def.fuelTypes,
               hasCarrier: def.id === 'SWIFT_DZIRE' ? false : (live.hasCarrier !== undefined ? Boolean(live.hasCarrier) : def.hasCarrier),
               carrierCapacityText: def.id === 'SWIFT_DZIRE' ? '' : (live.carrierCapacityText || def.carrierCapacityText),
               carrierExcludedCars: live.carrierExcludedCars || '',
@@ -643,6 +652,21 @@ export default function SelectCabScreen() {
         const data = await res.json();
         if (data && data.success && data.quotesByCategory) {
           setLiveQuoteData(data);
+          // Sync available fuel types per vehicle category directly from server-authoritative quote fuel options
+          setFleetList((prev) =>
+            prev.map((item) => {
+              const q = data.quotesByCategory[item.id] ||
+                data.quotesByCategory[item.id === 'SWIFT_DZIRE' ? 'SEDAN' : item.id === 'SUV_ERTIGA' ? 'SUV' : item.id];
+              if (q && Array.isArray(q.fuelOptions) && q.fuelOptions.length > 0) {
+                const quoteFuels = q.fuelOptions.map((fo: any) => String(fo.fuelType).toUpperCase());
+                return {
+                  ...item,
+                  fuelTypes: quoteFuels,
+                };
+              }
+              return item;
+            })
+          );
         }
       }
     } catch (err) {
@@ -791,13 +815,35 @@ export default function SelectCabScreen() {
 
     const isUrbania = item.id === 'URBANIA';
     const isTempoOrUrbania = item.id === 'TEMPO_TRAVELER' || item.id === 'TRAVELLER' || item.id === 'URBANIA';
-    const effectiveRatePerKm = isUrbania ? selectedUrbaniaSeater.baseRatePerKm : item.ratePerKm;
-    const effectiveExtraKmRate = isUrbania ? selectedUrbaniaSeater.extraKmRate : item.ratePerKm;
+    const chosenFuel = (selectedFuels[item.id] || (item.fuelTypes && item.fuelTypes[0]) || 'DIESEL').toUpperCase();
+
+    const liveQuote = liveQuoteData?.quotesByCategory?.[item.id] ||
+      liveQuoteData?.quotesByCategory?.[item.id === 'SWIFT_DZIRE' ? 'SEDAN' : item.id === 'SUV_ERTIGA' ? 'SUV' : item.id];
+
+    let matchedFuelOption = null;
+    if (liveQuote && Array.isArray(liveQuote.fuelOptions) && liveQuote.fuelOptions.length > 0) {
+      matchedFuelOption = liveQuote.fuelOptions.find(
+        (fo: any) => String(fo.fuelType).toUpperCase() === chosenFuel
+      );
+    }
+
+    const activeQuotePricing = matchedFuelOption?.pricing || liveQuote?.pricing;
+    const activeRatePerKm = isUrbania
+      ? selectedUrbaniaSeater.baseRatePerKm
+      : (matchedFuelOption?.ratePerKm !== undefined
+          ? Number(matchedFuelOption.ratePerKm)
+          : (liveQuote ? Number(liveQuote.ratePerKm) : (
+              chosenFuel === 'PETROL' && item.fuelTypes.includes('CNG')
+                ? item.ratePerKm + 1
+                : item.ratePerKm
+            )));
+
+    const effectiveRatePerKm = activeRatePerKm;
+    const effectiveExtraKmRate = isUrbania ? selectedUrbaniaSeater.extraKmRate : effectiveRatePerKm;
     const effectiveThreshold = isUrbania ? (selectedUrbaniaSeater.extraKmThreshold || selectedUrbaniaSeater.minKm || 150) : item.minKm;
     const effectiveSeats = isUrbania ? selectedUrbaniaSeater.seats : item.passengers;
     const effectiveLuggage = isUrbania ? selectedUrbaniaSeater.luggageBags : item.luggage;
     const displayName = isUrbania ? `${getCategoryDisplayName(item)} (${selectedUrbaniaSeater.shortLabel})` : getCategoryDisplayName(item);
-    const chosenFuel = (selectedFuels[item.id] || (item.fuelTypes && item.fuelTypes[0]) || 'DIESEL').toUpperCase();
     const isDzireDiesel = item.id === 'SWIFT_DZIRE' && chosenFuel === 'DIESEL';
     const effectiveHasCarrier = item.hasCarrier && !isDzireDiesel;
     const effectiveCarrierText = isDzireDiesel
@@ -807,8 +853,8 @@ export default function SelectCabScreen() {
     let fixedAirportFare = 0;
     let airportRouteName = '';
 
-    const liveQuote = liveQuoteData?.quotesByCategory?.[item.id] ||
-      liveQuoteData?.quotesByCategory?.[item.id === 'SWIFT_DZIRE' ? 'SEDAN' : item.id === 'SUV_ERTIGA' ? 'SUV' : item.id];
+    const liveTotalFareVal = activeQuotePricing?.totalFare ?? liveQuote?.totalFare;
+    const liveDriverAllowanceVal = activeQuotePricing?.driverAllowance ?? liveQuote?.driverAllowance;
 
     const nightChargeAddon = (isNightTime && isNightTripTypeEligible) ? 250 : 0;
 
@@ -836,15 +882,15 @@ export default function SelectCabScreen() {
           category: item.id,
           selectedVehicleName: displayName,
           exactDistanceKm: String(estimatedKm),
-          exactTotalFare: liveQuote?.totalFare ? String(Math.round(Number(liveQuote.totalFare))) : '',
-          driverAllowance: liveQuote?.driverAllowance ? String(Number(liveQuote.driverAllowance)) : (tripType === 'ONEWAY' || tripType === 'ROUND' ? '300' : '0'),
+          exactTotalFare: liveTotalFareVal ? String(Math.round(Number(liveTotalFareVal))) : '',
+          driverAllowance: liveDriverAllowanceVal ? String(Number(liveDriverAllowanceVal)) : (tripType === 'ONEWAY' || tripType === 'ROUND' ? '300' : '0'),
           ratePerKm: String(effectiveRatePerKm),
           extraKmRate: String(effectiveExtraKmRate),
           extraKmThreshold: String(effectiveThreshold),
           minKm: String(item.minKm),
           maxSeats: String(effectiveSeats),
           maxLuggage: String(effectiveLuggage),
-          fuelType: selectedFuels[item.id] || (item.fuelTypes && item.fuelTypes[0]) || 'DIESEL',
+          fuelType: chosenFuel,
           hasCarrier: effectiveHasCarrier ? 'true' : 'false',
           requestCarrier: effectiveHasCarrier && !!selectedCarriers[item.id] ? 'true' : 'false',
           carrierText: effectiveCarrierText,
@@ -1048,9 +1094,27 @@ export default function SelectCabScreen() {
             const liveQuote = liveQuoteData?.quotesByCategory?.[item.id] ||
               liveQuoteData?.quotesByCategory?.[item.id === 'SWIFT_DZIRE' ? 'SEDAN' : item.id === 'SUV_ERTIGA' ? 'SUV' : item.id];
 
-            const effectiveRatePerKm = isUrbania
+            const chosenFuel = (selectedFuels[item.id] || (item.fuelTypes && item.fuelTypes[0]) || 'DIESEL').toUpperCase();
+
+            let matchedFuelOption = null;
+            if (liveQuote && Array.isArray(liveQuote.fuelOptions) && liveQuote.fuelOptions.length > 0) {
+              matchedFuelOption = liveQuote.fuelOptions.find(
+                (fo: any) => String(fo.fuelType).toUpperCase() === chosenFuel
+              );
+            }
+
+            const activeQuotePricing = matchedFuelOption?.pricing || liveQuote?.pricing;
+            const activeRatePerKm = isUrbania
               ? selectedUrbaniaSeater.baseRatePerKm
-              : (liveQuote ? Number(liveQuote.ratePerKm) : item.ratePerKm);
+              : (matchedFuelOption?.ratePerKm !== undefined
+                  ? Number(matchedFuelOption.ratePerKm)
+                  : (liveQuote ? Number(liveQuote.ratePerKm) : (
+                      chosenFuel === 'PETROL' && item.fuelTypes.includes('CNG')
+                        ? item.ratePerKm + 1
+                        : item.ratePerKm
+                    )));
+
+            const effectiveRatePerKm = activeRatePerKm;
             const effectiveExtraKmRate = isUrbania ? selectedUrbaniaSeater.extraKmRate : effectiveRatePerKm;
             const effectiveSeats = isUrbania ? selectedUrbaniaSeater.seats : item.passengers;
             const effectiveLuggage = isUrbania ? selectedUrbaniaSeater.luggageBags : item.luggage;
@@ -1062,15 +1126,21 @@ export default function SelectCabScreen() {
             let baseSubtotal: number;
             let calculationBreakdown = '';
 
-            if (liveQuote && !isUrbania && typeof liveQuote.totalFare === 'number' && liveQuote.totalFare > 0) {
-              totalFareWithGst = Math.round(Number(liveQuote.totalFare));
-              gstAmount = Math.round(Number(liveQuote.gstAmount));
-              baseSubtotal = Math.round(Number(liveQuote.subtotal));
-              const rateUsed = Number(liveQuote.ratePerKm || effectiveRatePerKm);
-              const bataUsed = Number(liveQuote.driverAllowance || 0);
+            const liveTotalFare = activeQuotePricing?.totalFare ?? liveQuote?.totalFare;
+            const liveGstAmount = activeQuotePricing?.gstAmount ?? liveQuote?.gstAmount;
+            const liveSubtotal = activeQuotePricing?.subtotal ?? liveQuote?.subtotal;
+            const liveDriverBata = activeQuotePricing?.driverAllowance ?? liveQuote?.driverAllowance;
+            const liveNightFee = activeQuotePricing?.nightFee ?? liveQuote?.nightFee;
+
+            if (!isUrbania && typeof liveTotalFare === 'number' && liveTotalFare > 0) {
+              totalFareWithGst = Math.round(Number(liveTotalFare));
+              gstAmount = Math.round(Number(liveGstAmount || 0));
+              baseSubtotal = Math.round(Number(liveSubtotal || (totalFareWithGst - gstAmount)));
+              const rateUsed = Number(effectiveRatePerKm);
+              const bataUsed = Number(liveDriverBata || 0);
               calculationBreakdown = `${Math.round(estimatedKm)} km @ ₹${rateUsed}/km`;
               if (bataUsed > 0) calculationBreakdown += ` + ₹${bataUsed} Driver Bata`;
-              if (liveQuote.nightFee > 0) calculationBreakdown += ` + ₹${liveQuote.nightFee} Night Surcharge`;
+              if (liveNightFee > 0) calculationBreakdown += ` + ₹${liveNightFee} Night Surcharge`;
               calculationBreakdown += ` + 5% GST = ₹${totalFareWithGst.toLocaleString('en-IN')}`;
             } else {
               let totalFare: number;
@@ -1292,30 +1362,25 @@ export default function SelectCabScreen() {
                   </View>
                 </View>
 
-                {/* Fuel Option Selection: Radio-style row */}
+                {/* Fuel Option Selection: Radio-style row with dynamic individual fuel choices */}
                 {item.fuelTypes && item.fuelTypes.length > 0 && (
                   <View style={[styles.refFuelRow, isSmallDevice && styles.refFuelRowSmall]}>
                     {item.fuelTypes.map((fuel) => {
-                      const isSelectedFuel = (selectedFuels[item.id] || item.fuelTypes[0]) === fuel;
-                      const isDiesel = fuel.toUpperCase() === 'DIESEL';
-                      const displayFuel =
-                        fuel.toUpperCase() === 'CNG' || fuel.toUpperCase().includes('CNG')
-                          ? 'CNG / Petrol'
-                          : fuel.toUpperCase() === 'PETROL'
-                            ? 'Petrol'
-                            : 'Diesel';
+                      const currentChosen = (selectedFuels[item.id] || item.fuelTypes[0]).toUpperCase();
+                      const isSelectedFuel = currentChosen === fuel.toUpperCase();
+                      const displayFuel = getFuelDisplayLabel(fuel);
                       return (
                         <TouchableOpacity
                           key={fuel}
                           style={[styles.refFuelCheckboxBtn, isSelectedFuel && styles.refFuelCheckboxBtnActive]}
                           onPress={() => {
-                            setSelectedFuels((prev) => ({ ...prev, [item.id]: fuel }));
+                            setSelectedFuels((prev) => ({ ...prev, [item.id]: fuel.toUpperCase() }));
                             if (item.id === 'SWIFT_DZIRE' && fuel.toUpperCase() === 'DIESEL') {
                               setSelectedCarriers((prev) => ({ ...prev, [item.id]: false }));
                             }
                           }}
                           activeOpacity={0.7}
-                          hitSlop={{ top: 4, bottom: 4, left: 3, right: 3 }}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                         >
                           <Ionicons
                             name={isSelectedFuel ? 'radio-button-on' : 'radio-button-off'}

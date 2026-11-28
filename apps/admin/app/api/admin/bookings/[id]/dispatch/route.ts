@@ -3,6 +3,7 @@ import { prisma } from '@kandy-cabs/db';
 import { BookingStatus, DispatchStatus } from '@kandy-cabs/shared';
 import { sendCloudPushNotification } from '@/lib/push-notifications';
 import { getAdminSession } from '@/lib/auth';
+import { RealtimeEvents } from '@/lib/realtime-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -184,6 +185,19 @@ export async function POST(
       }
     } catch (pushErr) {
       console.warn('[DispatchPush] Error fetching driver push tokens:', pushErr);
+    }
+
+    // 6. Trigger live Realtime SSE events to drivers so the Accept/Decline modal pops up
+    try {
+      driverIds.forEach((dId: string) => {
+        RealtimeEvents.emitToDriver(dId, 'DISPATCH_NEW', {
+          dispatchId: `dispatch-${id}`,
+          bookingId: id,
+          booking: result.booking,
+        });
+      });
+    } catch (rtErr) {
+      console.warn('[DispatchRealtime] Error emitting DISPATCH_NEW:', rtErr);
     }
 
     return NextResponse.json(

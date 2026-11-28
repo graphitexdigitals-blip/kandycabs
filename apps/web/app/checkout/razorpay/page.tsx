@@ -94,6 +94,8 @@ function RazorpayCheckoutContent() {
       description: `Advance Payment for ${bookingRef}`,
       image: 'https://kandycabs.com/favicon.ico',
       order_id: isRealOrderId ? orderId : undefined,
+      redirect: true,
+      callback_url: `/api/payments/verify?bookingId=${bookingId}`,
       prefill: {
         name: name,
         contact: phone,

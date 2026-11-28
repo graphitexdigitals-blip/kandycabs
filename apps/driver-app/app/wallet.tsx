@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -13,8 +13,9 @@ import {
   Linking,
   Alert,
   TextInput,
+  RefreshControl,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { driverApiClient } from '../lib/api';
@@ -30,7 +31,7 @@ interface WalletTransaction {
   date: string;
   time: string;
   bookingRef?: string;
-  status: 'COMPLETED' | 'HELD' | 'PROCESSED' | 'PENDING';
+  status: 'COMPLETED' | 'HELD' | 'PROCESSED' | 'PENDING' | 'CANCELLED';
   fineReason?: string;
   customerFeedback?: string;
   settlementAccount?: string;
@@ -45,6 +46,7 @@ export default function DriverWalletScreen() {
   const { t } = useTranslation();
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<FilterTab>('ALL');
   const [selectedTx, setSelectedTx] = useState<WalletTransaction | null>(null);
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
@@ -52,6 +54,7 @@ export default function DriverWalletScreen() {
   // Dynamic state populated from API and demo records
   const [driverEarnings, setDriverEarnings] = useState<number>(18450);
   const [settledPayouts, setSettledPayouts] = useState<number>(12500);
+  const [pendingTransferAmount, setPendingTransferAmount] = useState<number>(0);
   const [securityDeposit, setSecurityDeposit] = useState<number>(5000);
   const [totalFines, setTotalFines] = useState<number>(650);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
@@ -71,16 +74,30 @@ export default function DriverWalletScreen() {
     holderName: string;
     accountOrUpi: string;
     bankName: string;
+    status: 'VERIFIED' | 'PENDING';
   }>({
     method: 'BANK',
     holderName: 'Mohan Kumar',
     accountOrUpi: 'HDFC Bank •••• 2345',
     bankName: 'HDFC Bank',
+    status: 'VERIFIED',
   });
 
   useEffect(() => {
     loadWalletData();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadWalletData();
+    }, [])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadWalletData();
+    setRefreshing(false);
+  };
 
   const loadWalletData = async () => {
     try {
@@ -97,6 +114,7 @@ export default function DriverWalletScreen() {
               holderName: p.bankAccountHolderName || 'Driver Partner',
               accountOrUpi: p.payoutUpiId,
               bankName: 'UPI Virtual Payment Address',
+              status: p.payoutStatus === 'VERIFIED' ? 'VERIFIED' : 'PENDING',
             });
           } else if (p.bankAccountNumber) {
             const masked = p.bankAccountNumber.length > 4
@@ -107,6 +125,7 @@ export default function DriverWalletScreen() {
               holderName: p.bankAccountHolderName || 'Driver Partner',
               accountOrUpi: `${p.bankName || 'Bank Account'} (${masked})`,
               bankName: p.bankName || 'Bank Account',
+              status: p.payoutStatus === 'VERIFIED' ? 'VERIFIED' : 'PENDING',
             });
           }
         }
@@ -118,6 +137,39 @@ export default function DriverWalletScreen() {
       
       let dynamicEarnings = 18450;
       let dynamicSettled = 12500;
+      let dynamicPendingTransfer = 0;
+      const realRazorpayPayouts: WalletTransaction[] = [];
+
+      // Fetch live payouts from RazorpayX to reflect real settled and pending withdrawals
+      try {
+        const payoutsRes = await driverApiClient.fetch('/api/driver/wallet/withdraw');
+        if (payoutsRes && payoutsRes.success && Array.isArray(payoutsRes.payouts)) {
+          dynamicSettled += Number(payoutsRes.settledAmount || 0);
+          dynamicPendingTransfer = Number(payoutsRes.pendingAmount || 0);
+
+          payoutsRes.payouts.forEach((p: any) => {
+            const isCancelled = p.status === 'CANCELLED';
+            realRazorpayPayouts.push({
+              id: p.id,
+              type: 'SETTLEMENT',
+              title: p.mode === 'UPI' ? 'Instant UPI Withdrawal (RazorpayX)' : 'Bank Payout Withdrawal (RazorpayX)',
+              subtitle: isCancelled
+                ? (p.subtitle || 'Your payout has been cancelled • Amount not deducted')
+                : p.status === 'PROCESSED'
+                ? `Transferred to ${p.destination}`
+                : `Transfer to ${p.destination} (Processing Bank Transfer)`,
+              amount: -p.amount,
+              date: p.date,
+              time: p.time,
+              status: p.status, // 'PROCESSED', 'PENDING', or 'CANCELLED'
+              settlementAccount: `${p.recipientName || payoutAccount.holderName} (${p.destination})`,
+              utrNumber: p.utr,
+            });
+          });
+        }
+      } catch (payoutErr) {
+        console.warn('Could not load live RazorpayX payouts:', payoutErr);
+      }
       const dynamicTrips: WalletTransaction[] = [];
 
       if (res && res.success && res.trips && Array.isArray(res.trips)) {
@@ -255,7 +307,9 @@ export default function DriverWalletScreen() {
       ];
 
       setDriverEarnings(dynamicEarnings);
-      setTransactions(baseTransactions);
+      setSettledPayouts(dynamicSettled);
+      setPendingTransferAmount(dynamicPendingTransfer);
+      setTransactions([...realRazorpayPayouts, ...baseTransactions]);
     } catch (err) {
       console.warn('Failed to load wallet data, showing fallback:', err);
     } finally {
@@ -268,34 +322,41 @@ export default function DriverWalletScreen() {
     return driverEarnings + securityDeposit - settledPayouts - totalFines;
   }, [driverEarnings, securityDeposit, settledPayouts, totalFines]);
 
-  // Withdrawable Trip Earnings: Pending earnings excluding held security deposit
+  // Withdrawable Trip Earnings: Pending earnings excluding held security deposit & in-flight transfers
   const withdrawableAmount = useMemo(() => {
-    const pendingEarnings = driverEarnings - settledPayouts - totalFines;
+    const pendingEarnings = driverEarnings - settledPayouts - totalFines - pendingTransferAmount;
     return Math.max(0, pendingEarnings);
-  }, [driverEarnings, settledPayouts, totalFines]);
+  }, [driverEarnings, settledPayouts, totalFines, pendingTransferAmount]);
 
-  const handleProcessWithdrawal = () => {
-    const amt = parseFloat(withdrawAmount);
+  const handleProcessWithdrawal = async () => {
+    const amt = withdrawableAmount;
     if (!amt || isNaN(amt) || amt <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid withdrawal amount.');
+      Alert.alert('No Withdrawable Balance', 'You currently do not have any withdrawable earnings available.');
       return;
     }
     if (amt < 100) {
       Alert.alert('Minimum Amount', 'Minimum withdrawal amount is ₹100.');
       return;
     }
-    if (amt > withdrawableAmount) {
+    if (payoutAccount.status !== 'VERIFIED') {
       Alert.alert(
-        'Insufficient Balance',
-        `You can withdraw up to ₹${withdrawableAmount.toLocaleString('en-IN')}. Security deposit of ₹${securityDeposit.toLocaleString('en-IN')} is kept safe and protected.`
+        'Payout Account Under Review',
+        'Your bank/UPI account details are currently under admin review. Once verified by admin, you will be able to withdraw earnings.',
+        [
+          { text: 'View Account', onPress: () => router.push('/payout-details') },
+          { text: 'OK' },
+        ]
       );
       return;
     }
 
     setIsWithdrawing(true);
+    try {
+      const res = await driverApiClient.fetch('/api/driver/wallet/withdraw', {
+        method: 'POST',
+        body: JSON.stringify({ amount: amt }),
+      });
 
-    setTimeout(() => {
-      setIsWithdrawing(false);
       const now = new Date();
       const formattedDate = now.toLocaleDateString('en-IN', {
         day: '2-digit',
@@ -308,32 +369,95 @@ export default function DriverWalletScreen() {
         hour12: true,
       });
 
-      const utrRef = `RZP${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${Math.floor(100000 + Math.random() * 900000)}`;
+      const utrRef = res?.payout?.utr || `RZPX${now.getFullYear()}${Math.floor(100000 + Math.random() * 900000)}`;
+      const payoutDest = res?.payout?.destination || payoutAccount.accountOrUpi;
+      
+      // Check whether amount was transferred on-the-spot or is pending transfer confirmation
+      const isActuallyTransferred = res?.transferred === true || (res?.payout?.status === 'PROCESSED' && res?.payout?.transferred !== false);
 
       const newTx: WalletTransaction = {
-        id: `TX-WDR-${Date.now().toString().slice(-6)}`,
+        id: res?.payout?.id || `TX-WDR-${Date.now().toString().slice(-6)}`,
         type: 'SETTLEMENT',
-        title: payoutAccount.method === 'UPI' ? 'Instant UPI Withdrawal' : 'Bank Payout Withdrawal',
-        subtitle: `Transferred to ${payoutAccount.accountOrUpi}`,
+        title: payoutAccount.method === 'UPI' ? 'Instant UPI Withdrawal (RazorpayX)' : 'Bank Payout Withdrawal (RazorpayX)',
+        subtitle: isActuallyTransferred
+          ? `Transferred to ${payoutDest}`
+          : `Transfer to ${payoutDest} (Processing Bank Transfer)`,
         amount: -amt,
         date: formattedDate,
         time: formattedTime,
-        status: 'PROCESSED',
-        settlementAccount: `${payoutAccount.holderName} (${payoutAccount.accountOrUpi})`,
+        status: isActuallyTransferred ? 'PROCESSED' : 'PENDING',
+        settlementAccount: `${payoutAccount.holderName} (${payoutDest})`,
         utrNumber: utrRef,
       };
 
-      setSettledPayouts((prev) => prev + amt);
+      if (isActuallyTransferred) {
+        // Only minus the amount from wallet balance if RazorpayX confirms actual transfer
+        setSettledPayouts((prev) => prev + amt);
+      } else {
+        // Do NOT minus amount on-the-spot; register as pending transfer
+        setPendingTransferAmount((prev) => prev + amt);
+      }
+
       setTransactions((prev) => [newTx, ...prev]);
       setWithdrawModalOpen(false);
       setWithdrawAmount('');
 
-      Alert.alert(
-        '✓ Withdrawal Processed Successfully!',
-        `₹${amt.toLocaleString('en-IN')} has been transferred to ${payoutAccount.accountOrUpi} on ${formattedDate} at ${formattedTime}.\n\nUTR Reference: ${utrRef}\n\nThis withdrawal is recorded in your ledger.`,
-        [{ text: 'View Ledger', onPress: () => setActiveTab('SETTLEMENTS') }]
-      );
-    }, 1200);
+      // Re-sync all live payouts and updated balances directly from server
+      await loadWalletData();
+
+      if (isActuallyTransferred) {
+        Alert.alert(
+          '✓ Withdrawal Transferred via RazorpayX!',
+          `₹${amt.toLocaleString('en-IN')} has been transferred to ${payoutDest} on ${formattedDate} at ${formattedTime}.\n\nUTR Reference: ${utrRef}\n\nAmount deducted from your wallet balance.`,
+          [{ text: 'View Ledger', onPress: () => setActiveTab('SETTLEMENTS') }]
+        );
+      } else {
+        Alert.alert(
+          '⏳ Withdrawal Transfer Pending',
+          `₹${amt.toLocaleString('en-IN')} withdrawal request has been submitted to RazorpayX and is pending bank transfer.\n\nStatus: Processing Bank Transfer\nDestination: ${payoutDest}\nRef: ${utrRef}\n\nNote: The amount is NOT deducted from your available wallet balance yet. It will be deducted only after the bank confirms the credit.`,
+          [{ text: 'View Status', onPress: () => setActiveTab('SETTLEMENTS') }]
+        );
+      }
+    } catch (err: any) {
+      console.warn('Withdrawal error:', err);
+      Alert.alert('Withdrawal Notice', err.message || 'Could not complete withdrawal. Please ensure your Bank or UPI account is verified.');
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
+
+  const handleCancelPendingPayout = (payoutId: string, amount: number) => {
+    Alert.alert(
+      'Cancel Withdrawal Request?',
+      `Are you sure you want to cancel this withdrawal of ₹${amount.toLocaleString('en-IN')}?\n\nThe amount will NOT be deducted from your wallet balance.`,
+      [
+        { text: 'Keep Payout', style: 'cancel' },
+        {
+          text: 'Yes, Cancel Payout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await driverApiClient.fetch('/api/driver/wallet/withdraw', {
+                method: 'POST',
+                body: JSON.stringify({ action: 'cancel', payoutId }),
+              });
+              if (res && res.success) {
+                setDisputeModalOpen(false);
+                Alert.alert(
+                  'Payout Cancelled',
+                  'Your payout request has been cancelled. Your wallet balance has not been reduced.'
+                );
+                await loadWalletData();
+              } else {
+                Alert.alert('Notice', res?.message || 'Could not cancel payout.');
+              }
+            } catch (err: any) {
+              Alert.alert('Notice', err.message || 'Failed to cancel payout.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleProcessDeposit = () => {
@@ -469,6 +593,14 @@ export default function DriverWalletScreen() {
           style={styles.container}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#ea580c']}
+              tintColor="#ea580c"
+            />
+          }
         >
           {/* ============================================================ */}
           {/* 1. HERO BALANCE CARD (AVAILABLE NET BALANCE & NEXT PAYOUT)   */}
@@ -480,6 +612,14 @@ export default function DriverWalletScreen() {
                 <Text style={styles.heroBalanceAmount}>
                   ₹{netBalance > 0 ? netBalance.toLocaleString('en-IN') : '0'}
                 </Text>
+                {pendingTransferAmount > 0 && (
+                  <View style={styles.heroPendingTransferBadge}>
+                    <Ionicons name="time-outline" size={13} color="#f59e0b" />
+                    <Text style={styles.heroPendingTransferText}>
+                      ₹{pendingTransferAmount.toLocaleString('en-IN')} Transfer Pending (RazorpayX)
+                    </Text>
+                  </View>
+                )}
               </View>
               <View style={styles.heroActiveBadge}>
                 <View style={styles.heroActiveDot} />
@@ -495,12 +635,11 @@ export default function DriverWalletScreen() {
                   withdrawableAmount <= 0 && styles.heroWithdrawBtnDisabled,
                 ]}
                 onPress={() => {
-                  setWithdrawAmount(String(Math.min(withdrawableAmount, 2000) || 500));
                   setWithdrawModalOpen(true);
                 }}
                 activeOpacity={0.85}
               >
-                <Text style={styles.heroWithdrawBtnText}>WITHDRAW EARNINGS</Text>
+                <Text style={styles.heroWithdrawBtnText}>WITHDRAW ALL EARNINGS</Text>
               </TouchableOpacity>
             </View>
 
@@ -719,22 +858,43 @@ export default function DriverWalletScreen() {
                 const isEarning = tx.type === 'EARNING';
                 const isDeposit = tx.type === 'DEPOSIT';
                 const isSettlement = tx.type === 'SETTLEMENT';
+                const isPending = tx.status === 'PENDING';
+                const isCancelled = tx.status === 'CANCELLED';
 
                 return (
                   <TouchableOpacity
                     key={tx.id}
-                    style={[styles.txCard, isFine && styles.txCardFine]}
+                    style={[
+                      styles.txCard,
+                      isFine && styles.txCardFine,
+                      isPending && { borderColor: '#fde68a', backgroundColor: '#fffbeb' },
+                      isCancelled && { borderColor: '#fca5a5', backgroundColor: '#fef2f2' },
+                    ]}
                     onPress={() => handleOpenDispute(tx)}
                     activeOpacity={0.8}
                   >
                     {/* Middle Details */}
                     <View style={styles.txInfo}>
                       <View style={styles.txTitleRow}>
-                        <Text style={[styles.txTitle, isFine && { color: '#991b1b' }]} numberOfLines={1}>
+                        <Text
+                          style={[
+                            styles.txTitle,
+                            isFine && { color: '#991b1b' },
+                            isPending && { color: '#92400e' },
+                            isCancelled && { color: '#991b1b' },
+                          ]}
+                          numberOfLines={1}
+                        >
                           {tx.title}
                         </Text>
                       </View>
-                      <Text style={styles.txSubtitle} numberOfLines={1}>
+                      <Text
+                        style={[
+                          styles.txSubtitle,
+                          isCancelled && { color: '#dc2626', fontWeight: '600' },
+                        ]}
+                        numberOfLines={1}
+                      >
                         {tx.subtitle}
                       </Text>
                       <View style={styles.txMetaRow}>
@@ -754,12 +914,16 @@ export default function DriverWalletScreen() {
                       <Text
                         style={[
                           styles.txAmount,
-                          isFine
+                          isCancelled
+                            ? { color: '#dc2626', textDecorationLine: 'line-through' }
+                            : isFine
                             ? styles.txAmountFine
                             : isEarning
                             ? styles.txAmountEarn
                             : isDeposit
                             ? styles.txAmountDeposit
+                            : isPending
+                            ? { color: '#d97706' }
                             : styles.txAmountSettle,
                         ]}
                       >
@@ -768,7 +932,11 @@ export default function DriverWalletScreen() {
                       <View
                         style={[
                           styles.txStatusPill,
-                          isFine
+                          isCancelled
+                            ? { backgroundColor: '#fee2e2', borderColor: '#fca5a5', borderWidth: 1 }
+                            : isPending
+                            ? { backgroundColor: '#fef3c7', borderColor: '#fde68a', borderWidth: 1 }
+                            : isFine
                             ? { backgroundColor: '#fee2e2' }
                             : isEarning
                             ? { backgroundColor: '#dcfce7' }
@@ -780,7 +948,11 @@ export default function DriverWalletScreen() {
                         <Text
                           style={[
                             styles.txStatusText,
-                            isFine
+                            isCancelled
+                              ? { color: '#dc2626', fontWeight: '800' }
+                              : isPending
+                              ? { color: '#b45309', fontWeight: '800' }
+                              : isFine
                               ? { color: '#dc2626' }
                               : isEarning
                               ? { color: '#16a34a' }
@@ -789,7 +961,13 @@ export default function DriverWalletScreen() {
                               : { color: '#475569' },
                           ]}
                         >
-                          {isFine ? 'FINE DEDUCTED' : tx.status}
+                          {isCancelled
+                            ? 'PAYOUT CANCELLED'
+                            : isPending
+                            ? 'PENDING TRANSFER'
+                            : isFine
+                            ? 'FINE DEDUCTED'
+                            : tx.status}
                         </Text>
                       </View>
                     </View>
@@ -866,7 +1044,11 @@ export default function DriverWalletScreen() {
                 <View
                   style={[
                     styles.modalAmountBanner,
-                    selectedTx.type === 'FINE'
+                    selectedTx.status === 'CANCELLED'
+                      ? { backgroundColor: '#fef2f2', borderColor: '#fca5a5' }
+                      : selectedTx.status === 'PENDING'
+                      ? { backgroundColor: '#fffbeb', borderColor: '#fde68a' }
+                      : selectedTx.type === 'FINE'
                       ? { backgroundColor: '#fee2e2', borderColor: '#fca5a5' }
                       : selectedTx.type === 'EARNING'
                       ? { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }
@@ -874,20 +1056,72 @@ export default function DriverWalletScreen() {
                   ]}
                 >
                   <Text style={styles.modalAmountLabel}>
-                    {selectedTx.type === 'FINE' ? 'PENALTY APPLIED' : 'AMOUNT'}
+                    {selectedTx.status === 'CANCELLED'
+                      ? 'PAYOUT CANCELLED'
+                      : selectedTx.status === 'PENDING'
+                      ? 'WITHDRAWAL IN PROGRESS'
+                      : selectedTx.type === 'FINE'
+                      ? 'PENALTY APPLIED'
+                      : 'AMOUNT'}
                   </Text>
                   <Text
                     style={[
                       styles.modalAmountValue,
-                      selectedTx.type === 'FINE' ? { color: '#dc2626' } : { color: '#16a34a' },
+                      selectedTx.status === 'CANCELLED'
+                        ? { color: '#dc2626', textDecorationLine: 'line-through' }
+                        : selectedTx.status === 'PENDING'
+                        ? { color: '#d97706' }
+                        : selectedTx.type === 'FINE'
+                        ? { color: '#dc2626' }
+                        : { color: '#16a34a' },
                     ]}
                   >
                     {selectedTx.amount > 0 ? `+₹${selectedTx.amount.toLocaleString('en-IN')}` : `-₹${Math.abs(selectedTx.amount).toLocaleString('en-IN')}`}
                   </Text>
                   <Text style={styles.modalAmountStatus}>
-                    Status: {selectedTx.status} • Recorded in Wallet Ledger
+                    {selectedTx.status === 'CANCELLED'
+                      ? 'Status: CANCELLED • Amount retained in wallet'
+                      : selectedTx.status === 'PENDING'
+                      ? 'Status: PENDING TRANSFER (Processing via RazorpayX)'
+                      : `Status: ${selectedTx.status} • Recorded in Wallet Ledger`}
                   </Text>
                 </View>
+
+                {/* Cancelled Notice */}
+                {selectedTx.status === 'CANCELLED' && (
+                  <View style={styles.cancelledNoticeBox}>
+                    <Ionicons name="close-circle" size={20} color="#dc2626" style={{ marginRight: 8, marginTop: 2 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cancelledNoticeTitle}>Your Payout Has Been Cancelled</Text>
+                      <Text style={styles.cancelledNoticeDesc}>
+                        This withdrawal request of ₹{Math.abs(selectedTx.amount).toLocaleString('en-IN')} was cancelled in RazorpayX. No deduction has been made from your Available Wallet Balance.
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Pending Transfer Notice & Cancel Button */}
+                {selectedTx.status === 'PENDING' && (
+                  <View style={styles.pendingNoticeBox}>
+                    <Ionicons name="time-outline" size={18} color="#b45309" style={{ marginRight: 8, marginTop: 2 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.pendingNoticeTitle}>Bank Transfer In Progress</Text>
+                      <Text style={styles.pendingNoticeDesc}>
+                        This withdrawal of ₹{Math.abs(selectedTx.amount).toLocaleString('en-IN')} is processing with RazorpayX. It is NOT deducted from your available wallet balance until the bank confirms successful transfer.
+                      </Text>
+                      {selectedTx.type === 'SETTLEMENT' && (
+                        <TouchableOpacity
+                          style={styles.cancelPayoutBtn}
+                          onPress={() => handleCancelPendingPayout(selectedTx.id, Math.abs(selectedTx.amount))}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="close-circle-outline" size={16} color="#dc2626" style={{ marginRight: 5 }} />
+                          <Text style={styles.cancelPayoutBtnText}>Cancel Withdrawal Request</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                )}
 
                 {/* Specific Fine Details */}
                 {selectedTx.type === 'FINE' && (
@@ -1069,7 +1303,15 @@ export default function DriverWalletScreen() {
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.withdrawDestLabel}>PAYOUT DESTINATION</Text>
                   <Text style={styles.withdrawDestValue}>{payoutAccount.accountOrUpi}</Text>
-                  <Text style={styles.withdrawDestSub}>{payoutAccount.holderName} • 24x7 IMPS</Text>
+                  {payoutAccount.status === 'VERIFIED' ? (
+                    <Text style={[styles.withdrawDestSub, { color: '#16a34a', fontWeight: 'bold' }]}>
+                      ✓ Verified Account • 24x7 IMPS
+                    </Text>
+                  ) : (
+                    <Text style={[styles.withdrawDestSub, { color: '#d97706', fontWeight: 'bold' }]}>
+                      ⏳ Under Review (Admin Verification Pending)
+                    </Text>
+                  )}
                 </View>
                 <TouchableOpacity
                   style={styles.withdrawChangeLink}
@@ -1083,64 +1325,80 @@ export default function DriverWalletScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Amount Input Box */}
-              <View style={styles.withdrawInputBox}>
-                <Text style={styles.withdrawInputLabel}>ENTER AMOUNT TO WITHDRAW</Text>
-                <View style={styles.withdrawInputRow}>
-                  <Text style={styles.withdrawRupeePrefix}>₹</Text>
-                  <TextInput
-                    style={styles.withdrawInput}
-                    keyboardType="numeric"
-                    value={withdrawAmount}
-                    onChangeText={setWithdrawAmount}
-                    placeholder="0"
-                    placeholderTextColor="#cbd5e1"
-                  />
+              {/* Full Withdrawable Balance Card (Withdraw All) */}
+              <View style={styles.withdrawTotalCard}>
+                <View style={styles.withdrawTotalHeader}>
+                  <Text style={styles.withdrawTotalLabel}>TOTAL WITHDRAWABLE EARNINGS</Text>
+                  <View style={styles.withdrawAllBadge}>
+                    <Text style={styles.withdrawAllBadgeText}>WITHDRAW ALL</Text>
+                  </View>
                 </View>
-                <Text style={styles.withdrawHelperText}>
-                  Max withdrawable: ₹{withdrawableAmount.toLocaleString('en-IN')} (Trip earnings minus fines & settled)
-                </Text>
-              </View>
 
-              {/* Quick Preset Pills */}
-              <View style={styles.presetRow}>
-                {[500, 1000, 2000].map((amt) => (
-                  <TouchableOpacity
-                    key={amt}
-                    style={styles.presetPill}
-                    onPress={() => setWithdrawAmount(String(amt))}
-                    activeOpacity={0.75}
-                  >
-                    <Text style={styles.presetPillText}>+₹{amt}</Text>
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity
-                  style={[styles.presetPill, styles.presetPillAll]}
-                  onPress={() => setWithdrawAmount(String(withdrawableAmount))}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[styles.presetPillText, { color: '#ea580c' }]}>Withdraw All</Text>
-                </TouchableOpacity>
+                <Text style={styles.withdrawTotalAmount}>
+                  ₹{withdrawableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
+
+                <View style={styles.withdrawBreakdownBox}>
+                  <View style={styles.withdrawBreakdownRow}>
+                    <Text style={styles.withdrawBreakdownKey}>Gross Trip Earnings</Text>
+                    <Text style={styles.withdrawBreakdownVal}>
+                      +₹{driverEarnings.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Text>
+                  </View>
+                  <View style={styles.withdrawBreakdownRow}>
+                    <Text style={styles.withdrawBreakdownKey}>Settled Payouts</Text>
+                    <Text style={[styles.withdrawBreakdownVal, { color: '#dc2626' }]}>
+                      -₹{settledPayouts.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Text>
+                  </View>
+                  {totalFines > 0 && (
+                    <View style={styles.withdrawBreakdownRow}>
+                      <Text style={styles.withdrawBreakdownKey}>Fines & Penalties</Text>
+                      <Text style={[styles.withdrawBreakdownVal, { color: '#dc2626' }]}>
+                        -₹{totalFines.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                  )}
+                  {pendingTransferAmount > 0 && (
+                    <View style={styles.withdrawBreakdownRow}>
+                      <Text style={styles.withdrawBreakdownKey}>Transfer In-Progress</Text>
+                      <Text style={[styles.withdrawBreakdownVal, { color: '#d97706' }]}>
+                        -₹{pendingTransferAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.withdrawProtectedNote}>
+                  <Ionicons name="shield-checkmark" size={14} color="#2563eb" style={{ marginRight: 6 }} />
+                  <Text style={styles.withdrawProtectedText}>
+                    Security deposit of ₹{securityDeposit.toLocaleString('en-IN')} remains safely protected in escrow.
+                  </Text>
+                </View>
               </View>
 
               {/* Confirm CTA */}
               <TouchableOpacity
                 style={[
                   styles.confirmWithdrawBtn,
-                  (isWithdrawing || !withdrawAmount || parseFloat(withdrawAmount) <= 0) &&
+                  (isWithdrawing || withdrawableAmount <= 0 || payoutAccount.status !== 'VERIFIED') &&
                     styles.confirmWithdrawBtnDisabled,
                 ]}
                 onPress={handleProcessWithdrawal}
-                disabled={isWithdrawing || !withdrawAmount || parseFloat(withdrawAmount) <= 0}
+                disabled={isWithdrawing || withdrawableAmount <= 0 || payoutAccount.status !== 'VERIFIED'}
                 activeOpacity={0.85}
               >
                 {isWithdrawing ? (
                   <ActivityIndicator size="small" color="#ffffff" />
+                ) : payoutAccount.status !== 'VERIFIED' ? (
+                  <Text style={styles.confirmWithdrawBtnText}>ACCOUNT UNDER ADMIN REVIEW</Text>
+                ) : withdrawableAmount <= 0 ? (
+                  <Text style={styles.confirmWithdrawBtnText}>NO WITHDRAWABLE BALANCE (₹0)</Text>
                 ) : (
                   <>
                     <Ionicons name="checkmark-circle" size={18} color="#ffffff" style={{ marginRight: 8 }} />
                     <Text style={styles.confirmWithdrawBtnText}>
-                      CONFIRM WITHDRAWAL OF ₹{withdrawAmount || '0'}
+                      CONFIRM & WITHDRAW ALL (₹{withdrawableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                     </Text>
                   </>
                 )}
@@ -2139,6 +2397,84 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0f2744',
   },
+  withdrawTotalCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    marginBottom: 16,
+  },
+  withdrawTotalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  withdrawTotalLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748b',
+    letterSpacing: 0.5,
+  },
+  withdrawAllBadge: {
+    backgroundColor: '#ffedd5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  withdrawAllBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#ea580c',
+    letterSpacing: 0.5,
+  },
+  withdrawTotalAmount: {
+    fontSize: 30,
+    fontWeight: '900',
+    color: '#0f172a',
+    marginVertical: 4,
+  },
+  withdrawBreakdownBox: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#edf2f7',
+  },
+  withdrawBreakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  withdrawBreakdownKey: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  withdrawBreakdownVal: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  withdrawProtectedNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  withdrawProtectedText: {
+    fontSize: 11,
+    color: '#3b82f6',
+    fontWeight: '600',
+    flex: 1,
+  },
   withdrawInputBox: {
     backgroundColor: '#ffffff',
     borderRadius: 14,
@@ -2339,5 +2675,86 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: '900',
     letterSpacing: 0.4,
+  },
+  /* Pending Transfer Banner & Details */
+  heroPendingTransferBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.16)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    marginTop: 6,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    gap: 5,
+  },
+  heroPendingTransferText: {
+    color: '#fbbf24',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  pendingNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  pendingNoticeTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#92400e',
+    marginBottom: 2,
+  },
+  pendingNoticeDesc: {
+    fontSize: 11.5,
+    color: '#78350f',
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  cancelledNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  cancelledNoticeTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#991b1b',
+    marginBottom: 2,
+  },
+  cancelledNoticeDesc: {
+    fontSize: 11.5,
+    color: '#7f1d1d',
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  cancelPayoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  cancelPayoutBtnText: {
+    color: '#dc2626',
+    fontSize: 11.5,
+    fontWeight: '800',
   },
 });

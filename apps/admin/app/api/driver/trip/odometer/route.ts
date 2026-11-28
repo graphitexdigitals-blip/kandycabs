@@ -54,9 +54,9 @@ export async function POST(req: NextRequest) {
     }
 
     const parsedOdo = parseFloat(String(startingOdometer));
-    if (isNaN(parsedOdo) || parsedOdo <= 0) {
+    if (isNaN(parsedOdo) || parsedOdo < 0) {
       const res = NextResponse.json(
-        { success: false, message: 'Valid starting odometer reading in KM is required' },
+        { success: false, message: 'Valid non-negative starting odometer reading in KM is required' },
         { status: 400 }
       );
       return setCorsHeaders(res);

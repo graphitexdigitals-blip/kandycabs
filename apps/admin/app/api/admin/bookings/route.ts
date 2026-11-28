@@ -6,6 +6,7 @@ import {
   VehicleCategory,
   PaymentStatus,
   PaymentType,
+  DispatchStatus,
   UserRole,
   calculateFare,
   parseSafeIsoDate,
@@ -13,6 +14,7 @@ import {
 import { getAdminSession } from '@/lib/auth';
 import { resolveImageUrl } from '@/lib/resolveImageUrl';
 import { calculateRouteDistance } from '@/lib/distance';
+import { RealtimeEvents } from '@/lib/realtime-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -416,7 +418,7 @@ export async function POST(req: NextRequest) {
     const newBooking = await prisma.$transaction(async (tx) => {
       const isDriverAssigned = Boolean(assignedDriverId);
       const initialStatus = isDriverAssigned
-        ? BookingStatus.DRIVER_ACCEPTED
+        ? BookingStatus.DISPATCHED
         : BookingStatus.PENDING_ADMIN;
 
       const booking = await tx.booking.create({
@@ -438,7 +440,7 @@ export async function POST(req: NextRequest) {
           balanceAmount,
           balancePaymentStatus: PaymentStatus.PENDING,
           status: initialStatus,
-          assignedDriverId: assignedDriverId || null,
+          assignedDriverId: null, // Keep null on booking creation so driver is dispatched only (not auto-accepted) and can Accept or Decline
           pickupOtp,
           customerLocationSharingEnabled: true,
           driverAllowance,
@@ -500,25 +502,27 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // If a driver was assigned immediately
+      // If a driver was assigned immediately by Admin, create pending dispatch awaiting driver Accept / Decline
       if (assignedDriverId) {
         await tx.bookingDispatch.create({
           data: {
             bookingId: booking.id,
             driverId: assignedDriverId,
-            status: 'ACCEPTED',
-            respondedAt: new Date(),
+            status: DispatchStatus.PENDING,
+            broadcastAt: new Date(),
           },
         });
 
         await tx.tripEvent.create({
           data: {
             bookingId: booking.id,
-            type: 'DRIVER_ACCEPTED',
+            type: 'DISPATCH_BROADCAST',
             payloadJson: {
-              driverId: assignedDriverId,
+              dispatchedDriverIds: [assignedDriverId],
+              broadcastCount: 1,
               assignedByAdmin: true,
               adminName: session.phone || 'Operations Admin',
+              timestamp: new Date().toISOString(),
             },
           },
         });
@@ -536,12 +540,25 @@ export async function POST(req: NextRequest) {
           action: 'ADMIN_MANUAL_BOOKING_CREATED',
           entityType: 'BOOKING',
           entityId: booking.id,
-          reason: `Manual booking ${humanReadableRef} created for customer ${normalizedPhone}`,
+          reason: `Manual booking ${humanReadableRef} created for customer ${normalizedPhone} (Dispatched to driver ${assignedDriverId})`,
         },
       });
 
       return booking;
     });
+
+    // Notify driver in real-time so incoming dispatch interface / alert pops up immediately
+    if (assignedDriverId) {
+      try {
+        RealtimeEvents.emitToDriver(assignedDriverId, 'DISPATCH_NEW', {
+          dispatchId: `dispatch-${newBooking.id}`,
+          bookingId: newBooking.id,
+          booking: newBooking,
+        });
+      } catch (rtErr) {
+        console.warn('[AdminBookings] Failed to emit realtime dispatch event to driver:', rtErr);
+      }
+    }
 
     return NextResponse.json(
       {

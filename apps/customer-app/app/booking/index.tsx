@@ -1269,6 +1269,7 @@ function buildRazorpayCheckoutHtml(data: {
   const safeName = (data.name || 'Valued Customer').replace(/'/g, "\\'");
   const safeEmail = (data.email || 'customer@kandycabs.com').replace(/'/g, "\\'");
   const safeRef = (data.bookingRef || 'Booking').replace(/'/g, "\\'");
+  const safeCallbackUrl = (data.callbackUrl || `http://10.0.2.2:3001/api/payments/verify?bookingId=${data.bookingId || ''}`).replace(/'/g, "\\'");
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1397,6 +1398,8 @@ function buildRazorpayCheckoutHtml(data: {
         name: 'Kandy Cabs',
         description: 'Advance Ride Reservation (${safeRef})',
         ...(isRealOrder ? { order_id: '${data.orderId}' } : {}),
+        redirect: true,
+        callback_url: '${safeCallbackUrl}',
         prefill: {
           name: '${safeName}',
           contact: '${formattedPhone}',
@@ -2057,6 +2060,9 @@ function buildRazorpayCheckoutHtml(data: {
             lng: s?.lng,
           })),
           category: vehicleInfo.category,
+          fleetId: rawCategory,
+          fleetName: customVehicleName,
+          selectedVehicleName: customVehicleName,
           fuelType: (params.fuelType as string)?.toUpperCase() || (vehicleInfo.category === VehicleCategory.HATCHBACK ? FuelType.CNG : FuelType.DIESEL),
           tripType: tripTypeParam as TripType,
           exactDistanceKm: estimatedKm,
@@ -2086,6 +2092,7 @@ function buildRazorpayCheckoutHtml(data: {
           petType: selectedPetType,
           petFee: petFee,
           notes: [
+            customVehicleName ? `[FLEET: ${customVehicleName}]` : '',
             isLargeFleetApproval ? '[FLEET AVAILABILITY APPROVAL REQUIRED] Admin fleet availability verification required. Payment deferred until Admin approval.' : '',
             corporateInfoNote,
             `Payment Option: ${paymentOption === 'FULL' ? 'Full Payment' : 'Part Payment (Advance)'}`,

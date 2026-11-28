@@ -44,7 +44,7 @@ export default function DriverOdometerScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
+  const { bookingId, error: paramError } = useLocalSearchParams<{ bookingId: string; error?: string }>();
 
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -54,7 +54,13 @@ export default function DriverOdometerScreen() {
   const [odometerImageUri, setOdometerImageUri] = useState<string | null>(null);
   const [startingOdometer, setStartingOdometer] = useState<string>('');
   const [photoLocation, setPhotoLocation] = useState<{ lat: number; lng: number; time: string } | null>(null);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>(paramError ? String(paramError) : '');
+
+  useEffect(() => {
+    if (paramError) {
+      setError(String(paramError));
+    }
+  }, [paramError]);
 
   // Handle hardware back button -> direct directly to driver home dashboard
   useEffect(() => {
@@ -69,6 +75,7 @@ export default function DriverOdometerScreen() {
   // If odometer was already completed or trip is started/completed, redirect immediately to the right screen
   useEffect(() => {
     if (!bookingId) return;
+    if (paramError) return; // Do not auto-redirect if driver was specifically redirected here to resolve an odometer error!
     const checkAlreadyDone = async () => {
       // 1. Check in-memory / local storage
       const isDoneLocally = isTripOdometerCompletedSync(bookingId) || (await isTripOdometerCompleted(bookingId));
@@ -407,8 +414,8 @@ export default function DriverOdometerScreen() {
     }
 
     const odoNum = parseFloat(startingOdometer.trim());
-    if (isNaN(odoNum) || odoNum <= 0) {
-      setError(t('start_odometer.enter_valid_km_error', 'Please enter a valid positive odometer reading in KM.'));
+    if (isNaN(odoNum) || odoNum < 0) {
+      setError(t('start_odometer.enter_valid_km_error', 'Please enter a valid non-negative odometer reading in KM.'));
       Alert.alert(
         t('start_odometer.odometer_reading_required_title', 'Odometer Reading Required'),
         'Please enter a valid numeric odometer reading in KM. Without odometer reading you cannot proceed.'

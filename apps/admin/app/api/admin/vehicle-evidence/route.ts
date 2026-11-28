@@ -19,7 +19,12 @@ export async function GET(req: NextRequest) {
     const whereClause: any = {
       deletedAt: null,
     };
-    if (status !== 'ALL' && status !== 'EXPIRING') {
+    if (status === 'PENDING') {
+      whereClause.OR = [
+        { verificationStatus: DriverVerificationStatus.PENDING },
+        { payoutStatus: 'PENDING' },
+      ];
+    } else if (status !== 'ALL' && status !== 'EXPIRING') {
       whereClause.verificationStatus = status;
     }
 
@@ -156,7 +161,9 @@ export async function GET(req: NextRequest) {
 
     const counts = {
       all: formattedDrivers.length,
-      pending: formattedDrivers.filter((d) => d.verificationStatus === 'PENDING').length,
+      pending: formattedDrivers.filter(
+        (d) => d.verificationStatus === 'PENDING' || d.payoutStatus === 'PENDING'
+      ).length,
       approved: formattedDrivers.filter((d) => d.verificationStatus === 'APPROVED').length,
       rejected: formattedDrivers.filter((d) => d.verificationStatus === 'REJECTED').length,
       expiringSoon: formattedDrivers.filter((d) => d.hasExpiringDocs).length,

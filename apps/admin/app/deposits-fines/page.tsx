@@ -703,49 +703,63 @@ _Kandy Cabs Operations & Accounts Desk_`;
                 )}
               </div>
 
-              {/* 5 Driver KPI Summary Cards */}
+              {/* 5 Driver KPI Summary Cards (Mirrors Mobile Driver App UI) */}
               {statementData?.summary && (
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
                   {/* 1. Trip Earnings */}
-                  <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-3">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Gross Trip Earnings</div>
-                    <div className="text-lg sm:text-xl font-black text-slate-900 mt-0.5">
-                      +₹{statementData.summary.grossTripEarnings.toLocaleString('en-IN')}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-2xs hover:shadow-xs transition">
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span className="text-xs font-bold">Trip Earnings</span>
+                      <span className="text-emerald-600 font-bold text-sm">↗</span>
                     </div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">
+                    <div className="text-lg sm:text-xl font-black text-emerald-600 mt-1.5">
+                      +₹{statementData.summary.grossTripEarnings.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-semibold mt-0.5">
                       {statementData.summary.totalCompletedTrips} completed trips
                     </div>
                   </div>
 
-                  {/* 2. Settled Payouts */}
-                  <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-3">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Payouts Settled</div>
-                    <div className="text-lg sm:text-xl font-black text-indigo-700 mt-0.5">
+                  {/* 2. Payouts Settled */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-2xs hover:shadow-xs transition">
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span className="text-xs font-bold">Payouts Settled</span>
+                      <IconPayments className="w-3.5 h-3.5 text-indigo-600" />
+                    </div>
+                    <div className="text-lg sm:text-xl font-black text-indigo-700 mt-1.5">
                       ₹{statementData.summary.settledPayouts.toLocaleString('en-IN')}
                     </div>
-                    <div className="text-[11px] text-indigo-600 font-semibold mt-0.5">
+                    <div className="text-[10px] text-indigo-600 font-semibold mt-0.5">
                       Transferred to Bank/UPI
                     </div>
                   </div>
 
                   {/* 3. Security Deposit */}
-                  <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-3">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Security Deposit</div>
-                    <div className="text-lg sm:text-xl font-black text-blue-700 mt-0.5">
+                  <div className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-2xs hover:shadow-xs transition">
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span className="text-xs font-bold">Security Deposit</span>
+                      <IconShield className="w-3.5 h-3.5 text-blue-600" />
+                    </div>
+                    <div className="text-lg sm:text-xl font-black text-blue-700 mt-1.5">
                       ₹{statementData.summary.securityDepositHeld.toLocaleString('en-IN')}
                     </div>
-                    <div className="text-[11px] text-blue-600 font-semibold mt-0.5">
+                    <div className="text-[10px] text-blue-600 font-semibold mt-0.5">
                       Active in Escrow
                     </div>
                   </div>
 
-                  {/* 4. Fines & Penalties */}
-                  <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-3">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Fines & Penalties</div>
-                    <div className="text-lg sm:text-xl font-black text-rose-700 mt-0.5">
+                  {/* 4. Fines & Penalties (Red outline as in Image 2) */}
+                  <div className="bg-white border-2 border-rose-400 rounded-2xl p-3.5 shadow-2xs hover:shadow-xs transition">
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span className="text-xs font-bold">Fines &amp; Penalties</span>
+                      <div className="w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center font-black text-[10px]">
+                        !
+                      </div>
+                    </div>
+                    <div className="text-lg sm:text-xl font-black text-rose-600 mt-1.5">
                       -₹{statementData.summary.totalFines.toLocaleString('en-IN')}
                     </div>
-                    <div className="text-[11px] text-rose-600 font-semibold mt-0.5">
+                    <div className="text-[10px] text-rose-600 font-semibold mt-0.5">
                       Pending: ₹{statementData.summary.pendingFines.toLocaleString('en-IN')}
                     </div>
                   </div>

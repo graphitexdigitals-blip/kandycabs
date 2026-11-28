@@ -145,6 +145,52 @@ export async function PATCH(
         where: { id },
         data: driverData,
       });
+
+      // Audit Log for payoutStatus review changes
+      if (payoutStatus !== undefined) {
+        try {
+          if (payoutStatus === 'VERIFIED') {
+            await prisma.auditLog.create({
+              data: {
+                actorUserId: session.userId,
+                action: 'PAYOUT_REVIEW_APPROVED',
+                entityType: 'DRIVER',
+                entityId: id,
+                reason: `Admin (${session.phone || 'Admin'}) approved & verified payout details for driver ${driver.user?.fullName || id} (${driver.payoutMethod === 'UPI' ? `UPI: ${driver.payoutUpiId || payoutUpiId}` : `A/c: ${driver.bankAccountNumber || bankAccountNumber}, IFSC: ${driver.bankIfsc || bankIfsc}`}).`,
+              },
+            });
+          } else {
+            await prisma.auditLog.create({
+              data: {
+                actorUserId: session.userId,
+                action: 'PAYOUT_REVIEW_PENDING',
+                entityType: 'DRIVER',
+                entityId: id,
+                reason: `Admin (${session.phone || 'Admin'}) marked payout details as REVIEW PENDING for driver ${driver.user?.fullName || id}.`,
+              },
+            });
+          }
+        } catch (auditErr) {
+          console.error('Failed to write audit log for payout status change:', auditErr);
+        }
+      } else {
+        const isPayoutEdit = (payoutMethod !== undefined || bankAccountNumber !== undefined || payoutUpiId !== undefined || bankAccountHolderName !== undefined);
+        if (isPayoutEdit) {
+          try {
+            await prisma.auditLog.create({
+              data: {
+                actorUserId: session.userId,
+                action: 'PAYOUT_DETAILS_ADMIN_EDITED',
+                entityType: 'DRIVER',
+                entityId: id,
+                reason: `Admin (${session.phone || 'Admin'}) updated payout details for driver ${driver.user?.fullName || id} (${driverData.payoutMethod === 'UPI' ? `UPI: ${driverData.payoutUpiId}` : `A/c: ${driverData.bankAccountNumber}, IFSC: ${driverData.bankIfsc}`}). Status set to REVIEW PENDING.`,
+              },
+            });
+          } catch (auditErr) {
+            console.error('Failed to write audit log for payout admin edit:', auditErr);
+          }
+        }
+      }
     }
 
     // 3. Update or Create Vehicle specs

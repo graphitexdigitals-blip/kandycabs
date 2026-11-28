@@ -1156,24 +1156,9 @@ export default function AdminBookingsPage() {
                       <span className="text-xs text-slate-500 font-mono block">
                         {b.assignedDriver.user?.phone}
                       </span>
-                      <div>
-                        {b.driverPaymentStatus === 'PAID' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#edfbf3] text-[#1e8a4a] border border-[#c4f0d5] mt-1">
-                            <svg className="w-3 h-3 text-[#1e8a4a] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                            <span>Driver Paid</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#fff1f1] text-[#cf2a2a] border border-[#fed6d6] mt-1">
-                            <svg className="w-3 h-3 text-[#cf2a2a] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <line x1="18" y1="6" x2="6" y2="18" />
-                              <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                            <span>Driver Not Paid</span>
-                          </span>
-                        )}
-                      </div>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mt-1">
+                        <span>✓ In Driver Wallet</span>
+                      </span>
                     </div>
                   );
                 }

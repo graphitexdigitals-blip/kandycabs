@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AVAILABLE_LANGUAGES } from '../constants/languages';
 
 interface DriverProfileModalProps {
   visible: boolean;
@@ -44,10 +45,20 @@ export function DriverProfileModal({
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const prevVisibleRef = React.useRef(false);
 
-  // Sync state when driver changes or modal opens
+  // Sync state when modal opens, but never reset or overwrite when user is actively editing
   useEffect(() => {
-    if (visible && driver) {
+    if (!visible) {
+      prevVisibleRef.current = false;
+      setIsEditing(false);
+      return;
+    }
+
+    // Modal just became visible (opened)
+    if (!prevVisibleRef.current && driver) {
+      prevVisibleRef.current = true;
       setFullName(driver.fullName || '');
       setPhone(driver.phone || '');
       setAltPhone(driver.emergencyContact || driver.altPhone || '');
@@ -57,9 +68,45 @@ export function DriverProfileModal({
       setCity(driver.city || 'Mangaluru');
       setAddress(driver.address || '');
       setProfilePhoto(driver.profilePhotoUrl || null);
+
+      let langs: string[] = [];
+      if (Array.isArray(driver.languages) && driver.languages.length > 0) {
+        langs = driver.languages;
+      } else if (driver.adminNotes) {
+        const langMatch = driver.adminNotes.match(/\[Languages:\s*(\[[\s\S]*?\])\]/);
+        if (langMatch && langMatch[1]) {
+          try {
+            const parsed = JSON.parse(langMatch[1]);
+            if (Array.isArray(parsed) && parsed.length > 0) langs = parsed;
+          } catch {}
+        }
+      }
+      if (langs.length === 0) {
+        langs = ['Kannada', 'English'];
+      }
+      setSelectedLanguages(langs);
       setIsEditing(false);
+      return;
     }
-  }, [visible, driver]);
+
+    // If modal is already open and user is actively editing, NEVER overwrite inputs or exit editing mode!
+    if (isEditing) {
+      return;
+    }
+
+    // When in read-only mode, keep display values fresh if driver updates in background
+    if (driver) {
+      setFullName(driver.fullName || '');
+      setPhone(driver.phone || '');
+      setAltPhone(driver.emergencyContact || driver.altPhone || '');
+      setEmail(driver.email || '');
+      setLicenseNumber(driver.licenseNumber || driver.docDates?.license?.docNumber || '');
+      setExperience(String(driver.experienceYears || driver.experience || '5'));
+      setCity(driver.city || 'Mangaluru');
+      setAddress(driver.address || '');
+      setProfilePhoto(driver.profilePhotoUrl || null);
+    }
+  }, [visible, driver, isEditing]);
 
   const openPicker = async (source: 'camera' | 'gallery') => {
     try {
@@ -136,6 +183,7 @@ export function DriverProfileModal({
         city: city.trim(),
         address: address.trim(),
         profilePhotoUrl: profilePhoto || driver?.profilePhotoUrl,
+        languages: selectedLanguages,
       };
 
       await onSaveProfile(updated);
@@ -206,6 +254,7 @@ export function DriverProfileModal({
             style={{ flex: 1 }}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
             showsVerticalScrollIndicator={false}
           >
             {/* Profile Avatar Card */}
@@ -343,6 +392,82 @@ export function DriverProfileModal({
                   <View style={styles.readOnlyWrapper}>
                     <Ionicons name="mail-outline" size={18} color="#0f2744" style={styles.inputIcon} />
                     <Text style={styles.readOnlyText}>{email || 'Not provided'}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Languages Known */}
+              <View style={styles.fieldBox}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <Text style={styles.fieldLabel}>Languages Known</Text>
+                  {isEditing && (
+                    <Text style={styles.fieldSubHelper}>
+                      {selectedLanguages.length} selected
+                    </Text>
+                  )}
+                </View>
+
+                {isEditing ? (
+                  <View style={styles.langSelectorWrapper}>
+                    <Text style={styles.langSelectorHint}>
+                      Select languages you can comfortably speak with passengers:
+                    </Text>
+                    <View style={styles.langChipsContainer}>
+                      {AVAILABLE_LANGUAGES.map((lang) => {
+                        const isSelected = selectedLanguages.includes(lang.id);
+                        return (
+                          <TouchableOpacity
+                            key={lang.id}
+                            style={[
+                              styles.langChip,
+                              isSelected && styles.langChipSelected,
+                            ]}
+                            onPress={() => {
+                              setSelectedLanguages((prev) =>
+                                isSelected ? prev.filter((l) => l !== lang.id) : [...prev, lang.id]
+                              );
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons
+                              name={isSelected ? 'checkmark-circle' : 'add-circle-outline'}
+                              size={15}
+                              color={isSelected ? '#ffffff' : '#64748b'}
+                              style={{ marginRight: 5 }}
+                            />
+                            <Text
+                              style={[
+                                styles.langChipText,
+                                isSelected && styles.langChipTextSelected,
+                              ]}
+                            >
+                              {lang.label} {lang.native !== lang.label ? `(${lang.native})` : ''}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.langReadOnlyContainer}>
+                    <Ionicons name="chatbubbles-outline" size={18} color="#0f2744" style={{ marginRight: 10, marginTop: 2 }} />
+                    <View style={{ flex: 1 }}>
+                      {selectedLanguages.length > 0 ? (
+                        <View style={styles.langDisplayChipsRow}>
+                          {selectedLanguages.map((langId) => {
+                            const match = AVAILABLE_LANGUAGES.find((l) => l.id === langId);
+                            const label = match ? `${match.label} (${match.native})` : langId;
+                            return (
+                              <View key={langId} style={styles.langBadgePill}>
+                                <Text style={styles.langBadgePillText}>{label}</Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      ) : (
+                        <Text style={styles.readOnlyText}>Not specified (Tap Edit to choose languages)</Text>
+                      )}
+                    </View>
                   </View>
                 )}
               </View>
@@ -731,6 +856,80 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#ffffff',
+  },
+  fieldSubHelper: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#0f2744',
+  },
+  langSelectorWrapper: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    padding: 12,
+  },
+  langSelectorHint: {
+    fontSize: 11.5,
+    color: '#64748b',
+    marginBottom: 10,
+    fontWeight: '500',
+  },
+  langChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  langChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+    borderRadius: 20,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+  },
+  langChipSelected: {
+    backgroundColor: '#0f2744',
+    borderColor: '#0f2744',
+  },
+  langChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  langChipTextSelected: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  langReadOnlyContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    padding: 12,
+    minHeight: 46,
+  },
+  langDisplayChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  langBadgePill: {
+    backgroundColor: '#EDF5FE',
+    borderWidth: 1,
+    borderColor: '#C8DCF7',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  langBadgePillText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#0369a1',
   },
 });
 

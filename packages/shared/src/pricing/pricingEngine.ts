@@ -358,8 +358,10 @@ export function calculateFare(input: PricingCalculationInput): PricingBreakdown 
           baseFare = billableDistanceKm * ratePerKm;
         }
       } else {
-        // Default standard minimum 50 km for oneway outstation/city rides
-        billableDistanceKm = Math.max(distanceKm, 50);
+        // Standard minimum KM rule: enforce overrides/vehicle minimum (e.g. 150 km for Urbania / Tempo Traveler, 50 km for standard oneway)
+        const categoryMin = (category === VehicleCategory.URBANIA || (category as string) === 'FORCE_URBANIA' || category === VehicleCategory.TEMPO_TRAVELER) ? 150 : 50;
+        const minRequiredKm = overrides?.minKm || categoryMin;
+        billableDistanceKm = Math.max(distanceKm, minRequiredKm);
         baseFare = billableDistanceKm * ratePerKm;
       }
       // Chauffeur allowance included for one way outstation trips

@@ -5,7 +5,8 @@ import {
   View,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
+  Pressable,
+  Keyboard,
   ScrollView,
   ActivityIndicator,
   Alert,
@@ -58,7 +59,10 @@ export default function DriverTripCompleteScreen() {
   const [odometerImageUri, setOdometerImageUri] = useState<string | null>(null);
   const [odometerPhotoAttached, setOdometerPhotoAttached] = useState(false);
   const [nhTollAmount, setNhTollAmount] = useState('');
-  const [niceRoadTollAmount, setNiceRoadTollAmount] = useState('');
+  const [expresswayTollAmount, setExpresswayTollAmount] = useState('');
+  const [specialPermitAmount, setSpecialPermitAmount] = useState('');
+  const [statePermitAmount, setStatePermitAmount] = useState('');
+  const [airportFeeAmount, setAirportFeeAmount] = useState('');
   const [parkingAmount, setParkingAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -162,8 +166,17 @@ export default function DriverTripCompleteScreen() {
       } else if (draft.tollAmount) {
         setNhTollAmount(draft.tollAmount);
       }
-      if (draft.niceRoadTollAmount) {
-        setNiceRoadTollAmount(draft.niceRoadTollAmount);
+      if (draft.expresswayTollAmount || draft.niceRoadTollAmount) {
+        setExpresswayTollAmount(draft.expresswayTollAmount || draft.niceRoadTollAmount || '');
+      }
+      if (draft.specialPermitAmount) {
+        setSpecialPermitAmount(draft.specialPermitAmount);
+      }
+      if (draft.statePermitAmount) {
+        setStatePermitAmount(draft.statePermitAmount);
+      }
+      if (draft.airportFeeAmount) {
+        setAirportFeeAmount(draft.airportFeeAmount);
       }
       if (draft.parkingAmount) {
         setParkingAmount(draft.parkingAmount);
@@ -301,11 +314,70 @@ export default function DriverTripCompleteScreen() {
 
   const isCurrentPayLater = isBookingPayLater;
 
-  const baseBalance = parseFloat(booking?.balanceAmount) || 0;
+  const odometerPricing = useMemo(() => {
+    const startOdo = parseFloat(booking?.startingOdometer ?? 0) || 0;
+    const endOdo = parseFloat(finalOdometer?.trim() || '0');
+    const hasValidEndOdo = !isNaN(endOdo) && endOdo > 0 && endOdo >= startOdo;
+
+    const actualDistanceKm = hasValidEndOdo ? Math.max(0, Math.round((endOdo - startOdo) * 10) / 10) : 0;
+    const bookedDistanceKm = parseFloat(booking?.distanceKm || booking?.estimatedDistance || 0) || 0;
+    const baseBookedFare = parseFloat(booking?.estimatedFare || booking?.totalAmount || 0) || 0;
+    const advanceAmount = parseFloat(booking?.advanceAmount || 0) || 0;
+    const isAdvancePaid = booking?.advancePaymentStatus === 'PAID';
+    const advancePaid = isAdvancePaid ? advanceAmount : 0;
+
+    // Unit rate per km (e.g. ₹2,565 / 171 km = ₹15/km) or default 15
+    const unitRate = bookedDistanceKm > 0 ? (baseBookedFare / bookedDistanceKm) : 15;
+    const extraKmRate = Math.round(unitRate) || 15;
+
+    let extraKm = 0;
+    let extraKmCharge = 0;
+    let calculatedTripFare = baseBookedFare;
+
+    // Minimum guaranteed base fare rule:
+    // If actualDistanceKm <= bookedDistanceKm, keep full baseBookedFare (e.g. ₹2,565 for 171 km).
+    // If actualDistanceKm > bookedDistanceKm, bill extra km charge.
+    if (hasValidEndOdo && bookedDistanceKm > 0 && actualDistanceKm > bookedDistanceKm) {
+      extraKm = Math.round((actualDistanceKm - bookedDistanceKm) * 10) / 10;
+      extraKmCharge = Math.round(extraKm * extraKmRate);
+      calculatedTripFare = baseBookedFare + extraKmCharge;
+    }
+
+    const baseBalance = Math.max(0, Math.round(calculatedTripFare - advancePaid));
+
+    return {
+      startOdo,
+      endOdo,
+      hasValidEndOdo,
+      actualDistanceKm,
+      bookedDistanceKm,
+      baseBookedFare,
+      extraKmRate,
+      extraKm,
+      extraKmCharge,
+      calculatedTripFare,
+      advancePaid,
+      isAdvancePaid,
+      baseBalance,
+    };
+  }, [booking, finalOdometer]);
+
+  const baseBalance = odometerPricing.baseBalance;
   const parsedNhToll = parseFloat(nhTollAmount) || 0;
-  const parsedNiceRoadToll = parseFloat(niceRoadTollAmount) || 0;
+  const parsedExpresswayToll = parseFloat(expresswayTollAmount) || 0;
+  const parsedSpecialPermit = parseFloat(specialPermitAmount) || 0;
+  const parsedStatePermit = parseFloat(statePermitAmount) || 0;
+  const parsedAirportFee = parseFloat(airportFeeAmount) || 0;
   const parsedParking = parseFloat(parkingAmount) || 0;
-  const totalExtraCharges = parsedNhToll + parsedNiceRoadToll + parsedParking;
+
+  const totalExtraCharges =
+    parsedNhToll +
+    parsedExpresswayToll +
+    parsedSpecialPermit +
+    parsedStatePermit +
+    parsedAirportFee +
+    parsedParking;
+
   const actualRemainingAmount = Math.max(0, Math.round(baseBalance + totalExtraCharges));
   
   // If customer pays later, amount reflects 0 for the driver
@@ -317,6 +389,7 @@ export default function DriverTripCompleteScreen() {
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=${encodeURIComponent(upiPayUrl)}`;
 
   const handleOpenPaymentModal = () => {
+    Keyboard.dismiss();
     fetchBookingDetails();
     if (!odometerImageUri) {
       setError(t('complete_trip.photo_mandatory_error', 'Final odometer photo is mandatory'));
@@ -371,9 +444,17 @@ export default function DriverTripCompleteScreen() {
   const handleConfirmPayment = async (method: 'UPI_QR' | 'CASH' | 'PAY_LATER') => {
     const endOdo = parseFloat(finalOdometer);
     const parsedNhTollVal = parseFloat(nhTollAmount) || 0;
-    const parsedNiceRoadTollVal = parseFloat(niceRoadTollAmount) || 0;
-    const parsedTollVal = parsedNhTollVal + parsedNiceRoadTollVal;
+    const parsedExpresswayTollVal = parseFloat(expresswayTollAmount) || 0;
+    const parsedSpecialPermitVal = parseFloat(specialPermitAmount) || 0;
+    const parsedStatePermitVal = parseFloat(statePermitAmount) || 0;
+    const parsedAirportFeeVal = parseFloat(airportFeeAmount) || 0;
     const parsedParkingVal = parseFloat(parkingAmount) || 0;
+    const parsedTollVal =
+      parsedNhTollVal +
+      parsedExpresswayTollVal +
+      parsedSpecialPermitVal +
+      parsedStatePermitVal +
+      parsedAirportFeeVal;
 
     setLoading(true);
     setPaymentError('');
@@ -383,11 +464,13 @@ export default function DriverTripCompleteScreen() {
       const latestCoords = locationTracker.getCurrentCoordinates();
       const actualLat = latestCoords.lat ?? currentCoordsRef.current?.lat ?? currentCoords?.lat ?? photoLocation?.lat ?? booking?.dropLat;
       const actualLng = latestCoords.lng ?? currentCoordsRef.current?.lng ?? currentCoords?.lng ?? photoLocation?.lng ?? booking?.dropLng;
-      const actualAddress = await reverseGeocodeAddress(
-        actualLat,
-        actualLng,
-        booking?.dropAddress
-      );
+      let actualAddress = booking?.dropAddress || '';
+      try {
+        actualAddress = await Promise.race([
+          reverseGeocodeAddress(actualLat, actualLng, booking?.dropAddress),
+          new Promise<string>((resolve) => setTimeout(() => resolve(booking?.dropAddress || ''), 3500)),
+        ]);
+      } catch (_) {}
 
       const bId = bookingId || booking?.id;
       const waitingState = bId ? getTripWaitingState(bId) : null;
@@ -402,7 +485,10 @@ export default function DriverTripCompleteScreen() {
           finalOdometer: endOdo,
           finalOdometerImagePath: odometerImageUri,
           nhTollAmount: parsedNhTollVal,
-          niceRoadTollAmount: parsedNiceRoadTollVal,
+          expresswayTollAmount: parsedExpresswayTollVal,
+          specialPermitAmount: parsedSpecialPermitVal,
+          statePermitAmount: parsedStatePermitVal,
+          airportFeeAmount: parsedAirportFeeVal,
           tollAmount: parsedTollVal,
           parkingAmount: parsedParkingVal,
           paymentMethod: method,
@@ -607,11 +693,87 @@ export default function DriverTripCompleteScreen() {
                   {t('complete_trip.manual_reading_hint', 'Enter final reading manually in KM. Odometer reading is mandatory.')}
                 </Text>
               </View>
+
+              {/* Live Odometer Distance & Fare Reconciliation Card */}
+              {odometerPricing.hasValidEndOdo ? (
+                <View style={styles.odoReconcileCard}>
+                  <View style={styles.odoReconcileHeader}>
+                    <View style={styles.odoReconcileIconBadge}>
+                      <Ionicons name="speedometer" size={18} color="#0f172a" />
+                    </View>
+                    <Text style={styles.odoReconcileTitle}>Odometer Trip Distance & Fare</Text>
+                  </View>
+
+                  {/* Distance Stats Row */}
+                  <View style={styles.odoStatsRow}>
+                    <View style={styles.odoStatCol}>
+                      <Text style={styles.odoStatLabel}>START ODO</Text>
+                      <Text style={styles.odoStatVal}>{odometerPricing.startOdo} KM</Text>
+                    </View>
+                    <Ionicons name="arrow-forward" size={16} color="#94a3b8" style={{ marginTop: 12 }} />
+                    <View style={styles.odoStatCol}>
+                      <Text style={styles.odoStatLabel}>FINAL ODO</Text>
+                      <Text style={styles.odoStatVal}>{odometerPricing.endOdo} KM</Text>
+                    </View>
+                    <View style={styles.odoStatColHighlight}>
+                      <Text style={styles.odoStatLabelHighlight}>ACTUAL DRIVEN</Text>
+                      <Text style={styles.odoStatValHighlight}>{odometerPricing.actualDistanceKm} KM</Text>
+                    </View>
+                  </View>
+
+                  {/* Over / Within Booked Distance Banner */}
+                  {odometerPricing.extraKm > 0 ? (
+                    <View style={styles.extraKmBanner}>
+                      <Ionicons name="add-circle" size={16} color="#b45309" />
+                      <Text style={styles.extraKmBannerText}>
+                        +{odometerPricing.extraKm} KM extra driven (beyond {odometerPricing.bookedDistanceKm} KM booked) = +₹{odometerPricing.extraKmCharge}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.withinKmBanner}>
+                      <Ionicons name="checkmark-circle" size={16} color="#15803d" />
+                      <Text style={styles.withinKmBannerText}>
+                        Within booked distance ({odometerPricing.bookedDistanceKm} KM) · Guaranteed base fare ₹{odometerPricing.baseBookedFare}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Fare Breakdown List */}
+                  <View style={styles.odoFareBreakdown}>
+                    <View style={styles.odoFareRow}>
+                      <Text style={styles.odoFareLabel}>Trip Base Fare ({odometerPricing.bookedDistanceKm} KM):</Text>
+                      <Text style={styles.odoFareVal}>₹{odometerPricing.baseBookedFare}</Text>
+                    </View>
+                    {odometerPricing.extraKm > 0 ? (
+                      <View style={styles.odoFareRow}>
+                        <Text style={[styles.odoFareLabel, { color: '#b45309' }]}>
+                          Extra Distance ({odometerPricing.extraKm} KM @ ₹{odometerPricing.extraKmRate}/km):
+                        </Text>
+                        <Text style={[styles.odoFareVal, { color: '#b45309' }]}>+₹{odometerPricing.extraKmCharge}</Text>
+                      </View>
+                    ) : null}
+                    <View style={[styles.odoFareRow, { borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 6 }]}>
+                      <Text style={[styles.odoFareLabel, { fontWeight: '700', color: '#0f172a' }]}>Total Trip Fare:</Text>
+                      <Text style={[styles.odoFareVal, { fontWeight: '800', color: '#0f172a' }]}>₹{odometerPricing.calculatedTripFare}</Text>
+                    </View>
+                    {odometerPricing.advancePaid > 0 ? (
+                      <View style={styles.odoFareRow}>
+                        <Text style={[styles.odoFareLabel, { color: '#16a34a' }]}>Advance Deducted (Paid):</Text>
+                        <Text style={[styles.odoFareVal, { color: '#16a34a' }]}>-₹{odometerPricing.advancePaid}</Text>
+                      </View>
+                    ) : null}
+                    <View style={[styles.odoFareRow, styles.odoFareRowTotal]}>
+                      <Text style={styles.odoFareLabelTotal}>Remaining Base Balance:</Text>
+                      <Text style={styles.odoFareValTotal}>₹{odometerPricing.baseBalance}</Text>
+                    </View>
+                  </View>
+                </View>
+              ) : null}
             </View>
           </View>
         </View>
 
-        {/* 2. Extra Charges: NH Toll, Nice Road Toll & Parking */}
+        {/* 2. Extra Charges: NH Toll, Expressway Toll, Special Permit, State Permit, Airport Fee & Parking */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.walletIconCircle}>
@@ -621,16 +783,17 @@ export default function DriverTripCompleteScreen() {
               <View style={styles.sectionTitleRow}>
                 <Text style={styles.sectionTitle}>{t('trip_flow.additional_charges', 'Additional Charges')}</Text>
               </View>
+              <Text style={styles.sectionSubtitle}>Enter any tolls, permits, airport or parking charges</Text>
             </View>
           </View>
 
-          {/* Row 1: NH Toll & Nice Road Toll */}
+          {/* Row 1: National Highway Toll & Expressway Toll */}
           <View style={styles.extraChargesRow}>
             {/* NH Toll Box */}
             <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
-                <Ionicons name="business" size={16} color="#0f172a" />
-                <Text style={styles.chargeLabel}>{t('trip_flow.nh_toll_fare', 'NH Toll (₹)')}</Text>
+                <Ionicons name="trail-sign-outline" size={15} color="#0f172a" />
+                <Text style={styles.chargeLabel} numberOfLines={1}>NH Toll (₹)</Text>
               </View>
               <TextInput
                 style={styles.chargeInput}
@@ -646,19 +809,19 @@ export default function DriverTripCompleteScreen() {
               />
             </View>
 
-            {/* Nice Road Toll Box */}
+            {/* Expressway Toll Box */}
             <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
-                <Ionicons name="git-merge" size={16} color="#0f172a" />
-                <Text style={styles.chargeLabel}>{t('trip_flow.nice_road_toll_fare', 'Nice Road Toll (₹)')}</Text>
+                <Ionicons name="git-merge-outline" size={15} color="#0f172a" />
+                <Text style={styles.chargeLabel} numberOfLines={1}>Expressway Toll (₹)</Text>
               </View>
               <TextInput
                 style={styles.chargeInput}
-                value={niceRoadTollAmount}
+                value={expresswayTollAmount}
                 onChangeText={(val) => {
-                  setNiceRoadTollAmount(val);
+                  setExpresswayTollAmount(val);
                   const id = bookingId || booking?.id;
-                  if (id) setTripCompletionDraft(id, { niceRoadTollAmount: val });
+                  if (id) setTripCompletionDraft(id, { expresswayTollAmount: val });
                 }}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
@@ -667,13 +830,76 @@ export default function DriverTripCompleteScreen() {
             </View>
           </View>
 
-          {/* Row 2: Parking Fare & Total Extra Summary */}
-          <View style={[styles.extraChargesRow, { marginTop: 8 }]}>
+          {/* Row 2: Special Permit & State Permit */}
+          <View style={[styles.extraChargesRow, { marginTop: 10 }]}>
+            {/* Special Permit Box */}
+            <View style={styles.chargeBox}>
+              <View style={styles.chargeHeaderRow}>
+                <Ionicons name="ribbon-outline" size={15} color="#0f172a" />
+                <Text style={styles.chargeLabel} numberOfLines={1}>Special Permit (₹)</Text>
+              </View>
+              <TextInput
+                style={styles.chargeInput}
+                value={specialPermitAmount}
+                onChangeText={(val) => {
+                  setSpecialPermitAmount(val);
+                  const id = bookingId || booking?.id;
+                  if (id) setTripCompletionDraft(id, { specialPermitAmount: val });
+                }}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor="#64748b"
+              />
+            </View>
+
+            {/* State Permit Box */}
+            <View style={styles.chargeBox}>
+              <View style={styles.chargeHeaderRow}>
+                <Ionicons name="shield-checkmark-outline" size={15} color="#0f172a" />
+                <Text style={styles.chargeLabel} numberOfLines={1}>State Permit (₹)</Text>
+              </View>
+              <TextInput
+                style={styles.chargeInput}
+                value={statePermitAmount}
+                onChangeText={(val) => {
+                  setStatePermitAmount(val);
+                  const id = bookingId || booking?.id;
+                  if (id) setTripCompletionDraft(id, { statePermitAmount: val });
+                }}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor="#64748b"
+              />
+            </View>
+          </View>
+
+          {/* Row 3: Airport Entry/Exit Fee & Parking */}
+          <View style={[styles.extraChargesRow, { marginTop: 10 }]}>
+            {/* Airport Fee Box */}
+            <View style={styles.chargeBox}>
+              <View style={styles.chargeHeaderRow}>
+                <Ionicons name="airplane-outline" size={15} color="#0f172a" />
+                <Text style={styles.chargeLabel} numberOfLines={1}>Airport Fee (₹)</Text>
+              </View>
+              <TextInput
+                style={styles.chargeInput}
+                value={airportFeeAmount}
+                onChangeText={(val) => {
+                  setAirportFeeAmount(val);
+                  const id = bookingId || booking?.id;
+                  if (id) setTripCompletionDraft(id, { airportFeeAmount: val });
+                }}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor="#64748b"
+              />
+            </View>
+
             {/* Parking Fare Box */}
             <View style={styles.chargeBox}>
               <View style={styles.chargeHeaderRow}>
-                <MaterialCommunityIcons name="parking" size={16} color="#0f172a" />
-                <Text style={styles.chargeLabel}>{t('trip_flow.parking_fare', 'Parking (₹)')}</Text>
+                <MaterialCommunityIcons name="parking" size={15} color="#0f172a" />
+                <Text style={styles.chargeLabel} numberOfLines={1}>Parking (₹)</Text>
               </View>
               <TextInput
                 style={styles.chargeInput}
@@ -688,19 +914,19 @@ export default function DriverTripCompleteScreen() {
                 placeholderTextColor="#64748b"
               />
             </View>
+          </View>
 
-            {/* Total Additional Charges Summary Box */}
-            <View style={styles.chargeBox}>
-              <View style={styles.chargeHeaderRow}>
-                <Ionicons name="calculator" size={16} color="#0f172a" />
-                <Text style={styles.chargeLabel}>{t('complete_trip.total_extra', 'Total Extra')}</Text>
+          {/* Row 4: Total Additional Charges Summary Banner */}
+          <View style={styles.totalExtraSummaryCard}>
+            <View style={styles.totalExtraSummaryLeft}>
+              <View style={styles.totalExtraIconCircle}>
+                <Ionicons name="calculator" size={16} color="#ffffff" />
               </View>
-              <View style={styles.totalExtraDisplayBox}>
-                <Text style={styles.totalExtraAmount}>
-                  ₹{totalExtraCharges.toFixed(2)}
-                </Text>
-              </View>
+              <Text style={styles.totalExtraSummaryLabel}>Total Additional Charges</Text>
             </View>
+            <Text style={styles.totalExtraSummaryAmount}>
+              ₹{totalExtraCharges.toFixed(2)}
+            </Text>
           </View>
         </View>
       </ScrollView>
@@ -761,10 +987,15 @@ export default function DriverTripCompleteScreen() {
         transparent
         animationType="slide"
         onRequestClose={() => {
-          if (!loading && !tripSuccess) setShowPaymentModal(false);
+          setShowPaymentModal(false);
         }}
       >
-        <SafeAreaView style={styles.modalBackdrop}>
+        <View style={styles.modalBackdrop}>
+          {/* Backdrop tap dismiss */}
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowPaymentModal(false)}
+          />
           <View style={styles.modalContainer}>
             {tripSuccess ? (
               /* Success Receipt State */
@@ -837,6 +1068,7 @@ export default function DriverTripCompleteScreen() {
               /* Payment Options Selection & Confirmation State */
               <ScrollView
                 showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="always"
                 contentContainerStyle={styles.modalScrollContent}
               >
                 {/* Modal Header */}
@@ -849,10 +1081,11 @@ export default function DriverTripCompleteScreen() {
                   </View>
                   <TouchableOpacity
                     style={styles.modalCloseBtn}
-                    onPress={() => !loading && setShowPaymentModal(false)}
-                    disabled={loading}
+                    onPress={() => setShowPaymentModal(false)}
+                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                    activeOpacity={0.7}
                   >
-                    <Ionicons name="close" size={20} color="#64748b" />
+                    <Ionicons name="close" size={22} color="#475569" />
                   </TouchableOpacity>
                 </View>
 
@@ -906,7 +1139,6 @@ export default function DriverTripCompleteScreen() {
                           <Text
                             style={styles.confirmPaymentBtnText}
                             numberOfLines={1}
-                            adjustsFontSizeToFit
                           >
                             Complete Ride (₹0 to Collect)
                           </Text>
@@ -1036,7 +1268,6 @@ export default function DriverTripCompleteScreen() {
                               <Text
                                 style={styles.confirmPaymentBtnText}
                                 numberOfLines={1}
-                                adjustsFontSizeToFit
                               >
                                 {t('complete_trip.confirm_qr_payment', 'Confirm Payment')}
                               </Text>
@@ -1090,7 +1321,6 @@ export default function DriverTripCompleteScreen() {
                               <Text
                                 style={styles.confirmPaymentBtnText}
                                 numberOfLines={1}
-                                adjustsFontSizeToFit
                               >
                                 {t('complete_trip.confirm_cash_collected', 'Confirm Cash')}
                               </Text>
@@ -1104,7 +1334,7 @@ export default function DriverTripCompleteScreen() {
               </ScrollView>
             )}
           </View>
-        </SafeAreaView>
+        </View>
       </Modal>
     </View>
   );
@@ -1746,6 +1976,39 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0f172a',
   },
+  totalExtraSummaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#0f172a',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginTop: 12,
+  },
+  totalExtraSummaryLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  totalExtraIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  totalExtraSummaryLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  totalExtraSummaryAmount: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#ffffff',
+  },
   chargeHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1974,6 +2237,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     maxHeight: '92%',
     paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    zIndex: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
@@ -2474,6 +2738,155 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#047857',
+  },
+  // Odometer live calculation & reconciliation card
+  odoReconcileCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 14,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  odoReconcileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  odoReconcileIconBadge: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  odoReconcileTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.2,
+  },
+  odoStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 10,
+  },
+  odoStatCol: {
+    alignItems: 'center',
+  },
+  odoStatLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748b',
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  odoStatVal: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1e293b',
+  },
+  odoStatColHighlight: {
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  odoStatLabelHighlight: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#94a3b8',
+    letterSpacing: 0.3,
+    marginBottom: 1,
+  },
+  odoStatValHighlight: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#38bdf8',
+  },
+  extraKmBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  extraKmBannerText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#b45309',
+    flex: 1,
+  },
+  withinKmBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  withinKmBannerText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#15803d',
+    flex: 1,
+  },
+  odoFareBreakdown: {
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    paddingTop: 8,
+    gap: 4,
+  },
+  odoFareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  odoFareLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  odoFareVal: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  odoFareRowTotal: {
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    paddingTop: 6,
+    marginTop: 4,
+  },
+  odoFareLabelTotal: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  odoFareValTotal: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#008860',
   },
 });
 
